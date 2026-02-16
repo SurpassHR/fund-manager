@@ -1,0 +1,7 @@
+{
+  "name": "YangJiBao Clone",
+  "description": "A local-first, privacy-focused fund management application replicating the functionality of YangJiBao. Features asset aggregation, offline storage, and financial analysis.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
