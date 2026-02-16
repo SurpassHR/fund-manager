@@ -3,327 +3,423 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../services/db';
 import { useTranslation } from '../services/i18n';
 import { Icons } from './Icon';
-import { MorningstarResponse, MorningstarFund, Fund } from '../types';
+import { MorningstarResponse, MorningstarFund, Fund, FundCommonDataResponse } from '../types';
 
 interface AddFundModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  editFund?: Fund; // Optional prop for editing mode
+    isOpen: boolean;
+    onClose: () => void;
+    editFund?: Fund;
 }
 
 export const AddFundModal: React.FC<AddFundModalProps> = ({ isOpen, onClose, editFund }) => {
-  const { t } = useTranslation();
-  const accounts = useLiveQuery(() => db.accounts.toArray());
-  
-  const [query, setQuery] = useState('');
-  const [results, setResults] = useState<MorningstarFund[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  
-  // For Edit Mode, we fake a MorningstarFund object or just skip the search step
-  const [selectedFund, setSelectedFund] = useState<MorningstarFund | Fund | null>(null);
-  const [currentNav, setCurrentNav] = useState<number>(0);
-  
-  // Form State
-  const [amount, setAmount] = useState(''); // Holding Amount
-  const [gain, setGain] = useState('');     // Total Gain
-  const [selectedAccount, setSelectedAccount] = useState('Default');
+    const { t } = useTranslation();
+    const accounts = useLiveQuery(() => db.accounts.toArray());
 
-  // Reset or Populate when opening/changing mode
-  useEffect(() => {
-    if (isOpen) {
-        if (editFund) {
-            setSelectedFund(editFund);
-            setCurrentNav(editFund.currentNav);
-            
-            // Calculate initial Amount and Gain for display
-            const initialAmount = editFund.holdingShares * editFund.currentNav;
-            const initialGain = initialAmount - (editFund.holdingShares * editFund.costPrice);
-            setAmount(initialAmount.toFixed(2));
-            setGain(initialGain.toFixed(2));
-            
-            setSelectedAccount(editFund.platform);
-        } else {
-            // Reset for new entry
-            setQuery('');
-            setResults([]);
-            setSelectedFund(null);
-            setCurrentNav(0);
-            setAmount('');
-            setGain('');
-            setSelectedAccount('Default');
+    const [query, setQuery] = useState('');
+    const [results, setResults] = useState<MorningstarFund[]>([]);
+    const [loading, setLoading] = useState(false);
+    const [navLoading, setNavLoading] = useState(false);
+    const [error, setError] = useState('');
+
+    const [selectedFund, setSelectedFund] = useState<MorningstarFund | Fund | null>(null);
+    const [currentNav, setCurrentNav] = useState<number>(0);
+    const [navChangePct, setNavChangePct] = useState<number>(0);
+    const [navDate, setNavDate] = useState<string>('');
+
+    // 表单状态：四个联动字段
+    const [amount, setAmount] = useState('');     // 持有金额
+    const [shares, setShares] = useState('');     // 持有份额
+    const [costPrice, setCostPrice] = useState(''); // 持仓成本（单价）
+    const [gain, setGain] = useState('');         // 持有收益
+    const [selectedAccount, setSelectedAccount] = useState('Default');
+
+    // 初始化 / 编辑模式填充
+    useEffect(() => {
+        if (isOpen) {
+            if (editFund) {
+                setSelectedFund(editFund);
+                setCurrentNav(editFund.currentNav);
+
+                const initialShares = editFund.holdingShares;
+                const initialAmount = initialShares * editFund.currentNav;
+                const initialGain = initialAmount - (initialShares * editFund.costPrice);
+
+                setShares(initialShares.toFixed(2));
+                setAmount(initialAmount.toFixed(2));
+                setCostPrice(editFund.costPrice.toFixed(4));
+                setGain(initialGain.toFixed(2));
+                setSelectedAccount(editFund.platform);
+            } else {
+                setQuery('');
+                setResults([]);
+                setSelectedFund(null);
+                setCurrentNav(0);
+                setAmount('');
+                setShares('');
+                setCostPrice('');
+                setGain('');
+                setSelectedAccount('Default');
+            }
+            setError('');
         }
+    }, [isOpen, editFund]);
+
+    if (!isOpen) return null;
+
+    // --- 联动计算 ---
+
+    /** 修改持有金额 → 自动算份额；如有成本价，算收益 */
+    const handleAmountChange = (val: string) => {
+        setAmount(val);
+        const a = parseFloat(val);
+        if (isNaN(a) || currentNav <= 0) return;
+        const newShares = a / currentNav;
+        setShares(newShares.toFixed(2));
+        const c = parseFloat(costPrice);
+        if (!isNaN(c)) {
+            setGain((a - c * newShares).toFixed(2));
+        }
+    };
+
+    /** 修改持有份额 → 自动算金额；如有成本价，算收益 */
+    const handleSharesChange = (val: string) => {
+        setShares(val);
+        const s = parseFloat(val);
+        if (isNaN(s) || currentNav <= 0) return;
+        const newAmount = s * currentNav;
+        setAmount(newAmount.toFixed(2));
+        const c = parseFloat(costPrice);
+        if (!isNaN(c)) {
+            setGain((newAmount - c * s).toFixed(2));
+        }
+    };
+
+    /** 修改持仓成本 → 自动算收益 */
+    const handleCostPriceChange = (val: string) => {
+        setCostPrice(val);
+        const c = parseFloat(val);
+        const s = parseFloat(shares);
+        const a = parseFloat(amount);
+        if (isNaN(c) || isNaN(s) || isNaN(a)) return;
+        setGain((a - c * s).toFixed(2));
+    };
+
+    /** 修改持有收益 → 自动反推成本价 */
+    const handleGainChange = (val: string) => {
+        setGain(val);
+        const g = parseFloat(val);
+        const s = parseFloat(shares);
+        const a = parseFloat(amount);
+        if (isNaN(g) || isNaN(s) || s <= 0 || isNaN(a)) return;
+        setCostPrice(((a - g) / s).toFixed(4));
+    };
+
+    // --- 搜索 & 选择 ---
+
+    const handleSearch = async () => {
+        if (!query) return;
+        setLoading(true);
         setError('');
-    }
-  }, [isOpen, editFund]);
-
-  if (!isOpen) return null;
-
-  const handleSearch = async () => {
-    if (!query) return;
-    setLoading(true);
-    setError('');
-    setResults([]);
-    setSelectedFund(null);
-
-    try {
-      const response = await fetch(`https://www.morningstar.cn/cn-api/public/v1/fund-cache/${encodeURIComponent(query)}`);
-      if (!response.ok) {
-        throw new Error('Network response was not ok');
-      }
-      const data: MorningstarResponse = await response.json();
-      if (data && data.data) {
-        setResults(data.data);
-      } else {
         setResults([]);
-      }
-    } catch (err) {
-      console.error(err);
-      setError('Failed to fetch funds. Ensure CORS is handled or try again.');
-    } finally {
-      setLoading(false);
-    }
-  };
+        setSelectedFund(null);
 
-  const handleSelect = (fund: MorningstarFund) => {
-    setSelectedFund(fund);
-    // Simulate getting latest NAV for a new fund so calculations work
-    // In a real app, you would fetch the detail API here.
-    const mockNav = parseFloat((Math.random() * 2 + 1).toFixed(4));
-    setCurrentNav(mockNav);
-  };
+        try {
+            const response = await fetch(`https://www.morningstar.cn/cn-api/public/v1/fund-cache/${encodeURIComponent(query)}`);
+            if (!response.ok) throw new Error('Network response was not ok');
+            const data: MorningstarResponse = await response.json();
+            setResults(data?.data ?? []);
+        } catch (err) {
+            console.error(err);
+            setError('搜索失败，请检查网络或稍后重试');
+        } finally {
+            setLoading(false);
+        }
+    };
 
-  const handleSave = async () => {
-    if (!selectedFund) return;
-    if (currentNav <= 0) {
-        alert("Invalid NAV");
-        return;
-    }
-    
-    const valAmount = parseFloat(amount);
-    const valGain = parseFloat(gain); // Can be negative, NaN if empty
+    /** 选中基金后，自动拉取最新净值并默认成本价 */
+    const handleSelect = async (fund: MorningstarFund) => {
+        setSelectedFund(fund);
+        setNavLoading(true);
+        let nav = 0;
+        let changePct = 0;
+        let date = new Date().toISOString().split('T')[0];
+        try {
+            const res = await fetch(`https://www.morningstar.cn/cn-api/v2/funds/${fund.symbol}/common-data`);
+            if (res.ok) {
+                const json: FundCommonDataResponse = await res.json();
+                if (json?.data?.nav) {
+                    nav = json.data.nav;
+                    changePct = json.data.navChangePercent ?? 0;
+                    date = json.data.navDate ?? date;
+                }
+            }
+        } catch (err) {
+            console.error('获取净值失败，使用模拟值', err);
+        } finally {
+            setNavLoading(false);
+        }
+        if (!nav) {
+            nav = parseFloat((Math.random() * 2 + 1).toFixed(4));
+        }
+        setCurrentNav(nav);
+        setNavChangePct(changePct);
+        setNavDate(date);
+        // 默认持仓成本 = 最新净值
+        setCostPrice(nav.toFixed(4));
+    };
 
-    if (isNaN(valAmount) || valAmount <= 0) {
-        alert("Please enter a valid holding amount.");
-        return;
-    }
-    
-    // Treat empty gain as 0
-    const effectiveGain = isNaN(valGain) ? 0 : valGain;
-    
-    // 1. Calculate Shares = Amount / NAV
-    const calculatedShares = valAmount / currentNav;
-    
-    // 2. Calculate Cost Price. 
-    // Total Cost = Amount - Gain
-    // Unit Cost = Total Cost / Shares
-    const totalCost = valAmount - effectiveGain;
-    const calculatedCostPrice = calculatedShares > 0 ? totalCost / calculatedShares : 0;
+    // --- 保存 ---
 
-    // Check if we are updating existing or adding new
-    if (editFund && editFund.id) {
-        // UPDATE MODE
-        await db.funds.update(editFund.id, {
-            holdingShares: calculatedShares,
-            costPrice: calculatedCostPrice,
-            platform: selectedAccount,
-        });
-    } else {
-        // ADD MODE
-        const mockChangePct = (Math.random() * 4 - 2);
-        
-        // Handle type difference: selectedFund can be MorningstarFund (has symbol) or Fund (has code)
-        const code = 'symbol' in selectedFund ? selectedFund.symbol : selectedFund.code;
-        const name = 'fundNameArr' in selectedFund ? (selectedFund.fundNameArr || selectedFund.fundName) : selectedFund.name;
+    const handleSave = async () => {
+        if (!selectedFund) return;
+        if (currentNav <= 0) {
+            alert('净值无效');
+            return;
+        }
 
-        await db.funds.add({
-            code: code,
-            name: name,
-            platform: selectedAccount,
-            holdingShares: calculatedShares,
-            costPrice: calculatedCostPrice,
-            currentNav: currentNav,
-            lastUpdate: new Date().toISOString().split('T')[0],
-            dayChangePct: mockChangePct,
-            dayChangeVal: currentNav * (mockChangePct / 100)
-        });
-    }
+        const valShares = parseFloat(shares);
+        const valCostPrice = parseFloat(costPrice);
 
-    handleClose();
-  };
+        if (isNaN(valShares) || valShares <= 0) {
+            alert('请输入有效的持有份额');
+            return;
+        }
 
-  const handleClose = () => {
-    setQuery('');
-    setResults([]);
-    setSelectedFund(null);
-    setCurrentNav(0);
-    setAmount('');
-    setGain('');
-    setError('');
-    onClose();
-  };
+        const effectiveCostPrice = isNaN(valCostPrice) ? currentNav : valCostPrice;
 
-  const getGainColor = (val: string) => {
-      if (!val) return 'text-gray-900';
-      if (val === '-') return 'text-stock-green';
-      const num = parseFloat(val);
-      if (isNaN(num)) return 'text-gray-900';
-      if (num > 0) return 'text-stock-red';
-      if (num < 0) return 'text-stock-green';
-      return 'text-gray-900';
-  };
+        if (editFund && editFund.id) {
+            await db.funds.update(editFund.id, {
+                holdingShares: valShares,
+                costPrice: effectiveCostPrice,
+                platform: selectedAccount,
+            });
+        } else {
+            const code = 'symbol' in selectedFund ? selectedFund.symbol : selectedFund.code;
+            const name = 'fundNameArr' in selectedFund ? (selectedFund.fundNameArr || selectedFund.fundName) : selectedFund.name;
+            // 使用 API 返回的真实涨跌幅
+            const mktVal = valShares * currentNav;
+            const dayChangeVal = mktVal * (navChangePct / 100) / (1 + navChangePct / 100);
 
-  // Tailwind utility to hide default browser spin buttons (arrows) on number inputs
-  const noSpinnerClass = "[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none";
+            await db.funds.add({
+                code,
+                name,
+                platform: selectedAccount,
+                holdingShares: valShares,
+                costPrice: effectiveCostPrice,
+                currentNav,
+                lastUpdate: navDate || new Date().toISOString().split('T')[0],
+                dayChangePct: navChangePct,
+                dayChangeVal,
+            });
+        }
 
-  // Helper to safely get name and code for display
-  const displayInfo = () => {
-      if (!selectedFund) return { name: '', code: '' };
-      if ('fundNameArr' in selectedFund) {
-          return { name: selectedFund.fundNameArr || selectedFund.fundName, code: selectedFund.symbol };
-      }
-      return { name: selectedFund.name, code: selectedFund.code };
-  };
+        handleClose();
+    };
 
-  const info = displayInfo();
+    const handleClose = () => {
+        setQuery('');
+        setResults([]);
+        setSelectedFund(null);
+        setCurrentNav(0);
+        setAmount('');
+        setShares('');
+        setCostPrice('');
+        setGain('');
+        setError('');
+        onClose();
+    };
 
-  return (
-    <div className="fixed inset-0 z-[60] bg-black bg-opacity-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-xl w-full max-w-md overflow-hidden shadow-2xl flex flex-col max-h-[85vh]">
-        {/* Header */}
-        <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50 shrink-0">
-            <h3 className="font-bold text-gray-800">
-                {editFund ? t('common.editDetails') : (selectedFund ? t('common.fillDetails') : t('common.addFund'))}
-            </h3>
-            <button onClick={handleClose}><Icons.Plus className="transform rotate-45 text-gray-400" /></button>
-        </div>
+    const getGainColor = (val: string) => {
+        if (!val) return 'text-gray-900';
+        const num = parseFloat(val);
+        if (isNaN(num)) return 'text-gray-900';
+        if (num > 0) return 'text-stock-red';
+        if (num < 0) return 'text-stock-green';
+        return 'text-gray-900';
+    };
 
-        {/* Content */}
-        {!selectedFund ? (
-            <div className="flex flex-col h-full overflow-hidden">
-                <div className="p-4 space-y-3 shrink-0">
-                    <div className="relative">
-                        <input 
-                            type="text" 
-                            value={query}
-                            onChange={(e) => setQuery(e.target.value)}
-                            onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                            placeholder={t('common.searchFund')}
-                            className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl bg-gray-50 focus:bg-white focus:border-blue-500 focus:outline-none transition-all"
-                        />
-                        <Icons.Search className="absolute left-3 top-3.5 text-gray-400" size={18} />
-                        <button 
-                            onClick={handleSearch}
-                            className="absolute right-2 top-2 bg-blue-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold"
-                        >
-                            Search
-                        </button>
-                    </div>
-                    {error && <p className="text-xs text-red-500">{error}</p>}
+    const noSpinnerClass = "[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none";
+
+    const displayInfo = () => {
+        if (!selectedFund) return { name: '', code: '' };
+        if ('fundNameArr' in selectedFund) {
+            return { name: selectedFund.fundNameArr || selectedFund.fundName, code: selectedFund.symbol };
+        }
+        return { name: selectedFund.name, code: selectedFund.code };
+    };
+
+    const info = displayInfo();
+
+    return (
+        <div className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="bg-white rounded-xl w-full max-w-md overflow-hidden shadow-2xl flex flex-col max-h-[85vh]">
+                {/* 标题 */}
+                <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50 shrink-0">
+                    <h3 className="font-bold text-gray-800">
+                        {editFund ? t('common.editDetails') : (selectedFund ? t('common.fillDetails') : t('common.addFund'))}
+                    </h3>
+                    <button onClick={handleClose}><Icons.Plus className="transform rotate-45 text-gray-400" /></button>
                 </div>
 
-                <div className="flex-1 overflow-y-auto p-4 pt-0">
-                    {loading ? (
-                        <div className="text-center text-gray-400 py-8">{t('common.searching')}</div>
-                    ) : results.length > 0 ? (
-                        <div className="space-y-2">
-                            {results.map((fund) => (
-                                <div 
-                                    key={fund.fundClassId}
-                                    onClick={() => handleSelect(fund)}
-                                    className="p-3 border border-gray-100 rounded-lg hover:border-blue-500 hover:bg-blue-50 cursor-pointer transition-all"
+                {/* 内容 */}
+                {!selectedFund ? (
+                    <div className="flex flex-col h-full overflow-hidden">
+                        <div className="p-4 space-y-3 shrink-0">
+                            <div className="relative">
+                                <input
+                                    type="text"
+                                    value={query}
+                                    onChange={(e) => setQuery(e.target.value)}
+                                    onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                                    placeholder={t('common.searchFund')}
+                                    className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl bg-gray-50 focus:bg-white focus:border-blue-500 focus:outline-none transition-all"
+                                />
+                                <Icons.Search className="absolute left-3 top-3.5 text-gray-400" size={18} />
+                                <button
+                                    onClick={handleSearch}
+                                    className="absolute right-2 top-2 bg-blue-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold"
                                 >
-                                    <div className="flex justify-between items-start">
-                                        <div>
-                                            <div className="font-medium text-gray-800 text-sm">{fund.fundNameArr}</div>
-                                            <div className="text-xs text-gray-500 mt-1">{fund.symbol} · {fund.fundType}</div>
+                                    Search
+                                </button>
+                            </div>
+                            {error && <p className="text-xs text-red-500">{error}</p>}
+                        </div>
+
+                        <div className="flex-1 overflow-y-auto p-4 pt-0">
+                            {loading ? (
+                                <div className="text-center text-gray-400 py-8">{t('common.searching')}</div>
+                            ) : results.length > 0 ? (
+                                <div className="space-y-2">
+                                    {results.map((fund) => (
+                                        <div
+                                            key={fund.fundClassId}
+                                            onClick={() => handleSelect(fund)}
+                                            className="p-3 border border-gray-100 rounded-lg hover:border-blue-500 hover:bg-blue-50 cursor-pointer transition-all"
+                                        >
+                                            <div className="flex justify-between items-start">
+                                                <div>
+                                                    <div className="font-medium text-gray-800 text-sm">{fund.fundNameArr}</div>
+                                                    <div className="text-xs text-gray-500 mt-1">{fund.symbol} · {fund.fundType}</div>
+                                                </div>
+                                                <Icons.Plus className="text-blue-500" size={16} />
+                                            </div>
                                         </div>
-                                        <Icons.Plus className="text-blue-500" size={16}/>
-                                    </div>
+                                    ))}
                                 </div>
-                            ))}
+                            ) : (
+                                <div className="text-center text-gray-400 py-10 flex flex-col items-center">
+                                    <Icons.Search size={48} className="text-gray-200 mb-2" strokeWidth={1} />
+                                    <p>{t('common.searchTip')}</p>
+                                </div>
+                            )}
                         </div>
-                    ) : (
-                         <div className="text-center text-gray-400 py-10 flex flex-col items-center">
-                             <Icons.Search size={48} className="text-gray-200 mb-2" strokeWidth={1} />
-                             <p>{t('common.searchTip')}</p>
-                         </div>
-                    )}
-                </div>
-            </div>
-        ) : (
-            <div className="p-6 space-y-4 overflow-y-auto">
-                <div className="bg-blue-50 p-3 rounded-lg border border-blue-100 flex justify-between items-center">
-                    <div>
-                        <div className="font-bold text-blue-900 text-sm">{info.name}</div>
-                        <div className="text-xs text-blue-600 mt-1">{info.code}</div>
                     </div>
-                    <div className="text-right">
-                        <div className="text-[10px] text-blue-400">Current NAV</div>
-                        <div className="font-mono font-bold text-blue-800">{currentNav.toFixed(4)}</div>
-                    </div>
-                </div>
+                ) : (
+                    <div className="p-6 space-y-4 overflow-y-auto">
+                        {/* 基金信息卡 */}
+                        <div className="bg-blue-50 p-3 rounded-lg border border-blue-100 flex justify-between items-center">
+                            <div>
+                                <div className="font-bold text-blue-900 text-sm">{info.name}</div>
+                                <div className="text-xs text-blue-600 mt-1">{info.code}</div>
+                            </div>
+                            <div className="text-right">
+                                <div className="text-[10px] text-blue-400">{t('common.nav')}</div>
+                                <div className="font-mono font-bold text-blue-800">
+                                    {navLoading ? '...' : currentNav.toFixed(4)}
+                                </div>
+                            </div>
+                        </div>
 
-                <div>
-                    <label className="block text-xs font-bold text-gray-500 mb-1">{t('common.account')}</label>
-                    <select 
-                        value={selectedAccount}
-                        onChange={(e) => setSelectedAccount(e.target.value)}
-                        className="w-full p-3 border border-gray-200 rounded-lg bg-white focus:outline-none focus:border-blue-500 text-gray-900"
-                    >
-                        {accounts?.map(acc => (
-                            <option key={acc.id} value={acc.name}>
-                                {t(`filters.${acc.name}`) === `filters.${acc.name}` ? acc.name : t(`filters.${acc.name}`)}
-                            </option>
-                        ))}
-                    </select>
-                </div>
-                
-                <div className="p-3 bg-gray-50 rounded-lg border border-gray-100">
-                    <div className="grid grid-cols-2 gap-4 mb-1">
+                        {/* 账户选择 */}
                         <div>
-                            <label className="block text-xs font-bold text-gray-500 mb-1">{t('common.holdingAmount')} (¥)</label>
-                            <input 
-                                type="number" 
-                                value={amount}
-                                onChange={(e) => setAmount(e.target.value)}
-                                placeholder="0.00"
-                                className={`w-full p-2 border border-gray-200 rounded-lg bg-white text-gray-900 font-bold font-mono focus:border-blue-500 outline-none ${noSpinnerClass}`}
-                            />
+                            <label className="block text-xs font-bold text-gray-500 mb-1">{t('common.account')}</label>
+                            <select
+                                value={selectedAccount}
+                                onChange={(e) => setSelectedAccount(e.target.value)}
+                                className="w-full p-3 border border-gray-200 rounded-lg bg-white focus:outline-none focus:border-blue-500 text-gray-900"
+                            >
+                                {accounts?.map(acc => (
+                                    <option key={acc.id} value={acc.name}>
+                                        {t(`filters.${acc.name}`) === `filters.${acc.name}` ? acc.name : t(`filters.${acc.name}`)}
+                                    </option>
+                                ))}
+                            </select>
                         </div>
-                        <div>
-                            <label className="block text-xs font-bold text-gray-500 mb-1">{t('common.totalGain')} (¥)</label>
-                            <input 
-                                type="number" 
-                                value={gain}
-                                onChange={(e) => setGain(e.target.value)}
-                                placeholder="0.00"
-                                className={`w-full p-2 border border-gray-200 rounded-lg bg-white font-bold font-mono focus:border-blue-500 outline-none ${noSpinnerClass} ${getGainColor(gain)}`}
-                            />
+
+                        {/* 联动表单 */}
+                        <div className="p-3 bg-gray-50 rounded-lg border border-gray-100 space-y-3">
+                            <div className="grid grid-cols-2 gap-4">
+                                {/* 持有金额 */}
+                                <div>
+                                    <label className="block text-xs font-bold text-gray-500 mb-1">{t('common.holdingAmount')} (¥)</label>
+                                    <input
+                                        type="number"
+                                        value={amount}
+                                        onChange={(e) => handleAmountChange(e.target.value)}
+                                        placeholder="0.00"
+                                        className={`w-full p-2 border border-gray-200 rounded-lg bg-white text-gray-900 font-bold font-mono focus:border-blue-500 outline-none ${noSpinnerClass}`}
+                                    />
+                                </div>
+                                {/* 持有份额 */}
+                                <div>
+                                    <label className="block text-xs font-bold text-gray-500 mb-1">{t('common.shares')}</label>
+                                    <input
+                                        type="number"
+                                        value={shares}
+                                        onChange={(e) => handleSharesChange(e.target.value)}
+                                        placeholder="0.00"
+                                        className={`w-full p-2 border border-gray-200 rounded-lg bg-white text-gray-900 font-bold font-mono focus:border-blue-500 outline-none ${noSpinnerClass}`}
+                                    />
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                {/* 持仓成本 */}
+                                <div>
+                                    <label className="block text-xs font-bold text-gray-500 mb-1">{t('common.cost')}</label>
+                                    <input
+                                        type="number"
+                                        value={costPrice}
+                                        onChange={(e) => handleCostPriceChange(e.target.value)}
+                                        placeholder="0.0000"
+                                        className={`w-full p-2 border border-gray-200 rounded-lg bg-white text-gray-900 font-bold font-mono focus:border-blue-500 outline-none ${noSpinnerClass}`}
+                                    />
+                                </div>
+                                {/* 持有收益 */}
+                                <div>
+                                    <label className="block text-xs font-bold text-gray-500 mb-1">{t('common.totalGain')} (¥)</label>
+                                    <input
+                                        type="number"
+                                        value={gain}
+                                        onChange={(e) => handleGainChange(e.target.value)}
+                                        placeholder="0.00"
+                                        className={`w-full p-2 border border-gray-200 rounded-lg bg-white font-bold font-mono focus:border-blue-500 outline-none ${noSpinnerClass} ${getGainColor(gain)}`}
+                                    />
+                                </div>
+                            </div>
+                            <p className="text-[10px] text-gray-400 text-center">{t('common.autoCalcTip')}</p>
+                        </div>
+
+                        {/* 操作按钮 */}
+                        <div className="flex gap-3 pt-2">
+                            <button
+                                onClick={() => {
+                                    if (editFund) onClose();
+                                    else setSelectedFund(null);
+                                }}
+                                className="flex-1 py-3 text-sm font-bold text-gray-600 bg-gray-100 rounded-xl hover:bg-gray-200"
+                            >
+                                {t('common.cancel')}
+                            </button>
+                            <button
+                                onClick={handleSave}
+                                className="flex-1 py-3 text-sm font-bold text-white bg-blue-600 rounded-xl hover:bg-blue-700"
+                            >
+                                {t('common.confirm')}
+                            </button>
                         </div>
                     </div>
-                </div>
-
-                <div className="flex gap-3 pt-2">
-                    <button 
-                        onClick={() => {
-                            if (editFund) onClose(); // Just close if editing
-                            else setSelectedFund(null); // Go back to search if adding
-                        }}
-                        className="flex-1 py-3 text-sm font-bold text-gray-600 bg-gray-100 rounded-xl hover:bg-gray-200"
-                    >
-                        {t('common.cancel')}
-                    </button>
-                    <button 
-                        onClick={handleSave}
-                        className="flex-1 py-3 text-sm font-bold text-white bg-blue-600 rounded-xl hover:bg-blue-700"
-                    >
-                        {t('common.confirm')}
-                    </button>
-                </div>
+                )}
             </div>
-        )}
-      </div>
-    </div>
-  );
+        </div>
+    );
 };

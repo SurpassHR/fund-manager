@@ -1,5 +1,5 @@
 import Dexie, { Table } from 'dexie';
-import { Fund, Account, AssetSummary } from '../types';
+import { Fund, Account, AssetSummary, FundCommonDataResponse } from '../types';
 
 class YangJiBaoDB extends Dexie {
   funds!: Table<Fund>;
@@ -21,20 +21,70 @@ class YangJiBaoDB extends Dexie {
 
 export const db = new YangJiBaoDB();
 
-// Initialize DB with mock data if empty
-export const initDB = async () => {
-  // Funds are no longer pre-populated. Users must add them manually.
+// 防止 StrictMode 下重复初始化的竞态
+let initPromise: Promise<void> | null = null;
 
-  const accountsCount = await db.accounts.count();
-  if (accountsCount === 0) {
-    await db.accounts.bulkAdd([
-      { name: 'Default', isDefault: true },
-      { name: 'Alipay', isDefault: true },
-      { name: 'Tencent', isDefault: true },
-      { name: 'Bank', isDefault: true },
-      { name: 'Others', isDefault: true }
-    ]);
+export const initDB = () => {
+  if (!initPromise) {
+    initPromise = (async () => {
+      const accountsCount = await db.accounts.count();
+      if (accountsCount === 0) {
+        await db.accounts.bulkAdd([
+          { name: 'Default', isDefault: true },
+        ]);
+      }
+    })();
   }
+  return initPromise;
+};
+
+/**
+ * 刷新所有持仓基金的最新净值数据
+ * 从晨星 API 拉取最新 NAV、涨跌幅，更新 IndexedDB
+ */
+let refreshPromise: Promise<void> | null = null;
+
+export const refreshFundData = () => {
+  if (refreshPromise) return refreshPromise;
+
+  refreshPromise = (async () => {
+    try {
+      const allFunds = await db.funds.toArray();
+      if (allFunds.length === 0) return;
+
+      const results = await Promise.allSettled(
+        allFunds.map(async (fund) => {
+          const res = await fetch(
+            `https://www.morningstar.cn/cn-api/v2/funds/${fund.code}/common-data`
+          );
+          if (!res.ok) return;
+          const json: FundCommonDataResponse = await res.json();
+          if (!json?.data?.nav) return;
+
+          const { nav, navDate, navChangePercent } = json.data;
+          // 日收益 = 市值 × 涨跌幅% / (1 + 涨跌幅%)
+          const mktVal = fund.holdingShares * nav;
+          const dayChangeVal = mktVal * (navChangePercent / 100) / (1 + navChangePercent / 100);
+
+          await db.funds.update(fund.id!, {
+            currentNav: nav,
+            lastUpdate: navDate,
+            dayChangePct: navChangePercent,
+            dayChangeVal: dayChangeVal,
+          });
+        })
+      );
+
+      const failed = results.filter(r => r.status === 'rejected').length;
+      if (failed > 0) console.warn(`刷新基金数据：${failed}/${allFunds.length} 个失败`);
+    } catch (err) {
+      console.error('刷新基金数据失败', err);
+    } finally {
+      refreshPromise = null;
+    }
+  })();
+
+  return refreshPromise;
 };
 
 export const calculateSummary = (funds: Fund[]): AssetSummary => {
@@ -45,12 +95,7 @@ export const calculateSummary = (funds: Fund[]): AssetSummary => {
   funds.forEach(fund => {
     const assetValue = fund.holdingShares * fund.currentNav;
     const costValue = fund.holdingShares * fund.costPrice;
-    
-    // In a real app, dayChangeVal would be calculated from yesterday's NAV
-    // Here we take the mock value or approximate it: 
-    // dayGain = assetValue * (dayChangePct / 100) / (1 + dayChangePct/100) -- approximating for display
-    // But we have explicit dayChangeVal in types for simplicity in this demo
-    const dayGain = fund.dayChangeVal; // Using the provided/mocked absolute value
+    const dayGain = fund.dayChangeVal;
 
     totalAssets += assetValue;
     totalDayGain += dayGain;
@@ -59,7 +104,9 @@ export const calculateSummary = (funds: Fund[]): AssetSummary => {
 
   const holdingGain = totalAssets - totalCost;
   const holdingGainPct = totalCost > 0 ? (holdingGain / totalCost) * 100 : 0;
-  const totalDayGainPct = (totalAssets - totalDayGain) > 0 ? (totalDayGain / (totalAssets - totalDayGain)) * 100 : 0;
+  const totalDayGainPct = (totalAssets - totalDayGain) > 0
+    ? (totalDayGain / (totalAssets - totalDayGain)) * 100
+    : 0;
 
   return {
     totalAssets,

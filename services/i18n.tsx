@@ -5,6 +5,7 @@ type Language = 'en' | 'zh';
 const dictionary = {
   en: {
     common: {
+      appTitle: "XiaoHuYangJi",
       loading: "Loading assets...",
       ocrProcessing: "Processing Image...",
       ocrComplete: "OCR Processing Complete (Simulated).",
@@ -68,15 +69,12 @@ const dictionary = {
     },
     filters: {
       All: "All",
-      Default: "Default",
-      Alipay: "Alipay",
-      Tencent: "Tencent",
-      Bank: "Bank",
-      Others: "Others"
+      Default: "Default"
     }
   },
   zh: {
     common: {
+      appTitle: "小胡养基",
       loading: "资产加载中...",
       ocrProcessing: "图像处理中...",
       ocrComplete: "OCR 处理完成 (模拟)。",
@@ -140,11 +138,7 @@ const dictionary = {
     },
     filters: {
       All: "全部",
-      Default: "默认",
-      Alipay: "支付宝",
-      Tencent: "腾讯理财",
-      Bank: "银行系",
-      Others: "其他"
+      Default: "默认"
     }
   }
 };
@@ -159,7 +153,7 @@ const LanguageContext = createContext<LanguageContextType | undefined>(undefined
 
 export const LanguageProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   // Default to Chinese as per requirements
-  const [language, setLanguage] = useState<Language>('zh'); 
+  const [language, setLanguage] = useState<Language>('zh');
 
   const t = (path: string, params?: Record<string, string>) => {
     const keys = path.split('.');
@@ -171,20 +165,20 @@ export const LanguageProvider: React.FC<{ children: ReactNode }> = ({ children }
         return path;
       }
     }
-    
+
     if (typeof value === 'string' && params) {
-        let result = value;
-        Object.keys(params).forEach(key => {
-            result = result.replace(`{${key}}`, params[key]);
-        });
-        return result;
+      let result = value;
+      Object.keys(params).forEach(key => {
+        result = result.replace(`{${key}}`, params[key]);
+      });
+      return result;
     }
-    
+
     // Fallback for dynamic keys (like custom account names)
     if (value === undefined) {
-        return keys[keys.length - 1];
+      return keys[keys.length - 1];
     }
-    
+
     return value as string;
   };
 

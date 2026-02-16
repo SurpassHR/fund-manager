@@ -2,7 +2,7 @@ export interface Fund {
   id?: number;
   code: string;
   name: string;
-  platform: 'Alipay' | 'Tencent' | 'Bank' | 'Other' | string;
+  platform: string;
   holdingShares: number;
   costPrice: number;
   currentNav: number; // Net Asset Value
@@ -83,17 +83,17 @@ export interface FundPerformanceResponse {
 // New Common Data API Type
 export interface FundCommonDataResponse {
   _meta: {
-      response_status: string;
-      response_hint: string;
+    response_status: string;
+    response_hint: string;
   };
   data: {
-      nav: number;
-      navDate: string;
-      navChangePercent: number;
-      ihc: number; // Accumulated NAV
-      fundType: string;
-      riskLevel: string;
-      morningstarCategory: string;
+    nav: number;
+    navDate: string;
+    navChangePercent: number;
+    ihc: number; // Accumulated NAV
+    fundType: string;
+    riskLevel: string;
+    morningstarCategory: string;
   };
 }
 
@@ -113,7 +113,7 @@ export interface FundGrowthDataResponse {
       bmk1: number[]; // Benchmark
     };
     pr: {
-        funds: { return: number; startValue: number; endValue: number }[];
+      funds: { return: number; startValue: number; endValue: number }[];
     };
   };
 }
@@ -135,13 +135,13 @@ export interface BondHolding {
 
 export interface FundHoldingsResponse {
   _meta: {
-      response_status: string;
-      response_hint: string;
+    response_status: string;
+    response_hint: string;
   };
   data: {
-      secId: string;
-      portfolioDate: string;
-      equityHoldings: EquityHolding[];
-      bondHoldings: BondHolding[];
+    secId: string;
+    portfolioDate: string;
+    equityHoldings: EquityHolding[];
+    bondHoldings: BondHolding[];
   };
 }

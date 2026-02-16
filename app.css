@@ -1,0 +1,10 @@
+@import 'tailwindcss';
+
+/* 自定义主题变量 */
+@theme {
+  --color-stock-red: #f63c3d;
+  --color-stock-green: #1aaa0d;
+  --color-app-bg: #f5f7fa;
+  --color-primary: #1677ff;
+  --font-family-sans: 'Roboto', sans-serif;
+}

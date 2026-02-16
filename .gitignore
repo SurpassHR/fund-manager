@@ -1,4 +1,16 @@
-# Logs
+# 依赖
+node_modules
+
+# 构建产物
+dist
+dist-ssr
+
+# 环境变量（可能含 API Key 等敏感信息）
+.env
+.env.local
+.env.*.local
+
+# 日志
 logs
 *.log
 npm-debug.log*
@@ -7,18 +19,30 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
-*.local
+# TypeScript 增量编译缓存
+*.tsbuildinfo
 
-# Editor directories and files
+# 测试覆盖率
+coverage
+
+# 编辑器配置
 .vscode/*
 !.vscode/extensions.json
 .idea
-.DS_Store
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
+
+# 操作系统临时文件
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# 部署平台本地配置
+.vercel
+.netlify
+
+# Vite 本地文件
+*.local
