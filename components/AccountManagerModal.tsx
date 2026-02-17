@@ -64,7 +64,7 @@ export const AccountManagerModal: React.FC<AccountManagerModalProps> = ({ isOpen
     const oldName = acc.name;
 
     // Transaction to update account name AND update all funds using this account name (platform)
-    // Cast db to any to avoid TS error: Property 'transaction' does not exist on type 'YangJiBaoDB'
+    // Cast db to any to avoid TS error: Property 'transaction' does not exist on type 'XiaoHuYangJiDB'
     await (db as any).transaction('rw', db.accounts, db.funds, async () => {
       await db.accounts.update(acc.id!, { name: newName });
       // Cascading update: find funds with old platform name and update to new name

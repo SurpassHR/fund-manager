@@ -39,7 +39,7 @@ const AppContent: React.FC = () => {
 
   return (
     <div className="bg-app-bg dark:bg-app-bg-dark min-h-screen font-sans text-gray-900 dark:text-gray-100 relative flex flex-col transition-colors">
-      <Header title={t('common.appTitle') || "YangJiBao"} />
+      <Header title={t('common.appTitle') || "XiaoHuYangJi"} />
 
       <main className="flex-grow w-full max-w-7xl mx-auto md:px-4 lg:px-8 relative">
         {renderTabContent()}

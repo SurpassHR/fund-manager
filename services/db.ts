@@ -1,12 +1,12 @@
 import Dexie, { Table } from 'dexie';
 import { Fund, Account, AssetSummary, FundCommonDataResponse } from '../types';
 
-class YangJiBaoDB extends Dexie {
+class XiaoHuYangJiDB extends Dexie {
   funds!: Table<Fund>;
   accounts!: Table<Account>;
 
   constructor() {
-    super('YangJiBaoDB');
+    super('XiaoHuYangJiDB');
     // Version 1
     (this as any).version(1).stores({
       funds: '++id, code, platform, name'
@@ -19,7 +19,7 @@ class YangJiBaoDB extends Dexie {
   }
 }
 
-export const db = new YangJiBaoDB();
+export const db = new XiaoHuYangJiDB();
 
 // 防止 StrictMode 下重复初始化的竞态
 let initPromise: Promise<void> | null = null;
