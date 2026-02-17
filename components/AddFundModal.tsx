@@ -235,7 +235,7 @@ export const AddFundModal: React.FC<AddFundModalProps> = ({ isOpen, onClose, edi
         if (isNaN(num)) return 'text-gray-900';
         if (num > 0) return 'text-stock-red';
         if (num < 0) return 'text-stock-green';
-        return 'text-gray-900';
+        return 'text-gray-900 dark:text-gray-100';
     };
 
     const noSpinnerClass = "[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none";
@@ -252,10 +252,10 @@ export const AddFundModal: React.FC<AddFundModalProps> = ({ isOpen, onClose, edi
 
     return (
         <div className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-            <div className="bg-white rounded-xl w-full max-w-md overflow-hidden shadow-2xl flex flex-col max-h-[85vh]">
+            <div className="bg-white dark:bg-card-dark rounded-xl w-full max-w-md overflow-hidden shadow-2xl flex flex-col max-h-[85vh]">
                 {/* 标题 */}
-                <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50 shrink-0">
-                    <h3 className="font-bold text-gray-800">
+                <div className="p-4 border-b border-gray-100 dark:border-border-dark flex justify-between items-center bg-gray-50 dark:bg-white/5 shrink-0">
+                    <h3 className="font-bold text-gray-800 dark:text-gray-100">
                         {editFund ? t('common.editDetails') : (selectedFund ? t('common.fillDetails') : t('common.addFund'))}
                     </h3>
                     <button onClick={handleClose}><Icons.Plus className="transform rotate-45 text-gray-400" /></button>
@@ -272,7 +272,7 @@ export const AddFundModal: React.FC<AddFundModalProps> = ({ isOpen, onClose, edi
                                     onChange={(e) => setQuery(e.target.value)}
                                     onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
                                     placeholder={t('common.searchFund')}
-                                    className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl bg-gray-50 focus:bg-white focus:border-blue-500 focus:outline-none transition-all"
+                                    className="w-full pl-10 pr-4 py-3 border border-gray-200 dark:border-gray-700 rounded-xl bg-gray-50 dark:bg-white/5 focus:bg-white dark:focus:bg-white/10 focus:border-blue-500 focus:outline-none transition-all dark:text-gray-100"
                                 />
                                 <Icons.Search className="absolute left-3 top-3.5 text-gray-400" size={18} />
                                 <button
@@ -294,14 +294,14 @@ export const AddFundModal: React.FC<AddFundModalProps> = ({ isOpen, onClose, edi
                                         <div
                                             key={fund.fundClassId}
                                             onClick={() => handleSelect(fund)}
-                                            className="p-3 border border-gray-100 rounded-lg hover:border-blue-500 hover:bg-blue-50 cursor-pointer transition-all"
+                                            className="p-3 border border-gray-100 dark:border-border-dark rounded-lg hover:border-blue-500 dark:hover:border-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 cursor-pointer transition-all"
                                         >
                                             <div className="flex justify-between items-start">
                                                 <div>
-                                                    <div className="font-medium text-gray-800 text-sm">{fund.fundNameArr}</div>
-                                                    <div className="text-xs text-gray-500 mt-1">{fund.symbol} · {fund.fundType}</div>
+                                                    <div className="font-medium text-gray-800 dark:text-gray-100 text-sm">{fund.fundNameArr}</div>
+                                                    <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">{fund.symbol} · {fund.fundType}</div>
                                                 </div>
-                                                <Icons.Plus className="text-blue-500" size={16} />
+                                                <Icons.Plus className="text-blue-500 dark:text-blue-400" size={16} />
                                             </div>
                                         </div>
                                     ))}
@@ -317,14 +317,14 @@ export const AddFundModal: React.FC<AddFundModalProps> = ({ isOpen, onClose, edi
                 ) : (
                     <div className="p-6 space-y-4 overflow-y-auto">
                         {/* 基金信息卡 */}
-                        <div className="bg-blue-50 p-3 rounded-lg border border-blue-100 flex justify-between items-center">
+                        <div className="bg-blue-50 dark:bg-blue-900/30 p-3 rounded-lg border border-blue-100 dark:border-blue-800/50 flex justify-between items-center">
                             <div>
-                                <div className="font-bold text-blue-900 text-sm">{info.name}</div>
-                                <div className="text-xs text-blue-600 mt-1">{info.code}</div>
+                                <div className="font-bold text-blue-900 dark:text-blue-100 text-sm">{info.name}</div>
+                                <div className="text-xs text-blue-600 dark:text-blue-400 mt-1">{info.code}</div>
                             </div>
                             <div className="text-right">
-                                <div className="text-[10px] text-blue-400">{t('common.nav')}</div>
-                                <div className="font-mono font-bold text-blue-800">
+                                <div className="text-[10px] text-blue-400 dark:text-blue-500">{t('common.nav')}</div>
+                                <div className="font-mono font-bold text-blue-800 dark:text-blue-300">
                                     {navLoading ? '...' : currentNav.toFixed(4)}
                                 </div>
                             </div>
@@ -336,7 +336,7 @@ export const AddFundModal: React.FC<AddFundModalProps> = ({ isOpen, onClose, edi
                             <select
                                 value={selectedAccount}
                                 onChange={(e) => setSelectedAccount(e.target.value)}
-                                className="w-full p-3 border border-gray-200 rounded-lg bg-white focus:outline-none focus:border-blue-500 text-gray-900"
+                                className="w-full p-3 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-white/5 focus:outline-none focus:border-blue-500 text-gray-900 dark:text-gray-100"
                             >
                                 {accounts?.map(acc => (
                                     <option key={acc.id} value={acc.name}>
@@ -347,7 +347,7 @@ export const AddFundModal: React.FC<AddFundModalProps> = ({ isOpen, onClose, edi
                         </div>
 
                         {/* 联动表单 */}
-                        <div className="p-3 bg-gray-50 rounded-lg border border-gray-100 space-y-3">
+                        <div className="p-3 bg-gray-50 dark:bg-white/5 rounded-lg border border-gray-100 dark:border-border-dark space-y-3">
                             <div className="grid grid-cols-2 gap-4">
                                 {/* 持有金额 */}
                                 <div>
@@ -357,7 +357,7 @@ export const AddFundModal: React.FC<AddFundModalProps> = ({ isOpen, onClose, edi
                                         value={amount}
                                         onChange={(e) => handleAmountChange(e.target.value)}
                                         placeholder="0.00"
-                                        className={`w-full p-2 border border-gray-200 rounded-lg bg-white text-gray-900 font-bold font-mono focus:border-blue-500 outline-none ${noSpinnerClass}`}
+                                        className={`w-full p-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-white/5 text-gray-900 dark:text-white font-bold font-mono focus:border-blue-500 outline-none ${noSpinnerClass}`}
                                     />
                                 </div>
                                 {/* 持有份额 */}
@@ -368,7 +368,7 @@ export const AddFundModal: React.FC<AddFundModalProps> = ({ isOpen, onClose, edi
                                         value={shares}
                                         onChange={(e) => handleSharesChange(e.target.value)}
                                         placeholder="0.00"
-                                        className={`w-full p-2 border border-gray-200 rounded-lg bg-white text-gray-900 font-bold font-mono focus:border-blue-500 outline-none ${noSpinnerClass}`}
+                                        className={`w-full p-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-white/5 text-gray-900 dark:text-white font-bold font-mono focus:border-blue-500 outline-none ${noSpinnerClass}`}
                                     />
                                 </div>
                             </div>
@@ -381,7 +381,7 @@ export const AddFundModal: React.FC<AddFundModalProps> = ({ isOpen, onClose, edi
                                         value={costPrice}
                                         onChange={(e) => handleCostPriceChange(e.target.value)}
                                         placeholder="0.0000"
-                                        className={`w-full p-2 border border-gray-200 rounded-lg bg-white text-gray-900 font-bold font-mono focus:border-blue-500 outline-none ${noSpinnerClass}`}
+                                        className={`w-full p-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-white/5 text-gray-900 dark:text-white font-bold font-mono focus:border-blue-500 outline-none ${noSpinnerClass}`}
                                     />
                                 </div>
                                 {/* 持有收益 */}
@@ -392,7 +392,7 @@ export const AddFundModal: React.FC<AddFundModalProps> = ({ isOpen, onClose, edi
                                         value={gain}
                                         onChange={(e) => handleGainChange(e.target.value)}
                                         placeholder="0.00"
-                                        className={`w-full p-2 border border-gray-200 rounded-lg bg-white font-bold font-mono focus:border-blue-500 outline-none ${noSpinnerClass} ${getGainColor(gain)}`}
+                                        className={`w-full p-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-white/5 font-bold font-mono focus:border-blue-500 outline-none ${noSpinnerClass} ${getGainColor(gain)}`}
                                     />
                                 </div>
                             </div>
@@ -406,7 +406,7 @@ export const AddFundModal: React.FC<AddFundModalProps> = ({ isOpen, onClose, edi
                                     if (editFund) onClose();
                                     else setSelectedFund(null);
                                 }}
-                                className="flex-1 py-3 text-sm font-bold text-gray-600 bg-gray-100 rounded-xl hover:bg-gray-200"
+                                className="flex-1 py-3 text-sm font-bold text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-white/10 rounded-xl hover:bg-gray-200 dark:hover:bg-white/15"
                             >
                                 {t('common.cancel')}
                             </button>

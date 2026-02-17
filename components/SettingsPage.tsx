@@ -22,12 +22,12 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack }) => {
         {
             value: 'light',
             label: t('common.themeLight'),
-            icon: <span className="text-lg">☀️</span>,
+            icon: <Icons.Sun size={18} />,
         },
         {
             value: 'dark',
             label: t('common.themeDark'),
-            icon: <span className="text-lg">🌙</span>,
+            icon: <Icons.Moon size={18} />,
         },
     ];
 
@@ -60,7 +60,9 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack }) => {
               `}
                         >
                             <div className="flex items-center gap-3">
-                                <span className="text-gray-500 dark:text-gray-400">{opt.icon}</span>
+                                <div className="w-6 flex justify-center text-gray-500 dark:text-gray-400">
+                                    {opt.icon}
+                                </div>
                                 <span className="text-sm text-gray-800 dark:text-gray-100">{opt.label}</span>
                             </div>
                             {mode === opt.value && (
