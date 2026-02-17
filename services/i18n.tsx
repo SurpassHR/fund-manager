@@ -65,7 +65,13 @@ const dictionary = {
       date: "Date",
       unitNav: "Unit NAV",
       accNav: "Acc NAV",
-      more: "More"
+      more: "More",
+      settings: "Settings",
+      theme: "Theme",
+      themeSystem: "Follow System",
+      themeLight: "Light",
+      themeDark: "Dark",
+      currentTheme: "Current"
     },
     filters: {
       All: "All",
@@ -134,7 +140,13 @@ const dictionary = {
       date: "日期",
       unitNav: "单位净值",
       accNav: "累计净值",
-      more: "更多"
+      more: "更多",
+      settings: "设置",
+      theme: "主题",
+      themeSystem: "跟随系统",
+      themeLight: "浅色",
+      themeDark: "深色",
+      currentTheme: "当前"
     },
     filters: {
       All: "全部",

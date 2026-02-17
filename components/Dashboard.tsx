@@ -103,15 +103,15 @@ export const Dashboard: React.FC = () => {
     };
 
     return (
-        <div className="pb-36 md:pb-24 bg-app-bg min-h-full" onContextMenu={(e) => e.preventDefault()}>
+        <div className="pb-36 md:pb-24 bg-app-bg dark:bg-app-bg-dark min-h-full" onContextMenu={(e) => e.preventDefault()}>
             {/* Context Menu Overlay */}
             {contextMenu && (
                 <div
-                    className="fixed z-[100] bg-white rounded-lg shadow-xl border border-gray-100 py-2 w-48 overflow-hidden animate-in fade-in zoom-in-95 duration-100 origin-top-left"
+                    className="fixed z-[100] bg-white dark:bg-card-dark rounded-lg shadow-xl border border-gray-100 dark:border-border-dark py-2 w-48 overflow-hidden animate-in fade-in zoom-in-95 duration-100 origin-top-left"
                     style={{ top: Math.min(contextMenu.y, window.innerHeight - 150), left: Math.min(contextMenu.x, window.innerWidth - 200) }}
                     onClick={(e) => e.stopPropagation()}
                 >
-                    <div className="px-4 py-2 text-xs font-bold text-gray-400 bg-gray-50 border-b border-gray-100 mb-1">
+                    <div className="px-4 py-2 text-xs font-bold text-gray-400 bg-gray-50 dark:bg-white/5 border-b border-gray-100 dark:border-border-dark mb-1">
                         {t('common.menu')}
                     </div>
                     <button
@@ -119,13 +119,13 @@ export const Dashboard: React.FC = () => {
                             const f = funds.find(i => i.id === contextMenu.fundId);
                             if (f) handleEdit(f);
                         }}
-                        className="w-full text-left px-4 py-3 hover:bg-blue-50 text-gray-700 text-sm flex items-center gap-2 border-b border-gray-50"
+                        className="w-full text-left px-4 py-3 hover:bg-blue-50 dark:hover:bg-blue-900/20 text-gray-700 dark:text-gray-200 text-sm flex items-center gap-2 border-b border-gray-50 dark:border-border-dark"
                     >
                         <Icons.Settings size={16} className="text-blue-500" /> {t('common.edit')}
                     </button>
                     <button
                         onClick={() => handleDelete(contextMenu.fundId)}
-                        className="w-full text-left px-4 py-3 hover:bg-red-50 text-red-600 text-sm flex items-center gap-2"
+                        className="w-full text-left px-4 py-3 hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400 text-sm flex items-center gap-2"
                     >
                         <Icons.Plus size={16} className="transform rotate-45" /> {t('common.delete')}
                     </button>
@@ -133,15 +133,15 @@ export const Dashboard: React.FC = () => {
             )}
 
             {/* Top Filter Bar */}
-            <div className="bg-white px-2 pt-1 pb-2 md:rounded-b-lg md:shadow-sm md:mb-4 flex items-center gap-4 overflow-x-auto no-scrollbar border-b border-gray-100 md:border-none sticky top-14 z-20">
-                <div className="flex-shrink-0 text-gray-500 font-medium text-sm px-2">{t('common.account')}</div>
+            <div className="bg-white dark:bg-card-dark px-2 pt-1 pb-2 md:rounded-b-lg md:shadow-sm md:mb-4 flex items-center gap-4 overflow-x-auto no-scrollbar border-b border-gray-100 dark:border-border-dark md:border-none sticky top-14 z-20">
+                <div className="flex-shrink-0 text-gray-500 dark:text-gray-400 font-medium text-sm px-2">{t('common.account')}</div>
                 {filterList.map(filterKey => {
                     const label = t(`filters.${filterKey}`) === `filters.${filterKey}` ? filterKey : t(`filters.${filterKey}`);
                     return (
                         <button
                             key={filterKey}
                             onClick={() => setActiveFilter(filterKey)}
-                            className={`flex-shrink-0 px-1 py-2 text-sm font-medium relative whitespace-nowrap transition-colors ${activeFilter === filterKey ? 'text-blue-600' : 'text-gray-500 hover:text-gray-700'
+                            className={`flex-shrink-0 px-1 py-2 text-sm font-medium relative whitespace-nowrap transition-colors ${activeFilter === filterKey ? 'text-blue-600 dark:text-blue-400' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
                                 }`}
                         >
                             {label}
@@ -154,22 +154,22 @@ export const Dashboard: React.FC = () => {
                 <div className="flex-grow" />
                 <button
                     onClick={() => setIsAccountManagerOpen(true)}
-                    className="p-2 text-gray-400 hover:bg-gray-100 rounded-full"
+                    className="p-2 text-gray-400 hover:bg-gray-100 dark:hover:bg-white/10 rounded-full"
                 >
                     <Icons.Menu size={20} />
                 </button>
             </div>
 
             {/* Asset Summary Card */}
-            <div className="bg-white md:rounded-lg md:shadow-sm px-4 py-4 mb-2 md:mb-6 mx-0 md:mx-0">
+            <div className="bg-white dark:bg-card-dark md:rounded-lg md:shadow-sm px-4 py-4 mb-2 md:mb-6 mx-0 md:mx-0">
                 <div className="flex justify-between items-start mb-2">
                     <div className="flex items-center gap-2 text-gray-500 text-sm font-sans">
                         <span>{t('common.totalAssets')}</span>
-                        <button onClick={() => setShowValues(!showValues)} className="p-1 hover:bg-gray-100 rounded">
+                        <button onClick={() => setShowValues(!showValues)} className="p-1 hover:bg-gray-100 dark:hover:bg-white/10 rounded">
                             {showValues ? <Icons.Eye size={16} /> : <Icons.EyeOff size={16} />}
                         </button>
                     </div>
-                    <div className="flex items-center gap-1 text-gray-500 text-xs bg-gray-50 px-2 py-1 rounded-full cursor-pointer hover:bg-gray-100 font-sans">
+                    <div className="flex items-center gap-1 text-gray-500 dark:text-gray-400 text-xs bg-gray-50 dark:bg-white/10 px-2 py-1 rounded-full cursor-pointer hover:bg-gray-100 dark:hover:bg-white/15 font-sans">
                         <Icons.Refresh size={12} />
                         <span>{t('common.dayGain')}</span>
                         <Icons.ArrowUp className="transform rotate-90" size={12} />
@@ -177,7 +177,7 @@ export const Dashboard: React.FC = () => {
                 </div>
 
                 <div className="flex flex-col sm:flex-row sm:justify-between sm:items-end gap-2">
-                    <div className="text-3xl font-bold text-gray-800 tracking-tight font-mono">
+                    <div className="text-3xl font-bold text-gray-800 dark:text-gray-100 tracking-tight font-mono">
                         {showValues ? formatCurrency(summary.totalAssets) : '****'}
                     </div>
                     <div className={`text-xl font-bold font-mono ${getSignColor(summary.totalDayGain)}`}>
@@ -188,7 +188,7 @@ export const Dashboard: React.FC = () => {
             </div>
 
             {/* List Headers - Responsive */}
-            <div className="bg-white md:rounded-t-lg px-4 py-3 flex items-center text-xs text-gray-400 border-b border-gray-100 sticky top-[calc(3.5rem+40px)] md:top-14 z-10 shadow-sm font-sans">
+            <div className="bg-white dark:bg-card-dark md:rounded-t-lg px-4 py-3 flex items-center text-xs text-gray-400 border-b border-gray-100 dark:border-border-dark sticky top-[calc(3.5rem+40px)] md:top-14 z-10 shadow-sm font-sans">
                 <div className="hidden md:flex md:flex-[1.5] gap-4 pr-2 items-center">
                     <button className="hover:text-gray-600"><Icons.Settings size={16} /></button>
                     <button className="hover:text-gray-600"><Icons.Bell size={16} /></button>
@@ -222,7 +222,7 @@ export const Dashboard: React.FC = () => {
             </div>
 
             {/* Fund List */}
-            <div className="bg-white md:rounded-b-lg flex flex-col md:divide-y md:divide-gray-50">
+            <div className="bg-white dark:bg-card-dark md:rounded-b-lg flex flex-col md:divide-y md:divide-gray-50 dark:md:divide-border-dark">
                 {filteredFunds.map((fund) => {
                     const holdingValue = fund.holdingShares * fund.currentNav;
                     const totalCost = fund.holdingShares * fund.costPrice;
@@ -238,25 +238,25 @@ export const Dashboard: React.FC = () => {
                             onTouchStart={(e) => fund.id && handleTouchStart(fund.id, e)}
                             onTouchEnd={handleTouchEnd}
                             onTouchCancel={handleTouchEnd}
-                            className={`group flex md:flex-row py-4 px-4 border-b border-gray-50 md:border-none active:bg-gray-50 md:hover:bg-gray-50 transition-colors cursor-pointer items-start select-none ${contextMenu?.fundId === fund.id ? 'bg-gray-100' : ''
+                            className={`group flex md:flex-row py-4 px-4 border-b border-gray-50 dark:border-border-dark md:border-none active:bg-gray-50 dark:active:bg-white/5 md:hover:bg-gray-50 dark:md:hover:bg-white/5 transition-colors cursor-pointer items-start select-none ${contextMenu?.fundId === fund.id ? 'bg-gray-100 dark:bg-white/10' : ''
                                 }`}
                         >
 
                             {/* Common: Name Section */}
                             <div className="flex-1 min-w-0 pr-2 md:flex-[1.5] md:self-center">
                                 <div className="hidden md:flex items-center gap-2">
-                                    <span className="text-[10px] px-1 py-0.5 rounded bg-blue-50 text-blue-600 font-mono">
+                                    <span className="text-[10px] px-1 py-0.5 rounded bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 font-mono">
                                         {fund.code}
                                     </span>
-                                    <span className="text-[10px] px-1 py-0.5 rounded bg-gray-100 text-gray-500 font-sans">
+                                    <span className="text-[10px] px-1 py-0.5 rounded bg-gray-100 dark:bg-white/10 text-gray-500 dark:text-gray-400 font-sans">
                                         {displayPlatform}
                                     </span>
-                                    <h3 className="text-sm font-medium text-gray-800 truncate font-sans">{fund.name}</h3>
+                                    <h3 className="text-sm font-medium text-gray-800 dark:text-gray-100 truncate font-sans">{fund.name}</h3>
                                 </div>
 
                                 {/* Mobile Name View */}
                                 <div className="md:hidden flex flex-col gap-1">
-                                    <h3 className="text-sm font-medium text-gray-800 truncate leading-tight font-sans">{fund.name}</h3>
+                                    <h3 className="text-sm font-medium text-gray-800 dark:text-gray-100 truncate leading-tight font-sans">{fund.name}</h3>
                                     <div className="flex justify-between items-center pr-2">
                                         <span className="text-xs text-gray-400 font-mono">{fund.code}</span>
                                         <span className="text-xs text-gray-400 font-mono">¥{formatCurrency(holdingValue)}</span>
@@ -284,7 +284,7 @@ export const Dashboard: React.FC = () => {
                                         {formatPct(totalReturnPct)}
                                     </div>
                                 </div>
-                                <div className="font-bold text-gray-800 font-mono">
+                                <div className="font-bold text-gray-800 dark:text-gray-100 font-mono">
                                     {formatCurrency(holdingValue)}
                                 </div>
                             </div>
@@ -318,21 +318,21 @@ export const Dashboard: React.FC = () => {
                 })}
             </div>
 
-            <div className="mt-2 flex bg-white md:bg-transparent md:mt-4 py-3 px-4 md:px-0 text-gray-500 text-sm items-center justify-between md:justify-start md:gap-4 font-sans">
+            <div className="mt-2 flex bg-white dark:bg-card-dark md:bg-transparent md:dark:bg-transparent md:mt-4 py-3 px-4 md:px-0 text-gray-500 dark:text-gray-400 text-sm items-center justify-between md:justify-start md:gap-4 font-sans">
                 <button
                     onClick={(e) => {
                         e.stopPropagation();
                         setEditingFund(undefined);
                         setIsAddFundOpen(true);
                     }}
-                    className="flex items-center gap-1 md:bg-white md:px-4 md:py-2 md:rounded-lg md:shadow-sm md:hover:bg-gray-50 transition-colors"
+                    className="flex items-center gap-1 md:bg-white md:dark:bg-card-dark md:px-4 md:py-2 md:rounded-lg md:shadow-sm md:hover:bg-gray-50 md:dark:hover:bg-white/5 transition-colors"
                 >
                     <Icons.Plus size={16} /> {t('common.addFund')}
                 </button>
-                <button className="flex items-center gap-1 md:bg-white md:px-4 md:py-2 md:rounded-lg md:shadow-sm md:hover:bg-gray-50 transition-colors">
+                <button className="flex items-center gap-1 md:bg-white md:dark:bg-card-dark md:px-4 md:py-2 md:rounded-lg md:shadow-sm md:hover:bg-gray-50 md:dark:hover:bg-white/5 transition-colors">
                     <Icons.Refresh size={14} /> {t('common.sync')}
                 </button>
-                <button className="flex items-center gap-1 md:bg-white md:px-4 md:py-2 md:rounded-lg md:shadow-sm md:hover:bg-gray-50 transition-colors">
+                <button className="flex items-center gap-1 md:bg-white md:dark:bg-card-dark md:px-4 md:py-2 md:rounded-lg md:shadow-sm md:hover:bg-gray-50 md:dark:hover:bg-white/5 transition-colors">
                     {t('common.batch')} <Icons.Copy size={14} />
                 </button>
             </div>

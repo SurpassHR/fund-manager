@@ -5,6 +5,12 @@
   --color-stock-red: #f63c3d;
   --color-stock-green: #1aaa0d;
   --color-app-bg: #f5f7fa;
+  --color-app-bg-dark: #0f1117;
+  --color-card-dark: #1a1d27;
+  --color-border-dark: #2a2d37;
   --color-primary: #1677ff;
   --font-family-sans: 'Roboto', sans-serif;
 }
+
+/* 暗色模式全局样式 */
+@variant dark (&:where(.dark, .dark *));

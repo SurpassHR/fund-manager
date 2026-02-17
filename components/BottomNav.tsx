@@ -21,8 +21,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, onTabChange }) 
   ];
 
   return (
-    // Added pb-safe class for iPhone home indicator area
-    <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-50 shadow-[0_-1px_3px_rgba(0,0,0,0.05)] pb-safe">
+    <nav className="fixed bottom-0 left-0 right-0 bg-white dark:bg-card-dark border-t border-gray-200 dark:border-border-dark z-50 shadow-[0_-1px_3px_rgba(0,0,0,0.05)] pb-safe">
       <div className="w-full max-w-7xl mx-auto px-2 sm:px-6 lg:px-8 h-14 flex items-center justify-around">
         {tabs.map((tab) => {
           const isActive = activeTab === tab.id;
@@ -31,9 +30,8 @@ export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, onTabChange }) 
             <button
               key={tab.id}
               onClick={() => onTabChange(tab.id)}
-              className={`flex flex-col items-center justify-center w-full h-full space-y-0.5 hover:bg-gray-50 transition-colors ${
-                isActive ? 'text-blue-600' : 'text-gray-400'
-              }`}
+              className={`flex flex-col items-center justify-center w-full h-full space-y-0.5 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors ${isActive ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400 dark:text-gray-500'
+                }`}
             >
               <Icon size={20} strokeWidth={isActive ? 2.5 : 2} />
               <span className="text-[10px] font-medium">{tab.label}</span>
