@@ -1,19 +1,37 @@
 import React, { useState, useEffect } from 'react';
-import { MOCK_INDICES } from '../constants';
+import { fetchMarketIndices } from '../services/api';
+import { MarketIndex } from '../types';
 import { getSignColor, formatPct } from '../services/financeUtils';
 import { Icons } from './Icon';
 
 export const Ticker: React.FC = () => {
+  const [indices, setIndices] = useState<MarketIndex[]>([]);
   const [index, setIndex] = useState(0);
 
   useEffect(() => {
-    const timer = setInterval(() => {
-      setIndex((prev) => (prev + 1) % MOCK_INDICES.length);
-    }, 4000);
-    return () => clearInterval(timer);
+    const loadData = async () => {
+      const data = await fetchMarketIndices();
+      if (data && data.length > 0) {
+        setIndices(data);
+      }
+    };
+    loadData();
+    // Refresh every minute
+    const refreshTimer = setInterval(loadData, 60000);
+    return () => clearInterval(refreshTimer);
   }, []);
 
-  const current = MOCK_INDICES[index];
+  useEffect(() => {
+    if (indices.length === 0) return;
+    const timer = setInterval(() => {
+      setIndex((prev) => (prev + 1) % indices.length);
+    }, 4000);
+    return () => clearInterval(timer);
+  }, [indices.length]);
+
+  if (indices.length === 0) return null;
+
+  const current = indices[index];
 
   return (
     // Adjusted bottom position: 56px (Nav height) + env(safe-area-inset-bottom)

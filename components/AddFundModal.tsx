@@ -48,6 +48,7 @@ export const AddFundModal: React.FC<AddFundModalProps> = ({ isOpen, onClose, edi
                 setAmount(initialAmount.toFixed(2));
                 setCostPrice(editFund.costPrice.toFixed(4));
                 setGain(initialGain.toFixed(2));
+                setNavChangePct(editFund.dayChangePct);
                 setSelectedAccount(editFund.platform);
             } else {
                 setQuery('');
@@ -188,10 +189,16 @@ export const AddFundModal: React.FC<AddFundModalProps> = ({ isOpen, onClose, edi
         const effectiveCostPrice = isNaN(valCostPrice) ? currentNav : valCostPrice;
 
         if (editFund && editFund.id) {
+            // 使用 API 返回的真实涨跌幅 (如果没有重新获取 API，则沿用旧值)
+            const mktVal = valShares * currentNav;
+            const dayChangeVal = mktVal * (navChangePct / 100) / (1 + navChangePct / 100);
+
             await db.funds.update(editFund.id, {
                 holdingShares: valShares,
                 costPrice: effectiveCostPrice,
                 platform: selectedAccount,
+                dayChangeVal,      // 更新日收益绝对值
+                dayChangePct: navChangePct, // 同时也更新涨跌幅（虽然通常不变，但为了数据一致性）
             });
         } else {
             const code = 'symbol' in selectedFund ? selectedFund.symbol : selectedFund.code;
