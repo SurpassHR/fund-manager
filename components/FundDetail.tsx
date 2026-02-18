@@ -3,6 +3,7 @@ import { Fund, FundPerformanceResponse, FundCommonDataResponse, FundHoldingsResp
 import { Icons } from './Icon';
 import { formatCurrency, formatPct, getSignColor } from '../services/financeUtils';
 import { useTranslation } from '../services/i18n';
+import { useTheme } from '../services/ThemeContext';
 import * as echarts from 'echarts';
 
 interface FundDetailProps {
@@ -46,6 +47,8 @@ const getStartDate = (range: TimeRange, endDateStr: string): string => {
 
 export const FundDetail: React.FC<FundDetailProps> = ({ fund, onBack }) => {
     const { t } = useTranslation();
+    const { theme } = useTheme();
+    const isDark = theme === 'dark';
 
     // Data States
     const [data, setData] = useState<FundPerformanceResponse['data'] | null>(null);
@@ -262,19 +265,19 @@ export const FundDetail: React.FC<FundDetailProps> = ({ fund, onBack }) => {
 
         const option: echarts.EChartsOption = {
             animation: false, // Disable animation for snappy switches
-            backgroundColor: '#fff',
+            backgroundColor: 'transparent',
             title: {
                 text: `${startStr} 至 ${endStr}`,
                 left: '0%',
                 top: '0%',
-                textStyle: { fontSize: 12, color: '#666', fontWeight: 'normal' }
+                textStyle: { fontSize: 12, color: isDark ? '#9ca3af' : '#666', fontWeight: 'normal' }
             },
             tooltip: {
                 trigger: 'axis',
-                backgroundColor: 'rgba(255, 255, 255, 0.95)',
-                borderColor: '#eee',
+                backgroundColor: isDark ? 'rgba(31, 41, 55, 0.95)' : 'rgba(255, 255, 255, 0.95)',
+                borderColor: isDark ? '#374151' : '#eee',
                 borderWidth: 1,
-                textStyle: { color: '#333', fontSize: 12 },
+                textStyle: { color: isDark ? '#f3f4f6' : '#333', fontSize: 12 },
                 axisPointer: { type: 'line', lineStyle: { color: '#999', type: 'dashed' } },
                 formatter: (params: any) => {
                     let html = `<div style="font-weight:bold; margin-bottom:4px;">${params[0].axisValue}</div>`;
@@ -302,7 +305,7 @@ export const FundDetail: React.FC<FundDetailProps> = ({ fund, onBack }) => {
                 icon: 'circle',
                 itemWidth: 8,
                 itemHeight: 8,
-                textStyle: { fontSize: 10, color: '#666' }
+                textStyle: { fontSize: 10, color: isDark ? '#9ca3af' : '#666' }
             },
             grid: { left: '2%', right: '4%', bottom: '12%', top: '10%', containLabel: true },
             xAxis: {
@@ -312,15 +315,15 @@ export const FundDetail: React.FC<FundDetailProps> = ({ fund, onBack }) => {
                 axisLine: { show: false },
                 axisTick: { show: false },
                 axisLabel: {
-                    color: '#999',
+                    color: isDark ? '#9ca3af' : '#999',
                     fontSize: 10,
                     formatter: (value: string) => value.substring(5)
                 }
             },
             yAxis: {
                 type: 'value',
-                axisLabel: { formatter: '{value}%', color: '#999', fontSize: 10 },
-                splitLine: { lineStyle: { color: '#f3f4f6' } }
+                axisLabel: { formatter: '{value}%', color: isDark ? '#9ca3af' : '#999', fontSize: 10 },
+                splitLine: { lineStyle: { color: isDark ? '#374151' : '#f3f4f6' } }
             },
             series: [
                 {
@@ -357,7 +360,7 @@ export const FundDetail: React.FC<FundDetailProps> = ({ fund, onBack }) => {
         const handleResize = () => chartInstance.current?.resize();
         window.addEventListener('resize', handleResize);
         return () => window.removeEventListener('resize', handleResize);
-    }, [chartReady, chartSeriesData, fund.name]);
+    }, [chartReady, chartSeriesData, fund.name, isDark]);
 
     // Derived History Table Data based on Chart Data + Current NAV
     const historyData = useMemo(() => {
@@ -399,53 +402,53 @@ export const FundDetail: React.FC<FundDetailProps> = ({ fund, onBack }) => {
     const displayedHistory = showAllHistory ? historyData : historyData.slice(0, 10);
 
     return (
-        <div className="fixed inset-0 z-50 bg-gray-50 flex flex-col animate-in slide-in-from-right duration-300">
+        <div className="fixed inset-0 z-50 bg-gray-50 dark:bg-app-bg-dark flex flex-col animate-in slide-in-from-right duration-300">
             {/* Header */}
-            <div className="bg-white px-4 h-14 flex items-center justify-between shadow-sm flex-shrink-0 z-10">
-                <button onClick={onBack} className="p-2 -ml-2 text-gray-600 hover:bg-gray-100 rounded-full">
+            <div className="bg-white dark:bg-card-dark px-4 h-14 flex items-center justify-between shadow-sm dark:border-b dark:border-border-dark flex-shrink-0 z-10 transition-colors">
+                <button onClick={onBack} className="p-2 -ml-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/10 rounded-full transition-colors">
                     <Icons.ArrowUp className="transform -rotate-90" size={24} />
                 </button>
                 <div className="text-center max-w-[70%]">
-                    <h2 className="font-bold text-gray-800 text-sm truncate">{fund.name}</h2>
-                    <p className="text-xs text-gray-500">{fund.code}</p>
+                    <h2 className="font-bold text-gray-800 dark:text-gray-100 text-sm truncate">{fund.name}</h2>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">{fund.code}</p>
                 </div>
                 <div className="w-10"></div>
             </div>
 
             <div className="flex-1 overflow-y-auto pb-20 no-scrollbar">
                 {/* Hero Card */}
-                <div className="bg-white p-6 mb-2">
-                    <div className="text-gray-500 text-xs mb-1">{t('common.nav')} ({displayDate})</div>
+                <div className="bg-white dark:bg-card-dark p-6 mb-2 transition-colors">
+                    <div className="text-gray-500 dark:text-gray-400 text-xs mb-1">{t('common.nav')} ({displayDate})</div>
                     <div className="flex items-baseline gap-3">
-                        <span className="text-3xl font-bold font-mono text-gray-900">{currentNav.toFixed(4)}</span>
+                        <span className="text-3xl font-bold font-mono text-gray-900 dark:text-gray-100">{currentNav.toFixed(4)}</span>
                         <span className={`text-lg font-medium font-mono ${getSignColor(dayChangePct)}`}>
                             {formatPct(dayChangePct)}
                         </span>
                     </div>
                     <div className="mt-4 grid grid-cols-2 gap-4 text-sm">
-                        <div className="bg-gray-50 p-3 rounded-lg">
+                        <div className="bg-gray-50 dark:bg-white/5 p-3 rounded-lg transition-colors">
                             <div className="text-gray-400 text-xs mb-1">{t('common.cost')}</div>
-                            <div className="font-mono">{fund.costPrice.toFixed(4)}</div>
+                            <div className="font-mono dark:text-gray-200">{fund.costPrice.toFixed(4)}</div>
                         </div>
-                        <div className="bg-gray-50 p-3 rounded-lg">
+                        <div className="bg-gray-50 dark:bg-white/5 p-3 rounded-lg transition-colors">
                             <div className="text-gray-400 text-xs mb-1">{t('common.shares')}</div>
-                            <div className="font-mono">{fund.holdingShares.toLocaleString()}</div>
+                            <div className="font-mono dark:text-gray-200">{fund.holdingShares.toLocaleString()}</div>
                         </div>
                     </div>
                 </div>
 
                 {/* ECharts Section */}
-                <div className="bg-white p-4 mb-2">
+                <div className="bg-white dark:bg-card-dark p-4 mb-2 transition-colors">
                     <div className="flex items-center justify-between mb-4">
-                        <h3 className="font-bold text-gray-800 text-sm border-l-4 border-blue-500 pl-2">累计收益走势</h3>
-                        <div className="flex bg-gray-100 rounded-lg p-0.5">
+                        <h3 className="font-bold text-gray-800 dark:text-gray-100 text-sm border-l-4 border-blue-500 pl-2">累计收益走势</h3>
+                        <div className="flex bg-gray-100 dark:bg-white/10 rounded-lg p-0.5 transition-colors">
                             {ranges.map(range => (
                                 <button
                                     key={range}
                                     onClick={() => setTimeRange(range)}
                                     className={`px-2 py-1 text-[10px] rounded-md font-medium transition-all ${timeRange === range
-                                            ? 'bg-white text-blue-600 shadow-sm'
-                                            : 'text-gray-500 hover:text-gray-700'
+                                        ? 'bg-white dark:bg-card-dark text-blue-600 shadow-sm'
+                                        : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
                                         }`}
                                 >
                                     {range}
@@ -459,7 +462,7 @@ export const FundDetail: React.FC<FundDetailProps> = ({ fund, onBack }) => {
                         {chartReady && !chartLoading && lastTradingDay ? (
                             <div ref={chartRef} className="w-full h-full" />
                         ) : (
-                            <div className="w-full h-full flex items-center justify-center bg-gray-50 rounded">
+                            <div className="w-full h-full flex items-center justify-center bg-gray-50 dark:bg-white/5 rounded transition-colors">
                                 <Icons.Refresh className="animate-spin text-gray-300" />
                             </div>
                         )}
@@ -468,7 +471,7 @@ export const FundDetail: React.FC<FundDetailProps> = ({ fund, onBack }) => {
 
                 {/* Historical Data Grid (Performance Summary) */}
                 {data ? (
-                    <div className="bg-white p-4 mb-2">
+                    <div className="bg-white dark:bg-card-dark p-4 mb-2 transition-colors">
                         <div className="grid grid-cols-4 gap-2 text-center">
                             {[
                                 { label: '近6月', val: data.dayEnd?.returns?.YTD },
@@ -488,9 +491,9 @@ export const FundDetail: React.FC<FundDetailProps> = ({ fund, onBack }) => {
                 ) : null}
 
                 {/* History NAV Table */}
-                <div className="bg-white p-4 mb-2">
+                <div className="bg-white dark:bg-card-dark p-4 mb-2 transition-colors">
                     <div className="flex items-center justify-between mb-4 border-l-4 border-blue-500 pl-2">
-                        <h3 className="font-bold text-gray-800 text-sm">{t('common.historyNav')}</h3>
+                        <h3 className="font-bold text-gray-800 dark:text-gray-100 text-sm">{t('common.historyNav')}</h3>
                         <button
                             onClick={() => setShowAllHistory(!showAllHistory)}
                             className="text-xs text-gray-400 flex items-center hover:text-blue-500"
@@ -509,11 +512,11 @@ export const FundDetail: React.FC<FundDetailProps> = ({ fund, onBack }) => {
                         </div>
 
                         {displayedHistory.length > 0 ? displayedHistory.map((item, idx) => (
-                            <div key={idx} className="grid grid-cols-4 gap-2 py-3 border-t border-gray-50 items-center text-sm">
-                                <div className="text-left pl-2 text-gray-600 font-medium font-mono">{item.date}</div>
-                                <div className="text-center text-gray-800 font-mono">{item.nav.toFixed(4)}</div>
+                            <div key={idx} className="grid grid-cols-4 gap-2 py-3 border-t border-gray-50 dark:border-border-dark items-center text-sm transition-colors">
+                                <div className="text-left pl-2 text-gray-600 dark:text-gray-400 font-medium font-mono">{item.date}</div>
+                                <div className="text-center text-gray-800 dark:text-gray-200 font-mono">{item.nav.toFixed(4)}</div>
                                 {/* Using derived nav for accumulated as well, since chart is adjusted returns */}
-                                <div className="text-center text-gray-800 font-mono">{item.nav.toFixed(4)}</div>
+                                <div className="text-center text-gray-800 dark:text-gray-200 font-mono">{item.nav.toFixed(4)}</div>
                                 <div className={`text-right pr-2 font-mono font-medium ${getSignColor(item.change)}`}>
                                     {formatPct(item.change)}
                                 </div>
@@ -526,14 +529,14 @@ export const FundDetail: React.FC<FundDetailProps> = ({ fund, onBack }) => {
 
                 {/* Holdings Section */}
                 {holdings.length > 0 && (
-                    <div className="bg-white p-4 mb-2">
-                        <h3 className="font-bold text-gray-800 text-sm mb-4 border-l-4 border-blue-500 pl-2">
+                    <div className="bg-white dark:bg-card-dark p-4 mb-2 transition-colors">
+                        <h3 className="font-bold text-gray-800 dark:text-gray-100 text-sm mb-4 border-l-4 border-blue-500 pl-2">
                             持仓明细 <span className="text-xs text-gray-400 font-normal ml-1">(实时估算)</span>
                         </h3>
 
                         <div className="space-y-0">
                             {/* Table Header */}
-                            <div className="grid grid-cols-10 gap-2 text-xs text-gray-400 pb-2 border-b border-gray-50">
+                            <div className="grid grid-cols-10 gap-2 text-xs text-gray-400 pb-2 border-b border-gray-50 dark:border-border-dark">
                                 <div className="col-span-4 pl-1">股票名称</div>
                                 <div className="col-span-3 text-right">最新价/涨跌</div>
                                 <div className="col-span-3 text-right pr-1">持仓占比</div>
@@ -547,13 +550,13 @@ export const FundDetail: React.FC<FundDetailProps> = ({ fund, onBack }) => {
                                 const hasQuote = !!quote;
 
                                 return (
-                                    <div key={idx} className="grid grid-cols-10 gap-2 py-3 border-b border-gray-50 items-center last:border-0 hover:bg-gray-50 transition-colors">
+                                    <div key={idx} className="grid grid-cols-10 gap-2 py-3 border-b border-gray-50 dark:border-border-dark items-center last:border-0 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
                                         <div className="col-span-4 pl-1">
-                                            <div className="font-medium text-gray-800 text-sm truncate">{stock.name}</div>
+                                            <div className="font-medium text-gray-800 dark:text-gray-200 text-sm truncate">{stock.name}</div>
                                             <div className="text-xs text-gray-400 font-mono">{stock.ticker}</div>
                                         </div>
                                         <div className="col-span-3 text-right">
-                                            <div className="font-mono text-sm text-gray-800">{price}</div>
+                                            <div className="font-mono text-sm text-gray-800 dark:text-gray-200">{price}</div>
                                             {hasQuote && (
                                                 <div className={`text-xs font-mono font-medium ${getSignColor(pct)}`}>
                                                     {formatPct(pct)}
@@ -561,10 +564,10 @@ export const FundDetail: React.FC<FundDetailProps> = ({ fund, onBack }) => {
                                             )}
                                         </div>
                                         <div className="col-span-3 text-right pr-1">
-                                            <div className="font-mono text-gray-800 font-medium">{stock.weight.toFixed(2)}%</div>
+                                            <div className="font-mono text-gray-800 dark:text-gray-200 font-medium">{stock.weight.toFixed(2)}%</div>
                                             {/* Simple visual bar for weight */}
-                                            <div className="w-full bg-gray-100 h-1 mt-1 rounded-full overflow-hidden flex justify-end">
-                                                <div className="bg-blue-200 h-full" style={{ width: `${Math.min(stock.weight * 5, 100)}%` }} />
+                                            <div className="w-full bg-gray-100 dark:bg-white/10 h-1 mt-1 rounded-full overflow-hidden flex justify-end">
+                                                <div className="bg-blue-200 dark:bg-blue-800 h-full" style={{ width: `${Math.min(stock.weight * 5, 100)}%` }} />
                                             </div>
                                         </div>
                                     </div>
@@ -576,12 +579,12 @@ export const FundDetail: React.FC<FundDetailProps> = ({ fund, onBack }) => {
 
                 {/* Annual Returns Table */}
                 {data && data.annual && (
-                    <div className="bg-white p-4">
-                        <h3 className="font-bold text-gray-800 text-sm mb-4 border-l-4 border-blue-500 pl-2">年度回报</h3>
+                    <div className="bg-white dark:bg-card-dark p-4 transition-colors">
+                        <h3 className="font-bold text-gray-800 dark:text-gray-100 text-sm mb-4 border-l-4 border-blue-500 pl-2">年度回报</h3>
                         <div className="space-y-3">
                             {data.annual.returns?.slice().reverse().map((item) => (
-                                <div key={item.k} className="flex justify-between items-center text-sm border-b border-gray-50 pb-2 last:border-0">
-                                    <span className="text-gray-600 font-mono">{item.k}年</span>
+                                <div key={item.k} className="flex justify-between items-center text-sm border-b border-gray-50 dark:border-border-dark pb-2 last:border-0">
+                                    <span className="text-gray-600 dark:text-gray-400 font-mono">{item.k}年</span>
                                     <span className={`font-mono font-medium ${getSignColor(item.v)}`}>
                                         {formatPct(item.v)}
                                     </span>
