@@ -263,51 +263,69 @@ export const FundDetail: React.FC<FundDetailProps> = ({ fund, onBack }) => {
         const startStr = dates[0];
         const endStr = dates[dates.length - 1];
 
+        // Determine trend color based on start vs end value of the fund
+        // Note: fundData contains percentage return values
+        const firstVal = fundData[0] || 0;
+        const lastVal = fundData[fundData.length - 1] || 0;
+        const isUp = lastVal >= firstVal;
+
+        // Colors from reference: #f87171 (red/up), #34d399 (green/down)
+        // Adjust for dark mode if needed, but usually these signal colors are consistent
+        const color = isUp ? '#f87171' : '#34d399';
+
         const option: echarts.EChartsOption = {
-            animation: false, // Disable animation for snappy switches
-            backgroundColor: 'transparent',
             title: {
                 text: `${startStr} 至 ${endStr}`,
                 left: '0%',
                 top: '0%',
                 textStyle: { fontSize: 12, color: isDark ? '#9ca3af' : '#666', fontWeight: 'normal' }
             },
+            animation: true,
+            animationDuration: 300,
+            animationEasing: 'cubicOut',
+            backgroundColor: 'transparent',
+            grid: { left: 20, right: 10, bottom: 30, top: 10, containLabel: true }, // Auto calculate padding
             tooltip: {
                 trigger: 'axis',
+                axisPointer: {
+                    type: 'cross',
+                    label: {
+                        backgroundColor: isDark ? '#374151' : '#6b7280',
+                        fontFamily: 'monospace'
+                    },
+                    crossStyle: {
+                        color: isDark ? '#9ca3af' : '#9ca3af',
+                        type: 'dashed'
+                    }
+                },
                 backgroundColor: isDark ? 'rgba(31, 41, 55, 0.95)' : 'rgba(255, 255, 255, 0.95)',
                 borderColor: isDark ? '#374151' : '#eee',
                 borderWidth: 1,
+                padding: [8, 12],
                 textStyle: { color: isDark ? '#f3f4f6' : '#333', fontSize: 12 },
-                axisPointer: { type: 'line', lineStyle: { color: '#999', type: 'dashed' } },
                 formatter: (params: any) => {
-                    let html = `<div style="font-weight:bold; margin-bottom:4px;">${params[0].axisValue}</div>`;
+                    // Keep the detailed tooltip but clean it up
+                    if (!Array.isArray(params) || params.length === 0) return '';
+
+                    const date = params[0].axisValue;
+                    let html = `<div style="font-weight:bold; margin-bottom:4px; font-family:monospace;">${date}</div>`;
+
                     params.forEach((item: any) => {
-                        const color = item.color;
-                        const name = item.seriesName;
-                        const value = item.value;
-                        const sign = value >= 0 ? '+' : '';
-                        const valColor = value >= 0 ? '#f63c3d' : '#1aaa0d';
+                        const val = item.value;
+                        // For the main fund series, use the trend color
+                        const itemColor = item.seriesName === fund.name ? color : item.color;
+                        const sign = val >= 0 ? '+' : '';
+                        const valColor = val >= 0 ? '#f87171' : '#34d399';
+
                         html += `
-                    <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:2px;">
-                        <div style="display:flex; align-items:center;">
-                            <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background-color:${color};margin-right:6px;"></span>
-                            <span style="color:#666;">${name}</span>
-                        </div>
-                        <span style="color:${valColor}; font-family:monospace; font-weight:500;">${sign}${value}%</span>
-                    </div>`;
+                        <div style="display:flex; justify-content:space-between; align-items:center; gap:16px; margin-bottom:2px;">
+                            <span style="color:${isDark ? '#d1d5db' : '#4b5563'}">${item.seriesName}</span>
+                            <span style="color:${valColor}; font-family:monospace; font-weight:600;">${sign}${val.toFixed(2)}%</span>
+                        </div>`;
                     });
                     return html;
                 }
             },
-            legend: {
-                data: [fund.name.substring(0, 6) + '...', '同类平均', '业绩基准'],
-                bottom: '0%',
-                icon: 'circle',
-                itemWidth: 8,
-                itemHeight: 8,
-                textStyle: { fontSize: 10, color: isDark ? '#9ca3af' : '#666' }
-            },
-            grid: { left: '2%', right: '4%', bottom: '12%', top: '10%', containLabel: true },
             xAxis: {
                 type: 'category',
                 boundaryGap: false,
@@ -315,48 +333,84 @@ export const FundDetail: React.FC<FundDetailProps> = ({ fund, onBack }) => {
                 axisLine: { show: false },
                 axisTick: { show: false },
                 axisLabel: {
+                    // showMinLabel: true,
+                    // showMaxLabel: true,
+                    interval: 'auto',
                     color: isDark ? '#9ca3af' : '#999',
                     fontSize: 10,
-                    formatter: (value: string) => value.substring(5)
+                    formatter: (value: string) => value.substring(2)
                 }
             },
             yAxis: {
                 type: 'value',
-                axisLabel: { formatter: '{value}%', color: isDark ? '#9ca3af' : '#999', fontSize: 10 },
-                splitLine: { lineStyle: { color: isDark ? '#374151' : '#f3f4f6' } }
+                position: 'right', // Right side Y-axis like reference
+                axisLine: { show: false },
+                axisTick: { show: false },
+                splitLine: {
+                    show: true,
+                    lineStyle: {
+                        color: isDark ? '#374151' : '#f3f4f6',
+                        type: 'dashed',
+                        width: 1
+                    }
+                },
+                axisLabel: {
+                    show: true,
+                    inside: false,
+                    color: isDark ? '#9ca3af' : '#9ca3af',
+                    fontSize: 10,
+                    formatter: (val: number) => `${val.toFixed(0)}%`
+                }
             },
             series: [
                 {
-                    name: fund.name.substring(0, 6) + '...',
+                    name: fund.name,
                     type: 'line',
                     data: fundData,
                     showSymbol: false,
-                    lineStyle: { width: 2, color: '#2c68ff' },
-                    itemStyle: { color: '#2c68ff' },
+                    symbol: 'circle',
+                    symbolSize: 6,
+                    smooth: true, // Smooth line
+                    lineStyle: { width: 2, color: color },
+                    itemStyle: { color: color, borderColor: '#fff', borderWidth: 1 },
+                    areaStyle: {
+                        color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                            { offset: 0, color: color },
+                            { offset: 1, color: isDark ? 'rgba(0,0,0,0)' : 'rgba(255,255,255,0)' } // Fade to transparent
+                        ]),
+                        opacity: 0.2
+                    },
                     z: 3
                 },
+                // Keep Average and Benchmark but make them subtle
                 {
                     name: '同类平均',
                     type: 'line',
                     data: avgData,
                     showSymbol: false,
-                    lineStyle: { width: 1.5, color: '#c23531' },
-                    itemStyle: { color: '#c23531' },
-                    z: 2
+                    smooth: true,
+                    lineStyle: { width: 1, color: '#9ca3af', type: 'dashed', opacity: 0.5 },
+                    itemStyle: { color: '#9ca3af' },
+                    z: 1
                 },
                 {
                     name: '业绩基准',
                     type: 'line',
                     data: bmkData,
                     showSymbol: false,
-                    lineStyle: { width: 1.5, color: '#fbc02d' },
-                    itemStyle: { color: '#fbc02d' },
-                    z: 1
+                    smooth: true,
+                    lineStyle: { width: 1, color: '#fbbf24', type: 'dashed', opacity: 0.5 },
+                    itemStyle: { color: '#fbbf24' },
+                    z: 2
                 }
             ]
         };
 
-        chartInstance.current.setOption(option);
+        if (chartInstance.current) {
+            chartInstance.current.clear(); // Explicitly clear the chart to force a fresh animation
+            chartInstance.current.setOption(option);
+        }
+
         const handleResize = () => chartInstance.current?.resize();
         window.addEventListener('resize', handleResize);
         return () => window.removeEventListener('resize', handleResize);
