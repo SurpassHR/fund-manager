@@ -55,6 +55,12 @@ export const Dashboard: React.FC = () => {
     const summary = calculateSummary(filteredFunds);
     const filterList = accounts.length > 1 ? ['All', ...accounts.map(a => a.name)] : accounts.map(a => a.name);
 
+    const latestDateStr = filteredFunds.reduce((max, f) => {
+        if (!f.lastUpdate) return max;
+        return f.lastUpdate > max ? f.lastUpdate : max;
+    }, '');
+    const displayDate = latestDateStr ? latestDateStr.substring(5) : 'Today';
+
     // --- Handlers ---
 
     const handleContextMenu = (e: React.MouseEvent, fundId: number) => {
@@ -182,7 +188,7 @@ export const Dashboard: React.FC = () => {
                     </div>
                     <div className={`text-xl font-bold font-mono ${getSignColor(summary.totalDayGain)}`}>
                         {showValues ? formatSignedCurrency(summary.totalDayGain) : '****'}
-                        <span className="text-sm font-normal text-gray-400 ml-1 font-sans">Today</span>
+                        <span className="text-sm font-normal text-gray-400 ml-1 font-sans">{displayDate}</span>
                     </div>
                 </div>
             </div>
