@@ -98,13 +98,15 @@ export const fetchEastMoneyLatestNav = async (fundCode: string): Promise<{ nav: 
         eastMoneyQueue = eastMoneyQueue.then(() => {
             return new Promise<void>((innerResolve) => {
                 const script = document.createElement('script');
-                // 加时间戳防止缓存
+                // fundf10 端点不校验 Referer，返回 var apidata={...} 格式
                 script.src = `https://fundf10.eastmoney.com/F10DataApi.aspx?type=lsjz&code=${fundCode}&page=1&per=1&rt=${Date.now()}`;
+                // 不发送当前页面的 Referer，保护隐私
+                script.referrerPolicy = 'no-referrer';
 
                 script.onload = () => {
                     let result = null;
                     try {
-                        // 东方财富接口会直接将结果赋值给全局对象 apidata
+                        // 脚本执行后会将结果赋值给全局 window.apidata
                         const data = (window as any).apidata;
                         if (data && data.content) {
                             const regex = /<tr>\s*<td>(\d{4}-\d{2}-\d{2})<\/td>\s*<td[^>]*>([\d\.]+)<\/td>\s*<td[^>]*>[\d\.]+<\/td>\s*<td[^>]*>([-\d\.]+)%?<\/td>/;
@@ -118,21 +120,20 @@ export const fetchEastMoneyLatestNav = async (fundCode: string): Promise<{ nav: 
                             }
                         }
                     } catch (e) {
-                        console.error(`Error parsing EastMoney JSONP for ${fundCode}`, e);
+                        console.error(`Error parsing EastMoney data for ${fundCode}`, e);
                     } finally {
-                        // 清理工作
                         if (document.head.contains(script)) {
                             document.head.removeChild(script);
                         }
                         (window as any).apidata = undefined;
-                    }
 
-                    resolve(result);
-                    innerResolve();
+                        resolve(result);
+                        innerResolve();
+                    }
                 };
 
                 script.onerror = () => {
-                    console.error(`Failed to load EastMoney JSONP script for ${fundCode}`);
+                    console.error(`Failed to load EastMoney script for ${fundCode}`);
                     if (document.head.contains(script)) {
                         document.head.removeChild(script);
                     }
