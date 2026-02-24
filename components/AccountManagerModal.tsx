@@ -75,17 +75,17 @@ export const AccountManagerModal: React.FC<AccountManagerModalProps> = ({ isOpen
   };
 
   return (
-    <div className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-white rounded-lg w-full max-w-sm overflow-hidden shadow-xl animate-in fade-in zoom-in duration-200 flex flex-col max-h-[80vh]">
-        <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50 shrink-0">
-          <h3 className="font-bold text-gray-800">{t('common.manageAccounts')}</h3>
+    <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+      <div className="bg-white dark:bg-card-dark rounded-lg w-full max-w-sm overflow-hidden shadow-xl animate-in fade-in zoom-in duration-200 flex flex-col max-h-[80vh]">
+        <div className="p-4 border-b border-gray-100 dark:border-border-dark flex justify-between items-center bg-gray-50 dark:bg-white/5 shrink-0">
+          <h2 className="font-bold text-gray-800 dark:text-gray-100">{t('common.manageAccounts')}</h2>
           <button onClick={onClose}><Icons.Plus className="transform rotate-45 text-gray-400 hover:text-gray-600" /></button>
         </div>
 
         <div className="p-4 overflow-y-auto">
           <div className="space-y-2">
             {accounts?.map((acc) => (
-              <div key={acc.id} className="flex items-center justify-between p-3 bg-white border border-gray-100 rounded-lg hover:border-blue-100 transition-colors group">
+              <div key={acc.id} className="flex items-center justify-between p-3 bg-white dark:bg-[#1a1a1a] border border-gray-100 dark:border-white/5 rounded-lg hover:border-blue-100 dark:hover:border-blue-900 transition-colors group">
                 {editingId === acc.id ? (
                   // Edit Mode
                   <div className="flex items-center gap-2 w-full">
@@ -95,7 +95,10 @@ export const AccountManagerModal: React.FC<AccountManagerModalProps> = ({ isOpen
                       onChange={(e) => setEditName(e.target.value)}
                       className="flex-1 px-2 py-1 border border-blue-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
                     />
-                    <button onClick={() => handleSaveEdit(acc)} className="text-green-600 p-1 hover:bg-green-50 rounded">
+                    <button
+                      onClick={() => handleSaveEdit(acc)}
+                      className="text-green-600 p-1 hover:bg-green-50 rounded"
+                    >
                       <Icons.Check size={18} />
                     </button>
                     <button onClick={handleCancelEdit} className="text-gray-400 p-1 hover:bg-gray-100 rounded">
@@ -135,7 +138,7 @@ export const AccountManagerModal: React.FC<AccountManagerModalProps> = ({ isOpen
           </div>
         </div>
 
-        <div className="p-4 border-t border-gray-100 bg-gray-50 shrink-0">
+        <div className="p-4 border-t border-gray-100 dark:border-border-dark bg-gray-50 dark:bg-white/5 shrink-0">
           {isAdding ? (
             <div className="flex flex-col gap-2">
               <input

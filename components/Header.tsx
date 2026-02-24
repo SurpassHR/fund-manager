@@ -30,7 +30,7 @@ export const Header: React.FC<HeaderProps> = ({ title }) => {
         <div className="flex items-center gap-4 text-gray-600 dark:text-gray-300">
           <button
             onClick={toggleLanguage}
-            className="text-xs font-medium border border-gray-200 dark:border-gray-600 rounded px-2 py-1 hover:bg-gray-50 dark:hover:bg-white/10 transition-colors"
+            className="text-xs font-medium border border-gray-200 dark:border-gray-600 rounded px-2 py-1 hover:bg-gray-50 dark:hover:bg-white/10 text-gray-600 dark:text-gray-300 transition-colors"
           >
             {language === 'zh' ? 'EN' : '中'}
           </button>

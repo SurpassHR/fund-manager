@@ -236,7 +236,7 @@ export const Dashboard: React.FC = () => {
                 <div className="flex-grow" />
                 <button
                     onClick={() => setIsAccountManagerOpen(true)}
-                    className="p-2 text-gray-400 hover:bg-gray-100 dark:hover:bg-white/10 rounded-full"
+                    className="p-2 text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:hover:bg-white/10 hover:text-gray-700 dark:hover:text-gray-200 rounded-full transition-colors"
                 >
                     <Icons.Menu size={20} />
                 </button>
@@ -246,10 +246,12 @@ export const Dashboard: React.FC = () => {
             <div className="bg-white dark:bg-card-dark md:rounded-lg md:shadow-sm px-4 py-4 mb-2 md:mb-6 mx-0 md:mx-0">
                 <div className="flex justify-between items-start mb-2">
                     <div className="flex items-center gap-2 text-gray-500 text-sm font-sans">
-                        <span>{t('common.totalAssets')}</span>
-                        <button onClick={() => setShowValues(!showValues)} className="p-1 hover:bg-gray-100 dark:hover:bg-white/10 rounded transition-colors">
-                            {showValues ? <Icons.Eye size={16} /> : <Icons.EyeOff size={16} />}
-                        </button>
+                        <div className="flex items-center gap-2">
+                            <span>{t('common.totalAssets')}</span>
+                            <button onClick={() => setShowValues(!showValues)} className="p-1 hover:bg-gray-100 dark:hover:bg-white/10 rounded transition-colors text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">
+                                {showValues ? <Icons.Eye size={20} /> : <Icons.EyeOff size={20} />}
+                            </button>
+                        </div>
                     </div>
                     <div className="flex gap-2 relative">
                         <button

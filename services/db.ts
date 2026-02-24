@@ -106,6 +106,7 @@ export const refreshFundData = () => {
           let { nav, navDate, navChangePercent } = json.data;
 
           let estimatedChangePct = navChangePercent;
+          let hasEstimate = false;
 
           // 如果条件满足，尝试通过持仓估算今日涨跌
           if (shouldUseEstimatedValue) {
@@ -149,6 +150,7 @@ export const refreshFundData = () => {
 
                   if (totalWeight > 0) {
                     estimatedChangePct = (weightedPctSum / (totalWeight / 100));
+                    hasEstimate = true;
                   }
                 }
               }
@@ -158,20 +160,22 @@ export const refreshFundData = () => {
             }
           }
 
+          // 确定本次使用的收益率对应的真正日期
+          const effectivePctDate = hasEstimate ? getLocalDateString() : navDate;
+
           // 判断今天是否应该计算“今日收益”
-          // 如果系统当前日期 <= 基金的成本生效日期，说明该基金【还在处理中】或【刚刚买入】，不应产生今日波动收益
-          const currentCalculationDateStr = shouldUseEstimatedValue ? getLocalDateString() : navDate;
+          // 如果有效日期 <= 基金的成本生效日期，说明该基金【还在处理中】，不应产生那天的波动收益
           let isGainActive = true;
           if (fund.buyDate) {
             const costDateStr = getCostDateStr(fund.buyDate, fund.buyTime || 'before15');
-            if (currentCalculationDateStr <= costDateStr) {
+            if (effectivePctDate <= costDateStr) {
               isGainActive = false;
             }
           }
 
           let dayChangeVal = 0;
           if (isGainActive) {
-            if (shouldUseEstimatedValue && estimatedChangePct !== navChangePercent) {
+            if (hasEstimate) {
               const mktVal = fund.holdingShares * nav;
               dayChangeVal = mktVal * (estimatedChangePct / 100);
             } else {
@@ -182,8 +186,8 @@ export const refreshFundData = () => {
 
           await db.funds.update(fund.id!, {
             currentNav: nav,
-            lastUpdate: shouldUseEstimatedValue ? getLocalDateString() : navDate,
-            dayChangePct: shouldUseEstimatedValue ? estimatedChangePct : navChangePercent,
+            lastUpdate: effectivePctDate,
+            dayChangePct: isGainActive ? (hasEstimate ? estimatedChangePct : navChangePercent) : 0,
             dayChangeVal: dayChangeVal,
           });
         })
