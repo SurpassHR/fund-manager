@@ -88,6 +88,32 @@ export const searchFunds = async (query: string): Promise<MorningstarResponse | 
     }
 };
 
+// --- EastMoney API Functions ---
+
+export const fetchEastMoneyLatestNav = async (fundCode: string): Promise<{ nav: number, navDate: string, navChangePercent: number } | null> => {
+    try {
+        const response = await fetch(`/eastmoney-api/F10DataApi.aspx?type=lsjz&code=${fundCode}&page=1&per=1`);
+        if (!response.ok) return null;
+        const text = await response.text();
+
+        // 解析返回的 JS 文本： var apidata={ content:"<table...",...};
+        // 匹配第一行: <td>2026-02-24</td><td class='tor bold'>1.8649</td><td class='tor bold'>1.8649</td><td class='tor bold grn'>-6.21%</td>
+        const regex = /<tr>\s*<td>(\d{4}-\d{2}-\d{2})<\/td>\s*<td[^>]*>([\d\.]+)<\/td>\s*<td[^>]*>[\d\.]+<\/td>\s*<td[^>]*>([-\d\.]+)%?<\/td>/;
+        const match = text.match(regex);
+
+        if (match) {
+            const navDate = match[1];
+            const nav = parseFloat(match[2]);
+            const navChangePercent = parseFloat(match[3]) || 0; // 处理可能的空值或无效值
+            return { nav, navDate, navChangePercent };
+        }
+        return null;
+    } catch (error) {
+        console.error(`Failed to fetch EastMoney NAV for ${fundCode}`, error);
+        return null;
+    }
+};
+
 // --- Tencent Stock API Functions ---
 
 export const fetchRealTimeQuotes = async (codes: string[], top10Holdings: any[]): Promise<Record<string, number>> => {

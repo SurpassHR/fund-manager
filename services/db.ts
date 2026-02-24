@@ -1,6 +1,6 @@
 import Dexie, { Table } from 'dexie';
 import { Fund, Account, AssetSummary } from '../types';
-import { fetchFundCommonData, fetchFundHoldings, fetchRealTimeQuotes, checkIsMarketTrading } from './api';
+import { fetchFundCommonData, fetchEastMoneyLatestNav, fetchFundHoldings, fetchRealTimeQuotes, checkIsMarketTrading } from './api';
 
 class XiaoHuYangJiDB extends Dexie {
   funds!: Table<Fund>;
@@ -99,17 +99,29 @@ export const refreshFundData = () => {
 
       const results = await Promise.allSettled(
         allFunds.map(async (fund) => {
-          // 1. 获取基础 NAV 数据
-          const json = await fetchFundCommonData(fund.code);
-          if (!json?.data?.nav) return;
+          // 1. 优先从东方财富获取最新 NAV 数据（晚间更新更及时）
+          let nav = 0, navDate = '', navChangePercent = 0;
+          const emData = await fetchEastMoneyLatestNav(fund.code);
 
-          let { nav, navDate, navChangePercent } = json.data;
+          if (emData) {
+            nav = emData.nav;
+            navDate = emData.navDate;
+            navChangePercent = emData.navChangePercent;
+          } else {
+            // 降级使用晨星接口
+            const json = await fetchFundCommonData(fund.code);
+            if (!json?.data?.nav) return;
+            ({ nav, navDate, navChangePercent } = json.data);
+          }
 
           let estimatedChangePct = navChangePercent;
           let hasEstimate = false;
 
-          // 如果条件满足，尝试通过持仓估算今日涨跌
-          if (shouldUseEstimatedValue) {
+          const todayStr = getLocalDateString();
+          const isOfficialTodayNavOut = (navDate === todayStr);
+
+          // 如果处于交易日内（或已收盘但尚未跨天），且官方还未发布今天最新净值，则尝试通过持仓估算今日涨跌
+          if (shouldUseEstimatedValue && !isOfficialTodayNavOut) {
             try {
               // 2. 获取基金持仓
               const holdingsJson = await fetchFundHoldings(fund.code);
