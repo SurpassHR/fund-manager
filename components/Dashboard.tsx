@@ -9,12 +9,14 @@ import { AddFundModal } from './AddFundModal';
 import { FundDetail } from './FundDetail';
 import { Fund } from '../types';
 import { AnimatePresence } from 'framer-motion';
+import { useSettings } from '../services/SettingsContext';
 
 export const Dashboard: React.FC = () => {
     const funds = useLiveQuery(() => db.funds.toArray());
     const accounts = useLiveQuery(() => db.accounts.toArray());
     const [activeFilter, setActiveFilter] = useState('All');
     const [showValues, setShowValues] = useState(true);
+    const { autoRefresh } = useSettings();
 
     // Refresh mechanism state
     const [isRefreshing, setIsRefreshing] = useState(false);
@@ -39,13 +41,19 @@ export const Dashboard: React.FC = () => {
     useEffect(() => {
         initDB();
 
-        // Auto-updater: Refresh every 15 seconds
-        const autoUpdateTimer = setInterval(() => {
-            refreshFundData();
-        }, 15000);
+        let autoUpdateTimer: ReturnType<typeof setInterval> | null = null;
 
-        return () => clearInterval(autoUpdateTimer);
-    }, []);
+        if (autoRefresh) {
+            // Auto-updater: Refresh every 15 seconds if enabled
+            autoUpdateTimer = setInterval(() => {
+                refreshFundData();
+            }, 15000);
+        }
+
+        return () => {
+            if (autoUpdateTimer) clearInterval(autoUpdateTimer);
+        };
+    }, [autoRefresh]);
 
     // Close context menu on global click
     useEffect(() => {

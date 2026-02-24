@@ -9,6 +9,7 @@ import { TabType } from './types';
 import { Icons } from './components/Icon';
 import { LanguageProvider, useTranslation } from './services/i18n';
 import { ThemeProvider } from './services/ThemeContext';
+import { SettingsProvider } from './services/SettingsContext';
 
 const AppContent: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TabType>('holding');
@@ -55,11 +56,13 @@ const AppContent: React.FC = () => {
 
 const App: React.FC = () => {
   return (
-    <ThemeProvider>
-      <LanguageProvider>
-        <AppContent />
-      </LanguageProvider>
-    </ThemeProvider>
+    <SettingsProvider>
+      <ThemeProvider>
+        <LanguageProvider>
+          <AppContent />
+        </LanguageProvider>
+      </ThemeProvider>
+    </SettingsProvider>
   );
 };
 

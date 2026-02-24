@@ -2,6 +2,7 @@ import React from 'react';
 import { Icons } from './Icon';
 import { useTranslation } from '../services/i18n';
 import { useTheme } from '../services/ThemeContext';
+import { useSettings } from '../services/SettingsContext';
 
 interface SettingsPageProps {
     onBack: () => void;
@@ -12,6 +13,7 @@ type ThemeOption = 'system' | 'light' | 'dark';
 export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack }) => {
     const { t } = useTranslation();
     const { mode, setMode } = useTheme();
+    const { autoRefresh, setAutoRefresh } = useSettings();
 
     const themeOptions: { value: ThemeOption; label: string; icon: React.ReactNode }[] = [
         {
@@ -74,6 +76,33 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack }) => {
                             )}
                         </button>
                     ))}
+                </div>
+            </div>
+
+            {/* 功能设置 */}
+            <div className="px-4 mt-6">
+                <div className="text-xs font-bold font-sans text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-2 px-1">
+                    {t('common.features') || '功能'}
+                </div>
+                <div className="bg-white dark:bg-card-dark rounded-xl overflow-hidden shadow-sm">
+                    <div className="w-full flex items-center justify-between px-4 py-3.5">
+                        <div className="flex items-center gap-3">
+                            <div className="w-6 flex justify-center text-gray-500 dark:text-gray-400">
+                                <Icons.Refresh size={18} />
+                            </div>
+                            <span className="text-sm font-sans text-gray-800 dark:text-gray-100">
+                                {t('common.autoRefresh') || '自动刷新持仓行情'}
+                            </span>
+                        </div>
+                        <button
+                            onClick={() => setAutoRefresh(!autoRefresh)}
+                            className={`w-10 h-6 rounded-full transition-colors relative ${autoRefresh ? 'bg-blue-600' : 'bg-gray-200 dark:bg-gray-700'}`}
+                        >
+                            <div
+                                className={`w-4 h-4 rounded-full bg-white absolute top-1 transition-transform ${autoRefresh ? 'translate-x-5' : 'translate-x-1'}`}
+                            />
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>

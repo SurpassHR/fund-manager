@@ -71,7 +71,9 @@ const dictionary = {
       themeSystem: "Follow System",
       themeLight: "Light",
       themeDark: "Dark",
-      currentTheme: "Current"
+      currentTheme: "Current",
+      features: "Features",
+      autoRefresh: "Auto Refresh Holdings"
     },
     filters: {
       All: "All",
@@ -146,7 +148,9 @@ const dictionary = {
       themeSystem: "跟随系统",
       themeLight: "浅色",
       themeDark: "深色",
-      currentTheme: "当前"
+      currentTheme: "当前",
+      features: "功能",
+      autoRefresh: "自动刷新持仓行情"
     },
     filters: {
       All: "全部",
