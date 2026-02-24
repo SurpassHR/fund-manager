@@ -38,7 +38,6 @@ export const Dashboard: React.FC = () => {
 
     useEffect(() => {
         initDB();
-        refreshFundData();
 
         // Auto-updater: Refresh every 1 minute
         const autoUpdateTimer = setInterval(() => {
