@@ -10,13 +10,6 @@ export default defineConfig(({ mode }) => {
     server: {
       port: 3000,
       host: '0.0.0.0',
-      proxy: {
-        '/eastmoney-api': {
-          target: 'https://fundf10.eastmoney.com',
-          changeOrigin: true,
-          rewrite: (path) => path.replace(/^\/eastmoney-api/, '')
-        }
-      }
     },
     plugins: [react(), tailwindcss()],
     define: {

@@ -90,28 +90,60 @@ export const searchFunds = async (query: string): Promise<MorningstarResponse | 
 
 // --- EastMoney API Functions ---
 
+// 使用队列严格控制并发，防止污染唯一的全局变量 window.apidata
+let eastMoneyQueue = Promise.resolve();
+
 export const fetchEastMoneyLatestNav = async (fundCode: string): Promise<{ nav: number, navDate: string, navChangePercent: number } | null> => {
-    try {
-        const response = await fetch(`/eastmoney-api/F10DataApi.aspx?type=lsjz&code=${fundCode}&page=1&per=1`);
-        if (!response.ok) return null;
-        const text = await response.text();
+    return new Promise((resolve) => {
+        eastMoneyQueue = eastMoneyQueue.then(() => {
+            return new Promise<void>((innerResolve) => {
+                const script = document.createElement('script');
+                // 加时间戳防止缓存
+                script.src = `https://fundf10.eastmoney.com/F10DataApi.aspx?type=lsjz&code=${fundCode}&page=1&per=1&rt=${Date.now()}`;
 
-        // 解析返回的 JS 文本： var apidata={ content:"<table...",...};
-        // 匹配第一行: <td>2026-02-24</td><td class='tor bold'>1.8649</td><td class='tor bold'>1.8649</td><td class='tor bold grn'>-6.21%</td>
-        const regex = /<tr>\s*<td>(\d{4}-\d{2}-\d{2})<\/td>\s*<td[^>]*>([\d\.]+)<\/td>\s*<td[^>]*>[\d\.]+<\/td>\s*<td[^>]*>([-\d\.]+)%?<\/td>/;
-        const match = text.match(regex);
+                script.onload = () => {
+                    let result = null;
+                    try {
+                        // 东方财富接口会直接将结果赋值给全局对象 apidata
+                        const data = (window as any).apidata;
+                        if (data && data.content) {
+                            const regex = /<tr>\s*<td>(\d{4}-\d{2}-\d{2})<\/td>\s*<td[^>]*>([\d\.]+)<\/td>\s*<td[^>]*>[\d\.]+<\/td>\s*<td[^>]*>([-\d\.]+)%?<\/td>/;
+                            const match = data.content.match(regex);
+                            if (match) {
+                                result = {
+                                    navDate: match[1],
+                                    nav: parseFloat(match[2]),
+                                    navChangePercent: parseFloat(match[3]) || 0
+                                };
+                            }
+                        }
+                    } catch (e) {
+                        console.error(`Error parsing EastMoney JSONP for ${fundCode}`, e);
+                    } finally {
+                        // 清理工作
+                        if (document.head.contains(script)) {
+                            document.head.removeChild(script);
+                        }
+                        (window as any).apidata = undefined;
+                    }
 
-        if (match) {
-            const navDate = match[1];
-            const nav = parseFloat(match[2]);
-            const navChangePercent = parseFloat(match[3]) || 0; // 处理可能的空值或无效值
-            return { nav, navDate, navChangePercent };
-        }
-        return null;
-    } catch (error) {
-        console.error(`Failed to fetch EastMoney NAV for ${fundCode}`, error);
-        return null;
-    }
+                    resolve(result);
+                    innerResolve();
+                };
+
+                script.onerror = () => {
+                    console.error(`Failed to load EastMoney JSONP script for ${fundCode}`);
+                    if (document.head.contains(script)) {
+                        document.head.removeChild(script);
+                    }
+                    resolve(null);
+                    innerResolve();
+                };
+
+                document.head.appendChild(script);
+            });
+        });
+    });
 };
 
 // --- Tencent Stock API Functions ---
