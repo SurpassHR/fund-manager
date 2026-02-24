@@ -120,3 +120,34 @@ export const fetchRealTimeQuotes = async (codes: string[], top10Holdings: any[])
         throw error; // Re-throw to allow caller to handle fallback
     }
 };
+
+export const checkIsMarketTrading = async (): Promise<boolean> => {
+    try {
+        const res = await fetch(`${TENCENT_STOCK_API}sh000001`);
+        const text = await res.text();
+        const parts = text.split('~');
+        if (parts.length > 30) {
+            const updateTime = parts[30]; // e.g., "20260224161415"
+            if (updateTime && updateTime.length >= 8) {
+                const marketDateStr = updateTime.substring(0, 8);
+                const d = new Date();
+                const year = d.getFullYear();
+                const month = String(d.getMonth() + 1).padStart(2, '0');
+                const day = String(d.getDate()).padStart(2, '0');
+                const todayStr = `${year}${month}${day}`;
+
+                // If the market index date is today, today is a trading day
+                const isAfter920 = d.getHours() > 9 || (d.getHours() === 9 && d.getMinutes() >= 20);
+                return marketDateStr === todayStr && isAfter920;
+            }
+        }
+    } catch (e) {
+        console.error('Failed to check market status', e);
+    }
+
+    // Fallback if API fails
+    const now = new Date();
+    const isWeekday = now.getDay() >= 1 && now.getDay() <= 5;
+    const isAfter920 = now.getHours() > 9 || (now.getHours() === 9 && now.getMinutes() >= 20);
+    return isWeekday && isAfter920;
+};

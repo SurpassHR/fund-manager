@@ -1,6 +1,6 @@
 import Dexie, { Table } from 'dexie';
 import { Fund, Account, AssetSummary } from '../types';
-import { fetchFundCommonData, fetchFundHoldings, fetchRealTimeQuotes } from './api';
+import { fetchFundCommonData, fetchFundHoldings, fetchRealTimeQuotes, checkIsMarketTrading } from './api';
 
 class XiaoHuYangJiDB extends Dexie {
   funds!: Table<Fund>;
@@ -64,11 +64,8 @@ export const refreshFundData = () => {
       const allFunds = await db.funds.toArray();
       if (allFunds.length === 0) return;
 
-      // 检查当前时间是否为交易日且在 9:20 之后
-      const now = new Date();
-      const isWeekday = now.getDay() >= 1 && now.getDay() <= 5;
-      const isAfter920 = now.getHours() > 9 || (now.getHours() === 9 && now.getMinutes() >= 20);
-      const shouldUseEstimatedValue = isWeekday && isAfter920;
+      // 检查当前大盘是否已更新(真正处于开盘且在 9:20 以后)
+      const shouldUseEstimatedValue = await checkIsMarketTrading();
 
       const results = await Promise.allSettled(
         allFunds.map(async (fund) => {
