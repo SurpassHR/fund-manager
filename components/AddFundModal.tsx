@@ -4,6 +4,7 @@ import { db } from '../services/db';
 import { useTranslation } from '../services/i18n';
 import { Icons } from './Icon';
 import { MorningstarResponse, MorningstarFund, Fund, FundCommonDataResponse } from '../types';
+import { searchFunds, fetchFundCommonData } from '../services/api';
 
 interface AddFundModalProps {
     isOpen: boolean;
@@ -125,10 +126,9 @@ export const AddFundModal: React.FC<AddFundModalProps> = ({ isOpen, onClose, edi
         setSelectedFund(null);
 
         try {
-            const response = await fetch(`https://www.morningstar.cn/cn-api/public/v1/fund-cache/${encodeURIComponent(query)}`);
-            if (!response.ok) throw new Error('Network response was not ok');
-            const data: MorningstarResponse = await response.json();
-            setResults(data?.data ?? []);
+            const data = await searchFunds(query);
+            if (!data) throw new Error('Search failed');
+            setResults(data.data ?? []);
         } catch (err) {
             console.error(err);
             setError('搜索失败，请检查网络或稍后重试');
@@ -137,7 +137,6 @@ export const AddFundModal: React.FC<AddFundModalProps> = ({ isOpen, onClose, edi
         }
     };
 
-    /** 选中基金后，自动拉取最新净值并默认成本价 */
     const handleSelect = async (fund: MorningstarFund) => {
         setSelectedFund(fund);
         setNavLoading(true);
@@ -145,14 +144,11 @@ export const AddFundModal: React.FC<AddFundModalProps> = ({ isOpen, onClose, edi
         let changePct = 0;
         let date = new Date().toISOString().split('T')[0];
         try {
-            const res = await fetch(`https://www.morningstar.cn/cn-api/v2/funds/${fund.symbol}/common-data`);
-            if (res.ok) {
-                const json: FundCommonDataResponse = await res.json();
-                if (json?.data?.nav) {
-                    nav = json.data.nav;
-                    changePct = json.data.navChangePercent ?? 0;
-                    date = json.data.navDate ?? date;
-                }
+            const json = await fetchFundCommonData(fund.symbol);
+            if (json?.data?.nav) {
+                nav = json.data.nav;
+                changePct = json.data.navChangePercent ?? 0;
+                date = json.data.navDate ?? date;
             }
         } catch (err) {
             console.error('获取净值失败，使用模拟值', err);
@@ -331,7 +327,7 @@ export const AddFundModal: React.FC<AddFundModalProps> = ({ isOpen, onClose, edi
                             </div>
                             <div className="text-right">
                                 <div className="text-[10px] text-blue-400 dark:text-blue-500">{t('common.nav')}</div>
-                                <div className="font-mono font-bold text-blue-800 dark:text-blue-300">
+                                <div className="font-sans font-bold text-blue-800 dark:text-blue-300">
                                     {navLoading ? '...' : currentNav.toFixed(4)}
                                 </div>
                             </div>
@@ -364,7 +360,7 @@ export const AddFundModal: React.FC<AddFundModalProps> = ({ isOpen, onClose, edi
                                         value={amount}
                                         onChange={(e) => handleAmountChange(e.target.value)}
                                         placeholder="0.00"
-                                        className={`w-full p-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-white/5 text-gray-900 dark:text-white font-bold font-mono focus:border-blue-500 outline-none ${noSpinnerClass}`}
+                                        className={`w-full p-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-white/5 text-gray-900 dark:text-white font-bold font-sans focus:border-blue-500 outline-none ${noSpinnerClass}`}
                                     />
                                 </div>
                                 {/* 持有份额 */}
@@ -375,7 +371,7 @@ export const AddFundModal: React.FC<AddFundModalProps> = ({ isOpen, onClose, edi
                                         value={shares}
                                         onChange={(e) => handleSharesChange(e.target.value)}
                                         placeholder="0.00"
-                                        className={`w-full p-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-white/5 text-gray-900 dark:text-white font-bold font-mono focus:border-blue-500 outline-none ${noSpinnerClass}`}
+                                        className={`w-full p-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-white/5 text-gray-900 dark:text-white font-bold font-sans focus:border-blue-500 outline-none ${noSpinnerClass}`}
                                     />
                                 </div>
                             </div>
@@ -388,7 +384,7 @@ export const AddFundModal: React.FC<AddFundModalProps> = ({ isOpen, onClose, edi
                                         value={costPrice}
                                         onChange={(e) => handleCostPriceChange(e.target.value)}
                                         placeholder="0.0000"
-                                        className={`w-full p-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-white/5 text-gray-900 dark:text-white font-bold font-mono focus:border-blue-500 outline-none ${noSpinnerClass}`}
+                                        className={`w-full p-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-white/5 text-gray-900 dark:text-white font-bold font-sans focus:border-blue-500 outline-none ${noSpinnerClass}`}
                                     />
                                 </div>
                                 {/* 持有收益 */}
@@ -399,7 +395,7 @@ export const AddFundModal: React.FC<AddFundModalProps> = ({ isOpen, onClose, edi
                                         value={gain}
                                         onChange={(e) => handleGainChange(e.target.value)}
                                         placeholder="0.00"
-                                        className={`w-full p-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-white/5 font-bold font-mono focus:border-blue-500 outline-none ${noSpinnerClass} ${getGainColor(gain)}`}
+                                        className={`w-full p-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-white/5 font-bold font-sans focus:border-blue-500 outline-none ${noSpinnerClass} ${getGainColor(gain)}`}
                                     />
                                 </div>
                             </div>

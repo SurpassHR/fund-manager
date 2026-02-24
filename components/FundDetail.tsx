@@ -501,19 +501,19 @@ export const FundDetail: React.FC<FundDetailProps> = ({ fund, onBack }) => {
                     <div className="bg-white dark:bg-card-dark p-6 mb-2 transition-colors">
                         <div className="text-gray-500 dark:text-gray-400 text-xs mb-1">{t('common.nav')} ({displayDate})</div>
                         <div className="flex items-baseline gap-3">
-                            <span className="text-3xl font-bold font-mono text-gray-900 dark:text-gray-100">{currentNav.toFixed(4)}</span>
-                            <span className={`text-lg font-medium font-mono ${getSignColor(dayChangePct)}`}>
+                            <span className="text-3xl font-bold font-sans text-gray-900 dark:text-gray-100">{currentNav.toFixed(4)}</span>
+                            <span className={`text-lg font-medium font-sans ${getSignColor(dayChangePct)}`}>
                                 {formatPct(dayChangePct)}
                             </span>
                         </div>
                         <div className="mt-4 grid grid-cols-2 gap-4 text-sm">
                             <div className="bg-gray-50 dark:bg-white/5 p-3 rounded-lg transition-colors">
                                 <div className="text-gray-400 text-xs mb-1">{t('common.cost')}</div>
-                                <div className="font-mono dark:text-gray-200">{fund.costPrice.toFixed(4)}</div>
+                                <div className="font-sans dark:text-gray-200">{fund.costPrice.toFixed(4)}</div>
                             </div>
                             <div className="bg-gray-50 dark:bg-white/5 p-3 rounded-lg transition-colors">
                                 <div className="text-gray-400 text-xs mb-1">{t('common.shares')}</div>
-                                <div className="font-mono dark:text-gray-200">{fund.holdingShares.toLocaleString()}</div>
+                                <div className="font-sans dark:text-gray-200">{fund.holdingShares.toLocaleString()}</div>
                             </div>
                         </div>
                     </div>
@@ -562,7 +562,7 @@ export const FundDetail: React.FC<FundDetailProps> = ({ fund, onBack }) => {
                                 ].map((item, idx) => (
                                     <div key={idx} className="flex flex-col gap-1 py-1 rounded">
                                         <span className="text-xs text-gray-400 mb-1">{item.label}</span>
-                                        <span className={`font-mono font-bold text-sm ${getSignColor(item.val || 0)}`}>
+                                        <span className={`font-sans font-bold text-sm ${getSignColor(item.val || 0)}`}>
                                             {item.val ? formatPct(item.val) : '--'}
                                         </span>
                                     </div>
@@ -594,11 +594,11 @@ export const FundDetail: React.FC<FundDetailProps> = ({ fund, onBack }) => {
 
                             {displayedHistory.length > 0 ? displayedHistory.map((item, idx) => (
                                 <div key={idx} className="grid grid-cols-4 gap-2 py-3 border-t border-gray-50 dark:border-border-dark items-center text-sm transition-colors">
-                                    <div className="text-left pl-2 text-gray-600 dark:text-gray-400 font-medium font-mono">{item.date}</div>
-                                    <div className="text-center text-gray-800 dark:text-gray-200 font-mono">{item.nav.toFixed(4)}</div>
+                                    <div className="text-left pl-2 text-gray-600 dark:text-gray-400 font-medium font-sans">{item.date}</div>
+                                    <div className="text-center text-gray-800 dark:text-gray-200 font-sans">{item.nav.toFixed(4)}</div>
                                     {/* Using derived nav for accumulated as well, since chart is adjusted returns */}
-                                    <div className="text-center text-gray-800 dark:text-gray-200 font-mono">{item.nav.toFixed(4)}</div>
-                                    <div className={`text-right pr-2 font-mono font-medium ${getSignColor(item.change)}`}>
+                                    <div className="text-center text-gray-800 dark:text-gray-200 font-sans">{item.nav.toFixed(4)}</div>
+                                    <div className={`text-right pr-2 font-sans font-medium ${getSignColor(item.change)}`}>
                                         {formatPct(item.change)}
                                     </div>
                                 </div>
@@ -634,18 +634,18 @@ export const FundDetail: React.FC<FundDetailProps> = ({ fund, onBack }) => {
                                         <div key={idx} className="grid grid-cols-10 gap-2 py-3 border-b border-gray-50 dark:border-border-dark items-center last:border-0 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
                                             <div className="col-span-4 pl-1">
                                                 <div className="font-medium text-gray-800 dark:text-gray-200 text-sm truncate">{stock.name}</div>
-                                                <div className="text-xs text-gray-400 font-mono">{stock.ticker}</div>
+                                                <div className="text-xs text-gray-400 font-sans">{stock.ticker}</div>
                                             </div>
                                             <div className="col-span-3 text-right">
-                                                <div className="font-mono text-sm text-gray-800 dark:text-gray-200">{price}</div>
+                                                <div className="font-sans text-sm text-gray-800 dark:text-gray-200">{price}</div>
                                                 {hasQuote && (
-                                                    <div className={`text-xs font-mono font-medium ${getSignColor(pct)}`}>
+                                                    <div className={`text-xs font-sans font-medium ${getSignColor(pct)}`}>
                                                         {formatPct(pct)}
                                                     </div>
                                                 )}
                                             </div>
                                             <div className="col-span-3 text-right pr-1">
-                                                <div className="font-mono text-gray-800 dark:text-gray-200 font-medium">{stock.weight.toFixed(2)}%</div>
+                                                <div className="font-sans text-gray-800 dark:text-gray-200 font-medium">{stock.weight.toFixed(2)}%</div>
                                                 {/* Simple visual bar for weight */}
                                                 <div className="w-full bg-gray-100 dark:bg-white/10 h-1 mt-1 rounded-full overflow-hidden flex justify-end">
                                                     <div className="bg-blue-200 dark:bg-blue-800 h-full" style={{ width: `${Math.min(stock.weight * 5, 100)}%` }} />
@@ -665,8 +665,8 @@ export const FundDetail: React.FC<FundDetailProps> = ({ fund, onBack }) => {
                             <div className="space-y-3">
                                 {data.annual.returns?.slice().reverse().map((item) => (
                                     <div key={item.k} className="flex justify-between items-center text-sm border-b border-gray-50 dark:border-border-dark pb-2 last:border-0">
-                                        <span className="text-gray-600 dark:text-gray-400 font-mono">{item.k}年</span>
-                                        <span className={`font-mono font-medium ${getSignColor(item.v)}`}>
+                                        <span className="text-gray-600 dark:text-gray-400 font-sans">{item.k}年</span>
+                                        <span className={`font-sans font-medium ${getSignColor(item.v)}`}>
                                             {formatPct(item.v)}
                                         </span>
                                     </div>

@@ -39,13 +39,13 @@ export const Ticker: React.FC = () => {
       <div className="w-full max-w-7xl px-4 flex items-center justify-between text-sm">
         <div className="flex items-center gap-4 w-full overflow-hidden">
           <span className="font-medium text-gray-700 dark:text-gray-200 whitespace-nowrap">{current.name}</span>
-          <span className={`font-mono font-bold ${getSignColor(current.change)}`}>
+          <span className={`font-sans font-bold ${getSignColor(current.change)}`}>
             {current.value.toFixed(2)}
           </span>
-          <span className={`font-mono ${getSignColor(current.change)} hidden sm:inline`}>
+          <span className={`font-sans ${getSignColor(current.change)} hidden sm:inline`}>
             {current.change.toFixed(2)}
           </span>
-          <span className={`font-mono ${getSignColor(current.change)}`}>
+          <span className={`font-sans ${getSignColor(current.change)}`}>
             {formatPct(current.changePct)}
           </span>
         </div>

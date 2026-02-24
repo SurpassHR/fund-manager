@@ -19,7 +19,7 @@ export const Dashboard: React.FC = () => {
     // Refresh mechanism state
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [cooldown, setCooldown] = useState(0); // Cooldown percentage 0-100
-    const cooldownMaxTime = 10000; // 10 seconds cooldown
+    const cooldownMaxTime = 5000; // 5 seconds cooldown
     const cooldownRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
     // State for Detail View
@@ -39,10 +39,10 @@ export const Dashboard: React.FC = () => {
     useEffect(() => {
         initDB();
 
-        // Auto-updater: Refresh every 1 minute
+        // Auto-updater: Refresh every 15 seconds
         const autoUpdateTimer = setInterval(() => {
             refreshFundData();
-        }, 60000);
+        }, 15000);
 
         return () => clearInterval(autoUpdateTimer);
     }, []);
@@ -267,10 +267,10 @@ export const Dashboard: React.FC = () => {
                 </div>
 
                 <div className="flex flex-col sm:flex-row sm:justify-between sm:items-end gap-2">
-                    <div className="text-3xl font-bold text-gray-800 dark:text-gray-100 tracking-tight font-mono">
+                    <div className="text-3xl font-bold text-gray-800 dark:text-gray-100 tracking-tight font-sans">
                         {showValues ? formatCurrency(summary.totalAssets) : '****'}
                     </div>
-                    <div className={`text-xl font-bold font-mono ${getSignColor(summary.totalDayGain)}`}>
+                    <div className={`text-xl font-bold font-sans ${getSignColor(summary.totalDayGain)}`}>
                         {showValues ? formatSignedCurrency(summary.totalDayGain) : '****'}
                         <span className="text-sm font-normal text-gray-400 ml-1 font-sans">{displayDate}</span>
                     </div>
@@ -335,7 +335,7 @@ export const Dashboard: React.FC = () => {
                             {/* Common: Name Section */}
                             <div className="flex-1 min-w-0 pr-2 md:flex-[1.5] md:self-center">
                                 <div className="hidden md:flex items-center gap-2">
-                                    <span className="text-[10px] px-1 py-0.5 rounded bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 font-mono">
+                                    <span className="text-[10px] px-1 py-0.5 rounded bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 font-sans">
                                         {fund.code}
                                     </span>
                                     <span className="text-[10px] px-1 py-0.5 rounded bg-gray-100 dark:bg-white/10 text-gray-500 dark:text-gray-400 font-sans">
@@ -348,8 +348,8 @@ export const Dashboard: React.FC = () => {
                                 <div className="md:hidden flex flex-col gap-1">
                                     <h3 className="text-sm font-medium text-gray-800 dark:text-gray-100 truncate leading-tight font-sans">{fund.name}</h3>
                                     <div className="flex justify-between items-center pr-2">
-                                        <span className="text-xs text-gray-400 font-mono">{fund.code}</span>
-                                        <span className="text-xs text-gray-400 font-mono">¥{formatCurrency(holdingValue)}</span>
+                                        <span className="text-xs text-gray-400 font-sans">{fund.code}</span>
+                                        <span className="text-xs text-gray-400 font-sans">¥{formatCurrency(holdingValue)}</span>
                                     </div>
                                 </div>
                             </div>
@@ -357,24 +357,24 @@ export const Dashboard: React.FC = () => {
                             {/* Desktop Grid Layout */}
                             <div className="hidden md:grid flex-[4] w-full grid-cols-5 gap-4 text-right items-start text-sm">
                                 <div className="text-left text-gray-500 text-xs">
-                                    <div className="font-mono">{formatCurrency(fund.costPrice, 4)}</div>
-                                    <div className="font-mono text-gray-400">{fund.currentNav.toFixed(4)}</div>
+                                    <div className="font-sans">{formatCurrency(fund.costPrice, 4)}</div>
+                                    <div className="font-sans text-gray-400">{fund.currentNav.toFixed(4)}</div>
                                 </div>
-                                <div className={`font-medium font-mono ${getSignColor(fund.dayChangePct)}`}>
+                                <div className={`font-medium font-sans ${getSignColor(fund.dayChangePct)}`}>
                                     {formatPct(fund.dayChangePct)}
                                 </div>
-                                <div className={`font-medium font-mono ${getSignColor(fund.dayChangeVal)}`}>
+                                <div className={`font-medium font-sans ${getSignColor(fund.dayChangeVal)}`}>
                                     {formatSignedCurrency(fund.dayChangeVal)}
                                 </div>
                                 <div className="flex flex-col items-end">
-                                    <div className={`font-medium font-mono ${getSignColor(totalReturn)}`}>
+                                    <div className={`font-medium font-sans ${getSignColor(totalReturn)}`}>
                                         {formatSignedCurrency(totalReturn)}
                                     </div>
-                                    <div className={`text-[10px] font-mono ${getSignColor(totalReturnPct)}`}>
+                                    <div className={`text-[10px] font-sans ${getSignColor(totalReturnPct)}`}>
                                         {formatPct(totalReturnPct)}
                                     </div>
                                 </div>
-                                <div className="font-bold text-gray-800 dark:text-gray-100 font-mono">
+                                <div className="font-bold text-gray-800 dark:text-gray-100 font-sans">
                                     {formatCurrency(holdingValue)}
                                 </div>
                             </div>
@@ -382,23 +382,23 @@ export const Dashboard: React.FC = () => {
                             {/* Mobile Flex Layout */}
                             <div className="md:hidden flex flex-none gap-2 text-right items-start">
                                 <div className="w-14 flex flex-col items-end">
-                                    <div className={`text-sm font-medium font-mono ${getSignColor(fund.dayChangePct)}`}>
+                                    <div className={`text-base font-bold font-sans ${getSignColor(fund.dayChangePct)}`}>
                                         {formatPct(fund.dayChangePct)}
                                     </div>
-                                    <div className="text-[10px] text-gray-300 font-mono">{fund.currentNav.toFixed(4)}</div>
+                                    <div className="text-[10px] text-gray-300 font-sans">{fund.currentNav.toFixed(4)}</div>
                                 </div>
 
                                 <div className="w-[4.5rem] flex items-start justify-end">
-                                    <div className={`text-sm font-medium font-mono ${getSignColor(fund.dayChangeVal)}`}>
+                                    <div className={`text-base font-bold font-sans ${getSignColor(fund.dayChangeVal)}`}>
                                         {formatSignedCurrency(fund.dayChangeVal)}
                                     </div>
                                 </div>
 
                                 <div className="w-[4.5rem] flex flex-col items-end">
-                                    <div className={`text-sm font-medium font-mono ${getSignColor(totalReturn)}`}>
+                                    <div className={`text-base font-bold font-sans ${getSignColor(totalReturn)}`}>
                                         {formatSignedCurrency(totalReturn)}
                                     </div>
-                                    <div className={`text-[10px] font-mono ${getSignColor(totalReturnPct)}`}>
+                                    <div className={`text-[10px] font-sans ${getSignColor(totalReturnPct)}`}>
                                         {formatPct(totalReturnPct)}
                                     </div>
                                 </div>
