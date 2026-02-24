@@ -73,7 +73,11 @@ const dictionary = {
       themeDark: "Dark",
       currentTheme: "Current",
       features: "Features",
-      autoRefresh: "Auto Refresh Holdings"
+      autoRefresh: "Auto Refresh Holdings",
+      buyDate: "Buy Date",
+      buyTime: "Buy Time",
+      before15: "Before 15:00",
+      after15: "After 15:00"
     },
     filters: {
       All: "All",
@@ -150,7 +154,11 @@ const dictionary = {
       themeDark: "深色",
       currentTheme: "当前",
       features: "功能",
-      autoRefresh: "自动刷新持仓行情"
+      autoRefresh: "自动刷新持仓行情",
+      buyDate: "买入日期",
+      buyTime: "买入时间",
+      before15: "15:00 前",
+      after15: "15:00 后"
     },
     filters: {
       All: "全部",

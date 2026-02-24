@@ -9,6 +9,8 @@ export interface Fund {
   lastUpdate: string;
   dayChangePct: number; // Percentage change (e.g., 1.5 for 1.5%)
   dayChangeVal: number; // Value change per share implied or pre-calculated
+  buyDate?: string; // YYYY-MM-DD
+  buyTime?: 'before15' | 'after15';
 }
 
 export interface Account {

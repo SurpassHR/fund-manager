@@ -51,6 +51,36 @@ const getLocalDateString = () => {
 };
 
 /**
+ * 根据买入日期和时间，估算基金的“成本生效日期”（即这天的净值作为买入成本）
+ * 收益只有在这个日期【之后】的市场交易日才会产生
+ */
+const getCostDateStr = (buyDateStr: string, buyTime: 'before15' | 'after15'): string => {
+  const d = new Date(buyDateStr);
+
+  // 如果是周末买入，自动顺延到下周一，且相当于周一 15:00 前买入
+  if (d.getDay() === 0) { // 周日
+    d.setDate(d.getDate() + 1);
+    buyTime = 'before15';
+  } else if (d.getDay() === 6) { // 周六
+    d.setDate(d.getDate() + 2);
+    buyTime = 'before15';
+  }
+
+  // 如果是 15:00 后买入，成本按下一个交易日算
+  if (buyTime === 'after15') {
+    d.setDate(d.getDate() + 1);
+    // 如果顺延后碰到了周末（比如周五15点后，按周一算）
+    if (d.getDay() === 6) d.setDate(d.getDate() + 2);
+    else if (d.getDay() === 0) d.setDate(d.getDate() + 1);
+  }
+
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+/**
  * 刷新所有持仓基金的最新净值数据
  * 从晨星 API 拉取最新 NAV、涨跌幅，更新 IndexedDB
  */
@@ -128,18 +158,26 @@ export const refreshFundData = () => {
             }
           }
 
-          // 日收益 = 市值 × 涨跌幅% / (1 + 涨跌幅%)
-          // 如果是估算，这里的 nav 还是昨天的 nav，市值也是基于昨天 NAV 计算的市值
-          // 由于 estimatedChangePct 是今日相比昨天的预期变化，用昨天的 nav 计算刚好可以直接使用: 
-          // 预期收益 = 持仓份额 * 昨天NAV * (estimatedChangePct/100)
+          // 判断今天是否应该计算“今日收益”
+          // 如果系统当前日期 <= 基金的成本生效日期，说明该基金【还在处理中】或【刚刚买入】，不应产生今日波动收益
+          const currentCalculationDateStr = shouldUseEstimatedValue ? getLocalDateString() : navDate;
+          let isGainActive = true;
+          if (fund.buyDate) {
+            const costDateStr = getCostDateStr(fund.buyDate, fund.buyTime || 'before15');
+            if (currentCalculationDateStr <= costDateStr) {
+              isGainActive = false;
+            }
+          }
 
           let dayChangeVal = 0;
-          if (shouldUseEstimatedValue && estimatedChangePct !== navChangePercent) {
-            const mktVal = fund.holdingShares * nav;
-            dayChangeVal = mktVal * (estimatedChangePct / 100);
-          } else {
-            const mktVal = fund.holdingShares * nav;
-            dayChangeVal = mktVal * (navChangePercent / 100) / (1 + navChangePercent / 100);
+          if (isGainActive) {
+            if (shouldUseEstimatedValue && estimatedChangePct !== navChangePercent) {
+              const mktVal = fund.holdingShares * nav;
+              dayChangeVal = mktVal * (estimatedChangePct / 100);
+            } else {
+              const mktVal = fund.holdingShares * nav;
+              dayChangeVal = mktVal * (navChangePercent / 100) / (1 + navChangePercent / 100);
+            }
           }
 
           await db.funds.update(fund.id!, {

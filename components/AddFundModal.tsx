@@ -33,6 +33,8 @@ export const AddFundModal: React.FC<AddFundModalProps> = ({ isOpen, onClose, edi
     const [costPrice, setCostPrice] = useState(''); // 持仓成本（单价）
     const [gain, setGain] = useState('');         // 持有收益
     const [selectedAccount, setSelectedAccount] = useState('Default');
+    const [buyDate, setBuyDate] = useState<string>(''); // 买入日期
+    const [buyTime, setBuyTime] = useState<'before15' | 'after15'>('before15'); // 15:00前还是后
 
     // 初始化 / 编辑模式填充
     useEffect(() => {
@@ -51,6 +53,8 @@ export const AddFundModal: React.FC<AddFundModalProps> = ({ isOpen, onClose, edi
                 setGain(initialGain.toFixed(2));
                 setNavChangePct(editFund.dayChangePct);
                 setSelectedAccount(editFund.platform);
+                setBuyDate(editFund.buyDate || new Date().toISOString().split('T')[0]);
+                setBuyTime(editFund.buyTime || 'before15');
             } else {
                 setQuery('');
                 setResults([]);
@@ -61,6 +65,8 @@ export const AddFundModal: React.FC<AddFundModalProps> = ({ isOpen, onClose, edi
                 setCostPrice('');
                 setGain('');
                 setSelectedAccount('Default');
+                setBuyDate(new Date().toISOString().split('T')[0]);
+                setBuyTime(new Date().getHours() < 15 ? 'before15' : 'after15');
             }
             setError('');
         }
@@ -195,6 +201,8 @@ export const AddFundModal: React.FC<AddFundModalProps> = ({ isOpen, onClose, edi
                 platform: selectedAccount,
                 dayChangeVal,      // 更新日收益绝对值
                 dayChangePct: navChangePct, // 同时也更新涨跌幅（虽然通常不变，但为了数据一致性）
+                buyDate,
+                buyTime,
             });
         } else {
             const code = 'symbol' in selectedFund ? selectedFund.symbol : selectedFund.code;
@@ -213,6 +221,8 @@ export const AddFundModal: React.FC<AddFundModalProps> = ({ isOpen, onClose, edi
                 lastUpdate: navDate || new Date().toISOString().split('T')[0],
                 dayChangePct: navChangePct,
                 dayChangeVal,
+                buyDate,
+                buyTime,
             });
         }
 
@@ -347,6 +357,30 @@ export const AddFundModal: React.FC<AddFundModalProps> = ({ isOpen, onClose, edi
                                     </option>
                                 ))}
                             </select>
+                        </div>
+
+                        {/* 买入时间 */}
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-xs font-bold text-gray-500 mb-1">{t('common.buyDate') || '买入日期'}</label>
+                                <input
+                                    type="date"
+                                    value={buyDate}
+                                    onChange={(e) => setBuyDate(e.target.value)}
+                                    className="w-full p-2.5 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-white/5 focus:outline-none focus:border-blue-500 text-gray-900 dark:text-gray-100 text-sm font-sans"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-gray-500 mb-1">{t('common.buyTime') || '买入时间'}</label>
+                                <select
+                                    value={buyTime}
+                                    onChange={(e) => setBuyTime(e.target.value as 'before15' | 'after15')}
+                                    className="w-full p-3 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-white/5 focus:outline-none focus:border-blue-500 text-gray-900 dark:text-gray-100 text-sm"
+                                >
+                                    <option value="before15">{t('common.before15') || '15:00前'}</option>
+                                    <option value="after15">{t('common.after15') || '15:00后'}</option>
+                                </select>
+                            </div>
                         </div>
 
                         {/* 联动表单 */}
