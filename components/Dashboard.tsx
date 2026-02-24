@@ -16,6 +16,12 @@ export const Dashboard: React.FC = () => {
     const [activeFilter, setActiveFilter] = useState('All');
     const [showValues, setShowValues] = useState(true);
 
+    // Refresh mechanism state
+    const [isRefreshing, setIsRefreshing] = useState(false);
+    const [cooldown, setCooldown] = useState(0); // Cooldown percentage 0-100
+    const cooldownMaxTime = 10000; // 10 seconds cooldown
+    const cooldownRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
     // State for Detail View
     const [selectedFund, setSelectedFund] = useState<Fund | null>(null);
 
@@ -33,6 +39,13 @@ export const Dashboard: React.FC = () => {
     useEffect(() => {
         initDB();
         refreshFundData();
+
+        // Auto-updater: Refresh every 1 minute
+        const autoUpdateTimer = setInterval(() => {
+            refreshFundData();
+        }, 60000);
+
+        return () => clearInterval(autoUpdateTimer);
     }, []);
 
     // Close context menu on global click
@@ -109,6 +122,43 @@ export const Dashboard: React.FC = () => {
         setSelectedFund(fund);
     };
 
+    const handleManualRefresh = async () => {
+        if (cooldown > 0 || isRefreshing) return;
+
+        setIsRefreshing(true);
+        const startTime = Date.now();
+
+        try {
+            await refreshFundData();
+        } finally {
+            // Ensure minimum rotation visibly
+            const elapsed = Date.now() - startTime;
+            if (elapsed < 1000) {
+                await new Promise(res => setTimeout(res, 1000 - elapsed));
+            }
+            setIsRefreshing(false);
+
+            // Start cooldown
+            setCooldown(100);
+            const cooldownStartTime = Date.now();
+
+            if (cooldownRef.current) clearInterval(cooldownRef.current);
+
+            cooldownRef.current = setInterval(() => {
+                const cElapsed = Date.now() - cooldownStartTime;
+                const remaining = Math.max(0, cooldownMaxTime - cElapsed);
+                const percent = (remaining / cooldownMaxTime) * 100;
+
+                if (percent <= 0) {
+                    setCooldown(0);
+                    if (cooldownRef.current) clearInterval(cooldownRef.current);
+                } else {
+                    setCooldown(percent);
+                }
+            }, 16); // High frequency update for smoother animation
+        }
+    };
+
     return (
         <div className="pb-36 md:pb-24 bg-app-bg dark:bg-app-bg-dark min-h-full" onContextMenu={(e) => e.preventDefault()}>
             <AnimatePresence>
@@ -178,14 +228,42 @@ export const Dashboard: React.FC = () => {
                 <div className="flex justify-between items-start mb-2">
                     <div className="flex items-center gap-2 text-gray-500 text-sm font-sans">
                         <span>{t('common.totalAssets')}</span>
-                        <button onClick={() => setShowValues(!showValues)} className="p-1 hover:bg-gray-100 dark:hover:bg-white/10 rounded">
+                        <button onClick={() => setShowValues(!showValues)} className="p-1 hover:bg-gray-100 dark:hover:bg-white/10 rounded transition-colors">
                             {showValues ? <Icons.Eye size={16} /> : <Icons.EyeOff size={16} />}
                         </button>
                     </div>
-                    <div className="flex items-center gap-1 text-gray-500 dark:text-gray-400 text-xs bg-gray-50 dark:bg-white/10 px-2 py-1 rounded-full cursor-pointer hover:bg-gray-100 dark:hover:bg-white/15 font-sans">
-                        <Icons.Refresh size={12} />
-                        <span>{t('common.dayGain')}</span>
-                        <Icons.ArrowUp className="transform rotate-90" size={12} />
+                    <div className="flex gap-2 relative">
+                        <button
+                            onClick={handleManualRefresh}
+                            disabled={cooldown > 0 || isRefreshing}
+                            className={`relative flex items-center justify-center p-1 rounded-full bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-gray-300 overflow-hidden active:scale-95 transition-transform ${cooldown > 0 || isRefreshing ? 'cursor-not-allowed' : 'cursor-pointer'}`}
+                            style={{ width: '28px', height: '28px' }}
+                        >
+                            <Icons.Refresh size={14} className={`${isRefreshing ? 'animate-spin' : ''}`} />
+
+                            {/* Cooldown overlay (Light mode) */}
+                            {(cooldown > 0 && !isRefreshing) && (
+                                <div
+                                    className="absolute inset-0 dark:hidden"
+                                    style={{
+                                        background: `conic-gradient(transparent ${100 - cooldown}%, rgba(0,0,0,0.2) ${100 - cooldown}%, rgba(0,0,0,0.2) 100%)`
+                                    }}
+                                />
+                            )}
+                            {/* Cooldown overlay (Dark mode) */}
+                            {(cooldown > 0 && !isRefreshing) && (
+                                <div
+                                    className="absolute inset-0 hidden dark:block"
+                                    style={{
+                                        background: `conic-gradient(transparent ${100 - cooldown}%, rgba(0,0,0,0.7) ${100 - cooldown}%, rgba(0,0,0,0.7) 100%)`
+                                    }}
+                                />
+                            )}
+                        </button>
+                        <div className="flex items-center gap-1 text-gray-500 dark:text-gray-400 text-xs bg-gray-50 dark:bg-white/10 px-2 py-1 rounded-full hover:bg-gray-100 dark:hover:bg-white/15 font-sans transition-colors">
+                            <span>{t('common.dayGain')}</span>
+                            <Icons.ArrowUp className="transform rotate-90" size={12} />
+                        </div>
                     </div>
                 </div>
 
