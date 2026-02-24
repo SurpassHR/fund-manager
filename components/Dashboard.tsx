@@ -41,12 +41,24 @@ export const Dashboard: React.FC = () => {
     useEffect(() => {
         initDB();
 
+        // 仅在首次打开或距离上次刷新超过一定时间(比如60秒)时自动刷新一次
+        // 这样既能保证新开页总是获取最新(今天)的数据，又能避免在各个底部Tab之间频繁切换导致无限拉取
+        const lastAutoUpdateStr = sessionStorage.getItem('lastAutoUpdate_timestamp');
+        const now = Date.now();
+        if (!lastAutoUpdateStr || now - parseInt(lastAutoUpdateStr) > 60000) {
+            refreshFundData().then(() => {
+                sessionStorage.setItem('lastAutoUpdate_timestamp', Date.now().toString());
+            });
+        }
+
         let autoUpdateTimer: ReturnType<typeof setInterval> | null = null;
 
         if (autoRefresh) {
             // Auto-updater: Refresh every 15 seconds if enabled
             autoUpdateTimer = setInterval(() => {
-                refreshFundData();
+                refreshFundData().then(() => {
+                    sessionStorage.setItem('lastAutoUpdate_timestamp', Date.now().toString());
+                });
             }, 15000);
         }
 

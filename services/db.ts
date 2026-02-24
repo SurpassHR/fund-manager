@@ -40,6 +40,17 @@ export const initDB = () => {
 };
 
 /**
+ * 获取本地时间的 YYYY-MM-DD 格式字符串，避免因为 toISOString 的 UTC 时区差异导致日期错切
+ */
+const getLocalDateString = () => {
+  const d = new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+/**
  * 刷新所有持仓基金的最新净值数据
  * 从晨星 API 拉取最新 NAV、涨跌幅，更新 IndexedDB
  */
@@ -136,7 +147,7 @@ export const refreshFundData = () => {
 
           await db.funds.update(fund.id!, {
             currentNav: nav,
-            lastUpdate: navDate,
+            lastUpdate: shouldUseEstimatedValue ? getLocalDateString() : navDate,
             dayChangePct: shouldUseEstimatedValue ? estimatedChangePct : navChangePercent,
             dayChangeVal: dayChangeVal,
           });
