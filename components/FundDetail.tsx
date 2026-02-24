@@ -5,6 +5,7 @@ import { formatCurrency, formatPct, getSignColor } from '../services/financeUtil
 import { useTranslation } from '../services/i18n';
 import { useTheme } from '../services/ThemeContext';
 import * as echarts from 'echarts';
+import { motion } from 'framer-motion';
 
 interface FundDetailProps {
     fund: Fund;
@@ -464,14 +465,24 @@ export const FundDetail: React.FC<FundDetailProps> = ({ fund, onBack }) => {
     // Apply toggle limit
     const displayedHistory = showAllHistory ? historyData : historyData.slice(0, 10);
 
+    const isDesktop = typeof window !== 'undefined' && window.innerWidth >= 768;
+
     return (
-        <div
-            className="fixed inset-0 z-50 md:p-4 lg:p-8 md:bg-black/30 md:backdrop-blur-sm md:flex md:items-start md:justify-center transition-all overflow-hidden"
+        <motion.div
+            className="fixed inset-0 z-50 md:p-4 lg:p-8 md:bg-black/30 md:backdrop-blur-sm md:flex md:items-start md:justify-center overflow-hidden"
             onClick={onBack}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
         >
-            <div
-                className="bg-gray-50 dark:bg-app-bg-dark flex flex-col w-full h-full md:h-[calc(100vh-2rem)] lg:h-[calc(100vh-4rem)] md:max-w-7xl md:rounded-xl md:shadow-2xl md:border md:border-gray-200 dark:md:border-border-dark animate-in slide-in-from-right md:slide-in-from-bottom-8 md:zoom-in-95 duration-300 overflow-hidden relative"
+            <motion.div
+                className="bg-gray-50 dark:bg-app-bg-dark flex flex-col w-full h-full md:h-[calc(100vh-2rem)] lg:h-[calc(100vh-4rem)] md:max-w-7xl md:rounded-xl md:shadow-2xl md:border md:border-gray-200 dark:md:border-border-dark overflow-hidden relative"
                 onClick={(e) => e.stopPropagation()}
+                initial={isDesktop ? { opacity: 0, scale: 0.95, y: 20 } : { opacity: 1, x: '100%' }}
+                animate={isDesktop ? { opacity: 1, scale: 1, y: 0 } : { opacity: 1, x: 0 }}
+                exit={isDesktop ? { opacity: 0, scale: 0.95, y: 20 } : { opacity: 1, x: '100%' }}
+                transition={{ type: "spring", damping: 28, stiffness: 280 }}
             >
                 {/* Header */}
                 <div className="bg-white dark:bg-card-dark px-4 h-14 flex items-center justify-between shadow-sm dark:border-b dark:border-border-dark flex-shrink-0 z-10 transition-colors">
@@ -664,7 +675,7 @@ export const FundDetail: React.FC<FundDetailProps> = ({ fund, onBack }) => {
                         </div>
                     )}
                 </div>
-            </div>
-        </div>
+            </motion.div>
+        </motion.div>
     );
 };

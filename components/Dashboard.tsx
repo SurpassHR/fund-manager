@@ -8,6 +8,7 @@ import { AccountManagerModal } from './AccountManagerModal';
 import { AddFundModal } from './AddFundModal';
 import { FundDetail } from './FundDetail';
 import { Fund } from '../types';
+import { AnimatePresence } from 'framer-motion';
 
 export const Dashboard: React.FC = () => {
     const funds = useLiveQuery(() => db.funds.toArray());
@@ -43,10 +44,10 @@ export const Dashboard: React.FC = () => {
 
     if (!funds || !accounts) return <div className="p-8 text-center text-gray-500">{t('common.loading')}</div>;
 
-    // If a fund is selected, show Detail View
-    if (selectedFund) {
-        return <FundDetail fund={selectedFund} onBack={() => setSelectedFund(null)} />;
-    }
+    // 移除这里提前 return FundDetail 的逻辑，改为在下方主渲染中使用 AnimatePresence
+    // if (selectedFund) {
+    //     return <FundDetail fund={selectedFund} onBack={() => setSelectedFund(null)} />;
+    // }
 
     const filteredFunds = activeFilter === 'All'
         ? funds
@@ -110,6 +111,12 @@ export const Dashboard: React.FC = () => {
 
     return (
         <div className="pb-36 md:pb-24 bg-app-bg dark:bg-app-bg-dark min-h-full" onContextMenu={(e) => e.preventDefault()}>
+            <AnimatePresence>
+                {selectedFund && (
+                    <FundDetail key="fund-detail" fund={selectedFund} onBack={() => setSelectedFund(null)} />
+                )}
+            </AnimatePresence>
+
             {/* Context Menu Overlay */}
             {contextMenu && (
                 <div
