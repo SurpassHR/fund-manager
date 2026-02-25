@@ -222,10 +222,15 @@ export const calculateSummary = (funds: Fund[]): AssetSummary => {
   let totalDayGain = 0;
   let totalCost = 0;
 
+  const todayStr = getLocalDateString();
+
   funds.forEach(fund => {
     const assetValue = fund.holdingShares * fund.currentNav;
     const costValue = fund.holdingShares * fund.costPrice;
-    const dayGain = fund.dayChangeVal;
+
+    // 如果该基金的最后更新日期不是“今天”，说明它的涨跌幅停留在之前的交易日
+    // 此时它对“今日总收益”的贡献应当为 0
+    const dayGain = fund.lastUpdate === todayStr ? fund.dayChangeVal : 0;
 
     totalAssets += assetValue;
     totalDayGain += dayGain;
