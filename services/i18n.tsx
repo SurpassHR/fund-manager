@@ -77,7 +77,19 @@ const dictionary = {
       buyDate: "Buy Date",
       buyTime: "Buy Time",
       before15: "Before 15:00",
-      after15: "After 15:00"
+      after15: "After 15:00",
+      addPosition: "Increase Position",
+      reducePosition: "Reduce Position",
+      adjustPosition: "Adjust Position",
+      settlementDays: "Settlement (T+N)",
+      pendingSettlement: "Pending",
+      settlementDate: "Confirm Date",
+      operationDate: "Operation Date",
+      operationTime: "Operation Time",
+      buyAmount: "Buy Amount (¥)",
+      sellShares: "Sell Shares",
+      inTransit: "In Transit",
+      settled: "Settled"
     },
     filters: {
       All: "All",
@@ -158,7 +170,19 @@ const dictionary = {
       buyDate: "买入日期",
       buyTime: "买入时间",
       before15: "15:00 前",
-      after15: "15:00 后"
+      after15: "15:00 后",
+      addPosition: "加仓",
+      reducePosition: "减仓",
+      adjustPosition: "加减仓",
+      settlementDays: "确认天数 (T+N)",
+      pendingSettlement: "待确认",
+      settlementDate: "确认日期",
+      operationDate: "操作日期",
+      operationTime: "操作时间",
+      buyAmount: "加仓金额 (¥)",
+      sellShares: "减仓份额",
+      inTransit: "在途",
+      settled: "已确认"
     },
     filters: {
       All: "全部",

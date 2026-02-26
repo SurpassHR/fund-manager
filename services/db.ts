@@ -1,5 +1,5 @@
 import Dexie, { Table } from 'dexie';
-import { Fund, Account, AssetSummary } from '../types';
+import { Fund, Account, AssetSummary, PendingTransaction } from '../types';
 import { fetchFundCommonData, fetchEastMoneyLatestNav, fetchFundHoldings, fetchRealTimeQuotes, checkIsMarketTrading } from './api';
 
 class XiaoHuYangJiDB extends Dexie {
@@ -14,6 +14,11 @@ class XiaoHuYangJiDB extends Dexie {
     });
     // Version 2: Add accounts table
     (this as any).version(2).stores({
+      funds: '++id, code, platform, name',
+      accounts: '++id, name'
+    });
+    // Version 3: pendingTransactions + settlementDays stored inline in funds
+    (this as any).version(3).stores({
       funds: '++id, code, platform, name',
       accounts: '++id, name'
     });
@@ -72,6 +77,43 @@ const getCostDateStr = (buyDateStr: string, buyTime: 'before15' | 'after15'): st
     // 如果顺延后碰到了周末（比如周五15点后，按周一算）
     if (d.getDay() === 6) d.setDate(d.getDate() + 2);
     else if (d.getDay() === 0) d.setDate(d.getDate() + 1);
+  }
+
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+/**
+ * 计算份额确认日：从操作日开始，跳过周末，前进 N 个交易日
+ * 注意：15:00 后操作等于顺延到下一个交易日再开始计算
+ */
+export const getSettlementDate = (
+  opDateStr: string,
+  opTime: 'before15' | 'after15',
+  tPlusN: number
+): string => {
+  const d = new Date(opDateStr);
+
+  // 如果是周末操作，顺延到周一
+  if (d.getDay() === 0) d.setDate(d.getDate() + 1);
+  else if (d.getDay() === 6) d.setDate(d.getDate() + 2);
+
+  // 15:00 后操作，等效于下一个交易日操作
+  if (opTime === 'after15') {
+    d.setDate(d.getDate() + 1);
+    if (d.getDay() === 6) d.setDate(d.getDate() + 2);
+    else if (d.getDay() === 0) d.setDate(d.getDate() + 1);
+  }
+
+  // 往前走 N 个交易日
+  let remaining = tPlusN;
+  while (remaining > 0) {
+    d.setDate(d.getDate() + 1);
+    if (d.getDay() !== 0 && d.getDay() !== 6) {
+      remaining--;
+    }
   }
 
   const year = d.getFullYear();
@@ -207,6 +249,48 @@ export const refreshFundData = () => {
 
       const failed = results.filter(r => r.status === 'rejected').length;
       if (failed > 0) console.warn(`刷新基金数据：${failed}/${allFunds.length} 个失败`);
+
+      // === 自动结算在途交易 ===
+      const todayForSettlement = getLocalDateString();
+      const fundsToSettle = await db.funds.toArray();
+
+      for (const fund of fundsToSettle) {
+        const pending = fund.pendingTransactions;
+        if (!pending || pending.length === 0) continue;
+
+        let changed = false;
+        let newShares = fund.holdingShares;
+        let newCostPrice = fund.costPrice;
+
+        const updatedPending = pending.map(tx => {
+          if (tx.settled) return tx;
+          if (tx.settlementDate > todayForSettlement) return tx; // 还没到期
+
+          changed = true;
+
+          if (tx.type === 'buy') {
+            // 加仓：用确认日的 NAV 计算份额
+            const buyNav = fund.currentNav; // 使用最新拉取的 NAV 作为确认日 NAV
+            const newBuyShares = tx.amount / buyNav;
+            const totalCost = newCostPrice * newShares + tx.amount;
+            newShares += newBuyShares;
+            newCostPrice = totalCost / newShares; // 加权平均成本
+          } else {
+            // 减仓：扣减份额，成本价不变
+            newShares = Math.max(0, newShares - tx.amount);
+          }
+
+          return { ...tx, settled: true };
+        });
+
+        if (changed) {
+          await db.funds.update(fund.id!, {
+            holdingShares: newShares,
+            costPrice: newCostPrice,
+            pendingTransactions: updatedPending,
+          });
+        }
+      }
     } catch (err) {
       console.error('刷新基金数据失败', err);
     } finally {

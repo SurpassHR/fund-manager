@@ -6,6 +6,7 @@ import { Icons } from './Icon';
 import { useTranslation } from '../services/i18n';
 import { AccountManagerModal } from './AccountManagerModal';
 import { AddFundModal } from './AddFundModal';
+import { AdjustPositionModal } from './AdjustPositionModal';
 import { FundDetail } from './FundDetail';
 import { Fund } from '../types';
 import { AnimatePresence } from 'framer-motion';
@@ -31,6 +32,7 @@ export const Dashboard: React.FC = () => {
     const [isAccountManagerOpen, setIsAccountManagerOpen] = useState(false);
     const [isAddFundOpen, setIsAddFundOpen] = useState(false);
     const [editingFund, setEditingFund] = useState<Fund | undefined>(undefined);
+    const [adjustFund, setAdjustFund] = useState<Fund | null>(null);
 
     // Context Menu State
     const [contextMenu, setContextMenu] = useState<{ x: number; y: number; fundId: number } | null>(null);
@@ -206,6 +208,15 @@ export const Dashboard: React.FC = () => {
                         <Icons.Settings size={16} className="text-blue-500" /> {t('common.edit')}
                     </button>
                     <button
+                        onClick={() => {
+                            const f = funds.find(i => i.id === contextMenu.fundId);
+                            if (f) { setAdjustFund(f); setContextMenu(null); }
+                        }}
+                        className="w-full text-left px-4 py-3 hover:bg-amber-50 dark:hover:bg-amber-900/20 text-gray-700 dark:text-gray-200 text-sm flex items-center gap-2 border-b border-gray-50 dark:border-border-dark"
+                    >
+                        <Icons.TrendingUp size={16} className="text-amber-500" /> {t('common.adjustPosition')}
+                    </button>
+                    <button
                         onClick={() => handleDelete(contextMenu.fundId)}
                         className="w-full text-left px-4 py-3 hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400 text-sm flex items-center gap-2"
                     >
@@ -368,7 +379,14 @@ export const Dashboard: React.FC = () => {
 
                                 {/* Mobile Name View */}
                                 <div className="md:hidden flex flex-col gap-1">
-                                    <h3 className="text-sm font-medium text-gray-800 dark:text-gray-100 truncate leading-tight font-sans">{fund.name}</h3>
+                                    <div className="flex items-center gap-1.5">
+                                        <h3 className="text-sm font-medium text-gray-800 dark:text-gray-100 truncate leading-tight font-sans">{fund.name}</h3>
+                                        {(fund.pendingTransactions || []).filter(tx => !tx.settled).length > 0 && (
+                                            <span className="text-[9px] px-1 py-0.5 rounded bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400 font-bold whitespace-nowrap">
+                                                {(fund.pendingTransactions || []).filter(tx => !tx.settled).length} {t('common.inTransit')}
+                                            </span>
+                                        )}
+                                    </div>
                                     <div className="flex justify-between items-center pr-2">
                                         <span className="text-xs text-gray-400 font-sans">{fund.code}</span>
                                         <span className="text-xs text-gray-400 font-sans">¥{formatCurrency(holdingValue)}</span>
@@ -458,6 +476,13 @@ export const Dashboard: React.FC = () => {
                 onClose={() => setIsAddFundOpen(false)}
                 editFund={editingFund}
             />
+            {adjustFund && (
+                <AdjustPositionModal
+                    isOpen={!!adjustFund}
+                    onClose={() => setAdjustFund(null)}
+                    fund={adjustFund}
+                />
+            )}
         </div>
     );
 };

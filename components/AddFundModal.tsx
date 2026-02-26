@@ -35,6 +35,7 @@ export const AddFundModal: React.FC<AddFundModalProps> = ({ isOpen, onClose, edi
     const [selectedAccount, setSelectedAccount] = useState('Default');
     const [buyDate, setBuyDate] = useState<string>(''); // 买入日期
     const [buyTime, setBuyTime] = useState<'before15' | 'after15'>('before15'); // 15:00前还是后
+    const [settlementDays, setSettlementDays] = useState<number>(1); // T+N
 
     // 初始化 / 编辑模式填充
     useEffect(() => {
@@ -55,6 +56,7 @@ export const AddFundModal: React.FC<AddFundModalProps> = ({ isOpen, onClose, edi
                 setSelectedAccount(editFund.platform);
                 setBuyDate(editFund.buyDate || new Date().toISOString().split('T')[0]);
                 setBuyTime(editFund.buyTime || 'before15');
+                setSettlementDays(editFund.settlementDays ?? 1);
             } else {
                 setQuery('');
                 setResults([]);
@@ -67,6 +69,7 @@ export const AddFundModal: React.FC<AddFundModalProps> = ({ isOpen, onClose, edi
                 setSelectedAccount('Default');
                 setBuyDate(new Date().toISOString().split('T')[0]);
                 setBuyTime(new Date().getHours() < 15 ? 'before15' : 'after15');
+                setSettlementDays(1);
             }
             setError('');
         }
@@ -203,6 +206,7 @@ export const AddFundModal: React.FC<AddFundModalProps> = ({ isOpen, onClose, edi
                 dayChangePct: navChangePct, // 同时也更新涨跌幅（虽然通常不变，但为了数据一致性）
                 buyDate,
                 buyTime,
+                settlementDays,
             });
         } else {
             const code = 'symbol' in selectedFund ? selectedFund.symbol : selectedFund.code;
@@ -223,6 +227,7 @@ export const AddFundModal: React.FC<AddFundModalProps> = ({ isOpen, onClose, edi
                 dayChangeVal,
                 buyDate,
                 buyTime,
+                settlementDays,
             });
         }
 
@@ -380,6 +385,23 @@ export const AddFundModal: React.FC<AddFundModalProps> = ({ isOpen, onClose, edi
                                     <option value="before15">{t('common.before15') || '15:00前'}</option>
                                     <option value="after15">{t('common.after15') || '15:00后'}</option>
                                 </select>
+                            </div>
+                        </div>
+
+                        {/* T+N 确认天数 */}
+                        <div>
+                            <label className="block text-xs font-bold text-gray-500 mb-1">{t('common.settlementDays') || '确认天数 (T+N)'}</label>
+                            <div className="flex items-center gap-2">
+                                <span className="text-sm text-gray-600 dark:text-gray-400 font-medium">T +</span>
+                                <input
+                                    type="number"
+                                    min="0"
+                                    max="10"
+                                    value={settlementDays}
+                                    onChange={(e) => setSettlementDays(Math.max(0, parseInt(e.target.value) || 0))}
+                                    className={`w-20 p-2.5 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-white/5 focus:outline-none focus:border-blue-500 text-gray-900 dark:text-gray-100 text-sm font-sans font-bold text-center ${noSpinnerClass}`}
+                                />
+                                <span className="text-xs text-gray-400">个交易日</span>
                             </div>
                         </div>
 
