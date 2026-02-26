@@ -95,7 +95,10 @@ const dictionary = {
       importData: "Import Data",
       exportSuccess: "Export successful!",
       importSuccess: "{added} added, {skipped} skipped (duplicate)",
-      importError: "Import failed"
+      importError: "Import failed",
+      welcome: "Welcome to XiaoHuYangJi",
+      newFeatures: "What's New",
+      gotIt: "Got it"
     },
     filters: {
       All: "All",
@@ -194,7 +197,10 @@ const dictionary = {
       importData: "导入数据",
       exportSuccess: "导出成功！",
       importSuccess: "新增 {added} 条，跳过 {skipped} 条重复",
-      importError: "导入失败"
+      importError: "导入失败",
+      welcome: "欢迎使用小胡养基",
+      newFeatures: "最新功能",
+      gotIt: "我知道了"
     },
     filters: {
       All: "全部",

@@ -5,6 +5,7 @@ import { Dashboard } from './components/Dashboard';
 import { Ticker } from './components/Ticker';
 import { ScannerModal } from './components/ScannerModal';
 import { MePage } from './components/MePage';
+import { WelcomeModal } from './components/WelcomeModal';
 import { TabType } from './types';
 import { Icons } from './components/Icon';
 import { LanguageProvider, useTranslation } from './services/i18n';
@@ -50,6 +51,7 @@ const AppContent: React.FC = () => {
       <BottomNav activeTab={activeTab} onTabChange={setActiveTab} />
 
       <ScannerModal isOpen={isScannerOpen} onClose={() => setIsScannerOpen(false)} />
+      <WelcomeModal />
     </div>
   );
 };
