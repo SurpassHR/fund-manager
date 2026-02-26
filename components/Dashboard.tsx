@@ -7,6 +7,7 @@ import { useTranslation } from '../services/i18n';
 import { AccountManagerModal } from './AccountManagerModal';
 import { AddFundModal } from './AddFundModal';
 import { AdjustPositionModal } from './AdjustPositionModal';
+import { TransactionHistoryModal } from './TransactionHistoryModal';
 import { FundDetail } from './FundDetail';
 import { Fund } from '../types';
 import { AnimatePresence } from 'framer-motion';
@@ -33,6 +34,7 @@ export const Dashboard: React.FC = () => {
     const [isAddFundOpen, setIsAddFundOpen] = useState(false);
     const [editingFund, setEditingFund] = useState<Fund | undefined>(undefined);
     const [adjustFund, setAdjustFund] = useState<Fund | null>(null);
+    const [historyFund, setHistoryFund] = useState<Fund | null>(null);
 
     // Context Menu State
     const [contextMenu, setContextMenu] = useState<{ x: number; y: number; fundId: number } | null>(null);
@@ -215,6 +217,15 @@ export const Dashboard: React.FC = () => {
                         className="w-full text-left px-4 py-3 hover:bg-amber-50 dark:hover:bg-amber-900/20 text-gray-700 dark:text-gray-200 text-sm flex items-center gap-2 border-b border-gray-50 dark:border-border-dark"
                     >
                         <Icons.TrendingUp size={16} className="text-amber-500" /> {t('common.adjustPosition')}
+                    </button>
+                    <button
+                        onClick={() => {
+                            const f = funds.find(i => i.id === contextMenu.fundId);
+                            if (f) { setHistoryFund(f); setContextMenu(null); }
+                        }}
+                        className="w-full text-left px-4 py-3 hover:bg-purple-50 dark:hover:bg-purple-900/20 text-gray-700 dark:text-gray-200 text-sm flex items-center gap-2 border-b border-gray-50 dark:border-border-dark"
+                    >
+                        <Icons.Grid size={16} className="text-purple-500" /> {t('common.transactionHistory') || '交易记录'}
                     </button>
                     <button
                         onClick={() => handleDelete(contextMenu.fundId)}
@@ -481,6 +492,13 @@ export const Dashboard: React.FC = () => {
                     isOpen={!!adjustFund}
                     onClose={() => setAdjustFund(null)}
                     fund={adjustFund}
+                />
+            )}
+            {historyFund && (
+                <TransactionHistoryModal
+                    isOpen={!!historyFund}
+                    onClose={() => setHistoryFund(null)}
+                    fund={historyFund}
                 />
             )}
         </div>

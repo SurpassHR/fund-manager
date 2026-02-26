@@ -98,11 +98,11 @@ const dictionary = {
       importError: "Import failed",
       welcome: "Welcome to XiaoHuYangJi",
       newFeatures: "What's New",
-      gotIt: "Got it"
-    },
-    filters: {
-      All: "All",
-      Default: "Default"
+      gotIt: "Got it",
+      transactionHistory: "Transaction History",
+      noHistory: "No transaction history",
+      cancelConfirm: "Are you sure you want to cancel this pending transaction?",
+      undo: "Undo"
     }
   },
   zh: {
@@ -200,11 +200,11 @@ const dictionary = {
       importError: "导入失败",
       welcome: "欢迎使用小胡养基",
       newFeatures: "最新功能",
-      gotIt: "我知道了"
-    },
-    filters: {
-      All: "全部",
-      Default: "默认"
+      gotIt: "我知道了",
+      transactionHistory: "交易记录",
+      noHistory: "暂无交易记录",
+      cancelConfirm: "确定要撤销这笔在途交易吗？",
+      undo: "撤销"
     }
   }
 };
