@@ -335,3 +335,59 @@ export const calculateSummary = (funds: Fund[]): AssetSummary => {
     holdingGainPct
   };
 };
+
+// === 导入导出 ===
+
+interface ExportData {
+  version: number;
+  exportDate: string;
+  funds: Fund[];
+}
+
+export const exportFunds = async (): Promise<void> => {
+  const allFunds = await db.funds.toArray();
+  const data: ExportData = {
+    version: 1,
+    exportDate: new Date().toISOString(),
+    funds: allFunds.map(({ id, ...rest }) => rest as Fund), // 去掉自增 id
+  };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `fund-manager-backup-${getLocalDateString()}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+};
+
+export const importFunds = async (file: File): Promise<{ added: number; skipped: number }> => {
+  const text = await file.text();
+  const data: ExportData = JSON.parse(text);
+
+  if (!data.version || !Array.isArray(data.funds)) {
+    throw new Error('无效的备份文件格式');
+  }
+
+  const existingFunds = await db.funds.toArray();
+  const existingCodes = new Set(existingFunds.map(f => `${f.code}_${f.platform}`));
+
+  let added = 0;
+  let skipped = 0;
+
+  for (const fund of data.funds) {
+    const key = `${fund.code}_${fund.platform}`;
+    if (existingCodes.has(key)) {
+      skipped++;
+      continue;
+    }
+    // 去掉可能残留的 id 字段
+    const { id, ...cleanFund } = fund as Fund & { id?: number };
+    await db.funds.add(cleanFund as Fund);
+    added++;
+    existingCodes.add(key);
+  }
+
+  return { added, skipped };
+};

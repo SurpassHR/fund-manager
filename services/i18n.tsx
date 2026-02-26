@@ -89,7 +89,13 @@ const dictionary = {
       buyAmount: "Buy Amount (¥)",
       sellShares: "Sell Shares",
       inTransit: "In Transit",
-      settled: "Settled"
+      settled: "Settled",
+      data: "Data",
+      exportData: "Export Data",
+      importData: "Import Data",
+      exportSuccess: "Export successful!",
+      importSuccess: "{added} added, {skipped} skipped (duplicate)",
+      importError: "Import failed"
     },
     filters: {
       All: "All",
@@ -182,7 +188,13 @@ const dictionary = {
       buyAmount: "加仓金额 (¥)",
       sellShares: "减仓份额",
       inTransit: "在途",
-      settled: "已确认"
+      settled: "已确认",
+      data: "数据",
+      exportData: "导出数据",
+      importData: "导入数据",
+      exportSuccess: "导出成功！",
+      importSuccess: "新增 {added} 条，跳过 {skipped} 条重复",
+      importError: "导入失败"
     },
     filters: {
       All: "全部",
