@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { Fund, FundPerformanceResponse, FundCommonDataResponse, FundHoldingsResponse, EquityHolding, FundGrowthDataResponse } from '../types';
 import { Icons } from './Icon';
-import { formatCurrency, formatPct, getSignColor } from '../services/financeUtils';
+import { formatCurrency, formatPct, getSignColor, formatSignedCurrency } from '../services/financeUtils';
 import { useTranslation } from '../services/i18n';
 import { useTheme } from '../services/ThemeContext';
 import * as echarts from 'echarts';
@@ -537,15 +537,40 @@ export const FundDetail: React.FC<FundDetailProps> = ({ fund, onBack }) => {
                                 {formatPct(dayChangePct)}
                             </span>
                         </div>
-                        <div className="mt-4 grid grid-cols-2 gap-4 text-sm">
-                            <div className="bg-gray-50 dark:bg-white/5 p-3 rounded-lg transition-colors">
+                        <div className="mt-4 grid grid-cols-4 gap-2 text-sm">
+                            <div className="bg-gray-50 dark:bg-white/5 p-2 rounded-lg transition-colors flex flex-col justify-between">
                                 <div className="text-gray-400 text-xs mb-1">{t('common.cost')}</div>
-                                <div className="font-sans dark:text-gray-200">{fund.costPrice.toFixed(4)}</div>
+                                <div className="font-sans dark:text-gray-200 text-xs">{fund.costPrice.toFixed(4)}</div>
                             </div>
-                            <div className="bg-gray-50 dark:bg-white/5 p-3 rounded-lg transition-colors">
+                            <div className="bg-gray-50 dark:bg-white/5 p-2 rounded-lg transition-colors flex flex-col justify-between">
                                 <div className="text-gray-400 text-xs mb-1">{t('common.shares')}</div>
-                                <div className="font-sans dark:text-gray-200">{fund.holdingShares.toLocaleString()}</div>
+                                <div className="font-sans dark:text-gray-200 text-xs">{fund.holdingShares.toLocaleString()}</div>
                             </div>
+
+                            {(() => {
+                                const totalCost = fund.costPrice * fund.holdingShares;
+                                const holdingValue = currentNav * fund.holdingShares;
+                                const totalGain = holdingValue - totalCost;
+                                const totalGainPct = totalCost !== 0 ? (totalGain / totalCost) * 100 : 0;
+                                const dayGainVal = fund.dayChangeVal;
+
+                                return (
+                                    <>
+                                        <div className="bg-gray-50 dark:bg-white/5 p-2 rounded-lg transition-colors flex flex-col justify-between">
+                                            <div className="text-gray-400 text-xs mb-1">{t('common.totalGain')}</div>
+                                            <div className={`font-sans font-bold text-xs ${getSignColor(totalGain)}`}>
+                                                {formatSignedCurrency(totalGain)}
+                                            </div>
+                                        </div>
+                                        <div className="bg-gray-50 dark:bg-white/5 p-2 rounded-lg transition-colors flex flex-col justify-between">
+                                            <div className="text-gray-400 text-xs mb-1">{t('common.dayGain')}</div>
+                                            <div className={`font-sans font-bold text-xs ${getSignColor(dayGainVal)}`}>
+                                                {formatSignedCurrency(dayGainVal)}
+                                            </div>
+                                        </div>
+                                    </>
+                                );
+                            })()}
                         </div>
                     </div>
 

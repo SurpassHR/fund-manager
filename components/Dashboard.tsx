@@ -310,13 +310,22 @@ export const Dashboard: React.FC = () => {
                     </div>
                 </div>
 
-                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-end gap-2">
-                    <div className="text-3xl font-bold text-gray-800 dark:text-gray-100 tracking-tight font-sans">
-                        {showValues ? formatCurrency(summary.totalAssets) : '****'}
+                <div className="flex justify-between items-start gap-2">
+                    <div className="flex flex-col gap-1">
+                        <div className="text-3xl font-bold text-gray-800 dark:text-gray-100 tracking-tight font-sans">
+                            {showValues ? formatCurrency(summary.totalAssets) : '****'}
+                        </div>
+                        <div className={`text-sm font-medium font-sans ${getSignColor(summary.holdingGain)}`}>
+                            {t('common.totalGain')}: {showValues ? formatSignedCurrency(summary.holdingGain) : '****'}
+                            <span className="ml-1 text-xs">({showValues ? formatPct(summary.holdingGainPct) : '****'})</span>
+                        </div>
                     </div>
-                    <div className={`text-xl font-bold font-sans ${getSignColor(summary.totalDayGain)}`}>
-                        {showValues ? formatSignedCurrency(summary.totalDayGain) : '****'}
-                        <span className="text-sm font-normal text-gray-400 ml-1 font-sans">{displayDate}</span>
+
+                    <div className="flex flex-col items-end gap-1 mt-1">
+                        <div className={`text-xl font-bold font-sans ${getSignColor(summary.totalDayGain)} flex items-baseline gap-1`}>
+                            {showValues ? formatSignedCurrency(summary.totalDayGain) : '****'}
+                            <span className="text-sm font-normal text-gray-400 font-sans">{displayDate}</span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -342,14 +351,11 @@ export const Dashboard: React.FC = () => {
                 <div className="md:hidden w-full flex items-center justify-between">
                     <div className="flex-1 text-left">{t('common.fund')}</div>
                     <div className="flex gap-2 text-right">
-                        <div className="w-14 cursor-pointer flex items-center justify-end gap-0.5">
+                        <div className="w-[4.5rem] cursor-pointer flex items-center justify-end gap-0.5">
                             {t('common.dayChgPct')}
                         </div>
                         <div className="w-[4.5rem] cursor-pointer flex items-center justify-end gap-0.5">
                             {t('common.dayGain')}
-                        </div>
-                        <div className="w-[4.5rem] cursor-pointer flex items-center justify-end gap-0.5">
-                            {t('common.totalGain')}
                         </div>
                     </div>
                 </div>
@@ -432,7 +438,7 @@ export const Dashboard: React.FC = () => {
 
                             {/* Mobile Flex Layout */}
                             <div className="md:hidden flex flex-none gap-2 text-right items-start">
-                                <div className="w-14 flex flex-col items-end">
+                                <div className="w-[4.5rem] flex flex-col items-end">
                                     <div className={`text-base font-bold font-sans ${getSignColor(fund.dayChangePct)}`}>
                                         {formatPct(fund.dayChangePct)}
                                     </div>
@@ -442,15 +448,6 @@ export const Dashboard: React.FC = () => {
                                 <div className="w-[4.5rem] flex items-start justify-end">
                                     <div className={`text-base font-bold font-sans ${getSignColor(fund.dayChangeVal)}`}>
                                         {formatSignedCurrency(fund.dayChangeVal)}
-                                    </div>
-                                </div>
-
-                                <div className="w-[4.5rem] flex flex-col items-end">
-                                    <div className={`text-base font-bold font-sans ${getSignColor(totalReturn)}`}>
-                                        {formatSignedCurrency(totalReturn)}
-                                    </div>
-                                    <div className={`text-[10px] font-sans ${getSignColor(totalReturnPct)}`}>
-                                        {formatPct(totalReturnPct)}
                                     </div>
                                 </div>
                             </div>
