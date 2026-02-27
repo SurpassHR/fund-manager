@@ -175,12 +175,42 @@ export const FundDetail: React.FC<FundDetailProps> = ({ fund, onBack }) => {
 
                 const json: FundGrowthDataResponse = await response.json();
                 if (json.data && json.data.tsData) {
-                    setChartSeriesData({
-                        dates: json.data.tsData.dates,
-                        fund: json.data.tsData.funds[0] || [],
-                        avg: json.data.tsData.catAvg || [],
-                        bmk: json.data.tsData.bmk1 || []
-                    });
+                    const dates = json.data.tsData.dates;
+                    const fundArr = json.data.tsData.funds[0] || [];
+                    const avgArr = json.data.tsData.catAvg || [];
+                    const bmkArr = json.data.tsData.bmk1 || [];
+
+                    // 补全今日实时数据：
+                    // 情况 A：API 的 dates 已包含今天，但 fund 数组比 dates 短（值缺失）
+                    // 情况 B：API 的 dates 不包含今天（需要追加日期+值）
+                    const now = new Date();
+                    const dow = now.getDay();
+                    const isWeekday = dow >= 1 && dow <= 5;
+                    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+
+                    if (isWeekday && fund.dayChangePct != null) {
+                        const lastDate = dates[dates.length - 1];
+                        const lastFundVal = fundArr[fundArr.length - 1];
+
+                        if (lastDate === todayStr && fundArr.length < dates.length) {
+                            // 情况 A：dates 有今天但 fund 数组更短
+                            const prevCumReturn = fundArr[fundArr.length - 1] ?? 0;
+                            fundArr.push(prevCumReturn + fund.dayChangePct);
+                        } else if (lastDate === todayStr && (lastFundVal == null || isNaN(lastFundVal))) {
+                            // 情况 C：dates 和 fund 等长，但最后一个值是 null/undefined/NaN
+                            const prevCumReturn = fundArr.length >= 2 ? (fundArr[fundArr.length - 2] ?? 0) : 0;
+                            fundArr[fundArr.length - 1] = prevCumReturn + fund.dayChangePct;
+                        } else if (lastDate && todayStr > lastDate) {
+                            // 情况 B：dates 完全没有今天
+                            const prevCumReturn = fundArr[fundArr.length - 1] ?? 0;
+                            dates.push(todayStr);
+                            fundArr.push(prevCumReturn + fund.dayChangePct);
+                            avgArr.push(undefined as any);
+                            bmkArr.push(undefined as any);
+                        }
+                    }
+
+                    setChartSeriesData({ dates, fund: fundArr, avg: avgArr, bmk: bmkArr });
                 }
             } catch (err) {
                 console.error("Chart Fetch Error", err);
@@ -313,6 +343,7 @@ export const FundDetail: React.FC<FundDetailProps> = ({ fund, onBack }) => {
 
                     params.forEach((item: any) => {
                         const val = item.value;
+                        if (val == null) return; // 当日数据尚未到位，跳过
                         // For the main fund series, use the trend color
                         const itemColor = item.seriesName === fund.name ? color : item.color;
                         const sign = val >= 0 ? '+' : '';
