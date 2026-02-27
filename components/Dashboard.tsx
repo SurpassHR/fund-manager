@@ -240,7 +240,11 @@ export const Dashboard: React.FC = () => {
             <div className="bg-white dark:bg-card-dark px-2 pt-1 pb-2 md:rounded-b-lg md:shadow-sm md:mb-4 flex items-center gap-4 overflow-x-auto no-scrollbar border-b border-gray-100 dark:border-border-dark md:border-none sticky top-14 z-20">
                 <div className="flex-shrink-0 text-gray-500 dark:text-gray-400 font-medium text-sm px-2">{t('common.account')}</div>
                 {filterList.map(filterKey => {
-                    const label = t(`filters.${filterKey}`) === `filters.${filterKey}` ? filterKey : t(`filters.${filterKey}`);
+                    let label = filterKey;
+                    if (filterKey === 'All') label = t('common.all') || 'All';
+                    else if (filterKey === 'Default') label = t('common.defaultAccount') || 'Default';
+                    else if (t(`filters.${filterKey}`) !== `filters.${filterKey}`) label = t(`filters.${filterKey}`);
+
                     return (
                         <button
                             key={filterKey}

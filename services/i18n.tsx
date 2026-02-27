@@ -102,7 +102,9 @@ const dictionary = {
       transactionHistory: "Transaction History",
       noHistory: "No transaction history",
       cancelConfirm: "Are you sure you want to cancel this pending transaction?",
-      undo: "Undo"
+      undo: "Undo",
+      all: "All",
+      defaultAccount: "Default",
     }
   },
   zh: {
@@ -204,7 +206,9 @@ const dictionary = {
       transactionHistory: "交易记录",
       noHistory: "暂无交易记录",
       cancelConfirm: "确定要撤销这笔在途交易吗？",
-      undo: "撤销"
+      undo: "撤销",
+      all: "全部",
+      defaultAccount: "默认"
     }
   }
 };
