@@ -206,7 +206,7 @@ export const AddWatchlistModal: React.FC<AddWatchlistModalProps> = ({ isOpen, on
                                     <input
                                         type="text"
                                         className="w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-black/20 border border-gray-200 dark:border-border-dark rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:text-white"
-                                        placeholder="e.g. 110011 or 易方达"
+                                        placeholder={t('common.searchPlaceholder')}
                                         value={searchQuery}
                                         onChange={(e) => setSearchQuery(e.target.value)}
                                     />
@@ -244,7 +244,7 @@ export const AddWatchlistModal: React.FC<AddWatchlistModalProps> = ({ isOpen, on
                                     className="w-full px-3 py-2 bg-gray-50 dark:bg-black/20 border border-gray-200 dark:border-border-dark rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:text-white"
                                     value={code}
                                     onChange={(e) => setCode(e.target.value)}
-                                    placeholder={type === 'index' ? 'sh000001' : '110011'}
+                                    placeholder={type === 'index' ? t('common.indexCodePlaceholder') : t('common.fundCodePlaceholder')}
                                 />
                             </div>
                             <div className="col-span-1">
@@ -254,7 +254,7 @@ export const AddWatchlistModal: React.FC<AddWatchlistModalProps> = ({ isOpen, on
                                     className="w-full px-3 py-2 bg-gray-50 dark:bg-black/20 border border-gray-200 dark:border-border-dark rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:text-white"
                                     value={name}
                                     onChange={(e) => setName(e.target.value)}
-                                    placeholder={type === 'index' ? '上证指数' : '易方达蓝筹'}
+                                    placeholder={type === 'index' ? t('common.indexNamePlaceholder') : t('common.fundNamePlaceholder')}
                                 />
                             </div>
                         </div>

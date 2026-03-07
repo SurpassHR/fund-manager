@@ -124,6 +124,11 @@ const dictionary = {
       fundBadge: "Fund",
       indexBadgeShort: "Idx",
       fundBadgeShort: "Fnd",
+      searchPlaceholder: "e.g. 110011 or E Fund",
+      indexCodePlaceholder: "sh000001",
+      fundCodePlaceholder: "110011",
+      indexNamePlaceholder: "SSE Composite",
+      fundNamePlaceholder: "E Fund Blue Chip",
     }
   },
   zh: {
@@ -247,6 +252,11 @@ const dictionary = {
       fundBadge: "基金",
       indexBadgeShort: "指",
       fundBadgeShort: "基",
+      searchPlaceholder: "例如：110011 或 易方达",
+      indexCodePlaceholder: "sh000001",
+      fundCodePlaceholder: "110011",
+      indexNamePlaceholder: "上证指数",
+      fundNamePlaceholder: "易方达蓝筹",
     }
   }
 };
