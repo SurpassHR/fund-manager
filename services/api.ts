@@ -172,7 +172,60 @@ export const fetchEastMoneyLatestNav = async (fundCode: string): Promise<{ nav: 
     });
 };
 
-// --- Tencent Stock API Functions ---
+/**
+ * Fetches the historical Net Asset Value (NAV) data for a fund from EastMoney for a specific date.
+ * Uses script injection to bypass CORS, reading from the global window.apidata.
+ * @param fundCode - The code of the fund.
+ * @param date - The target date in YYYY-MM-DD format.
+ * @returns A promise resolving to the NAV number or null if not found.
+ */
+export const fetchHistoricalFundNav = async (fundCode: string, date: string): Promise<number | null> => {
+    return new Promise((resolve) => {
+        eastMoneyQueue = eastMoneyQueue.then(() => {
+            return new Promise<void>((innerResolve) => {
+                const script = document.createElement('script');
+                script.src = `https://fundf10.eastmoney.com/F10DataApi.aspx?type=lsjz&code=${fundCode}&page=1&per=1&sdate=${date}&edate=${date}&rt=${Date.now()}`;
+                script.referrerPolicy = 'no-referrer';
+
+                script.onload = () => {
+                    let result = null;
+                    try {
+                        const data = (window as any).apidata;
+                        if (data && data.content) {
+                            const regex = /<tr>\s*<td>\d{4}-\d{2}-\d{2}<\/td>\s*<td[^>]*>([\d\.]+)<\/td>/;
+                            const match = data.content.match(regex);
+                            if (match && match[1]) {
+                                result = parseFloat(match[1]);
+                            }
+                        }
+                    } catch (e) {
+                        console.error(`Error parsing historical EastMoney data for ${fundCode} on ${date}`, e);
+                    } finally {
+                        if (document.head.contains(script)) {
+                            document.head.removeChild(script);
+                        }
+                        (window as any).apidata = undefined;
+                        resolve(result);
+                        innerResolve();
+                    }
+                };
+
+                script.onerror = () => {
+                    console.error(`Failed to load historical EastMoney script for ${fundCode} on ${date}`);
+                    if (document.head.contains(script)) {
+                        document.head.removeChild(script);
+                    }
+                    resolve(null);
+                    innerResolve();
+                };
+
+                document.head.appendChild(script);
+            });
+        });
+    });
+};
+
+// --- Tencent & EastMoney Stock/Index API Functions ---
 
 /**
  * Fetches real-time stock quotes from Tencent Stock API for given stock codes.
@@ -252,6 +305,67 @@ export const fetchGeneralTencentQuotes = async (codes: string[]): Promise<Record
         console.error('Failed to fetch general Tencent quotes:', error);
         return {};
     }
+};
+
+/**
+ * Fetches the historical closing price of an index or stock for a specific date from EastMoney.
+ * @param code - The index code (e.g. sh000001, sz399001).
+ * @param date - The target date in YYYY-MM-DD format.
+ * @returns A promise resolving to the closing price or null if not found.
+ */
+export const fetchHistoricalIndexPrice = async (code: string, date: string): Promise<number | null> => {
+    return new Promise((resolve) => {
+        let secid = '';
+        if (code.startsWith('sh') || code.startsWith('shanghai')) {
+            secid = `1.${code.replace(/\D/g, '')}`;
+        } else if (code.startsWith('sz') || code.startsWith('shenzhen')) {
+            secid = `0.${code.replace(/\D/g, '')}`;
+        } else if (code.startsWith('bj')) {
+            secid = `0.${code.replace(/\D/g, '')}`; // EastMoney uses 0 for BJ usually in some endpoints, or 0. for SZ. Actually for index, mostly sh or sz.
+        } else {
+            secid = `1.${code}`;
+        }
+
+        const formattedDate = date.replace(/-/g, ''); // 2024-01-05 -> 20240105
+        const callbackName = `eastmoney_cb_${Date.now()}_${Math.floor(Math.random() * 10000)}`;
+        const url = `http://push2his.eastmoney.com/api/qt/stock/kline/get?fields1=f1,f2,f3,f4,f5,f6&fields2=f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61&klt=101&fqt=1&secid=${secid}&beg=${formattedDate}&end=${formattedDate}&cb=${callbackName}`;
+
+        const script = document.createElement('script');
+        script.src = url;
+        script.referrerPolicy = 'no-referrer';
+
+        (window as any)[callbackName] = (json: any) => {
+            let result = null;
+            try {
+                if (json && json.data && json.data.klines && json.data.klines.length > 0) {
+                    const parts = json.data.klines[0].split(',');
+                    if (parts.length > 2) {
+                        result = parseFloat(parts[2]);
+                    }
+                }
+            } catch (e) {
+                console.error(`Error parsing historical index price for ${code}`, e);
+            } finally {
+                cleanup();
+                resolve(result);
+            }
+        };
+
+        const cleanup = () => {
+            if (document.head.contains(script)) {
+                document.head.removeChild(script);
+            }
+            delete (window as any)[callbackName];
+        };
+
+        script.onerror = () => {
+            console.error(`Failed to load historical index script for ${code} on ${date}`);
+            cleanup();
+            resolve(null);
+        };
+
+        document.head.appendChild(script);
+    });
 };
 
 /**

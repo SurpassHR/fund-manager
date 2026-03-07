@@ -3,7 +3,7 @@ import { db } from '../services/db';
 import { Icons } from './Icon';
 import { useTranslation } from '../services/i18n';
 import { WatchlistItem, MorningstarFund } from '../types';
-import { searchFunds } from '../services/api';
+import { searchFunds, fetchHistoricalFundNav, fetchHistoricalIndexPrice } from '../services/api';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface AddWatchlistModalProps {
@@ -24,6 +24,46 @@ export const AddWatchlistModal: React.FC<AddWatchlistModalProps> = ({ isOpen, on
     const [searchQuery, setSearchQuery] = useState('');
     const [searchResults, setSearchResults] = useState<MorningstarFund[]>([]);
     const [isSearching, setIsSearching] = useState(false);
+    const [isFetchingPrice, setIsFetchingPrice] = useState(false);
+
+    // Fetch anchor price automatically when code, type, or date changes
+    useEffect(() => {
+        if (!code || !anchorDate || isOpen === false) {
+            setAnchorPrice('');
+            return;
+        }
+
+        // Don't auto-fetch if we are editing and the date/code haven't changed from original
+        if (editItem && editItem.code === code && editItem.anchorDate === anchorDate) {
+            setAnchorPrice(editItem.anchorPrice.toString());
+            return;
+        }
+
+        const fetchPrice = async () => {
+            setIsFetchingPrice(true);
+            try {
+                let price: number | null = null;
+                if (type === 'fund') {
+                    price = await fetchHistoricalFundNav(code, anchorDate);
+                } else {
+                    price = await fetchHistoricalIndexPrice(code, anchorDate);
+                }
+
+                if (price !== null) {
+                    setAnchorPrice(price.toString());
+                } else {
+                    setAnchorPrice('');
+                }
+            } catch (error) {
+                console.error('Failed to fetch historical price:', error);
+                setAnchorPrice('');
+            } finally {
+                setIsFetchingPrice(false);
+            }
+        };
+
+        fetchPrice();
+    }, [code, type, anchorDate, isOpen, editItem]);
 
     useEffect(() => {
         if (isOpen) {
@@ -223,14 +263,25 @@ export const AddWatchlistModal: React.FC<AddWatchlistModalProps> = ({ isOpen, on
                         <div className="grid grid-cols-2 gap-4 relative z-10">
                             <div>
                                 <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1">{t('common.anchorPrice')}</label>
-                                <input
-                                    type="number"
-                                    step="0.0001"
-                                    className="w-full px-3 py-2 bg-gray-50 dark:bg-black/20 border border-gray-200 dark:border-border-dark rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:text-white"
-                                    value={anchorPrice}
-                                    onChange={(e) => setAnchorPrice(e.target.value)}
-                                    placeholder="e.g. 1.0500"
-                                />
+                                <div className="relative">
+                                    <input
+                                        type="text"
+                                        className="w-full px-3 py-2 bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-border-dark rounded-lg text-sm focus:outline-none dark:text-gray-300 text-gray-500 cursor-not-allowed"
+                                        value={anchorPrice}
+                                        readOnly
+                                        placeholder={isFetchingPrice ? "Fetching..." : "Auto-filled based on date"}
+                                    />
+                                    {isFetchingPrice && (
+                                        <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                                            <Icons.Settings size={16} className="text-gray-400 animate-spin" />
+                                        </div>
+                                    )}
+                                </div>
+                                {!anchorPrice && !isFetchingPrice && code && (
+                                    <span className="text-[10px] text-red-500 mt-1 block">
+                                        No data found for this date.
+                                    </span>
+                                )}
                             </div>
                             <div>
                                 <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1">{t('common.anchorDate')}</label>
