@@ -269,7 +269,7 @@ export const AddWatchlistModal: React.FC<AddWatchlistModalProps> = ({ isOpen, on
                                         className="w-full px-3 py-2 bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-border-dark rounded-lg text-sm focus:outline-none dark:text-gray-300 text-gray-500 cursor-not-allowed"
                                         value={anchorPrice}
                                         readOnly
-                                        placeholder={isFetchingPrice ? "Fetching..." : "Auto-filled based on date"}
+                                        placeholder={isFetchingPrice ? t('common.fetching') : t('common.autoFillDate')}
                                     />
                                     {isFetchingPrice && (
                                         <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
@@ -279,7 +279,7 @@ export const AddWatchlistModal: React.FC<AddWatchlistModalProps> = ({ isOpen, on
                                 </div>
                                 {!anchorPrice && !isFetchingPrice && code && (
                                     <span className="text-[10px] text-red-500 mt-1 block">
-                                        No data found for this date.
+                                        {t('common.noDataDate')}
                                     </span>
                                 )}
                             </div>
@@ -295,10 +295,7 @@ export const AddWatchlistModal: React.FC<AddWatchlistModalProps> = ({ isOpen, on
                         </div>
 
                         <div className="text-xs text-gray-400 mt-2 bg-blue-50 dark:bg-blue-900/20 p-2 rounded-lg text-blue-600 dark:text-blue-400">
-                            {type === 'index' ?
-                                '提示：指数使用腾讯接口，代码如 sh000001, sz399001。' :
-                                '提示：基金数据将通过 API 自动刷新。'
-                            }
+                            {type === 'index' ? t('common.indexTip') : t('common.fundTip')}
                         </div>
                     </div>
 

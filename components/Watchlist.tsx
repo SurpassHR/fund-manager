@@ -173,7 +173,7 @@ export const Watchlist: React.FC = () => {
                 <div className="hidden md:block md:flex-[1.5] text-left">{t('common.fund')}/{t('common.indexOrSector')}</div>
                 <div className="hidden md:grid md:flex-[4] w-full grid-cols-4 gap-4 text-right font-medium">
                     <div className="text-right">{t('common.anchorPrice')}</div>
-                    <div className="text-right">{t('common.currentPrice') || t('common.nav')}</div>
+                    <div className="text-right">{t('common.currentPrice')}</div>
                     <div className="text-right">{t('common.dayChgPct')}</div>
                     <div className="text-right">{t('common.anchorGain')}</div>
                 </div>
@@ -197,7 +197,7 @@ export const Watchlist: React.FC = () => {
                 {watchlists.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-20 text-gray-400 gap-4">
                         <Icons.User size={48} strokeWidth={1} className="opacity-50" />
-                        <p className="text-sm">暂无自选，点击下方添加</p>
+                        <p className="text-sm">{t('common.noWatchlistMsg')}</p>
                     </div>
                 ) : (
                     watchlists.map((item) => {
@@ -218,7 +218,7 @@ export const Watchlist: React.FC = () => {
                                 <div className="flex-1 min-w-0 pr-2 md:flex-[1.5] md:self-center">
                                     <div className="hidden md:flex items-center gap-2">
                                         <span className={`text-[10px] px-1 py-0.5 rounded font-sans ${item.type === 'index' ? 'bg-purple-50 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400' : 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'}`}>
-                                            {item.type === 'index' ? '指数' : '基金'}
+                                            {item.type === 'index' ? t('common.indexBadge') : t('common.fundBadge')}
                                         </span>
                                         <span className="text-[10px] text-gray-500 font-sans border border-gray-200 dark:border-gray-700 px-1 py-0.5 rounded">
                                             {item.code}
@@ -233,7 +233,7 @@ export const Watchlist: React.FC = () => {
                                         </div>
                                         <div className="flex items-center gap-2 pr-2">
                                             <span className={`text-[9px] px-1 rounded font-sans ${item.type === 'index' ? 'bg-purple-50 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400' : 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'}`}>
-                                                {item.type === 'index' ? '指' : '基'}
+                                                {item.type === 'index' ? t('common.indexBadgeShort') : t('common.fundBadgeShort')}
                                             </span>
                                             <span className="text-xs text-gray-400 font-sans">{item.code}</span>
                                         </div>
@@ -263,14 +263,14 @@ export const Watchlist: React.FC = () => {
                                         <div className={`text-base font-bold font-sans ${getSignColor(item.dayChangePct)}`}>
                                             {formatPct(item.dayChangePct)}
                                         </div>
-                                        <div className="text-[10px] text-gray-400 font-sans">当前 {item.currentPrice.toFixed(4)}</div>
+                                        <div className="text-[10px] text-gray-400 font-sans">{t('common.currentLabel')} {item.currentPrice.toFixed(4)}</div>
                                     </div>
 
                                     <div className="w-[4.5rem] flex flex-col items-end">
                                         <div className={`text-base font-bold font-sans ${getSignColor(anchorGainPct)}`}>
                                             {formatPct(anchorGainPct)}
                                         </div>
-                                        <div className="text-[10px] text-gray-400 font-sans">锚点 {item.anchorPrice.toFixed(4)}</div>
+                                        <div className="text-[10px] text-gray-400 font-sans">{t('common.anchorLabel')} {item.anchorPrice.toFixed(4)}</div>
                                     </div>
                                 </div>
                             </div>
