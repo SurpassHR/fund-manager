@@ -183,8 +183,14 @@ export const fetchHistoricalFundNav = async (fundCode: string, date: string): Pr
     return new Promise((resolve) => {
         eastMoneyQueue = eastMoneyQueue.then(() => {
             return new Promise<void>((innerResolve) => {
+                // To support non-trading days, query a date range of 30 days ending on the target date
+                const [year, month, day] = date.split('-').map(Number);
+                const d = new Date(year, month - 1, day - 30);
+                const startDateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
                 const script = document.createElement('script');
-                script.src = `https://fundf10.eastmoney.com/F10DataApi.aspx?type=lsjz&code=${fundCode}&page=1&per=1&sdate=${date}&edate=${date}&rt=${Date.now()}`;
+                // per=1 gets only the latest 1 record within the range (since results are descending by date)
+                script.src = `https://fundf10.eastmoney.com/F10DataApi.aspx?type=lsjz&code=${fundCode}&page=1&per=1&sdate=${startDateStr}&edate=${date}&rt=${Date.now()}`;
                 script.referrerPolicy = 'no-referrer';
 
                 script.onload = () => {
@@ -327,8 +333,14 @@ export const fetchHistoricalIndexPrice = async (code: string, date: string): Pro
         }
 
         const formattedDate = date.replace(/-/g, ''); // 2024-01-05 -> 20240105
+
+        // Query a 30-day range to fallback to the latest available trading day
+        const [year, month, day] = date.split('-').map(Number);
+        const d = new Date(year, month - 1, day - 30);
+        const startFormattedDate = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
+
         const callbackName = `eastmoney_cb_${Date.now()}_${Math.floor(Math.random() * 10000)}`;
-        const url = `http://push2his.eastmoney.com/api/qt/stock/kline/get?fields1=f1,f2,f3,f4,f5,f6&fields2=f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61&klt=101&fqt=1&secid=${secid}&beg=${formattedDate}&end=${formattedDate}&cb=${callbackName}`;
+        const url = `http://push2his.eastmoney.com/api/qt/stock/kline/get?fields1=f1,f2,f3,f4,f5,f6&fields2=f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61&klt=101&fqt=1&secid=${secid}&beg=${startFormattedDate}&end=${formattedDate}&cb=${callbackName}`;
 
         const script = document.createElement('script');
         script.src = url;
@@ -338,7 +350,9 @@ export const fetchHistoricalIndexPrice = async (code: string, date: string): Pro
             let result = null;
             try {
                 if (json && json.data && json.data.klines && json.data.klines.length > 0) {
-                    const parts = json.data.klines[0].split(',');
+                    // Get the last item in the array to get the most recent trading day up to the end date
+                    const latestKline = json.data.klines[json.data.klines.length - 1];
+                    const parts = latestKline.split(',');
                     if (parts.length > 2) {
                         result = parseFloat(parts[2]);
                     }
