@@ -3,11 +3,13 @@ import { useTranslation } from '../services/i18n';
 
 // Read the latest commit details injected by Vite
 const CURRENT_VERSION = import.meta.env.VITE_LATEST_COMMIT_HASH || 'v0.2.0';
-const COMMIT_SUBJECT = import.meta.env.VITE_LATEST_COMMIT_SUBJECT || "最新功能";
-const COMMIT_BODY = import.meta.env.VITE_LATEST_COMMIT_BODY || "";
+const COMMIT_SUBJECT_ZH = import.meta.env.VITE_LATEST_COMMIT_SUBJECT_ZH || "最新功能";
+const COMMIT_SUBJECT_EN = import.meta.env.VITE_LATEST_COMMIT_SUBJECT_EN || "New Features";
+const COMMIT_BODY_ZH = import.meta.env.VITE_LATEST_COMMIT_BODY_ZH || "";
+const COMMIT_BODY_EN = import.meta.env.VITE_LATEST_COMMIT_BODY_EN || "";
 
 export const WelcomeModal: React.FC = () => {
-    const { t } = useTranslation();
+    const { t, language } = useTranslation();
     const [isOpen, setIsOpen] = useState(false);
 
     useEffect(() => {
@@ -24,9 +26,14 @@ export const WelcomeModal: React.FC = () => {
 
     if (!isOpen) return null;
 
+    // Determine which language to show
+    const isZh = language === 'zh';
+    const currentSubject = isZh ? COMMIT_SUBJECT_ZH : COMMIT_SUBJECT_EN;
+    const currentBody = isZh ? COMMIT_BODY_ZH : COMMIT_BODY_EN;
+
     // Parse the commit body into a list of features
     // We assume the body might have lines starting with '-' or '*'
-    const features = COMMIT_BODY.split('\n')
+    const features = currentBody.split('\n')
         .map(line => line.trim())
         .filter(line => line.length > 0);
 
@@ -47,7 +54,7 @@ export const WelcomeModal: React.FC = () => {
                 {/* 内容区 */}
                 <div className="p-6">
                     <h3 className="text-sm font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-4">
-                        {COMMIT_SUBJECT}
+                        {currentSubject}
                     </h3>
 
                     <ul className="space-y-4 max-h-64 overflow-y-auto pr-2">
