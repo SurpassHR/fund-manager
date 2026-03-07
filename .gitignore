@@ -46,3 +46,7 @@ Desktop.ini
 
 # Vite 本地文件
 *.local
+
+# AI Agent
+.agent
+.agents
