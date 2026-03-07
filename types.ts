@@ -25,6 +25,19 @@ export interface PendingTransaction {
   settled: boolean;                    // 是否已结算
 }
 
+export interface WatchlistItem {
+  id?: number;
+  code: string;
+  name: string;
+  type: 'fund' | 'index';             // 基金或指数/板块
+  platform?: string;                  // 仅针对基金可能需要渠道区分
+  anchorPrice: number;                // 锚点价格 / 点数
+  anchorDate: string;                 // 锚定日期 YYYY-MM-DD
+  currentPrice: number;               // 当前最新价格 / 点数
+  dayChangePct: number;               // 最新日涨跌幅(%)
+  lastUpdate: string;                 // 最后更新时间/日期
+}
+
 export interface Account {
   id?: number;
   name: string;

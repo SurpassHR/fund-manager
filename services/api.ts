@@ -27,6 +27,10 @@ interface FullApiResponse {
     data: MarketDataResponse;
 }
 
+/**
+ * Fetches market indices data for China markets.
+ * @returns A promise that resolves to an array of MarketIndex objects.
+ */
 export const fetchMarketIndices = async (): Promise<MarketIndex[]> => {
     try {
         const response = await fetch('https://www.morningstar.cn/cn-api/market/index');
@@ -55,6 +59,11 @@ export const fetchMarketIndices = async (): Promise<MarketIndex[]> => {
 
 // --- Morningstar API Functions ---
 
+/**
+ * Fetches common data for a specific fund from Morningstar.
+ * @param fundCode - The code of the fund to fetch.
+ * @returns A promise that resolves to the fund's common data or null if the request fails.
+ */
 export const fetchFundCommonData = async (fundCode: string): Promise<FundCommonDataResponse | null> => {
     try {
         const response = await fetch(`${MORNINGSTAR_API_BASE}/v2/funds/${fundCode}/common-data`);
@@ -66,6 +75,11 @@ export const fetchFundCommonData = async (fundCode: string): Promise<FundCommonD
     }
 };
 
+/**
+ * Fetches holding data for a specific fund from Morningstar.
+ * @param fundCode - The code of the fund.
+ * @returns A promise that resolves to the fund's holding data or null if the request fails.
+ */
 export const fetchFundHoldings = async (fundCode: string): Promise<any | null> => {
     try {
         const response = await fetch(`${MORNINGSTAR_API_BASE}/v2/funds/${fundCode}/holdings`);
@@ -77,6 +91,11 @@ export const fetchFundHoldings = async (fundCode: string): Promise<any | null> =
     }
 };
 
+/**
+ * Searches for funds matching the provided query string using Morningstar's cache API.
+ * @param query - The search query (e.g., fund code or name).
+ * @returns A promise that resolves to the search results or null on failure.
+ */
 export const searchFunds = async (query: string): Promise<MorningstarResponse | null> => {
     try {
         const response = await fetch(`${MORNINGSTAR_API_BASE}/public/v1/fund-cache/${encodeURIComponent(query)}`);
@@ -93,6 +112,12 @@ export const searchFunds = async (query: string): Promise<MorningstarResponse | 
 // 使用队列严格控制并发，防止污染唯一的全局变量 window.apidata
 let eastMoneyQueue = Promise.resolve();
 
+/**
+ * Fetches the latest Net Asset Value (NAV) data for a fund from EastMoney.
+ * Uses a queue to prevent concurrent requests from polluting the global window.apidata.
+ * @param fundCode - The code of the fund.
+ * @returns A promise resolving to an object containing nav, navDate, and navChangePercent, or null.
+ */
 export const fetchEastMoneyLatestNav = async (fundCode: string): Promise<{ nav: number, navDate: string, navChangePercent: number } | null> => {
     return new Promise((resolve) => {
         eastMoneyQueue = eastMoneyQueue.then(() => {
@@ -149,6 +174,13 @@ export const fetchEastMoneyLatestNav = async (fundCode: string): Promise<{ nav: 
 
 // --- Tencent Stock API Functions ---
 
+/**
+ * Fetches real-time stock quotes from Tencent Stock API for given stock codes.
+ * Matches them against fund top 10 holdings to return a map of ticker to percentage change.
+ * @param codes - Formatted stock codes (e.g. sh600519).
+ * @param top10Holdings - Array of the fund's top 10 holding objects.
+ * @returns A promise that resolves to a record mapping ticker symbols to their real-time percentage change.
+ */
 export const fetchRealTimeQuotes = async (codes: string[], top10Holdings: any[]): Promise<Record<string, number>> => {
     if (!codes || codes.length === 0) return {};
 
@@ -180,6 +212,53 @@ export const fetchRealTimeQuotes = async (codes: string[], top10Holdings: any[])
     }
 };
 
+/**
+ * Fetch generic Tencent quotes for any list of codes (sh000001, sz399001, etc.)
+ * Returns { [code]: { currentPrice: number, changePct: number } }
+ */
+export const fetchGeneralTencentQuotes = async (codes: string[]): Promise<Record<string, { currentPrice: number, changePct: number }>> => {
+    if (!codes || codes.length === 0) return {};
+
+    try {
+        const qtUrl = `${TENCENT_STOCK_API}${codes.join(',')}`;
+        const res = await fetch(qtUrl);
+        const qText = await res.text();
+
+        const quoteMap: Record<string, { currentPrice: number, changePct: number }> = {};
+        qText.split(';').forEach(line => {
+            if (line.includes('=')) {
+                // e.g. v_sh000001="1~上证指数~000001~3028.05~...
+                const leftSide = line.split('=')[0]; // v_sh000001
+                const reqCodeMatch = leftSide.match(/v_(.+)/);
+                if (!reqCodeMatch) return;
+                const reqCode = reqCodeMatch[1]; // sh000001
+
+                const rightSide = line.split('=')[1].replace(/"/g, '');
+                const parts = rightSide.split('~');
+
+                // format depending on index/stock. Usually indices have current at index 3, and pct at 32
+                if (parts.length > 32) {
+                    // 3 is current price, 32 is pct change for standard quotes
+                    const currentPrice = parseFloat(parts[3]);
+                    const changePct = parseFloat(parts[32]);
+                    if (!isNaN(currentPrice) && !isNaN(changePct)) {
+                        quoteMap[reqCode] = { currentPrice, changePct };
+                    }
+                }
+            }
+        });
+        return quoteMap;
+    } catch (error) {
+        console.error('Failed to fetch general Tencent quotes:', error);
+        return {};
+    }
+};
+
+/**
+ * Checks if the Chinese stock market is currently trading based on the update time of the Shanghai Composite Index.
+ * Falls back to local time checks if the API fails.
+ * @returns A promise evaluating to true if the market is open and trading (after 9:20 AM on a weekday).
+ */
 export const checkIsMarketTrading = async (): Promise<boolean> => {
     try {
         const res = await fetch(`${TENCENT_STOCK_API}sh000001`);

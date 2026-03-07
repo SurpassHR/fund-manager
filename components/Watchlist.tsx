@@ -1,0 +1,302 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { useLiveQuery } from 'dexie-react-hooks';
+import { db, refreshWatchlistData } from '../services/db';
+import { formatCurrency, formatSignedCurrency, getSignColor, formatPct } from '../services/financeUtils';
+import { Icons } from './Icon';
+import { useTranslation } from '../services/i18n';
+import { WatchlistItem } from '../types';
+import { AddWatchlistModal } from './AddWatchlistModal';
+
+export const Watchlist: React.FC = () => {
+    const watchlists = useLiveQuery(() => db.watchlists.toArray());
+    const { t } = useTranslation();
+
+    const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+    const [editingItem, setEditingItem] = useState<WatchlistItem | undefined>(undefined);
+
+    // Refresh state
+    const [isRefreshing, setIsRefreshing] = useState(false);
+    const [cooldown, setCooldown] = useState(0);
+    const cooldownMaxTime = 5000;
+    const cooldownRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+    // Context Menu State
+    const [contextMenu, setContextMenu] = useState<{ x: number; y: number; itemId: number } | null>(null);
+    const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    useEffect(() => {
+        // Initial load refresh
+        refreshWatchlistData();
+    }, []);
+
+    // Close context menu on global click
+    useEffect(() => {
+        const handleClick = () => setContextMenu(null);
+        window.addEventListener('click', handleClick);
+        return () => window.removeEventListener('click', handleClick);
+    }, []);
+
+    if (!watchlists) return <div className="p-8 text-center text-gray-500">{t('common.loading')}</div>;
+
+    const handleContextMenu = (e: React.MouseEvent, itemId: number) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setContextMenu({ x: e.clientX, y: e.clientY, itemId });
+    };
+
+    const handleTouchStart = (itemId: number, e: React.TouchEvent) => {
+        const touch = e.touches[0];
+        const x = touch.clientX;
+        const y = touch.clientY;
+
+        longPressTimerRef.current = setTimeout(() => {
+            setContextMenu({ x, y, itemId });
+            if (navigator.vibrate) navigator.vibrate(50);
+        }, 600);
+    };
+
+    const handleTouchEnd = () => {
+        if (longPressTimerRef.current) {
+            clearTimeout(longPressTimerRef.current);
+            longPressTimerRef.current = null;
+        }
+    };
+
+    const handleEdit = (item: WatchlistItem) => {
+        setEditingItem(item);
+        setIsAddModalOpen(true);
+        setContextMenu(null);
+    };
+
+    const handleDelete = async (itemId: number) => {
+        if (confirm(t('common.delete') + '?')) {
+            await db.watchlists.delete(itemId);
+        }
+        setContextMenu(null);
+    };
+
+    const handleManualRefresh = async () => {
+        if (cooldown > 0 || isRefreshing) return;
+
+        setIsRefreshing(true);
+        const startTime = Date.now();
+
+        try {
+            await refreshWatchlistData();
+        } finally {
+            const elapsed = Date.now() - startTime;
+            if (elapsed < 1000) {
+                await new Promise(res => setTimeout(res, 1000 - elapsed));
+            }
+            setIsRefreshing(false);
+
+            setCooldown(100);
+            const cooldownStartTime = Date.now();
+
+            if (cooldownRef.current) clearInterval(cooldownRef.current);
+
+            cooldownRef.current = setInterval(() => {
+                const cElapsed = Date.now() - cooldownStartTime;
+                const remaining = Math.max(0, cooldownMaxTime - cElapsed);
+                const percent = (remaining / cooldownMaxTime) * 100;
+
+                if (percent <= 0) {
+                    setCooldown(0);
+                    if (cooldownRef.current) clearInterval(cooldownRef.current);
+                } else {
+                    setCooldown(percent);
+                }
+            }, 16);
+        }
+    };
+
+    return (
+        <div className="pb-36 md:pb-24 bg-app-bg dark:bg-app-bg-dark min-h-full" onContextMenu={(e) => e.preventDefault()}>
+
+            {/* Context Menu Overlay */}
+            {contextMenu && (
+                <div
+                    className="fixed z-[100] bg-white dark:bg-card-dark rounded-lg shadow-xl border border-gray-100 dark:border-border-dark py-2 w-48 overflow-hidden animate-in fade-in zoom-in-95 duration-100 origin-top-left"
+                    style={{ top: Math.min(contextMenu.y, window.innerHeight - 150), left: Math.min(contextMenu.x, window.innerWidth - 200) }}
+                    onClick={(e) => e.stopPropagation()}
+                >
+                    <div className="px-4 py-2 text-xs font-bold text-gray-400 bg-gray-50 dark:bg-white/5 border-b border-gray-100 dark:border-border-dark mb-1">
+                        {t('common.menu')}
+                    </div>
+                    <button
+                        onClick={() => {
+                            const i = watchlists.find(i => i.id === contextMenu.itemId);
+                            if (i) handleEdit(i);
+                        }}
+                        className="w-full text-left px-4 py-3 hover:bg-blue-50 dark:hover:bg-blue-900/20 text-gray-700 dark:text-gray-200 text-sm flex items-center gap-2 border-b border-gray-50 dark:border-border-dark"
+                    >
+                        <Icons.Settings size={16} className="text-blue-500" /> {t('common.edit')}
+                    </button>
+                    <button
+                        onClick={() => handleDelete(contextMenu.itemId)}
+                        className="w-full text-left px-4 py-3 hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400 text-sm flex items-center gap-2"
+                    >
+                        <Icons.Plus size={16} className="transform rotate-45" /> {t('common.delete')}
+                    </button>
+                </div>
+            )}
+
+            {/* Header controls (similar to summary card style but smaller) */}
+            <div className="bg-white dark:bg-card-dark md:rounded-lg md:shadow-sm px-4 py-3 mb-2 md:mb-6 mt-2 md:mt-4 mx-0 md:mx-0 flex justify-between items-center">
+                <div className="text-gray-800 dark:text-gray-100 font-bold text-lg">{t('common.watchlist')}</div>
+                <button
+                    onClick={handleManualRefresh}
+                    disabled={cooldown > 0 || isRefreshing}
+                    className={`relative flex items-center justify-center p-2 rounded-full bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-gray-300 overflow-hidden active:scale-95 transition-transform ${cooldown > 0 || isRefreshing ? 'cursor-not-allowed' : 'cursor-pointer'}`}
+                >
+                    <Icons.Refresh size={16} className={`${isRefreshing ? 'animate-spin' : ''}`} />
+
+                    {/* Cooldown overlay (Light mode) */}
+                    {(cooldown > 0 && !isRefreshing) && (
+                        <div
+                            className="absolute inset-0 dark:hidden"
+                            style={{ background: `conic-gradient(transparent ${100 - cooldown}%, rgba(0,0,0,0.2) ${100 - cooldown}%, rgba(0,0,0,0.2) 100%)` }}
+                        />
+                    )}
+                    {/* Cooldown overlay (Dark mode) */}
+                    {(cooldown > 0 && !isRefreshing) && (
+                        <div
+                            className="absolute inset-0 hidden dark:block"
+                            style={{ background: `conic-gradient(transparent ${100 - cooldown}%, rgba(0,0,0,0.7) ${100 - cooldown}%, rgba(0,0,0,0.7) 100%)` }}
+                        />
+                    )}
+                </button>
+            </div>
+
+            {/* List Headers - Responsive */}
+            <div className="bg-white dark:bg-card-dark md:rounded-t-lg px-4 py-3 flex items-center text-xs text-gray-400 border-b border-gray-100 dark:border-border-dark sticky top-14 z-10 shadow-sm font-sans">
+                <div className="hidden md:block md:flex-[1.5] text-left">{t('common.fund')}/{t('common.indexOrSector')}</div>
+                <div className="hidden md:grid md:flex-[4] w-full grid-cols-4 gap-4 text-right font-medium">
+                    <div className="text-right">{t('common.anchorPrice')}</div>
+                    <div className="text-right">{t('common.currentPrice') || t('common.nav')}</div>
+                    <div className="text-right">{t('common.dayChgPct')}</div>
+                    <div className="text-right">{t('common.anchorGain')}</div>
+                </div>
+
+                {/* Mobile Headers */}
+                <div className="md:hidden w-full flex items-center justify-between">
+                    <div className="flex-1 text-left">{t('common.fund')}/{t('common.indexOrSector')}</div>
+                    <div className="flex gap-2 text-right">
+                        <div className="w-[4.5rem] cursor-pointer flex items-center justify-end gap-0.5">
+                            {t('common.dayChgPct')}
+                        </div>
+                        <div className="w-[4.5rem] cursor-pointer flex items-center justify-end gap-0.5">
+                            {t('common.anchorGain')}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* List */}
+            <div className="bg-white dark:bg-card-dark md:rounded-b-lg flex flex-col md:divide-y md:divide-gray-50 dark:md:divide-border-dark min-h-[50vh]">
+                {watchlists.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-20 text-gray-400 gap-4">
+                        <Icons.User size={48} strokeWidth={1} className="opacity-50" />
+                        <p className="text-sm">暂无自选，点击下方添加</p>
+                    </div>
+                ) : (
+                    watchlists.map((item) => {
+                        const anchorGainPct = item.anchorPrice > 0
+                            ? ((item.currentPrice - item.anchorPrice) / item.anchorPrice) * 100
+                            : 0;
+
+                        return (
+                            <div
+                                key={item.id}
+                                onContextMenu={(e) => item.id && handleContextMenu(e, item.id)}
+                                onTouchStart={(e) => item.id && handleTouchStart(item.id, e)}
+                                onTouchEnd={handleTouchEnd}
+                                onTouchCancel={handleTouchEnd}
+                                className={`group flex md:flex-row py-4 px-4 border-b border-gray-50 dark:border-border-dark md:border-none md:hover:bg-gray-50 dark:md:hover:bg-white/5 transition-colors items-start select-none ${contextMenu?.itemId === item.id ? 'bg-gray-100 dark:bg-white/10' : ''}`}
+                            >
+                                {/* Common: Name Section */}
+                                <div className="flex-1 min-w-0 pr-2 md:flex-[1.5] md:self-center">
+                                    <div className="hidden md:flex items-center gap-2">
+                                        <span className={`text-[10px] px-1 py-0.5 rounded font-sans ${item.type === 'index' ? 'bg-purple-50 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400' : 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'}`}>
+                                            {item.type === 'index' ? '指数' : '基金'}
+                                        </span>
+                                        <span className="text-[10px] text-gray-500 font-sans border border-gray-200 dark:border-gray-700 px-1 py-0.5 rounded">
+                                            {item.code}
+                                        </span>
+                                        <h3 className="text-sm font-medium text-gray-800 dark:text-gray-100 truncate font-sans">{item.name}</h3>
+                                    </div>
+
+                                    {/* Mobile Name View */}
+                                    <div className="md:hidden flex flex-col gap-1">
+                                        <div className="flex items-center gap-1.5">
+                                            <h3 className="text-sm font-medium text-gray-800 dark:text-gray-100 truncate leading-tight font-sans">{item.name}</h3>
+                                        </div>
+                                        <div className="flex items-center gap-2 pr-2">
+                                            <span className={`text-[9px] px-1 rounded font-sans ${item.type === 'index' ? 'bg-purple-50 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400' : 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'}`}>
+                                                {item.type === 'index' ? '指' : '基'}
+                                            </span>
+                                            <span className="text-xs text-gray-400 font-sans">{item.code}</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Desktop Grid Layout */}
+                                <div className="hidden md:grid flex-[4] w-full grid-cols-4 gap-4 text-right items-center text-sm">
+                                    <div className="text-gray-500 font-sans flex flex-col items-end">
+                                        <span>{item.anchorPrice.toFixed(4)}</span>
+                                        <span className="text-[10px] text-gray-400">{item.anchorDate}</span>
+                                    </div>
+                                    <div className="font-bold text-gray-800 dark:text-gray-100 font-sans">
+                                        {item.currentPrice.toFixed(4)}
+                                    </div>
+                                    <div className={`font-medium font-sans ${getSignColor(item.dayChangePct)}`}>
+                                        {formatPct(item.dayChangePct)}
+                                    </div>
+                                    <div className={`font-medium font-sans ${getSignColor(anchorGainPct)}`}>
+                                        {formatPct(anchorGainPct)}
+                                    </div>
+                                </div>
+
+                                {/* Mobile Flex Layout */}
+                                <div className="md:hidden flex flex-none gap-2 text-right items-start">
+                                    <div className="w-[4.5rem] flex flex-col items-end">
+                                        <div className={`text-base font-bold font-sans ${getSignColor(item.dayChangePct)}`}>
+                                            {formatPct(item.dayChangePct)}
+                                        </div>
+                                        <div className="text-[10px] text-gray-400 font-sans">当前 {item.currentPrice.toFixed(4)}</div>
+                                    </div>
+
+                                    <div className="w-[4.5rem] flex flex-col items-end">
+                                        <div className={`text-base font-bold font-sans ${getSignColor(anchorGainPct)}`}>
+                                            {formatPct(anchorGainPct)}
+                                        </div>
+                                        <div className="text-[10px] text-gray-400 font-sans">锚点 {item.anchorPrice.toFixed(4)}</div>
+                                    </div>
+                                </div>
+                            </div>
+                        );
+                    })
+                )}
+            </div>
+
+            {/* Bottom Add Action */}
+            <div className="mt-2 flex bg-white dark:bg-card-dark md:bg-transparent md:dark:bg-transparent md:mt-4 py-3 px-4 md:px-0 text-gray-500 dark:text-gray-400 text-sm items-center justify-center md:justify-start gap-4 font-sans">
+                <button
+                    onClick={() => {
+                        setEditingItem(undefined);
+                        setIsAddModalOpen(true);
+                    }}
+                    className="flex w-full md:w-auto justify-center items-center gap-2 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 md:px-6 py-3 md:py-2 rounded-lg transition-colors font-bold"
+                >
+                    <Icons.Plus size={18} /> {t('common.addWatchlist')}
+                </button>
+            </div>
+
+            <AddWatchlistModal
+                isOpen={isAddModalOpen}
+                onClose={() => setIsAddModalOpen(false)}
+                editItem={editingItem}
+            />
+        </div>
+    );
+};

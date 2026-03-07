@@ -1,10 +1,11 @@
 import Dexie, { Table } from 'dexie';
-import { Fund, Account, AssetSummary, PendingTransaction } from '../types';
-import { fetchFundCommonData, fetchEastMoneyLatestNav, fetchFundHoldings, fetchRealTimeQuotes, checkIsMarketTrading } from './api';
+import { Fund, Account, AssetSummary, PendingTransaction, WatchlistItem } from '../types';
+import { fetchFundCommonData, fetchEastMoneyLatestNav, fetchFundHoldings, fetchRealTimeQuotes, checkIsMarketTrading, fetchGeneralTencentQuotes } from './api';
 
 class XiaoHuYangJiDB extends Dexie {
   funds!: Table<Fund>;
   accounts!: Table<Account>;
+  watchlists!: Table<WatchlistItem>;
 
   constructor() {
     super('XiaoHuYangJiDB');
@@ -22,6 +23,12 @@ class XiaoHuYangJiDB extends Dexie {
       funds: '++id, code, platform, name',
       accounts: '++id, name'
     });
+    // Version 4: Add watchlists table
+    (this as any).version(4).stores({
+      funds: '++id, code, platform, name',
+      accounts: '++id, name',
+      watchlists: '++id, code, type, name'
+    });
   }
 }
 
@@ -30,6 +37,12 @@ export const db = new XiaoHuYangJiDB();
 // 防止 StrictMode 下重复初始化的竞态
 let initPromise: Promise<void> | null = null;
 
+/**
+ * Initializes the IndexedDB database.
+ * If the accounts table is empty, inserts a default account.
+ * Uses a promise to prevent race conditions during StrictMode double invocation.
+ * @returns A promise that resolves when initialization is complete.
+ */
 export const initDB = () => {
   if (!initPromise) {
     initPromise = (async () => {
@@ -86,8 +99,12 @@ const getCostDateStr = (buyDateStr: string, buyTime: 'before15' | 'after15'): st
 };
 
 /**
- * 计算份额确认日：从操作日开始，跳过周末，前进 N 个交易日
- * 注意：15:00 后操作等于顺延到下一个交易日再开始计算
+ * Calculates the settlement date for a transaction (T+N days).
+ * Skips weekends and treats after 15:00 as the next trading day.
+ * @param opDateStr - The operation date (YYYY-MM-DD).
+ * @param opTime - Whether the operation was before or after 15:00.
+ * @param tPlusN - The number of trading days until settlement.
+ * @returns The calculated settlement date (YYYY-MM-DD).
  */
 export const getSettlementDate = (
   opDateStr: string,
@@ -123,8 +140,10 @@ export const getSettlementDate = (
 };
 
 /**
- * 刷新所有持仓基金的最新净值数据
- * 从晨星 API 拉取最新 NAV、涨跌幅，更新 IndexedDB
+ * Refreshes the latest NAV and change metrics for all held funds.
+ * Fetches data from APIs and calculates projected gains if the market hasn't officially updated.
+ * Also automatically settles any pending transactions that have reached their settlement date.
+ * @returns A promise that resolves when the data refresh is complete.
  */
 let refreshPromise: Promise<void> | null = null;
 
@@ -301,6 +320,137 @@ export const refreshFundData = () => {
   return refreshPromise;
 };
 
+let refreshWatchlistPromise: Promise<void> | null = null;
+
+/**
+ * Refreshes the latest price and change metrics for all items in the watchlist.
+ * Updates both funds and indices/sectors using their respective APIs.
+ * @returns A promise that resolves when the watchlist refresh is complete.
+ */
+export const refreshWatchlistData = () => {
+  if (refreshWatchlistPromise) return refreshWatchlistPromise;
+
+  refreshWatchlistPromise = (async () => {
+    try {
+      const allItems = await db.watchlists.toArray();
+      if (allItems.length === 0) return;
+
+      const fundItems = allItems.filter(i => i.type === 'fund');
+      const indexItems = allItems.filter(i => i.type === 'index');
+      const todayStr = getLocalDateString();
+
+      // 1. Process Funds
+      if (fundItems.length > 0) {
+        const shouldUseEstimatedValue = await checkIsMarketTrading();
+        await Promise.allSettled(
+          fundItems.map(async (item) => {
+            let nav = item.currentPrice;
+            let navDate = '';
+            let navChangePercent = item.dayChangePct;
+
+            const emData = await fetchEastMoneyLatestNav(item.code);
+            if (emData) {
+              nav = emData.nav;
+              navDate = emData.navDate;
+              navChangePercent = emData.navChangePercent;
+            } else {
+              const json = await fetchFundCommonData(item.code);
+              if (json?.data?.nav) {
+                ({ nav, navDate, navChangePercent } = json.data);
+              }
+            }
+
+            let effectivePctDate = navDate;
+            let estimatedChangePct = navChangePercent;
+            let hasEstimate = false;
+
+            const isOfficialTodayNavOut = (navDate === todayStr);
+
+            if (shouldUseEstimatedValue && !isOfficialTodayNavOut) {
+              try {
+                const holdingsJson = await fetchFundHoldings(item.code);
+                const equityHoldings = holdingsJson?.data?.equityHoldings;
+                if (equityHoldings && equityHoldings.length > 0) {
+                  const top10 = equityHoldings.slice(0, 10);
+                  const codes = top10.map((h: any) => {
+                    const c = h.ticker;
+                    if (!c) return null;
+                    if (c.length === 5) return `hk${c}`;
+                    if (c.length === 6) {
+                      if (c.startsWith('6')) return `sh${c}`;
+                      if (c.startsWith('0') || c.startsWith('3')) return `sz${c}`;
+                      if (c.startsWith('83') || c.startsWith('87') || c.startsWith('43')) return `bj${c}`;
+                    }
+                    return null;
+                  }).filter(Boolean);
+
+                  if (codes.length > 0) {
+                    const quoteMap = await fetchRealTimeQuotes(codes, top10);
+                    let weightedPctSum = 0;
+                    let totalWeight = 0;
+
+                    top10.forEach((h: any) => {
+                      const pct = quoteMap[h.ticker];
+                      if (pct !== undefined) {
+                        weightedPctSum += (h.weight / 100) * pct;
+                        totalWeight += h.weight;
+                      }
+                    });
+
+                    if (totalWeight > 0) {
+                      estimatedChangePct = (weightedPctSum / (totalWeight / 100));
+                      hasEstimate = true;
+                      effectivePctDate = todayStr;
+                    }
+                  }
+                }
+              } catch (e) {
+                console.warn(`Watchlist estimate failed for ${item.code}`);
+              }
+            }
+
+            await db.watchlists.update(item.id!, {
+              currentPrice: nav,
+              dayChangePct: hasEstimate ? estimatedChangePct : navChangePercent,
+              lastUpdate: effectivePctDate || todayStr,
+            });
+          })
+        );
+      }
+
+      // 2. Process Indices / Stocks
+      if (indexItems.length > 0) {
+        const codes = indexItems.map(i => i.code);
+        const quotes = await fetchGeneralTencentQuotes(codes);
+
+        await Promise.allSettled(
+          indexItems.map(async (item) => {
+            const data = quotes[item.code];
+            if (data) {
+              await db.watchlists.update(item.id!, {
+                currentPrice: data.currentPrice,
+                dayChangePct: data.changePct,
+                lastUpdate: todayStr,
+              });
+            }
+          })
+        );
+      }
+    } catch (err) {
+      console.error('Failed to refresh watchlist data', err);
+    } finally {
+      refreshWatchlistPromise = null;
+    }
+  })();
+
+  return refreshWatchlistPromise;
+};
+
+/**
+ * Calculates the aggregate asset summary for a given list of funds.
+ * @param funds - Array of fund objects to aggregate.
+ * @returns The calculated AssetSummary including total assets, daily gain, and holding gain.
+ */
 export const calculateSummary = (funds: Fund[]): AssetSummary => {
   let totalAssets = 0;
   let totalDayGain = 0;
@@ -344,6 +494,11 @@ interface ExportData {
   funds: Fund[];
 }
 
+/**
+ * Exports all tracked funds from IndexedDB to a JSON file.
+ * Triggers a download of the backup file in the browser.
+ * @returns A promise resolving when the export is complete.
+ */
 export const exportFunds = async (): Promise<void> => {
   const allFunds = await db.funds.toArray();
   const data: ExportData = {
@@ -362,6 +517,12 @@ export const exportFunds = async (): Promise<void> => {
   URL.revokeObjectURL(url);
 };
 
+/**
+ * Imports funds from a valid JSON backup file into IndexedDB.
+ * Skips duplicate funds based on code and platform.
+ * @param file - The JSON File object to import.
+ * @returns A promise that resolves to an object containing the count of added and skipped items.
+ */
 export const importFunds = async (file: File): Promise<{ added: number; skipped: number }> => {
   const text = await file.text();
   const data: ExportData = JSON.parse(text);

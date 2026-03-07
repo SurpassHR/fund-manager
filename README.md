@@ -5,6 +5,7 @@
 ## 功能特性
 
 - **基金管理**：支持添加、编辑、删除基金持仓记录
+- **自选概览**：支持将基金和市场指数（沪深等）加入自选列表，并根据自定义锚点计算收益差距
 - **实时估值**：交易日 9:20 后自动拉取前十大持仓股票实时报价，精准预估当日涨跌
 - **多资产/多平台支持**：支持多账户管理，多平台分类过滤与统计
 - **灵活的详情页**：支持多时间维度的业绩走势图（ECharts）、历史净值表格与持仓明细展示
@@ -72,15 +73,17 @@ fund-manager/
 │   └── deploy.yml      # GitHub Pages 部署工作流
 ├── components/         # React 组件
 │   ├── Dashboard.tsx   # 主面板（持仓概览）
+│   ├── Watchlist.tsx   # 自选功能页
 │   ├── FundDetail.tsx  # 基金详情页
-│   ├── AddFundModal.tsx# 添加基金弹窗
+│   ├── AddFundModal.tsx# 添加或编辑弹窗
 │   ├── Header.tsx      # 顶部导航栏
 │   ├── BottomNav.tsx   # 底部导航栏
 │   └── ...
 ├── services/           # 业务逻辑
-│   ├── db.ts           # Dexie 数据库配置
-│   ├── financeUtils.ts # 金融计算工具
-│   └── i18n.tsx        # 国际化
+│   ├── api.ts          # 数据接口服务（晨星/东方财富/腾讯API）
+│   ├── db.ts           # Dexie 本地数据库（包含资金结算逻辑）
+│   ├── financeUtils.ts # 金融数据格式计算
+│   └── i18n.tsx        # 国际化上下文
 ├── App.tsx             # 应用根组件
 ├── index.tsx           # 入口文件
 ├── index.html          # HTML 模板

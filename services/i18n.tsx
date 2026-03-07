@@ -105,6 +105,12 @@ const dictionary = {
       undo: "Undo",
       all: "All",
       defaultAccount: "Default",
+      addWatchlist: "Add to Watchlist",
+      anchorPrice: "Anchor Price/Point",
+      anchorDate: "Anchor Date",
+      anchorGain: "Anchor Gain",
+      type: "Type",
+      indexOrSector: "Index/Sector",
     }
   },
   zh: {
@@ -208,7 +214,13 @@ const dictionary = {
       cancelConfirm: "确定要撤销这笔在途交易吗？",
       undo: "撤销",
       all: "全部",
-      defaultAccount: "默认"
+      defaultAccount: "默认",
+      addWatchlist: "添加自选",
+      anchorPrice: "锚点价格/点数",
+      anchorDate: "锚定日期",
+      anchorGain: "锚点涨跌",
+      type: "类型",
+      indexOrSector: "指数/板块",
     }
   }
 };

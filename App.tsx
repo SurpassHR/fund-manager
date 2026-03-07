@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Header } from './components/Header';
 import { BottomNav } from './components/BottomNav';
 import { Dashboard } from './components/Dashboard';
+import { Watchlist } from './components/Watchlist';
 import { Ticker } from './components/Ticker';
 import { ScannerModal } from './components/ScannerModal';
 import { MePage } from './components/MePage';
@@ -21,6 +22,8 @@ const AppContent: React.FC = () => {
     switch (activeTab) {
       case 'holding':
         return <Dashboard />;
+      case 'watchlist':
+        return <Watchlist />;
       case 'me':
         return <MePage />;
       default:
