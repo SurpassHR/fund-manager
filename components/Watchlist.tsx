@@ -169,13 +169,15 @@ export const Watchlist: React.FC = () => {
             </div>
 
             {/* List Headers - Responsive */}
-            <div className="bg-white dark:bg-card-dark md:rounded-t-lg px-4 py-3 flex items-center text-xs text-gray-400 border-b border-gray-100 dark:border-border-dark sticky top-14 z-10 shadow-sm font-sans">
-                <div className="hidden md:block md:flex-[1.5] text-left">{t('common.fund')}/{t('common.indexOrSector')}</div>
+            <div className="bg-white dark:bg-card-dark md:rounded-t-lg px-4 py-3 flex items-center text-xs text-gray-400 border-b border-gray-100 dark:border-border-dark sticky top-[calc(3.5rem+40px)] md:top-14 z-10 shadow-sm font-sans">
+                <div className="hidden md:flex md:flex-[1.5] gap-4 pr-2 items-center text-left">
+                    {t('common.fund')}/{t('common.indexOrSector')}
+                </div>
                 <div className="hidden md:grid md:flex-[4] w-full grid-cols-4 gap-4 text-right font-medium">
-                    <div className="text-right">{t('common.anchorPrice')}</div>
-                    <div className="text-right">{t('common.currentPrice')}</div>
-                    <div className="text-right">{t('common.dayChgPct')}</div>
-                    <div className="text-right">{t('common.anchorGain')}</div>
+                    <div className="text-left">{t('common.anchorPrice')} / {t('common.currentPrice')}</div>
+                    <div className="text-right cursor-pointer hover:text-gray-600">{t('common.dayChgPct')}</div>
+                    <div className="text-right"></div>
+                    <div className="text-right cursor-pointer hover:text-gray-600">{t('common.anchorGain')}</div>
                 </div>
 
                 {/* Mobile Headers */}
@@ -217,11 +219,11 @@ export const Watchlist: React.FC = () => {
                                 {/* Common: Name Section */}
                                 <div className="flex-1 min-w-0 pr-2 md:flex-[1.5] md:self-center">
                                     <div className="hidden md:flex items-center gap-2">
-                                        <span className={`text-[10px] px-1 py-0.5 rounded font-sans ${item.type === 'index' ? 'bg-purple-50 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400' : 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'}`}>
-                                            {item.type === 'index' ? t('common.indexBadge') : t('common.fundBadge')}
-                                        </span>
-                                        <span className="text-[10px] text-gray-500 font-sans border border-gray-200 dark:border-gray-700 px-1 py-0.5 rounded">
+                                        <span className="text-[10px] px-1 py-0.5 rounded bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 font-sans">
                                             {item.code}
+                                        </span>
+                                        <span className={`text-[10px] px-1 py-0.5 rounded font-sans ${item.type === 'index' ? 'bg-purple-100 dark:bg-purple-900/40 text-purple-600 dark:text-purple-400' : 'bg-gray-100 dark:bg-white/10 text-gray-500 dark:text-gray-400'}`}>
+                                            {item.type === 'index' ? t('common.indexBadge') : t('common.fundBadge')}
                                         </span>
                                         <h3 className="text-sm font-medium text-gray-800 dark:text-gray-100 truncate font-sans">{item.name}</h3>
                                     </div>
@@ -230,29 +232,30 @@ export const Watchlist: React.FC = () => {
                                     <div className="md:hidden flex flex-col gap-1">
                                         <div className="flex items-center gap-1.5">
                                             <h3 className="text-sm font-medium text-gray-800 dark:text-gray-100 truncate leading-tight font-sans">{item.name}</h3>
-                                        </div>
-                                        <div className="flex items-center gap-2 pr-2">
-                                            <span className={`text-[9px] px-1 rounded font-sans ${item.type === 'index' ? 'bg-purple-50 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400' : 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'}`}>
+                                            <span className={`text-[9px] px-1 py-0.5 rounded font-bold whitespace-nowrap ${item.type === 'index' ? 'bg-purple-100 dark:bg-purple-900/40 text-purple-600 dark:text-purple-400' : 'bg-gray-100 dark:bg-white/10 text-gray-500 dark:text-gray-400'}`}>
                                                 {item.type === 'index' ? t('common.indexBadgeShort') : t('common.fundBadgeShort')}
                                             </span>
+                                        </div>
+                                        <div className="flex justify-between items-center pr-2">
                                             <span className="text-xs text-gray-400 font-sans">{item.code}</span>
                                         </div>
                                     </div>
                                 </div>
 
                                 {/* Desktop Grid Layout */}
-                                <div className="hidden md:grid flex-[4] w-full grid-cols-4 gap-4 text-right items-center text-sm">
-                                    <div className="text-gray-500 font-sans flex flex-col items-end">
-                                        <span>{item.anchorPrice.toFixed(4)}</span>
-                                        <span className="text-[10px] text-gray-400">{item.anchorDate}</span>
-                                    </div>
-                                    <div className="font-bold text-gray-800 dark:text-gray-100 font-sans">
-                                        {item.currentPrice.toFixed(4)}
+                                <div className="hidden md:grid flex-[4] w-full grid-cols-4 gap-4 text-right items-start text-sm">
+                                    <div className="text-left text-gray-500 text-xs">
+                                        <div className="font-sans flex items-center gap-1">
+                                            {item.anchorPrice.toFixed(4)}
+                                            <span className="text-[10px] text-gray-400 bg-gray-50 dark:bg-white/5 px-1 rounded">{item.anchorDate}</span>
+                                        </div>
+                                        <div className="font-sans text-gray-400">{item.currentPrice.toFixed(4)}</div>
                                     </div>
                                     <div className={`font-medium font-sans ${getSignColor(item.dayChangePct)}`}>
                                         {formatPct(item.dayChangePct)}
                                     </div>
-                                    <div className={`font-medium font-sans ${getSignColor(anchorGainPct)}`}>
+                                    <div className="text-right"></div>
+                                    <div className={`font-bold font-sans ${getSignColor(anchorGainPct)}`}>
                                         {formatPct(anchorGainPct)}
                                     </div>
                                 </div>
@@ -266,11 +269,14 @@ export const Watchlist: React.FC = () => {
                                         <div className="text-[10px] text-gray-400 font-sans">{t('common.currentLabel')} {item.currentPrice.toFixed(4)}</div>
                                     </div>
 
-                                    <div className="w-[4.5rem] flex flex-col items-end">
+                                    <div className="w-[5rem] flex flex-col items-end">
                                         <div className={`text-base font-bold font-sans ${getSignColor(anchorGainPct)}`}>
                                             {formatPct(anchorGainPct)}
                                         </div>
-                                        <div className="text-[10px] text-gray-400 font-sans">{t('common.anchorLabel')} {item.anchorPrice.toFixed(4)}</div>
+                                        <div className="text-[10px] text-gray-400 font-sans flex flex-col items-end">
+                                            {t('common.anchorLabel')} {item.anchorPrice.toFixed(4)}
+                                            <span className="scale-90 origin-right opacity-70">({item.anchorDate})</span>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
