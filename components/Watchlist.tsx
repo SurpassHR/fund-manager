@@ -195,7 +195,7 @@ export const Watchlist: React.FC = () => {
             </div>
 
             {/* List */}
-            <div className="bg-white dark:bg-card-dark md:rounded-b-lg flex flex-col md:divide-y md:divide-gray-50 dark:md:divide-border-dark min-h-[50vh]">
+            <div className="bg-white dark:bg-card-dark md:rounded-b-lg flex flex-col md:divide-y md:divide-gray-50 dark:md:divide-border-dark">
                 {watchlists.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-20 text-gray-400 gap-4">
                         <Icons.User size={48} strokeWidth={1} className="opacity-50" />
@@ -286,15 +286,16 @@ export const Watchlist: React.FC = () => {
             </div>
 
             {/* Bottom Add Action */}
-            <div className="mt-2 flex bg-white dark:bg-card-dark md:bg-transparent md:dark:bg-transparent md:mt-4 py-3 px-4 md:px-0 text-gray-500 dark:text-gray-400 text-sm items-center justify-center md:justify-start gap-4 font-sans">
+            <div className="mt-2 flex bg-white dark:bg-card-dark md:bg-transparent md:dark:bg-transparent md:mt-4 py-3 px-4 md:px-0 text-gray-500 dark:text-gray-400 text-sm items-center justify-between md:justify-start md:gap-4 font-sans">
                 <button
-                    onClick={() => {
+                    onClick={(e) => {
+                        e.stopPropagation();
                         setEditingItem(undefined);
                         setIsAddModalOpen(true);
                     }}
-                    className="flex w-full md:w-auto justify-center items-center gap-2 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 md:px-6 py-3 md:py-2 rounded-lg transition-colors font-bold"
+                    className="flex items-center gap-1 md:bg-white md:dark:bg-card-dark md:px-4 md:py-2 md:rounded-lg md:shadow-sm md:hover:bg-gray-50 md:dark:hover:bg-white/5 transition-colors"
                 >
-                    <Icons.Plus size={18} /> {t('common.addWatchlist')}
+                    <Icons.Plus size={16} /> {t('common.addWatchlist')}
                 </button>
             </div>
 
