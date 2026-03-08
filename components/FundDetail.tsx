@@ -151,7 +151,12 @@ export const FundDetail: React.FC<FundDetailProps> = ({ fund, onBack }) => {
                 // Map '1M' etc to '1m'
                 const danjuanPeriod = timeRange.toLowerCase();
 
-                const response = await fetch(`/djapi/fund/growth/${fund.code}?day=${danjuanPeriod}`);
+                const isDev = import.meta.env.DEV;
+                const baseUrl = isDev 
+                    ? `/djapi/fund/growth/` 
+                    : `https://api.codetabs.com/v1/proxy/?quest=https://danjuanfunds.com/djapi/fund/growth/`;
+
+                const response = await fetch(`${baseUrl}${fund.code}?day=${danjuanPeriod}`);
 
                 if (!response.ok) throw new Error('Failed to fetch growth data from Danjuan');
 
