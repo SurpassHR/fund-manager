@@ -28,31 +28,43 @@ interface FullApiResponse {
 }
 
 /**
- * Fetches market indices data for China markets.
+ * Fetches market indices data for major China markets using Tencent API.
+ * Replaces the broken Morningstar endpoint.
  * @returns A promise that resolves to an array of MarketIndex objects.
  */
 export const fetchMarketIndices = async (): Promise<MarketIndex[]> => {
     try {
-        const response = await fetch('https://www.morningstar.cn/cn-api/market/index');
-        if (!response.ok) {
-            throw new Error(`Market API error: ${response.status}`);
+        const majorIndices = [
+            { code: 'sh000001', name: '上证指数' },
+            { code: 'sz399001', name: '深证成指' },
+            { code: 'sz399006', name: '创业板指' },
+            { code: 'sh000300', name: '沪深300' },
+            { code: 'sh000016', name: '上证50' },
+        ];
+
+        const quotes = await fetchGeneralTencentQuotes(majorIndices.map(i => i.code));
+        
+        const results: MarketIndex[] = [];
+        for (const idx of majorIndices) {
+            const data = quotes[idx.code];
+            if (data) {
+                // Ticker expects value (current price), change (amount), and changePct
+                // We have currentPrice and changePct. We can calculate change amount:
+                // changeAmount = currentPrice - (currentPrice / (1 + changePct/100))
+                const prevClose = data.currentPrice / (1 + (data.changePct / 100));
+                const changeAmount = data.currentPrice - prevClose;
+                
+                results.push({
+                    name: idx.name,
+                    value: data.currentPrice,
+                    change: changeAmount,
+                    changePct: data.changePct
+                });
+            }
         }
-        const json: FullApiResponse = await response.json();
-
-        // Extract China indices
-        const chinaIndices = json?.data?.watchData?.data?.china || [];
-
-        return chinaIndices.map(item => ({
-            name: item.name,
-            value: item.totalAmount,
-            // Mapping:
-            // Internal 'change' -> API 'changeAmount'
-            // Internal 'changePct' -> API 'change'
-            change: (item as any).changeAmount || 0,
-            changePct: item.change
-        }));
+        return results;
     } catch (error) {
-        console.error('Failed to fetch market indices:', error);
+        console.error('Failed to fetch market indices from Tencent:', error);
         return [];
     }
 };
