@@ -148,65 +148,52 @@ export const FundDetail: React.FC<FundDetailProps> = ({ fund, onBack }) => {
         const fetchGrowthData = async () => {
             setChartLoading(true);
             try {
-                const startDate = getStartDate(timeRange, lastTradingDay);
-                const endDate = lastTradingDay;
+                // Map '1M' etc to '1m'
+                const danjuanPeriod = timeRange.toLowerCase();
 
-                const body = {
-                    growthDataPoint: "cumulativeReturn",
-                    initValue: 10000,
-                    freq: "1d",
-                    calcBmkSecId: "F00001LXGJ",
-                    currency: "CNY",
-                    type: "return",
-                    startDate: startDate,
-                    endDate: endDate,
-                    catAvgSecId: "CHCA000043",
-                    bmk1SecId: "F00001LXGJ",
-                    outputs: ["tsData", "pr", "dividend", "management"]
-                };
+                const response = await fetch(`/djapi/fund/growth/${fund.code}?day=${danjuanPeriod}`);
 
-                const response = await fetch(`https://www.morningstar.cn/cn-api/v2/funds/${fund.code}/growth-data`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(body)
-                });
-
-                if (!response.ok) throw new Error('Failed to fetch growth data');
+                if (!response.ok) throw new Error('Failed to fetch growth data from Danjuan');
 
                 const json: FundGrowthDataResponse = await response.json();
-                if (json.data && json.data.tsData) {
-                    const dates = json.data.tsData.dates;
-                    const fundArr = json.data.tsData.funds[0] || [];
-                    const avgArr = json.data.tsData.catAvg || [];
-                    const bmkArr = json.data.tsData.bmk1 || [];
+                if (json.data && json.data.fund_nav_growth) {
+                    const records = json.data.fund_nav_growth;
+
+                    const dates: string[] = [];
+                    const fundArr: number[] = [];
+                    const avgArr: number[] = []; // Danjuan doesn't provide category average
+                    const bmkArr: number[] = [];
+
+                    records.forEach(r => {
+                        dates.push(r.date);
+                        // Convert string decimal "0.161482" to percentage 16.1482%
+                        fundArr.push(parseFloat(r.value || "0") * 100);
+                        bmkArr.push(parseFloat(r.than_value || "0") * 100);
+                        avgArr.push(0); // Dummy for avg
+                    });
 
                     // 补全今日实时数据：
-                    // 情况 A：API 的 dates 已包含今天，但 fund 数组比 dates 短（值缺失）
-                    // 情况 B：API 的 dates 不包含今天（需要追加日期+值）
                     const now = new Date();
                     const dow = now.getDay();
                     const isWeekday = dow >= 1 && dow <= 5;
                     const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 
-                    if (isWeekday && fund.dayChangePct != null) {
+                    if (isWeekday && fund.dayChangePct != null && dates.length > 0) {
                         const lastDate = dates[dates.length - 1];
-                        const lastFundVal = fundArr[fundArr.length - 1];
 
-                        if (lastDate === todayStr && fundArr.length < dates.length) {
-                            // 情况 A：dates 有今天但 fund 数组更短
-                            const prevCumReturn = fundArr[fundArr.length - 1] ?? 0;
-                            fundArr.push(prevCumReturn + fund.dayChangePct);
-                        } else if (lastDate === todayStr && (lastFundVal == null || isNaN(lastFundVal))) {
-                            // 情况 C：dates 和 fund 等长，但最后一个值是 null/undefined/NaN
-                            const prevCumReturn = fundArr.length >= 2 ? (fundArr[fundArr.length - 2] ?? 0) : 0;
-                            fundArr[fundArr.length - 1] = prevCumReturn + fund.dayChangePct;
-                        } else if (lastDate && todayStr > lastDate) {
-                            // 情况 B：dates 完全没有今天
-                            const prevCumReturn = fundArr[fundArr.length - 1] ?? 0;
-                            dates.push(todayStr);
-                            fundArr.push(prevCumReturn + fund.dayChangePct);
-                            avgArr.push(undefined as any);
-                            bmkArr.push(undefined as any);
+                        if (lastDate === todayStr) {
+                             // Just overwrite the last point with latest delta if it's today
+                             const prevCumReturn = fundArr.length >= 2 ? fundArr[fundArr.length - 2] : 0;
+                             fundArr[fundArr.length - 1] = prevCumReturn + fund.dayChangePct;
+                        } else if (todayStr > lastDate) {
+                             const prevCumReturn = fundArr[fundArr.length - 1] ?? 0;
+                             const prevBmkReturn = bmkArr[bmkArr.length - 1] ?? 0;
+                             
+                             dates.push(todayStr);
+                             fundArr.push(prevCumReturn + fund.dayChangePct);
+                             avgArr.push(0);
+                             // We don't have benchmark's real time easily, assume flat
+                             bmkArr.push(prevBmkReturn);
                         }
                     }
 
@@ -413,17 +400,6 @@ export const FundDetail: React.FC<FundDetailProps> = ({ fund, onBack }) => {
                         opacity: 0.2
                     },
                     z: 3
-                },
-                // Keep Average and Benchmark but make them subtle
-                {
-                    name: '同类平均',
-                    type: 'line',
-                    data: avgData,
-                    showSymbol: false,
-                    smooth: true,
-                    lineStyle: { width: 1, color: '#9ca3af', type: 'dashed', opacity: 0.5 },
-                    itemStyle: { color: '#9ca3af' },
-                    z: 1
                 },
                 {
                     name: '业绩基准',

@@ -124,26 +124,20 @@ export interface FundCommonDataResponse {
   };
 }
 
-// New Growth Data API Type (for Charts)
+// Growth Data API Type (Danjuan API for Charts)
 export interface FundGrowthDataResponse {
-  _meta: {
-    response_status: string;
-    response_hint: string;
-  };
   data: {
-    startDate: string;
-    endDate: string;
-    tsData: {
-      dates: string[];
-      funds: number[][]; // e.g. [[0.0, 1.2, ...]]
-      catAvg: number[]; // Category Average
-      bmk1: number[]; // Benchmark
-    };
-    pr: {
-      funds: { return: number; startValue: number; endValue: number }[];
-    };
+    fund_nav_growth: Array<{
+      date: string;
+      nav: string;
+      percentage: string;
+      value: string;
+      than_value: string;
+      performance_value: string;
+    }>;
   };
 }
+// Holdings API Types
 
 // Holdings API Types
 export interface EquityHolding {

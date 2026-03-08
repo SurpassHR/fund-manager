@@ -81,6 +81,15 @@ ${commitBody}
     server: {
       port: 3000,
       host: '0.0.0.0',
+      proxy: {
+        '/djapi': {
+          target: 'https://danjuanfunds.com',
+          changeOrigin: true,
+          headers: {
+            Referer: 'https://danjuanfunds.com/'
+          }
+        }
+      }
     },
     plugins: [react(), tailwindcss()],
     define: {
