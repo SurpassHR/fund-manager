@@ -582,7 +582,7 @@ export const FundDetail: React.FC<FundDetailProps> = ({ fund, onBack }) => {
                     <div className="w-10"></div>
                 </div>
 
-                <div className="flex-1 overflow-y-auto pb-20 no-scrollbar">
+                <div className="flex-1 overflow-y-auto flex flex-col no-scrollbar bg-gray-50 dark:bg-app-bg-dark">
                     {/* Hero Card */}
                     <div className="bg-white dark:bg-card-dark p-6 mb-2 transition-colors">
                         <div className="text-gray-500 dark:text-gray-400 text-xs mb-1">{t('common.nav')} ({displayDate})</div>
@@ -786,10 +786,15 @@ export const FundDetail: React.FC<FundDetailProps> = ({ fund, onBack }) => {
                         </div>
                     )}
 
-                    {/* Footer / Safe Area */}
-                    <div className="pt-6 pb-8 w-full flex items-center justify-center text-xs text-gray-400 dark:text-gray-500 font-sans">
+                    {/* Scrollable Area End Marker */}
+                    <div className="pt-4 pb-6 w-full flex items-center justify-center text-xs text-gray-400 dark:text-gray-500 font-sans">
                         - 到底啦 -
                     </div>
+                </div>
+
+                {/* Fixed Footer Bar */}
+                <div className="bg-white dark:bg-card-dark px-4 h-14 flex items-center justify-center shadow-[0_-1px_2px_rgba(0,0,0,0.05)] dark:border-t dark:border-border-dark flex-shrink-0 z-10 transition-colors">
+                    <span className="text-xs text-gray-400 dark:text-gray-500 font-sans">数据仅供参考，不构成投资建议</span>
                 </div>
             </motion.div>
         </motion.div>
