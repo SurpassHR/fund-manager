@@ -534,6 +534,56 @@ export const FundDetail: React.FC<FundDetailProps> = ({ fund, anchorDate, anchor
                             { yAxis: 0 }
                         ]
                     } : undefined,
+                    markPoint: (() => {
+                        const points: any[] = [];
+
+                        if (anchorDate) {
+                            // Watchlist: mark anchor date
+                            const idx = dates.indexOf(anchorDate);
+                            if (idx !== -1) {
+                                points.push({
+                                    coord: [anchorDate, fundData[idx]],
+                                    symbol: 'pin',
+                                    symbolSize: 36,
+                                    itemStyle: { color: '#3b82f6' },
+                                    label: { show: true, formatter: '锚', color: '#fff', fontSize: 10, fontWeight: 'bold' }
+                                });
+                            }
+                        } else {
+                            // Holdings: mark buy date
+                            if (fund.buyDate) {
+                                const idx = dates.indexOf(fund.buyDate);
+                                if (idx !== -1) {
+                                    points.push({
+                                        coord: [fund.buyDate, fundData[idx]],
+                                        symbol: 'pin',
+                                        symbolSize: 36,
+                                        itemStyle: { color: '#3b82f6' },
+                                        label: { show: true, formatter: '买', color: '#fff', fontSize: 10, fontWeight: 'bold' }
+                                    });
+                                }
+                            }
+                            // Holdings: mark pending transactions
+                            if (fund.pendingTransactions) {
+                                fund.pendingTransactions.forEach(tx => {
+                                    const idx = dates.indexOf(tx.date);
+                                    if (idx !== -1) {
+                                        const isBuy = tx.type === 'buy';
+                                        points.push({
+                                            coord: [tx.date, fundData[idx]],
+                                            symbol: isBuy ? 'arrow' : 'triangle',
+                                            symbolSize: 14,
+                                            symbolRotate: isBuy ? 0 : 180,
+                                            itemStyle: { color: isBuy ? '#f87171' : '#34d399' },
+                                            label: { show: false }
+                                        });
+                                    }
+                                });
+                            }
+                        }
+
+                        return points.length > 0 ? { data: points, animation: true } : undefined;
+                    })(),
                     z: 3
                 },
                 {
