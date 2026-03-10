@@ -650,12 +650,16 @@ export const FundDetail: React.FC<FundDetailProps> = ({ fund, onBack }) => {
                         </div>
 
                         <div className="relative w-full h-64">
-                            {/* Ensure spinner shows if we don't have a verified date OR if chart data is loading */}
-                            {chartReady && !chartLoading && lastTradingDay ? (
-                                <div ref={chartRef} className="w-full h-full" />
-                            ) : (
-                                <div className="w-full h-full flex items-center justify-center bg-gray-50 dark:bg-white/5 rounded transition-colors">
-                                    <Icons.Refresh className="animate-spin text-gray-300" />
+                            {/* ECharts Container (Always mounted to preserve ECharts instance) */}
+                            <div 
+                                ref={chartRef} 
+                                className={`w-full h-full transition-opacity duration-300 ${chartReady && !chartLoading && lastTradingDay ? 'opacity-100' : 'opacity-0'}`} 
+                            />
+                            
+                            {/* Loading / Placeholder Overlay */}
+                            {(!chartReady || chartLoading || !lastTradingDay) && (
+                                <div className="absolute inset-0 flex items-center justify-center bg-gray-50 dark:bg-white/5 rounded transition-colors z-10">
+                                    <Icons.Refresh className="animate-spin text-gray-300" size={24} />
                                 </div>
                             )}
                         </div>
