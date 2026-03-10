@@ -399,6 +399,7 @@ export const FundDetail: React.FC<FundDetailProps> = ({ fund, anchorDate, anchor
             },
             visualMap: anchorDate ? {
                 show: false,
+                seriesIndex: 0,
                 pieces: [
                     { gt: 0, color: '#f87171' },
                     { lte: 0, color: '#34d399' }
