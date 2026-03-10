@@ -210,8 +210,8 @@ export const FundDetail: React.FC<FundDetailProps> = ({ fund, anchorDate, anchor
                                     const prevCumReturn = fundArr[fundArr.length - 1] ?? 0;
                                     dates.push(todayStr);
                                     fundArr.push(prevCumReturn + fund.dayChangePct);
-                                    avgArr.push(undefined as any);
-                                    bmkArr.push(undefined as any);
+                                    avgArr.push(null);
+                                    bmkArr.push(null);
                                 }
                             }
 
@@ -368,8 +368,8 @@ export const FundDetail: React.FC<FundDetailProps> = ({ fund, anchorDate, anchor
                 const baseAvg = avgData[anchorIdx] || 0;
                 const baseBmk = bmkData[anchorIdx] || 0;
 
-                const rebase = (v: number | undefined, base: number) => {
-                    if (v === undefined || isNaN(v)) return v;
+                const rebase = (v: number | undefined | null, base: number) => {
+                    if (v == null || isNaN(v)) return null;
                     return ((100 + v) / (100 + base) - 1) * 100;
                 };
 
@@ -382,13 +382,22 @@ export const FundDetail: React.FC<FundDetailProps> = ({ fund, anchorDate, anchor
         const startStr = dates[0];
         const endStr = dates[dates.length - 1];
 
-        // Determine trend color based on start vs end value of the fund
-        const firstVal = fundData[0] || 0;
-        const lastVal = fundData[fundData.length - 1] || 0;
-        const isUp = lastVal >= firstVal;
+        const validFundData = fundData.filter(v => v != null) as number[];
+        const fundMin = validFundData.length > 0 ? Math.min(...validFundData) : 0;
+        const fundMax = validFundData.length > 0 ? Math.max(...validFundData) : 0;
+        
+        // If anchorDate is present, check if line crosses zero to avoid ECharts visualMap crash
+        const crossesZero = anchorDate ? (fundMin < 0 && fundMax > 0) : false;
 
-        // Colors from reference: #f87171 (red/up), #34d399 (green/down)
-        const color = isUp ? '#f87171' : '#34d399';
+        // Determine trend color based on start vs end value of the fund OR anchor relative returns
+        let color = '#f87171';
+        if (anchorDate) {
+            color = fundMax <= 0 ? '#34d399' : '#f87171';
+        } else {
+            const firstVal = fundData[0] || 0;
+            const lastVal = fundData[fundData.length - 1] || 0;
+            color = lastVal >= firstVal ? '#f87171' : '#34d399';
+        }
 
         const option: echarts.EChartsOption = {
             title: {
@@ -397,8 +406,9 @@ export const FundDetail: React.FC<FundDetailProps> = ({ fund, anchorDate, anchor
                 top: '0%',
                 textStyle: { fontSize: 12, color: isDark ? '#9ca3af' : '#666', fontWeight: 'normal' }
             },
-            visualMap: anchorDate ? {
+            visualMap: crossesZero ? {
                 show: false,
+                type: 'piecewise',
                 seriesIndex: 0,
                 pieces: [
                     { gt: 0, color: '#f87171' },
