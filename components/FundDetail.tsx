@@ -397,6 +397,16 @@ export const FundDetail: React.FC<FundDetailProps> = ({ fund, anchorDate, anchor
                 top: '0%',
                 textStyle: { fontSize: 12, color: isDark ? '#9ca3af' : '#666', fontWeight: 'normal' }
             },
+            visualMap: anchorDate ? {
+                show: false,
+                pieces: [
+                    { gt: 0, color: '#f87171' },
+                    { lte: 0, color: '#34d399' }
+                ],
+                outOfRange: {
+                    color: '#999'
+                }
+            } : undefined,
             animation: true,
             animationDuration: 300,
             animationEasing: 'cubicOut',
@@ -491,20 +501,20 @@ export const FundDetail: React.FC<FundDetailProps> = ({ fund, anchorDate, anchor
                     smooth: true, // Smooth line
                     lineStyle: { width: 2, color: color },
                     itemStyle: { color: color, borderColor: '#fff', borderWidth: 1 },
-                    areaStyle: {
+                    areaStyle: anchorDate ? undefined : {
                         color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
                             { offset: 0, color: color },
                             { offset: 1, color: isDark ? 'rgba(0,0,0,0)' : 'rgba(255,255,255,0)' } // Fade to transparent
                         ]),
                         opacity: 0.2
                     },
-                    markLine: anchorDate && dates.includes(anchorDate) ? {
+                    markLine: anchorDate ? {
                         silent: true,
                         symbol: 'none',
                         label: {
                             show: true,
                             position: 'insideEndTop',
-                            formatter: '锚点日',
+                            formatter: '持仓成本',
                             color: isDark ? '#9ca3af' : '#6b7280',
                             fontSize: 10,
                             padding: [0, 4]
@@ -515,7 +525,7 @@ export const FundDetail: React.FC<FundDetailProps> = ({ fund, anchorDate, anchor
                             width: 1
                         },
                         data: [
-                            { xAxis: anchorDate }
+                            { yAxis: 0 }
                         ]
                     } : undefined,
                     z: 3
