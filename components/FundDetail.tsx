@@ -498,6 +498,26 @@ export const FundDetail: React.FC<FundDetailProps> = ({ fund, anchorDate, anchor
                         ]),
                         opacity: 0.2
                     },
+                    markLine: anchorDate && dates.includes(anchorDate) ? {
+                        silent: true,
+                        symbol: 'none',
+                        label: {
+                            show: true,
+                            position: 'insideEndTop',
+                            formatter: '锚点日',
+                            color: isDark ? '#9ca3af' : '#6b7280',
+                            fontSize: 10,
+                            padding: [0, 4]
+                        },
+                        lineStyle: {
+                            color: isDark ? '#6b7280' : '#9ca3af',
+                            type: 'dashed',
+                            width: 1
+                        },
+                        data: [
+                            { xAxis: anchorDate }
+                        ]
+                    } : undefined,
                     z: 3
                 },
                 {
