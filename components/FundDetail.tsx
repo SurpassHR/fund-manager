@@ -555,7 +555,7 @@ export const FundDetail: React.FC<FundDetailProps> = ({ fund, onBack }) => {
 
     return (
         <motion.div
-            className="fixed inset-0 z-50 md:p-4 lg:p-8 md:bg-black/30 md:backdrop-blur-sm md:flex md:items-start md:justify-center overflow-hidden"
+            className="fixed inset-0 z-[60] md:p-4 lg:p-8 md:bg-black/30 md:backdrop-blur-sm md:flex md:items-start md:justify-center overflow-hidden"
             onClick={onBack}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
