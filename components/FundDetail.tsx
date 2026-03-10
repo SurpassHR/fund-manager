@@ -785,6 +785,11 @@ export const FundDetail: React.FC<FundDetailProps> = ({ fund, onBack }) => {
                             </div>
                         </div>
                     )}
+
+                    {/* Footer / Safe Area */}
+                    <div className="pt-6 pb-8 w-full flex items-center justify-center text-xs text-gray-400 dark:text-gray-500 font-sans">
+                        - 到底啦 -
+                    </div>
                 </div>
             </motion.div>
         </motion.div>
