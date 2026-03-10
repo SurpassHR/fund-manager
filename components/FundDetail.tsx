@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
-import { Fund, FundPerformanceResponse, FundCommonDataResponse, FundHoldingsResponse, EquityHolding, FundGrowthDataResponse } from '../types';
+import { Fund, FundPerformanceResponse, FundCommonDataResponse, FundHoldingsResponse, EquityHolding, MorningstarGrowthDataResponse, DanjuanGrowthDataResponse } from '../types';
 import { Icons } from './Icon';
 import { formatCurrency, formatPct, getSignColor, formatSignedCurrency } from '../services/financeUtils';
 import { useTranslation } from '../services/i18n';
@@ -148,61 +148,135 @@ export const FundDetail: React.FC<FundDetailProps> = ({ fund, onBack }) => {
         const fetchGrowthData = async () => {
             setChartLoading(true);
             try {
-                // Map '1M' etc to '1m'
-                const danjuanPeriod = timeRange.toLowerCase();
+                // Try Morningstar First (with 3-second timeout)
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 3000);
+                
+                let msSuccess = false;
+                try {
+                    const startDate = getStartDate(timeRange, lastTradingDay);
+                    const endDate = lastTradingDay;
 
-                const isDev = import.meta.env.DEV;
-                const baseUrl = isDev 
-                    ? `/djapi/fund/growth/` 
-                    : `https://api.codetabs.com/v1/proxy/?quest=https://danjuanfunds.com/djapi/fund/growth/`;
+                    const body = {
+                        growthDataPoint: "cumulativeReturn",
+                        initValue: 10000,
+                        freq: "1d",
+                        calcBmkSecId: "F00001LXGJ",
+                        currency: "CNY",
+                        type: "return",
+                        startDate: startDate,
+                        endDate: endDate,
+                        catAvgSecId: "CHCA000043",
+                        bmk1SecId: "F00001LXGJ",
+                        outputs: ["tsData", "pr", "dividend", "management"]
+                    };
 
-                const response = await fetch(`${baseUrl}${fund.code}?day=${danjuanPeriod}`);
-
-                if (!response.ok) throw new Error('Failed to fetch growth data from Danjuan');
-
-                const json: FundGrowthDataResponse = await response.json();
-                if (json.data && json.data.fund_nav_growth) {
-                    const records = json.data.fund_nav_growth;
-
-                    const dates: string[] = [];
-                    const fundArr: number[] = [];
-                    const avgArr: number[] = []; // Danjuan doesn't provide category average
-                    const bmkArr: number[] = [];
-
-                    records.forEach(r => {
-                        dates.push(r.date);
-                        // Convert string decimal "0.161482" to percentage 16.1482%
-                        fundArr.push(parseFloat(r.value || "0") * 100);
-                        bmkArr.push(parseFloat(r.than_value || "0") * 100);
-                        avgArr.push(0); // Dummy for avg
+                    const msResponse = await fetch(`https://www.morningstar.cn/cn-api/v2/funds/${fund.code}/growth-data`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(body),
+                        signal: controller.signal
                     });
+                    
+                    clearTimeout(timeoutId);
 
-                    // 补全今日实时数据：
-                    const now = new Date();
-                    const dow = now.getDay();
-                    const isWeekday = dow >= 1 && dow <= 5;
-                    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+                    if (msResponse.ok) {
+                        const json: MorningstarGrowthDataResponse = await msResponse.json();
+                        if (json.data && json.data.tsData) {
+                            const dates = json.data.tsData.dates;
+                            const fundArr = json.data.tsData.funds[0] || [];
+                            const avgArr = json.data.tsData.catAvg || [];
+                            const bmkArr = json.data.tsData.bmk1 || [];
 
-                    if (isWeekday && fund.dayChangePct != null && dates.length > 0) {
-                        const lastDate = dates[dates.length - 1];
+                            // 补全今日实时数据：
+                            const now = new Date();
+                            const dow = now.getDay();
+                            const isWeekday = dow >= 1 && dow <= 5;
+                            const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 
-                        if (lastDate === todayStr) {
-                             // Just overwrite the last point with latest delta if it's today
-                             const prevCumReturn = fundArr.length >= 2 ? fundArr[fundArr.length - 2] : 0;
-                             fundArr[fundArr.length - 1] = prevCumReturn + fund.dayChangePct;
-                        } else if (todayStr > lastDate) {
-                             const prevCumReturn = fundArr[fundArr.length - 1] ?? 0;
-                             const prevBmkReturn = bmkArr[bmkArr.length - 1] ?? 0;
-                             
-                             dates.push(todayStr);
-                             fundArr.push(prevCumReturn + fund.dayChangePct);
-                             avgArr.push(0);
-                             // We don't have benchmark's real time easily, assume flat
-                             bmkArr.push(prevBmkReturn);
+                            if (isWeekday && fund.dayChangePct != null) {
+                                const lastDate = dates[dates.length - 1];
+                                const lastFundVal = fundArr[fundArr.length - 1];
+
+                                if (lastDate === todayStr && fundArr.length < dates.length) {
+                                    const prevCumReturn = fundArr[fundArr.length - 1] ?? 0;
+                                    fundArr.push(prevCumReturn + fund.dayChangePct);
+                                } else if (lastDate === todayStr && (lastFundVal == null || isNaN(lastFundVal))) {
+                                    const prevCumReturn = fundArr.length >= 2 ? (fundArr[fundArr.length - 2] ?? 0) : 0;
+                                    fundArr[fundArr.length - 1] = prevCumReturn + fund.dayChangePct;
+                                } else if (lastDate && todayStr > lastDate) {
+                                    const prevCumReturn = fundArr[fundArr.length - 1] ?? 0;
+                                    dates.push(todayStr);
+                                    fundArr.push(prevCumReturn + fund.dayChangePct);
+                                    avgArr.push(undefined as any);
+                                    bmkArr.push(undefined as any);
+                                }
+                            }
+
+                            setChartSeriesData({ dates, fund: fundArr, avg: avgArr, bmk: bmkArr });
+                            msSuccess = true;
                         }
                     }
+                } catch (msErr) {
+                    console.warn("Morningstar failed or timed out, falling back to Danjuan:", msErr);
+                    clearTimeout(timeoutId);
+                }
 
-                    setChartSeriesData({ dates, fund: fundArr, avg: avgArr, bmk: bmkArr });
+                if (!msSuccess) {
+                    // Fallback to Danjuan API
+                    const danjuanPeriod = timeRange.toLowerCase();
+
+                    const isDev = import.meta.env.DEV;
+                    const baseUrl = isDev 
+                        ? `/djapi/fund/growth/` 
+                        : `https://api.codetabs.com/v1/proxy/?quest=https://danjuanfunds.com/djapi/fund/growth/`;
+
+                    const response = await fetch(`${baseUrl}${fund.code}?day=${danjuanPeriod}`);
+
+                    if (!response.ok) throw new Error('Failed to fetch growth data from Danjuan');
+
+                    const json: DanjuanGrowthDataResponse = await response.json();
+                    if (json.data && json.data.fund_nav_growth) {
+                        const records = json.data.fund_nav_growth;
+
+                        const dates: string[] = [];
+                        const fundArr: number[] = [];
+                        const avgArr: number[] = []; // Danjuan doesn't provide category average
+                        const bmkArr: number[] = [];
+
+                        records.forEach(r => {
+                            dates.push(r.date);
+                            // Convert string decimal "0.161482" to percentage 16.1482%
+                            fundArr.push(parseFloat(r.value || "0") * 100);
+                            bmkArr.push(parseFloat(r.than_value || "0") * 100);
+                            avgArr.push(0); // Dummy for avg
+                        });
+
+                        // 补全今日实时数据：
+                        const now = new Date();
+                        const dow = now.getDay();
+                        const isWeekday = dow >= 1 && dow <= 5;
+                        const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+
+                        if (isWeekday && fund.dayChangePct != null && dates.length > 0) {
+                            const lastDate = dates[dates.length - 1];
+
+                            if (lastDate === todayStr) {
+                                 const prevCumReturn = fundArr.length >= 2 ? fundArr[fundArr.length - 2] : 0;
+                                 fundArr[fundArr.length - 1] = prevCumReturn + fund.dayChangePct;
+                            } else if (todayStr > lastDate) {
+                                 const prevCumReturn = fundArr[fundArr.length - 1] ?? 0;
+                                 const prevBmkReturn = bmkArr[bmkArr.length - 1] ?? 0;
+                                 
+                                 dates.push(todayStr);
+                                 fundArr.push(prevCumReturn + fund.dayChangePct);
+                                 avgArr.push(0);
+                                 bmkArr.push(prevBmkReturn);
+                            }
+                        }
+
+                        setChartSeriesData({ dates, fund: fundArr, avg: avgArr, bmk: bmkArr });
+                    }
                 }
             } catch (err) {
                 console.error("Chart Fetch Error", err);

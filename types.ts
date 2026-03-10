@@ -124,8 +124,29 @@ export interface FundCommonDataResponse {
   };
 }
 
+// Growth Data API Type (Morningstar API for Charts)
+export interface MorningstarGrowthDataResponse {
+  _meta: {
+    response_status: string;
+    response_hint: string;
+  };
+  data: {
+    startDate: string;
+    endDate: string;
+    tsData: {
+      dates: string[];
+      funds: number[][]; // e.g. [[0.0, 1.2, ...]]
+      catAvg: number[]; // Category Average
+      bmk1: number[]; // Benchmark
+    };
+    pr: {
+      funds: { return: number; startValue: number; endValue: number }[];
+    };
+  };
+}
+
 // Growth Data API Type (Danjuan API for Charts)
-export interface FundGrowthDataResponse {
+export interface DanjuanGrowthDataResponse {
   data: {
     fund_nav_growth: Array<{
       date: string;
@@ -137,7 +158,6 @@ export interface FundGrowthDataResponse {
     }>;
   };
 }
-// Holdings API Types
 
 // Holdings API Types
 export interface EquityHolding {
