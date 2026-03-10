@@ -4,8 +4,9 @@ import { db, refreshWatchlistData } from '../services/db';
 import { formatCurrency, formatSignedCurrency, getSignColor, formatPct } from '../services/financeUtils';
 import { Icons } from './Icon';
 import { useTranslation } from '../services/i18n';
-import { WatchlistItem } from '../types';
+import { WatchlistItem, Fund } from '../types';
 import { AddWatchlistModal } from './AddWatchlistModal';
+import { FundDetail } from './FundDetail';
 
 export const Watchlist: React.FC = () => {
     const watchlists = useLiveQuery(() => db.watchlists.toArray());
@@ -13,6 +14,23 @@ export const Watchlist: React.FC = () => {
 
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [editingItem, setEditingItem] = useState<WatchlistItem | undefined>(undefined);
+    const [selectedItemForDetail, setSelectedItemForDetail] = useState<{ fund: Fund; anchorDate: string; anchorPrice: number } | null>(null);
+
+    const handleRowClick = (item: WatchlistItem) => {
+        // Mock a Fund object for the detail view
+        const fundData: Fund = {
+            code: item.code,
+            name: item.name,
+            platform: item.platform || '自选',
+            holdingShares: 0,
+            costPrice: item.anchorPrice,
+            currentNav: item.currentPrice,
+            dayChangePct: item.dayChangePct,
+            dayChangeVal: 0,
+            lastUpdate: item.lastUpdate
+        };
+        setSelectedItemForDetail({ fund: fundData, anchorDate: item.anchorDate, anchorPrice: item.anchorPrice });
+    };
 
     // Refresh state
     const [isRefreshing, setIsRefreshing] = useState(false);
@@ -214,7 +232,8 @@ export const Watchlist: React.FC = () => {
                                 onTouchStart={(e) => item.id && handleTouchStart(item.id, e)}
                                 onTouchEnd={handleTouchEnd}
                                 onTouchCancel={handleTouchEnd}
-                                className={`group flex md:flex-row py-4 px-4 border-b border-gray-50 dark:border-border-dark md:border-none md:hover:bg-gray-50 dark:md:hover:bg-white/5 transition-colors items-start select-none ${contextMenu?.itemId === item.id ? 'bg-gray-100 dark:bg-white/10' : ''}`}
+                                onClick={() => handleRowClick(item)}
+                                className={`group flex md:flex-row py-4 px-4 border-b border-gray-50 dark:border-border-dark md:border-none md:hover:bg-gray-50 dark:md:hover:bg-white/5 transition-colors items-start select-none cursor-pointer ${contextMenu?.itemId === item.id ? 'bg-gray-100 dark:bg-white/10' : ''}`}
                             >
                                 {/* Common: Name Section */}
                                 <div className="flex-1 min-w-0 pr-2 md:flex-[1.5] md:self-center">
@@ -304,6 +323,15 @@ export const Watchlist: React.FC = () => {
                 onClose={() => setIsAddModalOpen(false)}
                 editItem={editingItem}
             />
+
+            {selectedItemForDetail && (
+                <FundDetail
+                    fund={selectedItemForDetail.fund}
+                    anchorDate={selectedItemForDetail.anchorDate}
+                    anchorPrice={selectedItemForDetail.anchorPrice}
+                    onBack={() => setSelectedItemForDetail(null)}
+                />
+            )}
         </div>
     );
 };

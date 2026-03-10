@@ -9,6 +9,8 @@ import { motion } from 'framer-motion';
 
 interface FundDetailProps {
     fund: Fund;
+    anchorDate?: string;
+    anchorPrice?: number;
     onBack: () => void;
 }
 
@@ -46,7 +48,7 @@ const getStartDate = (range: TimeRange, endDateStr: string): string => {
     return d.toISOString().split('T')[0];
 };
 
-export const FundDetail: React.FC<FundDetailProps> = ({ fund, onBack }) => {
+export const FundDetail: React.FC<FundDetailProps> = ({ fund, anchorDate, anchorPrice, onBack }) => {
     const { t } = useTranslation();
     const { theme } = useTheme();
     const isDark = theme === 'dark';
@@ -356,18 +358,36 @@ export const FundDetail: React.FC<FundDetailProps> = ({ fund, onBack }) => {
             chartInstance.current = echarts.init(chartRef.current);
         }
 
-        const { dates, fund: fundData, avg: avgData, bmk: bmkData } = chartSeriesData;
+        let { dates, fund: fundData, avg: avgData, bmk: bmkData } = chartSeriesData;
+
+        // Rebase to Anchor Date (0-line shifting) if provided
+        if (anchorDate) {
+            const anchorIdx = dates.indexOf(anchorDate);
+            if (anchorIdx !== -1) {
+                const baseFund = fundData[anchorIdx] || 0;
+                const baseAvg = avgData[anchorIdx] || 0;
+                const baseBmk = bmkData[anchorIdx] || 0;
+
+                const rebase = (v: number | undefined, base: number) => {
+                    if (v === undefined || isNaN(v)) return v;
+                    return ((100 + v) / (100 + base) - 1) * 100;
+                };
+
+                fundData = fundData.map(v => rebase(v, baseFund) as number);
+                avgData = avgData.map(v => rebase(v, baseAvg) as number);
+                bmkData = bmkData.map(v => rebase(v, baseBmk) as number);
+            }
+        }
+
         const startStr = dates[0];
         const endStr = dates[dates.length - 1];
 
         // Determine trend color based on start vs end value of the fund
-        // Note: fundData contains percentage return values
         const firstVal = fundData[0] || 0;
         const lastVal = fundData[fundData.length - 1] || 0;
         const isUp = lastVal >= firstVal;
 
         // Colors from reference: #f87171 (red/up), #34d399 (green/down)
-        // Adjust for dark mode if needed, but usually these signal colors are consistent
         const color = isUp ? '#f87171' : '#34d399';
 
         const option: echarts.EChartsOption = {
@@ -594,34 +614,45 @@ export const FundDetail: React.FC<FundDetailProps> = ({ fund, onBack }) => {
                         </div>
                         <div className="mt-4 grid grid-cols-4 gap-2 text-sm">
                             <div className="bg-gray-50 dark:bg-white/5 p-2 rounded-lg transition-colors flex flex-col justify-between">
-                                <div className="text-gray-400 text-xs mb-1">{t('common.cost')}</div>
-                                <div className="font-sans dark:text-gray-200 text-xs">{fund.costPrice.toFixed(4)}</div>
+                                <div className="text-gray-400 text-xs mb-1">{anchorPrice ? t('common.anchorPrice') : t('common.cost')}</div>
+                                <div className="font-sans dark:text-gray-200 text-xs text-ellipsis overflow-hidden">{anchorPrice ? anchorPrice.toFixed(4) : fund.costPrice.toFixed(4)}</div>
                             </div>
                             <div className="bg-gray-50 dark:bg-white/5 p-2 rounded-lg transition-colors flex flex-col justify-between">
-                                <div className="text-gray-400 text-xs mb-1">{t('common.shares')}</div>
-                                <div className="font-sans dark:text-gray-200 text-xs">{fund.holdingShares.toLocaleString()}</div>
+                                <div className="text-gray-400 text-xs mb-1">{anchorDate ? '锚定日' : t('common.shares')}</div>
+                                <div className="font-sans dark:text-gray-200 text-xs text-ellipsis overflow-hidden">{anchorDate ? anchorDate : fund.holdingShares.toLocaleString()}</div>
                             </div>
 
                             {(() => {
                                 const totalCost = fund.costPrice * fund.holdingShares;
                                 const holdingValue = currentNav * fund.holdingShares;
                                 const totalGain = holdingValue - totalCost;
-                                const totalGainPct = totalCost !== 0 ? (totalGain / totalCost) * 100 : 0;
                                 const dayGainVal = fund.dayChangeVal;
 
                                 return (
                                     <>
                                         <div className="bg-gray-50 dark:bg-white/5 p-2 rounded-lg transition-colors flex flex-col justify-between">
-                                            <div className="text-gray-400 text-xs mb-1">{t('common.totalGain')}</div>
-                                            <div className={`font-sans font-bold text-xs ${getSignColor(totalGain)}`}>
-                                                {formatSignedCurrency(totalGain)}
-                                            </div>
+                                            <div className="text-gray-400 text-xs mb-1">{anchorPrice ? t('common.anchorGain') : t('common.totalGain')}</div>
+                                            {anchorPrice ? (
+                                                <div className={`font-sans font-bold text-xs ${getSignColor(currentNav - anchorPrice)}`}>
+                                                    {formatPct(((currentNav - anchorPrice) / anchorPrice) * 100)}
+                                                </div>
+                                            ) : (
+                                                <div className={`font-sans font-bold text-xs ${getSignColor(totalGain)}`}>
+                                                    {formatSignedCurrency(totalGain)}
+                                                </div>
+                                            )}
                                         </div>
                                         <div className="bg-gray-50 dark:bg-white/5 p-2 rounded-lg transition-colors flex flex-col justify-between">
                                             <div className="text-gray-400 text-xs mb-1">{t('common.dayGain')}</div>
-                                            <div className={`font-sans font-bold text-xs ${getSignColor(dayGainVal)}`}>
-                                                {formatSignedCurrency(dayGainVal)}
-                                            </div>
+                                            {anchorPrice ? (
+                                                <div className={`font-sans font-bold text-xs ${getSignColor(dayChangePct)}`}>
+                                                    {formatPct(dayChangePct)}
+                                                </div>
+                                            ) : (
+                                                <div className={`font-sans font-bold text-xs ${getSignColor(dayGainVal)}`}>
+                                                    {formatSignedCurrency(dayGainVal)}
+                                                </div>
+                                            )}
                                         </div>
                                     </>
                                 );
