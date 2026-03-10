@@ -385,13 +385,20 @@ export const FundDetail: React.FC<FundDetailProps> = ({ fund, anchorDate, anchor
         const validFundData = fundData.filter(v => v != null) as number[];
         const fundMin = validFundData.length > 0 ? Math.min(...validFundData) : 0;
         const fundMax = validFundData.length > 0 ? Math.max(...validFundData) : 0;
-        
-        // If anchorDate is present, check if line crosses zero to avoid ECharts visualMap crash
         const crossesZero = anchorDate ? (fundMin < 0 && fundMax > 0) : false;
 
-        // Determine trend color based on start vs end value of the fund OR anchor relative returns
-        let color = '#f87171';
-        if (anchorDate) {
+        // Build line color: if anchor mode + crosses zero, use a gradient that transitions at the zero-point
+        // zeroRatio = fraction from top of chart where y=0 falls (gradient goes top→bottom)
+        let color: string | echarts.graphic.LinearGradient;
+        if (anchorDate && crossesZero) {
+            const zeroRatio = fundMax / (fundMax - fundMin); // 0→1 from top
+            color = new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                { offset: 0, color: '#f87171' },
+                { offset: Math.max(0, zeroRatio - 0.001), color: '#f87171' },
+                { offset: Math.min(1, zeroRatio + 0.001), color: '#34d399' },
+                { offset: 1, color: '#34d399' }
+            ]);
+        } else if (anchorDate) {
             color = fundMax <= 0 ? '#34d399' : '#f87171';
         } else {
             const firstVal = fundData[0] || 0;
@@ -406,18 +413,6 @@ export const FundDetail: React.FC<FundDetailProps> = ({ fund, anchorDate, anchor
                 top: '0%',
                 textStyle: { fontSize: 12, color: isDark ? '#9ca3af' : '#666', fontWeight: 'normal' }
             },
-            visualMap: crossesZero ? {
-                show: false,
-                type: 'piecewise',
-                seriesIndex: 0,
-                pieces: [
-                    { gt: 0, color: '#f87171' },
-                    { lte: 0, color: '#34d399' }
-                ],
-                outOfRange: {
-                    color: '#999'
-                }
-            } : undefined,
             animation: true,
             animationDuration: 300,
             animationEasing: 'cubicOut',
@@ -514,7 +509,7 @@ export const FundDetail: React.FC<FundDetailProps> = ({ fund, anchorDate, anchor
                     itemStyle: { color: color, borderColor: '#fff', borderWidth: 1 },
                     areaStyle: anchorDate ? undefined : {
                         color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-                            { offset: 0, color: color },
+                            { offset: 0, color: color as string },
                             { offset: 1, color: isDark ? 'rgba(0,0,0,0)' : 'rgba(255,255,255,0)' } // Fade to transparent
                         ]),
                         opacity: 0.2
