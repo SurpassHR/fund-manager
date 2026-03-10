@@ -1,12 +1,19 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from '../services/i18n';
 
-// Read the latest commit details injected by Vite
+interface CommitEntry {
+    hash: string;
+    subjectZh: string;
+    subjectEn: string;
+}
+
+// Read commits injected by Vite
 const CURRENT_VERSION = import.meta.env.VITE_LATEST_COMMIT_HASH || 'v0.2.0';
-const COMMIT_SUBJECT_ZH = import.meta.env.VITE_LATEST_COMMIT_SUBJECT_ZH || "最新功能";
-const COMMIT_SUBJECT_EN = import.meta.env.VITE_LATEST_COMMIT_SUBJECT_EN || "New Features";
-const COMMIT_BODY_ZH = import.meta.env.VITE_LATEST_COMMIT_BODY_ZH || "";
-const COMMIT_BODY_EN = import.meta.env.VITE_LATEST_COMMIT_BODY_EN || "";
+
+let COMMITS: CommitEntry[] = [];
+try {
+    COMMITS = JSON.parse(import.meta.env.VITE_COMMITS_JSON || '[]');
+} catch { /* ignore */ }
 
 export const WelcomeModal: React.FC = () => {
     const { t, language } = useTranslation();
@@ -26,16 +33,18 @@ export const WelcomeModal: React.FC = () => {
 
     if (!isOpen) return null;
 
-    // Determine which language to show
     const isZh = language === 'zh';
-    const currentSubject = isZh ? COMMIT_SUBJECT_ZH : COMMIT_SUBJECT_EN;
-    const currentBody = isZh ? COMMIT_BODY_ZH : COMMIT_BODY_EN;
 
-    // Parse the commit body into a list of features
-    // We assume the body might have lines starting with '-' or '*'
-    const features = currentBody.split('\n')
-        .map(line => line.trim())
-        .filter(line => line.length > 0);
+    const colors = [
+        'bg-blue-100 text-blue-600 dark:bg-blue-900/40 dark:text-blue-400',
+        'bg-amber-100 text-amber-600 dark:bg-amber-900/40 dark:text-amber-400',
+        'bg-green-100 text-green-600 dark:bg-green-900/40 dark:text-green-400',
+        'bg-purple-100 text-purple-600 dark:bg-purple-900/40 dark:text-purple-400',
+        'bg-rose-100 text-rose-600 dark:bg-rose-900/40 dark:text-rose-400'
+    ];
+
+    // Strip common emoji prefixes from subject
+    const cleanSubject = (s: string) => s.replace(/^[\p{Emoji_Presentation}\p{Extended_Pictographic}\uFE0F]+\s*/u, '').replace(/^(feat|fix|chore|refactor|docs|style|perf|test|ci|build|revert)(\(.+?\))?:\s*/i, '');
 
     return (
         <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
@@ -54,32 +63,25 @@ export const WelcomeModal: React.FC = () => {
                 {/* 内容区 */}
                 <div className="p-6">
                     <h3 className="text-sm font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-4">
-                        {currentSubject}
+                        {isZh ? '近期更新' : 'Recent Updates'}
                     </h3>
 
-                    <ul className="space-y-4 max-h-64 overflow-y-auto pr-2">
-                        {features.length > 0 ? (
-                            features.map((feature, idx) => {
-                                // Clean up markdown list characters if they exist
-                                const cleanText = feature.replace(/^[-*+]\s*/, '');
-                                // Use a set of icons cyclically
-                                const colors = [
-                                    'bg-blue-100 text-blue-600 dark:bg-blue-900/40 dark:text-blue-400',
-                                    'bg-amber-100 text-amber-600 dark:bg-amber-900/40 dark:text-amber-400',
-                                    'bg-green-100 text-green-600 dark:bg-green-900/40 dark:text-green-400',
-                                    'bg-purple-100 text-purple-600 dark:bg-purple-900/40 dark:text-purple-400'
-                                ];
+                    <ul className="space-y-3 max-h-64 overflow-y-auto pr-2">
+                        {COMMITS.length > 0 ? (
+                            COMMITS.map((commit, idx) => {
+                                const subject = isZh ? commit.subjectZh : commit.subjectEn;
                                 const colorClass = colors[idx % colors.length];
 
                                 return (
-                                    <li key={idx} className="flex gap-3 items-start">
+                                    <li key={commit.hash} className="flex gap-3 items-start">
                                         <div className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${colorClass}`}>
-                                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                                            <span className="text-[10px] font-bold font-mono">{idx + 1}</span>
                                         </div>
-                                        <div>
+                                        <div className="flex-1 min-w-0">
                                             <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed font-medium">
-                                                {cleanText}
+                                                {cleanSubject(subject)}
                                             </p>
+                                            <span className="text-[10px] text-gray-400 font-mono">{commit.hash}</span>
                                         </div>
                                     </li>
                                 );
