@@ -115,13 +115,30 @@ export const ScannerModal: React.FC<ScannerModalProps> = ({ isOpen, onClose }) =
         return () => { mounted = false; };
     }, [isOpen]);
 
+    const openManualReview = () => {
+        setReviewItems([
+            {
+                id: `${Date.now()}_manual`,
+                name: '',
+            }
+        ]);
+        setIsReviewing(true);
+    };
+
+    const handleApiKeyIssue = () => {
+        const shouldOpen = confirm(t('common.aiKeyMissing') || '请先在设置里填写 API Key');
+        if (shouldOpen) {
+            handleClose();
+            window.dispatchEvent(new CustomEvent('open-ai-settings'));
+        } else {
+            openManualReview();
+        }
+    };
+
     const handleAnalyze = async () => {
         if (!file) return;
         if (!apiKey) {
-            const shouldOpen = confirm(t('common.aiKeyMissing') || '请先在设置里填写 API Key');
-            if (shouldOpen) {
-                window.dispatchEvent(new CustomEvent('open-settings'));
-            }
+            handleApiKeyIssue();
             return;
         }
 
@@ -151,7 +168,18 @@ export const ScannerModal: React.FC<ScannerModalProps> = ({ isOpen, onClose }) =
             setIsReviewing(true);
         } catch (err: any) {
             console.error(err);
-            alert(t('common.ocrFailed') || '识别失败，请稍后重试');
+            const message = String(err?.message || '').toLowerCase();
+            if (
+                message.includes('api key') ||
+                message.includes('apikey') ||
+                message.includes('unauthorized') ||
+                message.includes('401') ||
+                message.includes('invalid')
+            ) {
+                handleApiKeyIssue();
+            } else {
+                alert(t('common.ocrFailed') || '识别失败，请稍后重试');
+            }
         } finally {
             setScanning(false);
         }
@@ -304,7 +332,7 @@ export const ScannerModal: React.FC<ScannerModalProps> = ({ isOpen, onClose }) =
                                     </button>
                                     <button
                                         onClick={handleAnalyze}
-                                        disabled={!canAnalyze || scanning}
+                                        disabled={!file || scanning}
                                         className="flex-1 bg-blue-600 text-white py-2.5 rounded-xl font-bold disabled:opacity-50"
                                     >
                                         {scanning ? t('common.analyzing') : t('common.startOcr')}

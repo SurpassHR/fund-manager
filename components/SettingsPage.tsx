@@ -8,11 +8,12 @@ import { listGeminiModels, listOpenAiModels } from '../services/aiOcr';
 
 interface SettingsPageProps {
     onBack: () => void;
+    initialShowAiSettings?: boolean;
 }
 
 type ThemeOption = 'system' | 'light' | 'dark';
 
-export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack }) => {
+export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack, initialShowAiSettings }) => {
     const { t } = useTranslation();
     const { mode, setMode } = useTheme();
     const {
@@ -30,7 +31,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack }) => {
         setGeminiModel,
     } = useSettings();
     const fileInputRef = useRef<HTMLInputElement>(null);
-    const [showAiSettings, setShowAiSettings] = useState(false);
+    const [showAiSettings, setShowAiSettings] = useState(Boolean(initialShowAiSettings));
     const [openaiModels, setOpenaiModels] = useState<string[]>([]);
     const [geminiModels, setGeminiModels] = useState<string[]>([]);
     const [openaiLoading, setOpenaiLoading] = useState(false);
@@ -80,6 +81,12 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack }) => {
             if (fileInputRef.current) fileInputRef.current.value = '';
         }
     };
+
+    useEffect(() => {
+        if (initialShowAiSettings) {
+            setShowAiSettings(true);
+        }
+    }, [initialShowAiSettings]);
 
     useEffect(() => {
         let active = true;

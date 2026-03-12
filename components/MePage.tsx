@@ -3,18 +3,51 @@ import { Icons } from './Icon';
 import { useTranslation } from '../services/i18n';
 import { SettingsPage } from './SettingsPage';
 
-export const MePage: React.FC = () => {
+interface MePageProps {
+    openAiSettings?: boolean;
+    onAiSettingsConsumed?: () => void;
+}
+
+export const MePage: React.FC<MePageProps> = ({ openAiSettings, onAiSettingsConsumed }) => {
     const { t } = useTranslation();
     const [showSettings, setShowSettings] = useState(false);
+    const [localOpenAiSettings, setLocalOpenAiSettings] = useState(false);
 
     useEffect(() => {
-        const handler = () => setShowSettings(true);
+        const handler = () => {
+            setLocalOpenAiSettings(false);
+            setShowSettings(true);
+        };
+        const aiHandler = () => {
+            setLocalOpenAiSettings(true);
+            setShowSettings(true);
+        };
         window.addEventListener('open-settings', handler as EventListener);
-        return () => window.removeEventListener('open-settings', handler as EventListener);
+        window.addEventListener('open-ai-settings', aiHandler as EventListener);
+        return () => {
+            window.removeEventListener('open-settings', handler as EventListener);
+            window.removeEventListener('open-ai-settings', aiHandler as EventListener);
+        };
     }, []);
 
+    useEffect(() => {
+        if (openAiSettings) {
+            setLocalOpenAiSettings(true);
+            setShowSettings(true);
+            onAiSettingsConsumed?.();
+        }
+    }, [openAiSettings, onAiSettingsConsumed]);
+
     if (showSettings) {
-        return <SettingsPage onBack={() => setShowSettings(false)} />;
+        return (
+            <SettingsPage
+                onBack={() => {
+                    setShowSettings(false);
+                    setLocalOpenAiSettings(false);
+                }}
+                initialShowAiSettings={localOpenAiSettings}
+            />
+        );
     }
 
     return (
@@ -22,7 +55,10 @@ export const MePage: React.FC = () => {
             {/* 设置入口 */}
             <div className="bg-white dark:bg-card-dark rounded-xl overflow-hidden shadow-sm">
                 <button
-                    onClick={() => setShowSettings(true)}
+                    onClick={() => {
+                        setLocalOpenAiSettings(false);
+                        setShowSettings(true);
+                    }}
                     className="w-full flex items-center justify-between px-4 py-4 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors"
                 >
                     <div className="flex items-center gap-3">

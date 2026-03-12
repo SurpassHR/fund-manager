@@ -16,6 +16,7 @@ import { SettingsProvider } from './services/SettingsContext';
 const AppContent: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TabType>('holding');
   const [isScannerOpen, setIsScannerOpen] = useState(false);
+  const [openAiSettingsRequested, setOpenAiSettingsRequested] = useState(false);
   const { t } = useTranslation();
 
   const renderTabContent = () => {
@@ -25,7 +26,12 @@ const AppContent: React.FC = () => {
       case 'watchlist':
         return <Watchlist />;
       case 'me':
-        return <MePage />;
+        return (
+          <MePage
+            openAiSettings={openAiSettingsRequested}
+            onAiSettingsConsumed={() => setOpenAiSettingsRequested(false)}
+          />
+        );
       default:
         return (
           <div className="flex flex-col items-center justify-center min-h-[60vh] text-gray-400 gap-4">
@@ -45,11 +51,17 @@ const AppContent: React.FC = () => {
   useEffect(() => {
     const scannerHandler = () => setIsScannerOpen(true);
     const settingsHandler = () => setActiveTab('me');
+    const aiSettingsHandler = () => {
+      setOpenAiSettingsRequested(true);
+      setActiveTab('me');
+    };
     window.addEventListener('open-scanner', scannerHandler as EventListener);
     window.addEventListener('open-settings', settingsHandler as EventListener);
+    window.addEventListener('open-ai-settings', aiSettingsHandler as EventListener);
     return () => {
       window.removeEventListener('open-scanner', scannerHandler as EventListener);
       window.removeEventListener('open-settings', settingsHandler as EventListener);
+      window.removeEventListener('open-ai-settings', aiSettingsHandler as EventListener);
     };
   }, []);
 
