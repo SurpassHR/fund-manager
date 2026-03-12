@@ -2,12 +2,18 @@
 
 This file provides guidance to agents when working with code in this repository.
 
-- Commands: only `npm run dev`, `npm run build`, `npm run preview`; no lint/test scripts (including single-test) exist in [`package.json`](package.json:1).
-- Build embeds latest 5 git commit subjects into `import.meta.env.VITE_COMMITS_JSON`; if `GEMINI_API_KEY` is set it translates via Gemini, otherwise raw subjects are used ([`vite.config.ts`](vite.config.ts:7)).
-- Dev server proxy `/djapi` is required for Danjuan requests and forces `Referer`; base path is `/fund-manager/` for GH Pages ([`vite.config.ts`](vite.config.ts:84)).
-- EastMoney APIs rely on script injection writing to global `window.apidata`; requests MUST be serialized via the internal queue ([`services/api.ts`](services/api.ts:124)).
-- Market trading detection uses Tencent index timestamp with a 9:20 weekday fallback; do not rely on system time alone ([`services/api.ts`](services/api.ts:397)).
-- NAV/settlement date strings must use local date formatting helpers (avoid `toISOString` to prevent UTC shifts) ([`services/db.ts`](services/db.ts:60)).
-- DB init uses a singleton promise to avoid React StrictMode double-invocation races; keep the guard if refactoring ([`services/db.ts`](services/db.ts:37)).
-- I18n is a custom dictionary/context (default `zh`); use `useTranslation().t("common.key")` paths ([`services/i18n.tsx`](services/i18n.tsx:1)).
-- Project-wide standards live in [`GEMINI.md`](GEMINI.md:1); treat as canonical unless a file-specific rule overrides it.
+- Only `fetchEastMoneyLatestNav` and `fetchHistoricalFundNav` are safe EastMoney fund-NAV entry points; both must stay serialized through the shared `eastMoneyQueue` because they read/write the same global `window.apidata`.
+- EastMoney script-injection flow depends on strict cleanup (`removeChild` + `window.apidata = undefined`) after both success and error; missing cleanup leaks stale payload into subsequent requests.
+- Watchlist and holding refreshes are concurrency-guarded (`refreshPromise`, `refreshWatchlistPromise`); removing these guards causes overlapping writes and inconsistent day-change fields.
+- DB init must keep the singleton `initPromise` guard to survive React StrictMode double invocation without duplicate default-account inserts.
+- Business dates for NAV/settlement logic must use local date strings (`YYYY-MM-DD`) from local helpers; avoid introducing UTC-based `toISOString` into trading-date decisions.
+- Daily gain activation is intentionally gated by cost-effective date: if `effectivePctDate <= costDate`, day gain is forced to 0 even when a quote exists.
+- Settlement application is coupled to refresh: pending transactions are auto-settled during `refreshFundData`, not by a separate scheduler.
+- Trading-session detection is data-driven: `checkIsMarketTrading` trusts Tencent index timestamp first, then falls back to local weekday + 09:20 only when API parsing fails.
+- Fund intraday estimate path is conditional: when official NAV date is not today but market is trading, system estimates day change from top-10 holdings quotes.
+- I18n is custom context (not i18next): translations must use `useTranslation().t("common.xxx")`; missing keys return the path string itself.
+- Language default is hardcoded to `zh` in provider and is not persisted; do not assume automatic language restore.
+- Build injects latest 5 git commits into `import.meta.env.VITE_COMMITS_JSON`; if `GEMINI_API_KEY` exists, subjects are translated during build-time network call.
+- Welcome modal versioning is coupled to injected env vars and `localStorage.lastSeenVersion`; malformed commit JSON is silently ignored.
+- Vite runtime assumptions are non-default: app base is `/fund-manager/`, and Danjuan requests require dev proxy `/djapi` with forced `Referer`.
+- Available scripts are intentionally minimal (`dev`/`build`/`preview` only); there is no lint script, no test script, and no single-test entrypoint.

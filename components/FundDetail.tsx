@@ -16,6 +16,21 @@ interface FundDetailProps {
 
 type TimeRange = '1M' | '3M' | '6M' | '1Y' | '3Y' | '5Y';
 
+type GrowthSeriesData = {
+    dates: string[];
+    fund: number[];
+    avg: number[];
+    bmk: number[];
+};
+
+interface GrowthDataCacheRecord {
+    data: GrowthSeriesData;
+    cacheDate: string;
+    updatedAt: number;
+}
+
+const GROWTH_DATA_CACHE_PREFIX = 'growth_data_cache_v1';
+
 // 回退计算上一个交易日（仅跳过周末，不调用外部假日 API）
 const getLastWeekday = (): string => {
     const d = new Date();
@@ -27,6 +42,14 @@ const getLastWeekday = (): string => {
     const month = String(d.getMonth() + 1).padStart(2, '0');
     const date = String(d.getDate()).padStart(2, '0');
     return `${year}-${month}-${date}`;
+};
+
+const getLocalDateString = (): string => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
 };
 
 // Calculate Start Date based on Range and End Date
@@ -46,6 +69,76 @@ const getStartDate = (range: TimeRange, endDateStr: string): string => {
 
     // ISO string is always UTC, which matches our YYYY-MM-DD need
     return d.toISOString().split('T')[0];
+};
+
+const buildGrowthCacheKey = (fundCode: string, range: TimeRange, endDate: string) => {
+    const params = {
+        growthDataPoint: 'cumulativeReturn',
+        freq: '1d',
+        type: 'return',
+        range,
+        endDate,
+    };
+    return `${GROWTH_DATA_CACHE_PREFIX}:${fundCode}:${JSON.stringify(params)}`;
+};
+
+const readGrowthCache = (cacheKey: string): GrowthDataCacheRecord | null => {
+    try {
+        const raw = localStorage.getItem(cacheKey);
+        if (!raw) return null;
+        const parsed = JSON.parse(raw) as GrowthDataCacheRecord;
+        if (!parsed?.data?.dates || !parsed?.data?.fund || !parsed?.cacheDate) return null;
+        return parsed;
+    } catch {
+        return null;
+    }
+};
+
+const writeGrowthCache = (cacheKey: string, data: GrowthSeriesData, cacheDate: string) => {
+    try {
+        const record: GrowthDataCacheRecord = {
+            data,
+            cacheDate,
+            updatedAt: Date.now(),
+        };
+        localStorage.setItem(cacheKey, JSON.stringify(record));
+    } catch {
+        // localStorage 不可用或写满时静默降级
+    }
+};
+
+const cloneSeriesData = (data: GrowthSeriesData): GrowthSeriesData => ({
+    dates: [...data.dates],
+    fund: [...data.fund],
+    avg: [...data.avg],
+    bmk: [...data.bmk],
+});
+
+// 历史序列可按天缓存；当天段每次根据实时 dayChangePct 重新覆盖，避免“冻结”
+const withTodayEstimate = (series: GrowthSeriesData, dayChangePct: number | undefined): GrowthSeriesData => {
+    const next = cloneSeriesData(series);
+    if (dayChangePct == null || next.dates.length === 0) return next;
+
+    const now = new Date();
+    const dow = now.getDay();
+    const isWeekday = dow >= 1 && dow <= 5;
+    if (!isWeekday) return next;
+
+    const todayStr = getLocalDateString();
+    const lastDate = next.dates[next.dates.length - 1];
+
+    if (lastDate === todayStr) {
+        const prevCumReturn = next.fund.length >= 2 ? (next.fund[next.fund.length - 2] ?? 0) : 0;
+        next.fund[next.fund.length - 1] = prevCumReturn + dayChangePct;
+    } else if (lastDate && todayStr > lastDate) {
+        const prevCumReturn = next.fund[next.fund.length - 1] ?? 0;
+        next.dates.push(todayStr);
+        next.fund.push(prevCumReturn + dayChangePct);
+        next.avg.push(next.avg[next.avg.length - 1] ?? 0);
+        next.bmk.push(next.bmk[next.bmk.length - 1] ?? 0);
+    }
+
+    return next;
 };
 
 export const FundDetail: React.FC<FundDetailProps> = ({ fund, anchorDate, anchorPrice, onBack }) => {
@@ -72,12 +165,7 @@ export const FundDetail: React.FC<FundDetailProps> = ({ fund, anchorDate, anchor
     const [showAllHistory, setShowAllHistory] = useState(false);
 
     // Real Chart Data from API
-    const [chartSeriesData, setChartSeriesData] = useState<{
-        dates: string[];
-        fund: number[];
-        avg: number[];
-        bmk: number[];
-    } | null>(null);
+    const [chartSeriesData, setChartSeriesData] = useState<GrowthSeriesData | null>(null);
     const [chartLoading, setChartLoading] = useState(false);
 
     useEffect(() => {
@@ -147,148 +235,125 @@ export const FundDetail: React.FC<FundDetailProps> = ({ fund, anchorDate, anchor
     useEffect(() => {
         if (!lastTradingDay) return;
 
+        let cancelled = false;
+
+        const fetchMorningstarSeries = async (startDate: string, endDate: string): Promise<GrowthSeriesData | null> => {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 3000);
+            try {
+                const body = {
+                    growthDataPoint: 'cumulativeReturn',
+                    initValue: 10000,
+                    freq: '1d',
+                    calcBmkSecId: 'F00001LXGJ',
+                    currency: 'CNY',
+                    type: 'return',
+                    startDate,
+                    endDate,
+                    catAvgSecId: 'CHCA000043',
+                    bmk1SecId: 'F00001LXGJ',
+                    outputs: ['tsData', 'pr', 'dividend', 'management'],
+                };
+
+                const response = await fetch(`https://www.morningstar.cn/cn-api/v2/funds/${fund.code}/growth-data`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body),
+                    signal: controller.signal,
+                });
+
+                if (!response.ok) return null;
+                const json: MorningstarGrowthDataResponse = await response.json();
+                if (!json.data?.tsData) return null;
+
+                return {
+                    dates: [...(json.data.tsData.dates || [])],
+                    fund: [...(json.data.tsData.funds?.[0] || [])],
+                    avg: [...(json.data.tsData.catAvg || [])],
+                    bmk: [...(json.data.tsData.bmk1 || [])],
+                };
+            } finally {
+                clearTimeout(timeoutId);
+            }
+        };
+
+        const fetchDanjuanSeries = async (): Promise<GrowthSeriesData | null> => {
+            const danjuanPeriod = timeRange.toLowerCase();
+            const isDev = import.meta.env.DEV;
+            const baseUrl = isDev
+                ? '/djapi/fund/growth/'
+                : 'https://api.codetabs.com/v1/proxy/?quest=https://danjuanfunds.com/djapi/fund/growth/';
+
+            const response = await fetch(`${baseUrl}${fund.code}?day=${danjuanPeriod}`);
+            if (!response.ok) return null;
+
+            const json: DanjuanGrowthDataResponse = await response.json();
+            if (!json.data?.fund_nav_growth) return null;
+
+            const dates: string[] = [];
+            const fundArr: number[] = [];
+            const avgArr: number[] = [];
+            const bmkArr: number[] = [];
+
+            json.data.fund_nav_growth.forEach(r => {
+                dates.push(r.date);
+                fundArr.push(parseFloat(r.value || '0') * 100);
+                bmkArr.push(parseFloat(r.than_value || '0') * 100);
+                avgArr.push(0);
+            });
+
+            return { dates, fund: fundArr, avg: avgArr, bmk: bmkArr };
+        };
+
         const fetchGrowthData = async () => {
+            const todayStr = getLocalDateString();
+            const startDate = getStartDate(timeRange, lastTradingDay);
+            const cacheKey = buildGrowthCacheKey(fund.code, timeRange, lastTradingDay);
+            const cached = readGrowthCache(cacheKey);
+            const isTodayCache = cached?.cacheDate === todayStr;
+
+            if (isTodayCache && cached) {
+                setChartSeriesData(withTodayEstimate(cached.data, fund.dayChangePct));
+                return;
+            }
+
             setChartLoading(true);
             try {
-                // Try Morningstar First (with 3-second timeout)
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 3000);
-                
-                let msSuccess = false;
-                try {
-                    const startDate = getStartDate(timeRange, lastTradingDay);
-                    const endDate = lastTradingDay;
-
-                    const body = {
-                        growthDataPoint: "cumulativeReturn",
-                        initValue: 10000,
-                        freq: "1d",
-                        calcBmkSecId: "F00001LXGJ",
-                        currency: "CNY",
-                        type: "return",
-                        startDate: startDate,
-                        endDate: endDate,
-                        catAvgSecId: "CHCA000043",
-                        bmk1SecId: "F00001LXGJ",
-                        outputs: ["tsData", "pr", "dividend", "management"]
-                    };
-
-                    const msResponse = await fetch(`https://www.morningstar.cn/cn-api/v2/funds/${fund.code}/growth-data`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(body),
-                        signal: controller.signal
-                    });
-                    
-                    clearTimeout(timeoutId);
-
-                    if (msResponse.ok) {
-                        const json: MorningstarGrowthDataResponse = await msResponse.json();
-                        if (json.data && json.data.tsData) {
-                            const dates = json.data.tsData.dates;
-                            const fundArr = json.data.tsData.funds[0] || [];
-                            const avgArr = json.data.tsData.catAvg || [];
-                            const bmkArr = json.data.tsData.bmk1 || [];
-
-                            // 补全今日实时数据：
-                            const now = new Date();
-                            const dow = now.getDay();
-                            const isWeekday = dow >= 1 && dow <= 5;
-                            const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-
-                            if (isWeekday && fund.dayChangePct != null) {
-                                const lastDate = dates[dates.length - 1];
-                                const lastFundVal = fundArr[fundArr.length - 1];
-
-                                if (lastDate === todayStr && fundArr.length < dates.length) {
-                                    const prevCumReturn = fundArr[fundArr.length - 1] ?? 0;
-                                    fundArr.push(prevCumReturn + fund.dayChangePct);
-                                } else if (lastDate === todayStr && (lastFundVal == null || isNaN(lastFundVal))) {
-                                    const prevCumReturn = fundArr.length >= 2 ? (fundArr[fundArr.length - 2] ?? 0) : 0;
-                                    fundArr[fundArr.length - 1] = prevCumReturn + fund.dayChangePct;
-                                } else if (lastDate && todayStr > lastDate) {
-                                    const prevCumReturn = fundArr[fundArr.length - 1] ?? 0;
-                                    dates.push(todayStr);
-                                    fundArr.push(prevCumReturn + fund.dayChangePct);
-                                    avgArr.push(null);
-                                    bmkArr.push(null);
-                                }
-                            }
-
-                            setChartSeriesData({ dates, fund: fundArr, avg: avgArr, bmk: bmkArr });
-                            msSuccess = true;
-                        }
-                    }
-                } catch (msErr) {
-                    console.warn("Morningstar failed or timed out, falling back to Danjuan:", msErr);
-                    clearTimeout(timeoutId);
+                let fetched = await fetchMorningstarSeries(startDate, lastTradingDay);
+                if (!fetched) {
+                    fetched = await fetchDanjuanSeries();
                 }
 
-                if (!msSuccess) {
-                    // Fallback to Danjuan API
-                    const danjuanPeriod = timeRange.toLowerCase();
-
-                    const isDev = import.meta.env.DEV;
-                    const baseUrl = isDev 
-                        ? `/djapi/fund/growth/` 
-                        : `https://api.codetabs.com/v1/proxy/?quest=https://danjuanfunds.com/djapi/fund/growth/`;
-
-                    const response = await fetch(`${baseUrl}${fund.code}?day=${danjuanPeriod}`);
-
-                    if (!response.ok) throw new Error('Failed to fetch growth data from Danjuan');
-
-                    const json: DanjuanGrowthDataResponse = await response.json();
-                    if (json.data && json.data.fund_nav_growth) {
-                        const records = json.data.fund_nav_growth;
-
-                        const dates: string[] = [];
-                        const fundArr: number[] = [];
-                        const avgArr: number[] = []; // Danjuan doesn't provide category average
-                        const bmkArr: number[] = [];
-
-                        records.forEach(r => {
-                            dates.push(r.date);
-                            // Convert string decimal "0.161482" to percentage 16.1482%
-                            fundArr.push(parseFloat(r.value || "0") * 100);
-                            bmkArr.push(parseFloat(r.than_value || "0") * 100);
-                            avgArr.push(0); // Dummy for avg
-                        });
-
-                        // 补全今日实时数据：
-                        const now = new Date();
-                        const dow = now.getDay();
-                        const isWeekday = dow >= 1 && dow <= 5;
-                        const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-
-                        if (isWeekday && fund.dayChangePct != null && dates.length > 0) {
-                            const lastDate = dates[dates.length - 1];
-
-                            if (lastDate === todayStr) {
-                                 const prevCumReturn = fundArr.length >= 2 ? fundArr[fundArr.length - 2] : 0;
-                                 fundArr[fundArr.length - 1] = prevCumReturn + fund.dayChangePct;
-                            } else if (todayStr > lastDate) {
-                                 const prevCumReturn = fundArr[fundArr.length - 1] ?? 0;
-                                 const prevBmkReturn = bmkArr[bmkArr.length - 1] ?? 0;
-                                 
-                                 dates.push(todayStr);
-                                 fundArr.push(prevCumReturn + fund.dayChangePct);
-                                 avgArr.push(0);
-                                 bmkArr.push(prevBmkReturn);
-                            }
-                        }
-
-                        setChartSeriesData({ dates, fund: fundArr, avg: avgArr, bmk: bmkArr });
+                if (fetched) {
+                    writeGrowthCache(cacheKey, fetched, todayStr);
+                    if (!cancelled) {
+                        setChartSeriesData(withTodayEstimate(fetched, fund.dayChangePct));
                     }
+                    return;
+                }
+
+                // 网络失败时，回退到旧缓存（即使不是今天）
+                if (cached && !cancelled) {
+                    setChartSeriesData(withTodayEstimate(cached.data, fund.dayChangePct));
                 }
             } catch (err) {
-                console.error("Chart Fetch Error", err);
+                console.error('Chart Fetch Error', err);
+                if (cached && !cancelled) {
+                    setChartSeriesData(withTodayEstimate(cached.data, fund.dayChangePct));
+                }
             } finally {
-                setChartLoading(false);
+                if (!cancelled) {
+                    setChartLoading(false);
+                }
             }
         };
 
         fetchGrowthData();
-    }, [fund.code, timeRange, lastTradingDay]);
+
+        return () => {
+            cancelled = true;
+        };
+    }, [fund.code, fund.dayChangePct, timeRange, lastTradingDay]);
 
 
     // 5. Fetch Holdings
