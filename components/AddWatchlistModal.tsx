@@ -165,7 +165,7 @@ export const AddWatchlistModal: React.FC<AddWatchlistModalProps> = ({ isOpen, on
                     className="bg-white dark:bg-card-dark rounded-xl shadow-xl w-full max-w-md overflow-hidden flex flex-col max-h-[90vh]"
                 >
                     {/* Header */}
-                    <div className="flex justify-between items-center p-4 border-b border-gray-100 dark:border-border-dark bg-gray-50/50 dark:bg-white/5">
+                    <div className="flex justify-between items-center p-4 border-b border-gray-100 dark:border-border-dark bg-gray-50/50 dark:bg-white/5 shrink-0">
                         <h2 className="text-lg font-bold text-gray-800 dark:text-gray-100">
                             {editItem ? t('common.edit') : t('common.addWatchlist')}
                         </h2>
@@ -175,7 +175,7 @@ export const AddWatchlistModal: React.FC<AddWatchlistModalProps> = ({ isOpen, on
                     </div>
 
                     {/* Type Selector (Only when adding) */}
-                    <div className="p-4 flex flex-col gap-4 overflow-visible relative z-20">
+                    <div className="p-4 flex flex-col gap-4 overflow-y-auto flex-1 relative z-20">
                         {!editItem && (
                             <div className="flex bg-gray-100 dark:bg-white/10 p-1 rounded-lg">
                                 <button
@@ -300,7 +300,7 @@ export const AddWatchlistModal: React.FC<AddWatchlistModalProps> = ({ isOpen, on
                     </div>
 
                     {/* Footer */}
-                    <div className="p-4 border-t border-gray-100 dark:border-border-dark bg-gray-50/50 dark:bg-white/5 flex justify-end gap-3 z-10 relative">
+                    <div className="p-4 border-t border-gray-100 dark:border-border-dark bg-gray-50/50 dark:bg-white/5 flex justify-end gap-3 z-10 relative shrink-0">
                         <button
                             onClick={onClose}
                             className="px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-white/10 rounded-lg transition-colors"

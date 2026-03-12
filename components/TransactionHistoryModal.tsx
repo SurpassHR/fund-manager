@@ -39,7 +39,7 @@ export const TransactionHistoryModal: React.FC<TransactionHistoryModalProps> = (
 
     return (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm sm:p-4 opacity-100 transition-opacity">
-            <div className="bg-white dark:bg-card-dark w-full sm:w-[480px] sm:rounded-2xl rounded-t-2xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh] transition-transform translate-y-0 relative">
+            <div className="bg-white dark:bg-card-dark w-full sm:w-[480px] sm:rounded-2xl rounded-t-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] transition-transform translate-y-0 relative">
 
                 {/* 顶部标题栏 */}
                 <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-border-dark shrink-0">

@@ -243,67 +243,76 @@ export const ScannerModal: React.FC<ScannerModalProps> = ({ isOpen, onClose }) =
     };
 
     return (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4" onPaste={handlePaste}>
-            <div className="bg-white dark:bg-card-dark rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl">
-                <div className="p-4 border-b border-gray-100 dark:border-border-dark flex justify-between items-center bg-gray-50 dark:bg-white/5">
-                    <h3 className="font-bold text-gray-800 dark:text-gray-100">{t('common.smartEntry')}</h3>
-                    <button onClick={handleClose}><Icons.Plus className="transform rotate-45 text-gray-400" /></button>
+        <>
+            <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4" onPaste={handlePaste}>
+                <div className="bg-white dark:bg-card-dark rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl max-h-[90vh] flex flex-col">
+                    <div className="p-4 border-b border-gray-100 dark:border-border-dark flex justify-between items-center bg-gray-50 dark:bg-white/5">
+                        <h3 className="font-bold text-gray-800 dark:text-gray-100">{t('common.smartEntry')}</h3>
+                        <button onClick={handleClose}><Icons.Plus className="transform rotate-45 text-gray-400" /></button>
+                    </div>
+
+                    <div className="p-6 space-y-4 overflow-y-auto">
+                        <div
+                            className="w-full aspect-[3/4] bg-gray-50 dark:bg-white/5 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600 flex flex-col items-center justify-center relative overflow-hidden"
+                            onDragOver={(e) => e.preventDefault()}
+                            onDrop={handleDrop}
+                        >
+                            {preview ? (
+                                <img src={preview} alt="preview" className="absolute inset-0 w-full h-full object-contain" />
+                            ) : (
+                                <>
+                                    <Icons.Scan size={48} className="text-gray-300 dark:text-gray-600 mb-4" />
+                                    <p className="text-sm font-medium text-gray-500 dark:text-gray-400">{t('common.uploadTip')}</p>
+                                    <p className="text-[10px] text-gray-400 mt-1">{t('common.dragPasteTip') || '支持拖拽或粘贴图片'}</p>
+                                </>
+                            )}
+                            {scanning && (
+                                <div className="absolute inset-0 bg-blue-500/10 dark:bg-blue-500/20 flex flex-col items-center justify-center">
+                                    <div className="text-blue-600 font-bold">{t('common.ocrProcessing')}</div>
+                                </div>
+                            )}
+                        </div>
+
+                        <p className="text-xs text-gray-400 px-2">
+                            {t('common.ocrPrivacy')}
+                        </p>
+
+                        <div className="flex gap-2">
+                            <button
+                                onClick={() => fileInputRef.current?.click()}
+                                className="flex-1 bg-gray-100 dark:bg-white/10 text-gray-700 dark:text-gray-200 py-2.5 rounded-xl font-bold"
+                            >
+                                {t('common.selectImage')}
+                            </button>
+                            <button
+                                onClick={handleAnalyze}
+                                disabled={!canAnalyze || scanning}
+                                className="flex-1 bg-blue-600 text-white py-2.5 rounded-xl font-bold disabled:opacity-50"
+                            >
+                                {scanning ? t('common.analyzing') : t('common.startOcr')}
+                            </button>
+                        </div>
+
+                        <input
+                            ref={fileInputRef}
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={handleFileChange}
+                        />
+                    </div>
                 </div>
+            </div>
 
-                <div className="p-6 space-y-4">
-                    <div
-                        className="w-full aspect-[3/4] bg-gray-50 dark:bg-white/5 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600 flex flex-col items-center justify-center relative overflow-hidden"
-                        onDragOver={(e) => e.preventDefault()}
-                        onDrop={handleDrop}
-                    >
-                        {preview ? (
-                            <img src={preview} alt="preview" className="absolute inset-0 w-full h-full object-contain" />
-                        ) : (
-                            <>
-                                <Icons.Scan size={48} className="text-gray-300 dark:text-gray-600 mb-4" />
-                                <p className="text-sm font-medium text-gray-500 dark:text-gray-400">{t('common.uploadTip')}</p>
-                                <p className="text-[10px] text-gray-400 mt-1">{t('common.dragPasteTip') || '支持拖拽或粘贴图片'}</p>
-                            </>
-                        )}
-                        {scanning && (
-                            <div className="absolute inset-0 bg-blue-500/10 dark:bg-blue-500/20 flex flex-col items-center justify-center">
-                                <div className="text-blue-600 font-bold">{t('common.ocrProcessing')}</div>
-                            </div>
-                        )}
-                    </div>
-
-                    <p className="text-xs text-gray-400 px-2">
-                        {t('common.ocrPrivacy')}
-                    </p>
-
-                    <div className="flex gap-2">
-                        <button
-                            onClick={() => fileInputRef.current?.click()}
-                            className="flex-1 bg-gray-100 dark:bg-white/10 text-gray-700 dark:text-gray-200 py-2.5 rounded-xl font-bold"
-                        >
-                            {t('common.selectImage')}
-                        </button>
-                        <button
-                            onClick={handleAnalyze}
-                            disabled={!canAnalyze || scanning}
-                            className="flex-1 bg-blue-600 text-white py-2.5 rounded-xl font-bold disabled:opacity-50"
-                        >
-                            {scanning ? t('common.analyzing') : t('common.startOcr')}
-                        </button>
-                    </div>
-
-                    <input
-                        ref={fileInputRef}
-                        type="file"
-                        accept="image/*"
-                        className="hidden"
-                        onChange={handleFileChange}
-                    />
-
-                    {isReviewing && (
-                        <div className="border-t border-gray-100 dark:border-border-dark pt-4 space-y-3">
+            {isReviewing && (
+                <div className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+                    <div className="bg-white dark:bg-card-dark rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl max-h-[90vh] flex flex-col">
+                        <div className="p-4 border-b border-gray-100 dark:border-border-dark flex justify-between items-center bg-gray-50 dark:bg-white/5">
+                            <h3 className="font-bold text-gray-800 dark:text-gray-100">{t('common.ocrReview') || '识别结果确认'}</h3>
+                            <button onClick={() => setIsReviewing(false)}><Icons.Plus className="transform rotate-45 text-gray-400" /></button>
+                        </div>
+                        <div className="p-6 space-y-3 overflow-y-auto">
                             <div className="flex items-center justify-between">
-                                <div className="text-sm font-bold">{t('common.ocrReview') || '识别结果确认'}</div>
                                 <button
                                     onClick={handleValidate}
                                     className="text-xs text-blue-600 font-bold"
@@ -312,7 +321,7 @@ export const ScannerModal: React.FC<ScannerModalProps> = ({ isOpen, onClose }) =
                                 </button>
                             </div>
 
-                            <div className="space-y-3 max-h-64 overflow-y-auto">
+                            <div className="space-y-3">
                                 {reviewItems.map(item => {
                                     const isConflict = item.matchedCode && existingCodes.has(item.matchedCode);
                                     const decision = item.matchedCode ? conflictMap[item.matchedCode] : undefined;
@@ -384,9 +393,9 @@ export const ScannerModal: React.FC<ScannerModalProps> = ({ isOpen, onClose }) =
                                 })}
                             </div>
 
-                            <div className="flex gap-2">
+                            <div className="flex gap-2 pt-2">
                                 <button
-                                    onClick={handleClose}
+                                    onClick={() => setIsReviewing(false)}
                                     className="flex-1 bg-gray-100 dark:bg-white/10 text-gray-700 dark:text-gray-200 py-2.5 rounded-xl font-bold"
                                 >
                                     {t('common.cancel')}
@@ -399,9 +408,9 @@ export const ScannerModal: React.FC<ScannerModalProps> = ({ isOpen, onClose }) =
                                 </button>
                             </div>
                         </div>
-                    )}
+                    </div>
                 </div>
-            </div>
-        </div>
+            )}
+        </>
     );
 };
