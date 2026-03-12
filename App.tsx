@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Header } from './components/Header';
 import { BottomNav } from './components/BottomNav';
 import { Dashboard } from './components/Dashboard';
@@ -41,6 +41,17 @@ const AppContent: React.FC = () => {
         );
     }
   };
+
+  useEffect(() => {
+    const scannerHandler = () => setIsScannerOpen(true);
+    const settingsHandler = () => setActiveTab('me');
+    window.addEventListener('open-scanner', scannerHandler as EventListener);
+    window.addEventListener('open-settings', settingsHandler as EventListener);
+    return () => {
+      window.removeEventListener('open-scanner', scannerHandler as EventListener);
+      window.removeEventListener('open-settings', settingsHandler as EventListener);
+    };
+  }, []);
 
   return (
     <div className="bg-app-bg dark:bg-app-bg-dark min-h-screen font-sans text-gray-900 dark:text-gray-100 relative flex flex-col transition-colors">

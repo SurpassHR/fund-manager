@@ -471,7 +471,14 @@ export const Dashboard: React.FC = () => {
                 >
                     <Icons.Plus size={16} /> {t('common.addFund')}
                 </button>
-                <button className="flex items-center gap-1 md:bg-white md:dark:bg-card-dark md:px-4 md:py-2 md:rounded-lg md:shadow-sm md:hover:bg-gray-50 md:dark:hover:bg-white/5 transition-colors">
+                <button
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        const event = new CustomEvent('open-scanner');
+                        window.dispatchEvent(event);
+                    }}
+                    className="flex items-center gap-1 md:bg-white md:dark:bg-card-dark md:px-4 md:py-2 md:rounded-lg md:shadow-sm md:hover:bg-gray-50 md:dark:hover:bg-white/5 transition-colors"
+                >
                     <Icons.Refresh size={14} /> {t('common.sync')}
                 </button>
                 <button className="flex items-center gap-1 md:bg-white md:dark:bg-card-dark md:px-4 md:py-2 md:rounded-lg md:shadow-sm md:hover:bg-gray-50 md:dark:hover:bg-white/5 transition-colors">

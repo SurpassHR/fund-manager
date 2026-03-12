@@ -1,0 +1,4 @@
+# Project Architecture Rules (Non-Obvious Only)
+- EastMoney data access depends on serialized script injection writing to a single global `window.apidata`; concurrent requests corrupt results unless queued ([`services/api.ts`](services/api.ts:124)).
+- Trading-day logic is anchored to Tencent market index timestamps with a 9:20 weekday fallback, not just local time ([`services/api.ts`](services/api.ts:397)).
+- DB initialization and refresh routines use singleton promises to avoid StrictMode double-invocation races; keep the guard pattern when restructuring ([`services/db.ts`](services/db.ts:37)).

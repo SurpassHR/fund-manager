@@ -1,0 +1,3 @@
+# Project Documentation Rules (Non-Obvious Only)
+- Build output embeds translated git commit subjects into `import.meta.env.VITE_COMMITS_JSON` during `npm run build`; without `GEMINI_API_KEY` it falls back to raw subjects ([`vite.config.ts`](vite.config.ts:7)).
+- Dev proxy `/djapi` is required for Danjuan API calls with a forced `Referer` header; running without the dev server will fail those requests ([`vite.config.ts`](vite.config.ts:84)).

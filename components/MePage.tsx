@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Icons } from './Icon';
 import { useTranslation } from '../services/i18n';
 import { SettingsPage } from './SettingsPage';
@@ -6,6 +6,12 @@ import { SettingsPage } from './SettingsPage';
 export const MePage: React.FC = () => {
     const { t } = useTranslation();
     const [showSettings, setShowSettings] = useState(false);
+
+    useEffect(() => {
+        const handler = () => setShowSettings(true);
+        window.addEventListener('open-settings', handler as EventListener);
+        return () => window.removeEventListener('open-settings', handler as EventListener);
+    }, []);
 
     if (showSettings) {
         return <SettingsPage onBack={() => setShowSettings(false)} />;
