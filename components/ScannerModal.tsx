@@ -37,6 +37,7 @@ export const ScannerModal: React.FC<ScannerModalProps> = ({ isOpen, onClose }) =
     const [isReviewing, setIsReviewing] = useState(false);
     const [conflictMap, setConflictMap] = useState<Record<string, ConflictDecision>>({});
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const lastAutoValidateSignatureRef = useRef('');
 
     const { t } = useTranslation();
     const { aiProvider, openaiApiKey, openaiModel, geminiApiKey, geminiModel } = useSettings();
@@ -125,6 +126,10 @@ export const ScannerModal: React.FC<ScannerModalProps> = ({ isOpen, onClose }) =
         setIsReviewing(true);
     };
 
+    const getValidateSignature = (items: ReviewItem[]) => items
+        .map((item) => `${item.id}|${item.name.trim()}|${item.codeHint || ''}`)
+        .join('||');
+
     const handleApiKeyIssue = () => {
         const shouldOpen = confirm(t('common.aiKeyMissing') || '请先在设置里填写 API Key');
         if (shouldOpen) {
@@ -205,6 +210,23 @@ export const ScannerModal: React.FC<ScannerModalProps> = ({ isOpen, onClose }) =
 
         setReviewItems(updated);
     };
+
+    useEffect(() => {
+        if (!isReviewing || reviewItems.length === 0) return;
+
+        const hasValidName = reviewItems.some((item) => item.name.trim());
+        if (!hasValidName) return;
+
+        const signature = getValidateSignature(reviewItems);
+        if (signature === lastAutoValidateSignatureRef.current) return;
+
+        const timer = setTimeout(() => {
+            lastAutoValidateSignatureRef.current = signature;
+            handleValidate();
+        }, 250);
+
+        return () => clearTimeout(timer);
+    }, [isReviewing, reviewItems]);
 
     const updateReviewItem = (id: string, patch: Partial<ReviewItem>) => {
         setReviewItems(prev => prev.map(item => (item.id === id ? { ...item, ...patch } : item)));
@@ -356,7 +378,10 @@ export const ScannerModal: React.FC<ScannerModalProps> = ({ isOpen, onClose }) =
                 {isReviewing && (
                     <motion.div
                         className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
-                        onClick={() => setIsReviewing(false)}
+                        onClick={() => {
+                            setIsReviewing(false);
+                            lastAutoValidateSignatureRef.current = '';
+                        }}
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
@@ -372,7 +397,14 @@ export const ScannerModal: React.FC<ScannerModalProps> = ({ isOpen, onClose }) =
                         >
                             <div className="p-4 border-b border-gray-100 dark:border-border-dark flex justify-between items-center bg-gray-50 dark:bg-white/5">
                                 <h3 className="font-bold text-gray-800 dark:text-gray-100">{t('common.ocrReview') || '识别结果确认'}</h3>
-                                <button onClick={() => setIsReviewing(false)}><Icons.Plus className="transform rotate-45 text-gray-400" /></button>
+                                <button
+                                    onClick={() => {
+                                        setIsReviewing(false);
+                                        lastAutoValidateSignatureRef.current = '';
+                                    }}
+                                >
+                                    <Icons.Plus className="transform rotate-45 text-gray-400" />
+                                </button>
                             </div>
                             <div className="p-6 space-y-3 overflow-y-auto">
                                 <div className="flex items-center justify-between">
@@ -380,7 +412,7 @@ export const ScannerModal: React.FC<ScannerModalProps> = ({ isOpen, onClose }) =
                                         onClick={handleValidate}
                                         className="text-xs text-blue-600 font-bold"
                                     >
-                                        {t('common.validateFunds') || '验证基金'}
+                                        {t('common.validateFunds') || '重新验证'}
                                     </button>
                                 </div>
 
@@ -458,7 +490,10 @@ export const ScannerModal: React.FC<ScannerModalProps> = ({ isOpen, onClose }) =
 
                                 <div className="flex gap-2 pt-2">
                                     <button
-                                        onClick={() => setIsReviewing(false)}
+                                        onClick={() => {
+                                            setIsReviewing(false);
+                                            lastAutoValidateSignatureRef.current = '';
+                                        }}
                                         className="flex-1 bg-gray-100 dark:bg-white/10 text-gray-700 dark:text-gray-200 py-2.5 rounded-xl font-bold"
                                     >
                                         {t('common.cancel')}
