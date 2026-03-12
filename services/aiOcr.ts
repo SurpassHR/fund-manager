@@ -6,10 +6,9 @@ export type AiProvider = 'openai' | 'gemini';
 export interface OcrHoldingItem {
   name: string;
   amount?: number;
-  dayChangePct?: number;
   dayGain?: number;
-  nav?: number;
-  shares?: number;
+  holdingGain?: number;
+  holdingGainPct?: number;
   codeHint?: string;
 }
 
@@ -21,7 +20,7 @@ export interface OcrResult {
   warnings?: string[];
 }
 
-const SYSTEM_PROMPT = `你是一个金融基金持仓截图识别器。请从图片中提取“基金名称、持仓金额、持仓涨跌幅、昨日收益”等字段，并返回严格的 JSON。\n\n要求：\n1) 只输出 JSON，不要 markdown，不要解释文字。\n2) JSON 结构如下：\n{\n  "source": "...",\n  "asOfDate": "YYYY-MM-DD | null",\n  "currency": "CNY | ... | null",\n  "items": [\n    {\n      "name": "基金名称",\n      "amount": number|null,\n      "dayChangePct": number|null,\n      "dayGain": number|null,\n      "nav": number|null,\n      "shares": number|null,\n      "codeHint": "可能的代码或缩写|null"\n    }\n  ],\n  "warnings": ["..."]\n}\n3) 金额单位以截图为准，百分比输出为数值（例如 -1.23 表示 -1.23%）。\n4) 若字段缺失请填 null，不要猜测。\n5) 如果识别不到任何基金，items 为空数组。\n6) source 写明截图来源应用名称（如支付宝/天天基金/蚂蚁财富/未知）。`;
+const SYSTEM_PROMPT = `你是一个金融基金持仓截图识别器。此截图来自“支付宝-基金-持有”列表。请逐行提取基金条目字段，并返回严格 JSON。\n\n字段语义（按支付宝持有列表）：\n- name: 基金名称（如“前海开源金银珠宝混合C”）\n- amount: 持有金额（列名“金额/昨日收益”的大号数值）\n- dayGain: 昨日收益（列名“金额/昨日收益”的小号红绿数字）\n- holdingGain: 持有收益（列名“持有收益/率”的大号红绿数字）\n- holdingGainPct: 持有收益率（列名“持有收益/率”的百分比）\n\n要求：\n1) 只输出 JSON，不要 markdown，不要解释文字。\n2) JSON 结构如下：\n{\n  "source": "Alipay",\n  "asOfDate": "YYYY-MM-DD | null",\n  "currency": "CNY | null",\n  "items": [\n    {\n      "name": "基金名称",\n      "amount": number|null,\n      "dayGain": number|null,\n      "holdingGain": number|null,\n      "holdingGainPct": number|null,\n      "codeHint": "可能的代码或缩写|null"\n    }\n  ],\n  "warnings": ["..."]\n}\n3) 金额单位以截图为准，百分比输出为数值（例如 -1.72 表示 -1.72%）。\n4) 若字段缺失请填 null，不要猜测。\n5) 如果识别不到任何基金，items 为空数组。\n6) source 固定填 "Alipay"。`;
 
 const normalizeNumber = (val: any) => {
   if (val === null || val === undefined || val === '') return undefined;
@@ -41,10 +40,9 @@ export const parseOcrResult = (raw: string): OcrResult | null => {
       items: data.items.map((item: any) => ({
         name: String(item.name || '').trim(),
         amount: normalizeNumber(item.amount),
-        dayChangePct: normalizeNumber(item.dayChangePct),
         dayGain: normalizeNumber(item.dayGain),
-        nav: normalizeNumber(item.nav),
-        shares: normalizeNumber(item.shares),
+        holdingGain: normalizeNumber(item.holdingGain),
+        holdingGainPct: normalizeNumber(item.holdingGainPct),
         codeHint: item.codeHint ? String(item.codeHint) : undefined,
       })).filter((item: OcrHoldingItem) => item.name),
       warnings: Array.isArray(data.warnings) ? data.warnings.map((w: any) => String(w)) : undefined,

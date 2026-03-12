@@ -25,7 +25,7 @@ const defaultSettings = {
     openaiApiKey: '',
     openaiModel: 'gpt-4o-mini',
     geminiApiKey: '',
-    geminiModel: 'gemini-2.0-flash',
+    geminiModel: 'gemini-3.1-flash-lite-preview',
 };
 
 const SettingsContext = createContext<SettingsContextValue>({

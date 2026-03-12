@@ -16,10 +16,9 @@ type ReviewItem = {
     id: string;
     name: string;
     amount?: number;
-    dayChangePct?: number;
     dayGain?: number;
-    nav?: number;
-    shares?: number;
+    holdingGain?: number;
+    holdingGainPct?: number;
     codeHint?: string;
     matchedCode?: string;
     matchedName?: string;
@@ -140,10 +139,9 @@ export const ScannerModal: React.FC<ScannerModalProps> = ({ isOpen, onClose }) =
                 id: `${Date.now()}_${idx}`,
                 name: item.name,
                 amount: item.amount,
-                dayChangePct: item.dayChangePct,
                 dayGain: item.dayGain,
-                nav: item.nav,
-                shares: item.shares,
+                holdingGain: item.holdingGain,
+                holdingGainPct: item.holdingGainPct,
                 codeHint: item.codeHint,
             }));
 
@@ -203,16 +201,18 @@ export const ScannerModal: React.FC<ScannerModalProps> = ({ isOpen, onClose }) =
             if (existing && decision === 'keep') continue;
 
             const navJson = await fetchFundCommonData(code);
-            const currentNav = navJson?.data?.nav || item.nav || 0;
+            const currentNav = navJson?.data?.nav || 0;
             const navDate = navJson?.data?.navDate || getLocalDateString();
-            const navChangePct = navJson?.data?.navChangePercent || item.dayChangePct || 0;
+            const navChangePct = navJson?.data?.navChangePercent || 0;
 
             const amount = item.amount || 0;
-            const shares = item.shares || (currentNav ? amount / currentNav : 0);
-            const costPrice = currentNav || (shares ? amount / shares : 0);
+            const shares = currentNav ? amount / currentNav : 0;
+            const holdingGain = item.holdingGain ?? undefined;
+            const totalCost = holdingGain !== undefined ? (amount - holdingGain) : amount;
+            const costPrice = shares > 0 ? (totalCost / shares) : (currentNav || 0);
 
             const mktVal = shares * currentNav;
-            const dayChangeVal = mktVal * (navChangePct / 100) / (1 + navChangePct / 100);
+            const dayChangeVal = item.dayGain ?? (navChangePct ? (mktVal * (navChangePct / 100) / (1 + navChangePct / 100)) : 0);
 
             const payload: Fund = {
                 code,
@@ -338,21 +338,21 @@ export const ScannerModal: React.FC<ScannerModalProps> = ({ isOpen, onClose }) =
                                                     className="px-2 py-1 border border-gray-200 dark:border-gray-700 rounded bg-white dark:bg-white/5"
                                                 />
                                                 <input
-                                                    value={item.dayChangePct ?? ''}
-                                                    onChange={(e) => updateReviewItem(item.id, { dayChangePct: parseNumInput(e.target.value) })}
-                                                    placeholder={t('common.dayChgPct') || '日涨幅%'}
-                                                    className="px-2 py-1 border border-gray-200 dark:border-gray-700 rounded bg-white dark:bg-white/5"
-                                                />
-                                                <input
                                                     value={item.dayGain ?? ''}
                                                     onChange={(e) => updateReviewItem(item.id, { dayGain: parseNumInput(e.target.value) })}
                                                     placeholder={t('common.dayGain') || '昨日收益'}
                                                     className="px-2 py-1 border border-gray-200 dark:border-gray-700 rounded bg-white dark:bg-white/5"
                                                 />
                                                 <input
-                                                    value={item.nav ?? ''}
-                                                    onChange={(e) => updateReviewItem(item.id, { nav: parseNumInput(e.target.value) })}
-                                                    placeholder={t('common.nav') || '净值'}
+                                                    value={item.holdingGain ?? ''}
+                                                    onChange={(e) => updateReviewItem(item.id, { holdingGain: parseNumInput(e.target.value) })}
+                                                    placeholder={t('common.totalGain') || '持有收益'}
+                                                    className="px-2 py-1 border border-gray-200 dark:border-gray-700 rounded bg-white dark:bg-white/5"
+                                                />
+                                                <input
+                                                    value={item.holdingGainPct ?? ''}
+                                                    onChange={(e) => updateReviewItem(item.id, { holdingGainPct: parseNumInput(e.target.value) })}
+                                                    placeholder={t('common.totalGainPct') || '持有收益率%'}
                                                     className="px-2 py-1 border border-gray-200 dark:border-gray-700 rounded bg-white dark:bg-white/5"
                                                 />
                                             </div>
