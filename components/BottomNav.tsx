@@ -16,8 +16,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, onTabChange }) 
     { id: 'watchlist', label: t('common.watchlist'), icon: Icons.User },
     { id: 'market', label: t('common.market'), icon: Icons.Chart },
     { id: 'news', label: t('common.news'), icon: Icons.News },
-    { id: 'member', label: t('common.member'), icon: Icons.Member },
-    { id: 'me', label: t('common.me'), icon: Icons.User },
+    { id: 'settings', label: t('common.settings'), icon: Icons.Settings },
   ];
 
   return (

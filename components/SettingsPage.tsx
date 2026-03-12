@@ -7,7 +7,7 @@ import { exportFunds, importFunds } from '../services/db';
 import { listGeminiModels, listOpenAiModels } from '../services/aiOcr';
 
 interface SettingsPageProps {
-    onBack: () => void;
+    onBack?: () => void;
     initialShowAiSettings?: boolean;
 }
 
@@ -252,12 +252,14 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack, initialShowA
         <div className="min-h-[60vh] pb-24">
             {/* 标题栏 */}
             <div className="flex items-center gap-3 px-4 py-3">
-                <button
-                    onClick={onBack}
-                    className="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
-                >
-                    <Icons.ArrowUp size={20} className="text-gray-600 dark:text-gray-300 -rotate-90" />
-                </button>
+                {onBack && (
+                    <button
+                        onClick={onBack}
+                        className="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
+                    >
+                        <Icons.ArrowUp size={20} className="text-gray-600 dark:text-gray-300 -rotate-90" />
+                    </button>
+                )}
                 <h2 className="text-base font-bold text-gray-800 dark:text-gray-100">{t('common.settings')}</h2>
             </div>
 

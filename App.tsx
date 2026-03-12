@@ -5,7 +5,7 @@ import { Dashboard } from './components/Dashboard';
 import { Watchlist } from './components/Watchlist';
 import { Ticker } from './components/Ticker';
 import { ScannerModal } from './components/ScannerModal';
-import { MePage } from './components/MePage';
+import { SettingsPage } from './components/SettingsPage';
 import { WelcomeModal } from './components/WelcomeModal';
 import { TabType } from './types';
 import { Icons } from './components/Icon';
@@ -25,11 +25,10 @@ const AppContent: React.FC = () => {
         return <Dashboard />;
       case 'watchlist':
         return <Watchlist />;
-      case 'me':
+      case 'settings':
         return (
-          <MePage
-            openAiSettings={openAiSettingsRequested}
-            onAiSettingsConsumed={() => setOpenAiSettingsRequested(false)}
+          <SettingsPage
+            initialShowAiSettings={openAiSettingsRequested}
           />
         );
       default:
@@ -50,10 +49,10 @@ const AppContent: React.FC = () => {
 
   useEffect(() => {
     const scannerHandler = () => setIsScannerOpen(true);
-    const settingsHandler = () => setActiveTab('me');
+    const settingsHandler = () => setActiveTab('settings');
     const aiSettingsHandler = () => {
       setOpenAiSettingsRequested(true);
-      setActiveTab('me');
+      setActiveTab('settings');
     };
     window.addEventListener('open-scanner', scannerHandler as EventListener);
     window.addEventListener('open-settings', settingsHandler as EventListener);
@@ -74,7 +73,15 @@ const AppContent: React.FC = () => {
       </main>
 
       <Ticker />
-      <BottomNav activeTab={activeTab} onTabChange={setActiveTab} />
+      <BottomNav
+        activeTab={activeTab}
+        onTabChange={(tab) => {
+          if (tab !== 'settings') {
+            setOpenAiSettingsRequested(false);
+          }
+          setActiveTab(tab);
+        }}
+      />
 
       <ScannerModal isOpen={isScannerOpen} onClose={() => setIsScannerOpen(false)} />
       <WelcomeModal />
