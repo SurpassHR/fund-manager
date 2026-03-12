@@ -30,6 +30,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack }) => {
         setGeminiModel,
     } = useSettings();
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const [showAiSettings, setShowAiSettings] = useState(false);
     const [openaiModels, setOpenaiModels] = useState<string[]>([]);
     const [geminiModels, setGeminiModels] = useState<string[]>([]);
     const [openaiLoading, setOpenaiLoading] = useState(false);
@@ -138,8 +139,110 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack }) => {
         return () => { active = false; };
     }, [geminiApiKey]);
 
+    if (showAiSettings) {
+        return (
+            <div className="min-h-[60vh] pb-24">
+                <div className="flex items-center gap-3 px-4 py-3">
+                    <button
+                        onClick={() => setShowAiSettings(false)}
+                        className="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
+                    >
+                        <Icons.ArrowUp size={20} className="text-gray-600 dark:text-gray-300 -rotate-90" />
+                    </button>
+                    <h2 className="text-base font-bold text-gray-800 dark:text-gray-100">{t('common.aiSettings')}</h2>
+                </div>
+
+                <div className="px-4 mt-2">
+                    <div className="bg-white dark:bg-card-dark rounded-xl overflow-hidden shadow-sm p-4 space-y-4">
+                        <div>
+                            <label className="block text-xs font-bold text-gray-500 mb-1">{t('common.aiProvider') || '模型提供方'}</label>
+                            <select
+                                value={aiProvider}
+                                onChange={(e) => setAiProvider(e.target.value as 'openai' | 'gemini')}
+                                className="w-full p-3 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-white/5 focus:outline-none focus:border-blue-500 text-gray-900 dark:text-gray-100 text-sm"
+                            >
+                                <option value="openai">OpenAI</option>
+                                <option value="gemini">Gemini</option>
+                            </select>
+                        </div>
+
+                        <div className="space-y-2">
+                            <label className="block text-xs font-bold text-gray-500">{t('common.openaiKey') || 'OpenAI API Key'}</label>
+                            <input
+                                type="password"
+                                value={openaiApiKey}
+                                onChange={(e) => setOpenaiApiKey(e.target.value)}
+                                placeholder="sk-..."
+                                className="w-full p-3 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-white/5 focus:outline-none focus:border-blue-500 text-gray-900 dark:text-gray-100 text-sm"
+                            />
+                            <label className="block text-xs font-bold text-gray-500">{t('common.openaiModel') || 'OpenAI 模型'}</label>
+                            <select
+                                value={openaiModel}
+                                onChange={(e) => setOpenaiModel(e.target.value)}
+                                className="w-full p-3 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-white/5 focus:outline-none focus:border-blue-500 text-gray-900 dark:text-gray-100 text-sm"
+                            >
+                                {!openaiApiKey && (
+                                    <option value="">{t('common.modelSelectPlaceholder') || '请先填写 API Key'}</option>
+                                )}
+                                {openaiLoading && (
+                                    <option value="">{t('common.modelLoading') || '模型加载中...'}</option>
+                                )}
+                                {openaiError && !openaiLoading && (
+                                    <option value="">{openaiError}</option>
+                                )}
+                                {openaiModels.map(model => (
+                                    <option key={model} value={model}>{model}</option>
+                                ))}
+                                {!openaiModels.includes(openaiModel) && openaiModel && (
+                                    <option value={openaiModel}>{openaiModel}</option>
+                                )}
+                            </select>
+                        </div>
+
+                        <div className="space-y-2">
+                            <label className="block text-xs font-bold text-gray-500">{t('common.geminiKey') || 'Gemini API Key'}</label>
+                            <input
+                                type="password"
+                                value={geminiApiKey}
+                                onChange={(e) => setGeminiApiKey(e.target.value)}
+                                placeholder="AI..."
+                                className="w-full p-3 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-white/5 focus:outline-none focus:border-blue-500 text-gray-900 dark:text-gray-100 text-sm"
+                            />
+                            <label className="block text-xs font-bold text-gray-500">{t('common.geminiModel') || 'Gemini 模型'}</label>
+                            <select
+                                value={geminiModel}
+                                onChange={(e) => setGeminiModel(e.target.value)}
+                                className="w-full p-3 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-white/5 focus:outline-none focus:border-blue-500 text-gray-900 dark:text-gray-100 text-sm"
+                            >
+                                {!geminiApiKey && (
+                                    <option value="">{t('common.modelSelectPlaceholder') || '请先填写 API Key'}</option>
+                                )}
+                                {geminiLoading && (
+                                    <option value="">{t('common.modelLoading') || '模型加载中...'}</option>
+                                )}
+                                {geminiError && !geminiLoading && (
+                                    <option value="">{geminiError}</option>
+                                )}
+                                {geminiModels.map(model => (
+                                    <option key={model} value={model}>{model}</option>
+                                ))}
+                                {!geminiModels.includes(geminiModel) && geminiModel && (
+                                    <option value={geminiModel}>{geminiModel}</option>
+                                )}
+                            </select>
+                        </div>
+
+                        <p className="text-[10px] text-gray-400">
+                            {t('common.aiPrivacyTip') || '截图仅用于识别，不会保存到服务器。'}
+                        </p>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
     return (
-        <div className="min-h-[60vh]">
+        <div className="min-h-[60vh] pb-24">
             {/* 标题栏 */}
             <div className="flex items-center gap-3 px-4 py-3">
                 <button
@@ -211,93 +314,26 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack }) => {
                 </div>
             </div>
 
-            {/* AI 设置 */}
+            {/* AI 设置入口 */}
             <div className="px-4 mt-6">
                 <div className="text-xs font-bold font-sans text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-2 px-1">
                     {t('common.aiSettings') || 'AI 识别设置'}
                 </div>
-                <div className="bg-white dark:bg-card-dark rounded-xl overflow-hidden shadow-sm p-4 space-y-4">
-                    <div>
-                        <label className="block text-xs font-bold text-gray-500 mb-1">{t('common.aiProvider') || '模型提供方'}</label>
-                        <select
-                            value={aiProvider}
-                            onChange={(e) => setAiProvider(e.target.value as 'openai' | 'gemini')}
-                            className="w-full p-3 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-white/5 focus:outline-none focus:border-blue-500 text-gray-900 dark:text-gray-100 text-sm"
-                        >
-                            <option value="openai">OpenAI</option>
-                            <option value="gemini">Gemini</option>
-                        </select>
-                    </div>
-
-                    <div className="space-y-2">
-                        <label className="block text-xs font-bold text-gray-500">{t('common.openaiKey') || 'OpenAI API Key'}</label>
-                        <input
-                            type="password"
-                            value={openaiApiKey}
-                            onChange={(e) => setOpenaiApiKey(e.target.value)}
-                            placeholder="sk-..."
-                            className="w-full p-3 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-white/5 focus:outline-none focus:border-blue-500 text-gray-900 dark:text-gray-100 text-sm"
-                        />
-                        <label className="block text-xs font-bold text-gray-500">{t('common.openaiModel') || 'OpenAI 模型'}</label>
-                        <select
-                            value={openaiModel}
-                            onChange={(e) => setOpenaiModel(e.target.value)}
-                            className="w-full p-3 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-white/5 focus:outline-none focus:border-blue-500 text-gray-900 dark:text-gray-100 text-sm"
-                        >
-                            {!openaiApiKey && (
-                                <option value="">{t('common.modelSelectPlaceholder') || '请先填写 API Key'}</option>
-                            )}
-                            {openaiLoading && (
-                                <option value="">{t('common.modelLoading') || '模型加载中...'}</option>
-                            )}
-                            {openaiError && !openaiLoading && (
-                                <option value="">{openaiError}</option>
-                            )}
-                            {openaiModels.map(model => (
-                                <option key={model} value={model}>{model}</option>
-                            ))}
-                            {!openaiModels.includes(openaiModel) && openaiModel && (
-                                <option value={openaiModel}>{openaiModel}</option>
-                            )}
-                        </select>
-                    </div>
-
-                    <div className="space-y-2">
-                        <label className="block text-xs font-bold text-gray-500">{t('common.geminiKey') || 'Gemini API Key'}</label>
-                        <input
-                            type="password"
-                            value={geminiApiKey}
-                            onChange={(e) => setGeminiApiKey(e.target.value)}
-                            placeholder="AI..."
-                            className="w-full p-3 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-white/5 focus:outline-none focus:border-blue-500 text-gray-900 dark:text-gray-100 text-sm"
-                        />
-                        <label className="block text-xs font-bold text-gray-500">{t('common.geminiModel') || 'Gemini 模型'}</label>
-                        <select
-                            value={geminiModel}
-                            onChange={(e) => setGeminiModel(e.target.value)}
-                            className="w-full p-3 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-white/5 focus:outline-none focus:border-blue-500 text-gray-900 dark:text-gray-100 text-sm"
-                        >
-                            {!geminiApiKey && (
-                                <option value="">{t('common.modelSelectPlaceholder') || '请先填写 API Key'}</option>
-                            )}
-                            {geminiLoading && (
-                                <option value="">{t('common.modelLoading') || '模型加载中...'}</option>
-                            )}
-                            {geminiError && !geminiLoading && (
-                                <option value="">{geminiError}</option>
-                            )}
-                            {geminiModels.map(model => (
-                                <option key={model} value={model}>{model}</option>
-                            ))}
-                            {!geminiModels.includes(geminiModel) && geminiModel && (
-                                <option value={geminiModel}>{geminiModel}</option>
-                            )}
-                        </select>
-                    </div>
-
-                    <p className="text-[10px] text-gray-400">
-                        {t('common.aiPrivacyTip') || '截图仅用于识别，不会保存到服务器。'}
-                    </p>
+                <div className="bg-white dark:bg-card-dark rounded-xl overflow-hidden shadow-sm">
+                    <button
+                        onClick={() => setShowAiSettings(true)}
+                        className="w-full flex items-center justify-between px-4 py-3.5 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors"
+                    >
+                        <div className="flex items-center gap-3">
+                            <div className="w-6 flex justify-center text-gray-500 dark:text-gray-400">
+                                <Icons.Settings size={18} />
+                            </div>
+                            <span className="text-sm font-sans text-gray-800 dark:text-gray-100">
+                                {t('common.aiSettingsManage') || '管理 AI 识别设置'}
+                            </span>
+                        </div>
+                        <Icons.ArrowDown size={16} className="text-gray-400 -rotate-90" />
+                    </button>
                 </div>
             </div>
 
