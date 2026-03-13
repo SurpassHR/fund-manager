@@ -241,7 +241,7 @@ export const Watchlist: React.FC = () => {
                                         <span className="text-[10px] px-1 py-0.5 rounded bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 font-sans">
                                             {item.code}
                                         </span>
-                                        <span className={`text-[10px] px-1 py-0.5 rounded font-sans ${item.type === 'index' ? 'bg-purple-100 dark:bg-purple-900/40 text-purple-600 dark:text-purple-400' : 'bg-gray-100 dark:bg-white/10 text-gray-500 dark:text-gray-400'}`}>
+                                        <span className={`text-[10px] px-1 py-0.5 rounded font-sans whitespace-nowrap ${item.type === 'index' ? 'bg-purple-100 dark:bg-purple-900/40 text-purple-600 dark:text-purple-400' : 'bg-gray-100 dark:bg-white/10 text-gray-500 dark:text-gray-400'}`}>
                                             {item.type === 'index' ? t('common.indexBadge') : t('common.fundBadge')}
                                         </span>
                                         <h3 className="text-sm font-medium text-gray-800 dark:text-gray-100 truncate font-sans">{item.name}</h3>

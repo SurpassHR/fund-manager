@@ -242,7 +242,6 @@ export const Dashboard: React.FC = () => {
                 {filterList.map(filterKey => {
                     let label = filterKey;
                     if (filterKey === 'All') label = t('common.all') || 'All';
-                    else if (filterKey === 'Default') label = t('common.defaultAccount') || 'Default';
                     else if (t(`filters.${filterKey}`) !== `filters.${filterKey}`) label = t(`filters.${filterKey}`);
 
                     return (
