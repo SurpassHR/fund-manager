@@ -25,5 +25,12 @@
     },
     "allowImportingTsExtensions": true,
     "noEmit": true
-  }
+  },
+  "exclude": [
+    "**/*.test.ts",
+    "**/*.test.tsx",
+    "setupTests.ts",
+    "node_modules",
+    "dist"
+  ]
 }

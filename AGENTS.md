@@ -2,6 +2,80 @@
 
 This file provides guidance to agents when working with code in this repository.
 
+## Rule Sources
+
+- Cursor rules: none found in `.cursor/rules/` or `.cursorrules`.
+- Copilot rules: none found in `.github/copilot-instructions.md`.
+
+## Build, Lint, Test
+
+- Install: `npm install`
+- Dev server: `npm run dev` (Vite, default http://localhost:3000)
+- Build: `npm run build` (runs `tsc` then `vite build`)
+- Preview build: `npm run preview`
+- Lint all: `npm run lint`
+- Lint + fix: `npm run lint:fix`
+- Lint single file: `npm run lint -- components/Dashboard.tsx`
+- Test all (CI): `npm run test`
+- Test watch (dev): `npm run test:watch`
+- Test UI: `npm run test:ui`
+- Single test file: `npm run test -- components/Watchlist.test.tsx`
+- Single test by name: `npm run test -- -t "renders watchlist"`
+
+Notes:
+
+- Tests use Vitest + React Testing Library + jsdom.
+- Setup file is `setupTests.ts` and it loads `@testing-library/jest-dom`.
+- Test typings are isolated in `tsconfig.test.json`.
+- Add tests as `*.test.ts`/`*.test.tsx` near source files or in `__tests__/`.
+
+## Code Style (Observed + Expected)
+
+- Language: TypeScript + React 19, ES modules.
+- Components are function components using hooks; keep them pure and declarative.
+- Use `React.FC` only if it matches existing patterns in the file.
+- Prefer `const` over `let` unless reassigned; use explicit `return` in early exits.
+- Keep async flows readable; prefer `async/await` with `try/catch` and clear fallbacks.
+- Use `console.error`/`console.warn` with context and fallback behavior, not silent failures.
+- For invalid app state (e.g. missing root element), throw an `Error` early.
+- Use type-only imports where possible; lint warns on mixed value/type imports.
+- Keep types in `types.ts` and reuse them instead of inline `any`.
+- If `any` is needed (3rd-party responses), confine it to parsing boundaries.
+
+Formatting (Prettier enforced):
+
+- Single quotes, semicolons, trailing commas.
+- 2-space indentation.
+- Prefer 100-character line width; wrap JSX props if needed.
+- Keep JSX attributes aligned and readable; avoid deeply nested ternaries.
+
+Imports:
+
+- Group order: React/builtins, third-party, internal absolute (`@/`), then relative.
+- Use relative paths for local siblings as seen in existing files.
+- Keep named imports sorted logically (not necessarily alphabetically).
+
+Naming:
+
+- Components: PascalCase, same as filename.
+- Hooks: `useXxx`.
+- Types/interfaces: PascalCase.
+- Constants: UPPER_SNAKE_CASE only for true constants (API base URLs, etc.).
+- Local variables: camelCase.
+
+Error handling:
+
+- API helpers return `null`/`[]` on failure and log with context.
+- Re-throw only when the caller must handle a fallback (`fetchRealTimeQuotes`).
+- Avoid user-visible errors for background refresh; use graceful degradation.
+
+I18n:
+
+- Use `useTranslation().t("common.xxx")` from `services/i18n.tsx`.
+- Missing keys return the path; language defaults to `zh` with no persistence.
+
+## Domain Rules (Critical)
+
 - EastMoney NAV access must be serialized through the shared queue in `services/api.ts`; only `fetchEastMoneyLatestNav` and `fetchHistoricalFundNav` are safe entry points because they read/write global `window.apidata` via script injection.
 - EastMoney script-injection flow must always remove the injected `<script>` and reset `window.apidata` on both success and error, or stale payload will contaminate later requests.
 - Keep `initPromise`, `refreshPromise`, and `refreshWatchlistPromise` guards in `services/db.ts` to avoid StrictMode double-init and overlapping refresh writes.
@@ -10,6 +84,18 @@ This file provides guidance to agents when working with code in this repository.
 - Pending transactions are settled inside `refreshFundData`; there is no separate background settlement worker.
 - Intraday estimate only runs when market is trading and official NAV is not today, using top-10 holdings real-time quotes.
 - `checkIsMarketTrading` must prefer Tencent index timestamp parsing and only fall back to weekday+09:20 if API parsing fails.
-- I18n is custom in `services/i18n.tsx`: use `useTranslation().t("common.xxx")`; missing keys return the path, and language defaults to `zh` without provider persistence.
-- Vite config injects latest 5 commits into `import.meta.env.VITE_COMMITS_JSON` (optionally Gemini-translated when `GEMINI_API_KEY` exists); `WelcomeModal` uses `VITE_LATEST_COMMIT_HASH` + `localStorage.lastSeenVersion` and ignores malformed commit JSON.
-- Vite runtime assumptions are non-default: base is `/fund-manager/` and Danjuan requests rely on dev proxy `/djapi` with forced `Referer`.
+
+## Vite/Runtime Assumptions
+
+- Vite base is `/fund-manager/` for GitHub Pages.
+- Danjuan requests rely on dev proxy `/djapi` with forced `Referer` header.
+- Vite config injects latest 5 commits into `import.meta.env.VITE_COMMITS_JSON`.
+- Optional Gemini translation happens when `GEMINI_API_KEY` exists.
+- `WelcomeModal` uses `VITE_LATEST_COMMIT_HASH` + `localStorage.lastSeenVersion` and ignores malformed commit JSON.
+
+## Data + Date Handling
+
+- Always prefer local-date helpers for trading/settlement logic.
+- Do not use UTC conversions that can shift dates across boundaries.
+- Day gain is driven by `effectivePctDate` and is zeroed pre-cost date.
+- Pending transactions settle during `refreshFundData` refresh only.
