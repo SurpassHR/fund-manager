@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, initDB, calculateSummary, refreshFundData } from '../services/db';
 import { formatCurrency, formatSignedCurrency, getSignColor, formatPct } from '../services/financeUtils';
 import { Icons } from './Icon';
 import { useTranslation } from '../services/i18n';
+import { HoldingsSnapshot } from '../services/aiAnalysis';
 import { AccountManagerModal } from './AccountManagerModal';
 import { AddFundModal } from './AddFundModal';
 import { AdjustPositionModal } from './AdjustPositionModal';
@@ -12,12 +13,14 @@ import { FundDetail } from './FundDetail';
 import { Fund } from '../types';
 import { AnimatePresence } from 'framer-motion';
 import { useSettings } from '../services/SettingsContext';
+import { AiHoldingsAnalysisModal } from './AiHoldingsAnalysisModal';
 
 export const Dashboard: React.FC = () => {
     const funds = useLiveQuery(() => db.funds.toArray());
     const accounts = useLiveQuery(() => db.accounts.toArray());
     const [activeFilter, setActiveFilter] = useState('All');
     const [showValues, setShowValues] = useState(true);
+    const [isAiAnalysisOpen, setIsAiAnalysisOpen] = useState(false);
     const { autoRefresh } = useSettings();
 
     // Refresh mechanism state
@@ -41,6 +44,58 @@ export const Dashboard: React.FC = () => {
     const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const { t } = useTranslation();
+
+    const getLocalDateString = () => {
+        const d = new Date();
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    };
+
+    const holdingsSnapshot = useMemo<HoldingsSnapshot | null>(() => {
+        if (!funds) return null;
+        const summary = calculateSummary(funds);
+        const latestDateStr = funds.reduce((max, fund) => {
+            if (!fund.lastUpdate) return max;
+            return fund.lastUpdate > max ? fund.lastUpdate : max;
+        }, '');
+        const asOf = latestDateStr || getLocalDateString();
+        const holdings = funds.map((fund) => {
+            const marketValue = fund.holdingShares * fund.currentNav;
+            const totalCost = fund.holdingShares * fund.costPrice;
+            const totalGain = marketValue - totalCost;
+            const totalGainPct = totalCost > 0 ? (totalGain / totalCost) * 100 : 0;
+            return {
+                code: fund.code,
+                name: fund.name,
+                platform: fund.platform,
+                holdingShares: fund.holdingShares,
+                costPrice: fund.costPrice,
+                currentNav: fund.currentNav,
+                marketValue,
+                totalCost,
+                totalGain,
+                totalGainPct,
+                dayChangePct: fund.dayChangePct,
+                dayChangeVal: fund.dayChangeVal,
+                lastUpdate: fund.lastUpdate,
+                buyDate: fund.buyDate,
+                buyTime: fund.buyTime,
+                settlementDays: fund.settlementDays,
+            };
+        });
+        return {
+            asOf,
+            currency: 'CNY',
+            totalAssets: summary.totalAssets,
+            totalDayGain: summary.totalDayGain,
+            totalDayGainPct: summary.totalDayGainPct,
+            holdingGain: summary.holdingGain,
+            holdingGainPct: summary.holdingGainPct,
+            holdings,
+        };
+    }, [funds]);
 
     useEffect(() => {
         initDB();
@@ -485,6 +540,28 @@ export const Dashboard: React.FC = () => {
                 </button>
             </div>
 
+            <div className="px-4 pt-4">
+                <button
+                    onClick={() => setIsAiAnalysisOpen(true)}
+                    className="w-full flex items-center justify-between px-4 py-4 bg-white dark:bg-card-dark rounded-xl shadow-sm hover:bg-gray-50 dark:hover:bg-white/5 transition-colors"
+                >
+                    <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center">
+                            <Icons.Chat size={18} className="text-blue-600 dark:text-blue-300" />
+                        </div>
+                        <div className="flex flex-col items-start">
+                            <span className="text-sm font-medium text-gray-800 dark:text-gray-100">
+                                {t('common.aiHoldingAnalysis') || 'AI 持仓分析'}
+                            </span>
+                            <span className="text-xs text-gray-400">
+                                {t('common.aiHoldingAnalysisDesc') || '一键分析持仓表现与风险'}
+                            </span>
+                        </div>
+                    </div>
+                    <Icons.ArrowUp size={16} className="text-gray-400 rotate-90" />
+                </button>
+            </div>
+
             <AccountManagerModal
                 isOpen={isAccountManagerOpen}
                 onClose={() => setIsAccountManagerOpen(false)}
@@ -508,6 +585,11 @@ export const Dashboard: React.FC = () => {
                     fund={historyFund}
                 />
             )}
+            <AiHoldingsAnalysisModal
+                isOpen={isAiAnalysisOpen}
+                onClose={() => setIsAiAnalysisOpen(false)}
+                holdingsSnapshot={holdingsSnapshot}
+            />
         </div>
     );
 };

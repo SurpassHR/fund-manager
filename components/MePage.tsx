@@ -51,7 +51,7 @@ export const MePage: React.FC<MePageProps> = ({ openAiSettings, onAiSettingsCons
     }
 
     return (
-        <div className="min-h-[60vh] pt-4 px-4">
+        <div className="min-h-[60vh] pt-4 px-4 space-y-4">
             {/* 设置入口 */}
             <div className="bg-white dark:bg-card-dark rounded-xl overflow-hidden shadow-sm">
                 <button

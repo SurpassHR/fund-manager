@@ -14,3 +14,67 @@
 
 /* 暗色模式全局样式 */
 @variant dark (&:where(.dark, .dark *));
+
+.markdown-body {
+  font-size: 0.875rem;
+  line-height: 1.6;
+  word-break: break-word;
+}
+
+.markdown-body p {
+  margin: 0;
+}
+
+.markdown-body p + p {
+  margin-top: 0.5rem;
+}
+
+.markdown-body ul,
+.markdown-body ol {
+  margin: 0.5rem 0 0.5rem 1.25rem;
+  padding: 0;
+}
+
+.markdown-body li {
+  margin: 0.25rem 0;
+}
+
+.markdown-body a {
+  color: #2563eb;
+  text-decoration: underline;
+}
+
+.markdown-body strong {
+  font-weight: 600;
+}
+
+.markdown-body code {
+  background: rgba(0, 0, 0, 0.06);
+  padding: 0.1rem 0.25rem;
+  border-radius: 0.25rem;
+  font-size: 0.85em;
+}
+
+.markdown-body pre {
+  background: rgba(0, 0, 0, 0.06);
+  padding: 0.75rem;
+  border-radius: 0.5rem;
+  overflow-x: auto;
+}
+
+.markdown-body pre code {
+  background: transparent;
+  padding: 0;
+}
+
+.markdown-body h1,
+.markdown-body h2,
+.markdown-body h3 {
+  font-weight: 600;
+  margin: 0.6rem 0 0.4rem;
+}
+
+.dark .markdown-body code,
+.dark .markdown-body pre {
+  background: rgba(255, 255, 255, 0.08);
+}

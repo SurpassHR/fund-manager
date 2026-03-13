@@ -1,8 +1,7 @@
 # Project Debug Rules (Non-Obvious Only)
 
-- If EastMoney fund NAV/history intermittently returns wrong rows or empty data, inspect queue serialization first: concurrent script injection corrupts shared `window.apidata` state.
-- In EastMoney failure paths, verify both cleanup steps executed (`removeChild(script)` and `window.apidata = undefined`); missing either often causes next request contamination rather than immediate crash.
-- For "today gain" anomalies, check `effectivePctDate` vs computed cost date first; rule intentionally zeroes day gain when `effectivePctDate <= costDate`.
-- Debug market-open behavior via Tencent quote field parsing in `checkIsMarketTrading`; weekday+09:20 logic is fallback only when API parse fails.
-- For stale/duplicated refresh symptoms, confirm `refreshPromise` and `refreshWatchlistPromise` are intact and not bypassed by parallel callers.
-- Pending buy/sell state transitions are applied only in `refreshFundData`; if settlement appears stuck, debug refresh pipeline execution instead of searching for an external scheduler.
+- EastMoney NAV/history issues: first check queue serialization and script cleanup (`removeChild` + `window.apidata = undefined`); concurrent injections or missing cleanup contaminate later requests.
+- Today gain anomalies: verify `effectivePctDate` vs cost date gate (`effectivePctDate <= costDateStr` => day gain forced to 0).
+- Market-open detection: `checkIsMarketTrading` should parse Tencent index timestamp; weekday+09:20 is fallback on API parse failure.
+- Stale/duplicated refresh: confirm `initPromise`, `refreshPromise`, `refreshWatchlistPromise` guards aren't bypassed.
+- Settlement issues: pending transactions settle inside `refreshFundData`, not a separate scheduler.
