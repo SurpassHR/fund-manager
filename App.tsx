@@ -7,7 +7,7 @@ import { Ticker } from './components/Ticker';
 import { ScannerModal } from './components/ScannerModal';
 import { SettingsPage } from './components/SettingsPage';
 import { WelcomeModal } from './components/WelcomeModal';
-import { TabType } from './types';
+import type { TabType } from './types';
 import { Icons } from './components/Icon';
 import { LanguageProvider, useTranslation } from './services/i18n';
 import { ThemeProvider } from './services/ThemeContext';
@@ -26,11 +26,7 @@ const AppContent: React.FC = () => {
       case 'watchlist':
         return <Watchlist />;
       case 'settings':
-        return (
-          <SettingsPage
-            initialShowAiSettings={openAiSettingsRequested}
-          />
-        );
+        return <SettingsPage initialShowAiSettings={openAiSettingsRequested} />;
       default:
         return (
           <div className="flex flex-col items-center justify-center min-h-[60vh] text-gray-400 gap-4">
@@ -66,7 +62,7 @@ const AppContent: React.FC = () => {
 
   return (
     <div className="bg-app-bg dark:bg-app-bg-dark min-h-screen font-sans text-gray-900 dark:text-gray-100 relative flex flex-col transition-colors">
-      <Header title={t('common.appTitle') || "XiaoHuYangJi"} />
+      <Header title={t('common.appTitle') || 'XiaoHuYangJi'} />
 
       <main className="flex-grow w-full max-w-7xl mx-auto md:px-4 lg:px-8 relative">
         {renderTabContent()}

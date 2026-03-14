@@ -1,988 +1,1147 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
-import { Fund, FundPerformanceResponse, FundCommonDataResponse, FundHoldingsResponse, EquityHolding, MorningstarGrowthDataResponse, DanjuanGrowthDataResponse } from '../types';
+import type {
+  Fund,
+  FundPerformanceResponse,
+  FundCommonDataResponse,
+  EquityHolding,
+  MorningstarGrowthDataResponse,
+  DanjuanGrowthDataResponse,
+} from '../types';
 import { Icons } from './Icon';
-import { formatCurrency, formatPct, getSignColor, formatSignedCurrency } from '../services/financeUtils';
+import { formatPct, getSignColor, formatSignedCurrency } from '../services/financeUtils';
 import { useTranslation } from '../services/i18n';
 import { useTheme } from '../services/ThemeContext';
+import {
+  buildTencentQuoteCodes,
+  fetchFundCommonData,
+  fetchFundHoldings,
+  fetchFundPerformance,
+  fetchTencentStockQuotes,
+} from '../services/api';
 import * as echarts from 'echarts';
 import { motion } from 'framer-motion';
 
 interface FundDetailProps {
-    fund: Fund;
-    anchorDate?: string;
-    anchorPrice?: number;
-    onBack: () => void;
+  fund: Fund;
+  anchorDate?: string;
+  anchorPrice?: number;
+  onBack: () => void;
 }
 
 type TimeRange = '1M' | '3M' | '6M' | '1Y' | '3Y' | '5Y';
 
 type GrowthSeriesData = {
-    dates: string[];
-    fund: number[];
-    avg: number[];
-    bmk: number[];
+  dates: string[];
+  fund: number[];
+  avg: number[];
+  bmk: number[];
+};
+
+type TooltipSeriesParam = {
+  axisValue: string;
+  seriesName: string;
+  value: number | null;
+  color?: string;
+};
+
+type MarkPointDatum = {
+  name: string;
+  coord: [string, number | null];
+  symbol?: string;
+  symbolSize?: number;
+  symbolRotate?: number;
+  itemStyle?: { color: string };
+  label?: {
+    show: boolean;
+    formatter?: string;
+    color?: string;
+    fontSize?: number;
+    fontWeight?: 'normal' | 'bold' | 'bolder' | 'lighter' | number;
+  };
 };
 
 interface GrowthDataCacheRecord {
-    data: GrowthSeriesData;
-    cacheDate: string;
-    updatedAt: number;
+  data: GrowthSeriesData;
+  cacheDate: string;
+  updatedAt: number;
 }
 
 const GROWTH_DATA_CACHE_PREFIX = 'growth_data_cache_v1';
 
 // 回退计算上一个交易日（仅跳过周末，不调用外部假日 API）
 const getLastWeekday = (): string => {
-    const d = new Date();
+  const d = new Date();
+  d.setDate(d.getDate() - 1);
+  while (d.getDay() === 0 || d.getDay() === 6) {
     d.setDate(d.getDate() - 1);
-    while (d.getDay() === 0 || d.getDay() === 6) {
-        d.setDate(d.getDate() - 1);
-    }
-    const year = d.getFullYear();
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const date = String(d.getDate()).padStart(2, '0');
-    return `${year}-${month}-${date}`;
+  }
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const date = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${date}`;
 };
 
 const getLocalDateString = (): string => {
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    const day = String(now.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 };
+
+const normalizeTicker = (ticker?: string) => (ticker ? ticker.replace(/\D/g, '') : '');
 
 // Calculate Start Date based on Range and End Date
 const getStartDate = (range: TimeRange, endDateStr: string): string => {
-    // Parse as UTC (YYYY-MM-DD is UTC by default in Date constructor)
-    const d = new Date(endDateStr);
+  // Parse as UTC (YYYY-MM-DD is UTC by default in Date constructor)
+  const d = new Date(endDateStr);
 
-    // Use UTC methods to ensure we stay on the correct calendar day regardless of local timezone
-    switch (range) {
-        case '1M': d.setUTCMonth(d.getUTCMonth() - 1); break;
-        case '3M': d.setUTCMonth(d.getUTCMonth() - 3); break;
-        case '6M': d.setUTCMonth(d.getUTCMonth() - 6); break;
-        case '1Y': d.setUTCFullYear(d.getUTCFullYear() - 1); break;
-        case '3Y': d.setUTCFullYear(d.getUTCFullYear() - 3); break;
-        case '5Y': d.setUTCFullYear(d.getUTCFullYear() - 5); break;
-    }
+  // Use UTC methods to ensure we stay on the correct calendar day regardless of local timezone
+  switch (range) {
+    case '1M':
+      d.setUTCMonth(d.getUTCMonth() - 1);
+      break;
+    case '3M':
+      d.setUTCMonth(d.getUTCMonth() - 3);
+      break;
+    case '6M':
+      d.setUTCMonth(d.getUTCMonth() - 6);
+      break;
+    case '1Y':
+      d.setUTCFullYear(d.getUTCFullYear() - 1);
+      break;
+    case '3Y':
+      d.setUTCFullYear(d.getUTCFullYear() - 3);
+      break;
+    case '5Y':
+      d.setUTCFullYear(d.getUTCFullYear() - 5);
+      break;
+  }
 
-    // ISO string is always UTC, which matches our YYYY-MM-DD need
-    return d.toISOString().split('T')[0];
+  // ISO string is always UTC, which matches our YYYY-MM-DD need
+  return d.toISOString().split('T')[0];
 };
 
 const buildGrowthCacheKey = (fundCode: string, range: TimeRange, endDate: string) => {
-    const params = {
-        growthDataPoint: 'cumulativeReturn',
-        freq: '1d',
-        type: 'return',
-        range,
-        endDate,
-    };
-    return `${GROWTH_DATA_CACHE_PREFIX}:${fundCode}:${JSON.stringify(params)}`;
+  const params = {
+    growthDataPoint: 'cumulativeReturn',
+    freq: '1d',
+    type: 'return',
+    range,
+    endDate,
+  };
+  return `${GROWTH_DATA_CACHE_PREFIX}:${fundCode}:${JSON.stringify(params)}`;
 };
 
 const readGrowthCache = (cacheKey: string): GrowthDataCacheRecord | null => {
-    try {
-        const raw = localStorage.getItem(cacheKey);
-        if (!raw) return null;
-        const parsed = JSON.parse(raw) as GrowthDataCacheRecord;
-        if (!parsed?.data?.dates || !parsed?.data?.fund || !parsed?.cacheDate) return null;
-        return parsed;
-    } catch {
-        return null;
-    }
+  try {
+    const raw = localStorage.getItem(cacheKey);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as GrowthDataCacheRecord;
+    if (!parsed?.data?.dates || !parsed?.data?.fund || !parsed?.cacheDate) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
 };
 
 const writeGrowthCache = (cacheKey: string, data: GrowthSeriesData, cacheDate: string) => {
-    try {
-        const record: GrowthDataCacheRecord = {
-            data,
-            cacheDate,
-            updatedAt: Date.now(),
-        };
-        localStorage.setItem(cacheKey, JSON.stringify(record));
-    } catch {
-        // localStorage 不可用或写满时静默降级
-    }
+  try {
+    const record: GrowthDataCacheRecord = {
+      data,
+      cacheDate,
+      updatedAt: Date.now(),
+    };
+    localStorage.setItem(cacheKey, JSON.stringify(record));
+  } catch {
+    // localStorage 不可用或写满时静默降级
+  }
 };
 
 const cloneSeriesData = (data: GrowthSeriesData): GrowthSeriesData => ({
-    dates: [...data.dates],
-    fund: [...data.fund],
-    avg: [...data.avg],
-    bmk: [...data.bmk],
+  dates: [...data.dates],
+  fund: [...data.fund],
+  avg: [...data.avg],
+  bmk: [...data.bmk],
 });
 
 // 历史序列可按天缓存；当天段每次根据实时 dayChangePct 重新覆盖，避免“冻结”
-const withTodayEstimate = (series: GrowthSeriesData, dayChangePct: number | undefined): GrowthSeriesData => {
-    const next = cloneSeriesData(series);
-    if (dayChangePct == null || next.dates.length === 0) return next;
+const withTodayEstimate = (
+  series: GrowthSeriesData,
+  dayChangePct: number | undefined,
+): GrowthSeriesData => {
+  const next = cloneSeriesData(series);
+  if (dayChangePct == null || next.dates.length === 0) return next;
 
-    const now = new Date();
-    const dow = now.getDay();
-    const isWeekday = dow >= 1 && dow <= 5;
-    if (!isWeekday) return next;
+  const now = new Date();
+  const dow = now.getDay();
+  const isWeekday = dow >= 1 && dow <= 5;
+  if (!isWeekday) return next;
 
-    const todayStr = getLocalDateString();
-    const lastDate = next.dates[next.dates.length - 1];
+  const todayStr = getLocalDateString();
+  const lastDate = next.dates[next.dates.length - 1];
 
-    if (lastDate === todayStr) {
-        const prevCumReturn = next.fund.length >= 2 ? (next.fund[next.fund.length - 2] ?? 0) : 0;
-        next.fund[next.fund.length - 1] = prevCumReturn + dayChangePct;
-    } else if (lastDate && todayStr > lastDate) {
-        const prevCumReturn = next.fund[next.fund.length - 1] ?? 0;
-        next.dates.push(todayStr);
-        next.fund.push(prevCumReturn + dayChangePct);
-        next.avg.push(next.avg[next.avg.length - 1] ?? 0);
-        next.bmk.push(next.bmk[next.bmk.length - 1] ?? 0);
-    }
+  if (lastDate === todayStr) {
+    const prevCumReturn = next.fund.length >= 2 ? (next.fund[next.fund.length - 2] ?? 0) : 0;
+    next.fund[next.fund.length - 1] = prevCumReturn + dayChangePct;
+  } else if (lastDate && todayStr > lastDate) {
+    const prevCumReturn = next.fund[next.fund.length - 1] ?? 0;
+    next.dates.push(todayStr);
+    next.fund.push(prevCumReturn + dayChangePct);
+    next.avg.push(next.avg[next.avg.length - 1] ?? 0);
+    next.bmk.push(next.bmk[next.bmk.length - 1] ?? 0);
+  }
 
-    return next;
+  return next;
 };
 
-export const FundDetail: React.FC<FundDetailProps> = ({ fund, anchorDate, anchorPrice, onBack }) => {
-    const { t } = useTranslation();
-    const { theme } = useTheme();
-    const isDark = theme === 'dark';
+export const FundDetail: React.FC<FundDetailProps> = ({
+  fund,
+  anchorDate,
+  anchorPrice,
+  onBack,
+}) => {
+  const { t } = useTranslation();
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
 
-    // Data States
-    const [data, setData] = useState<FundPerformanceResponse['data'] | null>(null);
-    const [commonData, setCommonData] = useState<FundCommonDataResponse['data'] | null>(null);
-    const [holdings, setHoldings] = useState<EquityHolding[]>([]);
-    const [quotes, setQuotes] = useState<Record<string, { price: string; pct: number }>>({});
+  // Data States
+  const [data, setData] = useState<FundPerformanceResponse['data'] | null>(null);
+  const [commonData, setCommonData] = useState<FundCommonDataResponse['data'] | null>(null);
+  const [holdings, setHoldings] = useState<EquityHolding[]>([]);
+  const [quotes, setQuotes] = useState<Record<string, { price: string; pct: number }>>({});
 
-    // State for the verified last trading day (for header and API queries)
-    const [lastTradingDay, setLastTradingDay] = useState<string>('');
+  // State for the verified last trading day (for header and API queries)
+  const [lastTradingDay, setLastTradingDay] = useState<string>('');
 
-    // Chart State
-    const [timeRange, setTimeRange] = useState<TimeRange>('1M');
-    const [chartReady, setChartReady] = useState(false);
-    const chartRef = useRef<HTMLDivElement>(null);
-    const chartInstance = useRef<echarts.ECharts | null>(null);
+  // Chart State
+  const [timeRange, setTimeRange] = useState<TimeRange>('1M');
+  const [chartReady, setChartReady] = useState(false);
+  const chartRef = useRef<HTMLDivElement>(null);
+  const chartInstance = useRef<echarts.ECharts | null>(null);
 
-    // History Expansion State
-    const [showAllHistory, setShowAllHistory] = useState(false);
+  // History Expansion State
+  const [showAllHistory, setShowAllHistory] = useState(false);
 
-    // Real Chart Data from API
-    const [chartSeriesData, setChartSeriesData] = useState<GrowthSeriesData | null>(null);
-    const [chartLoading, setChartLoading] = useState(false);
+  // Real Chart Data from API
+  const [chartSeriesData, setChartSeriesData] = useState<GrowthSeriesData | null>(null);
+  const [chartLoading, setChartLoading] = useState(false);
 
-    useEffect(() => {
-        // Reduced timeout to optimize perceived speed while allowing transition
-        const timer = setTimeout(() => {
-            setChartReady(true);
-        }, 50);
-        return () => clearTimeout(timer);
-    }, []);
+  useEffect(() => {
+    // Reduced timeout to optimize perceived speed while allowing transition
+    const timer = setTimeout(() => {
+      setChartReady(true);
+    }, 50);
+    return () => clearTimeout(timer);
+  }, []);
 
-    // 1. Fetch Common Data (NAV, Date, etc.) - The Authoritative Source
-    useEffect(() => {
-        const fetchCommon = async () => {
-            try {
-                const response = await fetch(`https://www.morningstar.cn/cn-api/v2/funds/${fund.code}/common-data`);
-                if (!response.ok) throw new Error('Failed to fetch common data');
-                const json: FundCommonDataResponse = await response.json();
-                if (json.data) {
-                    setCommonData(json.data);
-                    // Use the API's NAV date as the last trading day for charts
-                    if (json.data.navDate) {
-                        setLastTradingDay(json.data.navDate);
-                    }
-                }
-            } catch (err) {
-                console.error("Common Data Fetch Error", err);
-            }
+  // 1. Fetch Common Data (NAV, Date, etc.) - The Authoritative Source
+  useEffect(() => {
+    const fetchCommon = async () => {
+      try {
+        const json = await fetchFundCommonData(fund.code);
+        if (json?.data) {
+          setCommonData(json.data);
+          if (json.data.navDate) {
+            setLastTradingDay(json.data.navDate);
+          }
+        }
+      } catch (err) {
+        console.error('Common Data Fetch Error', err);
+      }
+    };
+    fetchCommon();
+  }, [fund.code]);
+
+  // 2. Resolve Verified Last Trading Day (Fallback Logic)
+  // Only runs if commonData fetch failed or didn't provide a date
+  useEffect(() => {
+    if (lastTradingDay) return;
+
+    if (data?.dayEnd?.endDate) {
+      setLastTradingDay(data.dayEnd.endDate);
+      return;
+    }
+
+    // 回退：跳过周末取最近工作日
+    const timer = setTimeout(() => {
+      if (!lastTradingDay) {
+        setLastTradingDay(getLastWeekday());
+      }
+    }, 1000); // 给 common-data API 1s 的响应时间
+    return () => clearTimeout(timer);
+  }, [data, lastTradingDay]);
+
+  // 3. Fetch Basic Performance (Stats)
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const json = await fetchFundPerformance(fund.code);
+        if (json?.data) {
+          setData(json.data);
+        }
+      } catch (err) {
+        console.error('Perf Fetch Error', err);
+      }
+    };
+    fetchData();
+  }, [fund.code]);
+
+  // 4. Fetch Chart Data (Growth Data)
+  useEffect(() => {
+    if (!lastTradingDay) return;
+
+    let cancelled = false;
+
+    const fetchMorningstarSeries = async (
+      startDate: string,
+      endDate: string,
+    ): Promise<GrowthSeriesData | null> => {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 3000);
+      try {
+        const body = {
+          growthDataPoint: 'cumulativeReturn',
+          initValue: 10000,
+          freq: '1d',
+          calcBmkSecId: 'F00001LXGJ',
+          currency: 'CNY',
+          type: 'return',
+          startDate,
+          endDate,
+          catAvgSecId: 'CHCA000043',
+          bmk1SecId: 'F00001LXGJ',
+          outputs: ['tsData', 'pr', 'dividend', 'management'],
         };
-        fetchCommon();
-    }, [fund.code]);
 
-    // 2. Resolve Verified Last Trading Day (Fallback Logic)
-    // Only runs if commonData fetch failed or didn't provide a date
-    useEffect(() => {
-        if (lastTradingDay) return;
+        const response = await fetch(
+          `https://www.morningstar.cn/cn-api/v2/funds/${fund.code}/growth-data`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+            signal: controller.signal,
+          },
+        );
 
-        if (data?.dayEnd?.endDate) {
-            setLastTradingDay(data.dayEnd.endDate);
-            return;
+        if (!response.ok) return null;
+        const json: MorningstarGrowthDataResponse = await response.json();
+        if (!json.data?.tsData) return null;
+
+        return {
+          dates: [...(json.data.tsData.dates || [])],
+          fund: [...(json.data.tsData.funds?.[0] || [])],
+          avg: [...(json.data.tsData.catAvg || [])],
+          bmk: [...(json.data.tsData.bmk1 || [])],
+        };
+      } finally {
+        clearTimeout(timeoutId);
+      }
+    };
+
+    const fetchDanjuanSeries = async (): Promise<GrowthSeriesData | null> => {
+      const danjuanPeriod = timeRange.toLowerCase();
+      const isDev = import.meta.env.DEV;
+      const baseUrl = isDev
+        ? '/djapi/fund/growth/'
+        : 'https://api.codetabs.com/v1/proxy/?quest=https://danjuanfunds.com/djapi/fund/growth/';
+
+      const response = await fetch(`${baseUrl}${fund.code}?day=${danjuanPeriod}`);
+      if (!response.ok) return null;
+
+      const json: DanjuanGrowthDataResponse = await response.json();
+      if (!json.data?.fund_nav_growth) return null;
+
+      const dates: string[] = [];
+      const fundArr: number[] = [];
+      const avgArr: number[] = [];
+      const bmkArr: number[] = [];
+
+      json.data.fund_nav_growth.forEach((r) => {
+        dates.push(r.date);
+        fundArr.push(parseFloat(r.value || '0') * 100);
+        bmkArr.push(parseFloat(r.than_value || '0') * 100);
+        avgArr.push(0);
+      });
+
+      return { dates, fund: fundArr, avg: avgArr, bmk: bmkArr };
+    };
+
+    const fetchGrowthData = async () => {
+      const todayStr = getLocalDateString();
+      const startDate = getStartDate(timeRange, lastTradingDay);
+      const cacheKey = buildGrowthCacheKey(fund.code, timeRange, lastTradingDay);
+      const cached = readGrowthCache(cacheKey);
+      const isTodayCache = cached?.cacheDate === todayStr;
+
+      if (isTodayCache && cached) {
+        setChartSeriesData(withTodayEstimate(cached.data, fund.dayChangePct));
+        return;
+      }
+
+      setChartLoading(true);
+      try {
+        let fetched = await fetchMorningstarSeries(startDate, lastTradingDay);
+        if (!fetched) {
+          fetched = await fetchDanjuanSeries();
         }
 
-        // 回退：跳过周末取最近工作日
-        const timer = setTimeout(() => {
-            if (!lastTradingDay) {
-                setLastTradingDay(getLastWeekday());
-            }
-        }, 1000); // 给 common-data API 1s 的响应时间
-        return () => clearTimeout(timer);
-    }, [data, lastTradingDay]);
+        if (fetched) {
+          writeGrowthCache(cacheKey, fetched, todayStr);
+          if (!cancelled) {
+            setChartSeriesData(withTodayEstimate(fetched, fund.dayChangePct));
+          }
+          return;
+        }
 
-    // 3. Fetch Basic Performance (Stats)
-    useEffect(() => {
-        const fetchData = async () => {
-            try {
-                const response = await fetch(`https://www.morningstar.cn/cn-api/v2/funds/${fund.code}/performance`);
-                if (!response.ok) throw new Error('Failed to fetch data');
-                const json: FundPerformanceResponse = await response.json();
-                setData(json.data);
-            } catch (err) {
-                console.error("Perf Fetch Error", err);
-            }
-        };
-        fetchData();
-    }, [fund.code]);
+        // 网络失败时，回退到旧缓存（即使不是今天）
+        if (cached && !cancelled) {
+          setChartSeriesData(withTodayEstimate(cached.data, fund.dayChangePct));
+        }
+      } catch (err) {
+        console.error('Chart Fetch Error', err);
+        if (cached && !cancelled) {
+          setChartSeriesData(withTodayEstimate(cached.data, fund.dayChangePct));
+        }
+      } finally {
+        if (!cancelled) {
+          setChartLoading(false);
+        }
+      }
+    };
 
-    // 4. Fetch Chart Data (Growth Data)
-    useEffect(() => {
-        if (!lastTradingDay) return;
+    fetchGrowthData();
 
-        let cancelled = false;
+    return () => {
+      cancelled = true;
+    };
+  }, [fund.code, fund.dayChangePct, timeRange, lastTradingDay]);
 
-        const fetchMorningstarSeries = async (startDate: string, endDate: string): Promise<GrowthSeriesData | null> => {
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 3000);
-            try {
-                const body = {
-                    growthDataPoint: 'cumulativeReturn',
-                    initValue: 10000,
-                    freq: '1d',
-                    calcBmkSecId: 'F00001LXGJ',
-                    currency: 'CNY',
-                    type: 'return',
-                    startDate,
-                    endDate,
-                    catAvgSecId: 'CHCA000043',
-                    bmk1SecId: 'F00001LXGJ',
-                    outputs: ['tsData', 'pr', 'dividend', 'management'],
-                };
+  // 5. Fetch Holdings
+  useEffect(() => {
+    const fetchHoldings = async () => {
+      try {
+        const json = await fetchFundHoldings(fund.code);
+        if (json?.data?.equityHoldings) {
+          const equity = json.data.equityHoldings;
+          setHoldings(equity);
 
-                const response = await fetch(`https://www.morningstar.cn/cn-api/v2/funds/${fund.code}/growth-data`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(body),
-                    signal: controller.signal,
-                });
-
-                if (!response.ok) return null;
-                const json: MorningstarGrowthDataResponse = await response.json();
-                if (!json.data?.tsData) return null;
-
-                return {
-                    dates: [...(json.data.tsData.dates || [])],
-                    fund: [...(json.data.tsData.funds?.[0] || [])],
-                    avg: [...(json.data.tsData.catAvg || [])],
-                    bmk: [...(json.data.tsData.bmk1 || [])],
-                };
-            } finally {
-                clearTimeout(timeoutId);
-            }
-        };
-
-        const fetchDanjuanSeries = async (): Promise<GrowthSeriesData | null> => {
-            const danjuanPeriod = timeRange.toLowerCase();
-            const isDev = import.meta.env.DEV;
-            const baseUrl = isDev
-                ? '/djapi/fund/growth/'
-                : 'https://api.codetabs.com/v1/proxy/?quest=https://danjuanfunds.com/djapi/fund/growth/';
-
-            const response = await fetch(`${baseUrl}${fund.code}?day=${danjuanPeriod}`);
-            if (!response.ok) return null;
-
-            const json: DanjuanGrowthDataResponse = await response.json();
-            if (!json.data?.fund_nav_growth) return null;
-
-            const dates: string[] = [];
-            const fundArr: number[] = [];
-            const avgArr: number[] = [];
-            const bmkArr: number[] = [];
-
-            json.data.fund_nav_growth.forEach(r => {
-                dates.push(r.date);
-                fundArr.push(parseFloat(r.value || '0') * 100);
-                bmkArr.push(parseFloat(r.than_value || '0') * 100);
-                avgArr.push(0);
+          const codes = buildTencentQuoteCodes(equity.map((h) => h.ticker));
+          if (codes.length > 0) {
+            const quoteMap = await fetchTencentStockQuotes(codes);
+            const nextQuotes: Record<string, { price: string; pct: number }> = {};
+            equity.forEach((holding) => {
+              const key = normalizeTicker(holding.ticker);
+              if (!key) return;
+              const quote = quoteMap[key];
+              if (quote) {
+                nextQuotes[holding.ticker] = quote;
+              }
             });
-
-            return { dates, fund: fundArr, avg: avgArr, bmk: bmkArr };
-        };
-
-        const fetchGrowthData = async () => {
-            const todayStr = getLocalDateString();
-            const startDate = getStartDate(timeRange, lastTradingDay);
-            const cacheKey = buildGrowthCacheKey(fund.code, timeRange, lastTradingDay);
-            const cached = readGrowthCache(cacheKey);
-            const isTodayCache = cached?.cacheDate === todayStr;
-
-            if (isTodayCache && cached) {
-                setChartSeriesData(withTodayEstimate(cached.data, fund.dayChangePct));
-                return;
-            }
-
-            setChartLoading(true);
-            try {
-                let fetched = await fetchMorningstarSeries(startDate, lastTradingDay);
-                if (!fetched) {
-                    fetched = await fetchDanjuanSeries();
-                }
-
-                if (fetched) {
-                    writeGrowthCache(cacheKey, fetched, todayStr);
-                    if (!cancelled) {
-                        setChartSeriesData(withTodayEstimate(fetched, fund.dayChangePct));
-                    }
-                    return;
-                }
-
-                // 网络失败时，回退到旧缓存（即使不是今天）
-                if (cached && !cancelled) {
-                    setChartSeriesData(withTodayEstimate(cached.data, fund.dayChangePct));
-                }
-            } catch (err) {
-                console.error('Chart Fetch Error', err);
-                if (cached && !cancelled) {
-                    setChartSeriesData(withTodayEstimate(cached.data, fund.dayChangePct));
-                }
-            } finally {
-                if (!cancelled) {
-                    setChartLoading(false);
-                }
-            }
-        };
-
-        fetchGrowthData();
-
-        return () => {
-            cancelled = true;
-        };
-    }, [fund.code, fund.dayChangePct, timeRange, lastTradingDay]);
-
-
-    // 5. Fetch Holdings
-    useEffect(() => {
-        const fetchHoldings = async () => {
-            try {
-                const response = await fetch(`https://www.morningstar.cn/cn-api/v2/funds/${fund.code}/holdings`);
-                if (!response.ok) throw new Error('Failed to fetch holdings');
-                const json: FundHoldingsResponse = await response.json();
-
-                if (json.data && json.data.equityHoldings) {
-                    const equity = json.data.equityHoldings;
-                    setHoldings(equity);
-
-                    // Fetch quotes logic...
-                    const codes = equity.map(h => {
-                        const c = h.ticker;
-                        if (!c) return null;
-                        if (c.length === 5) return `hk${c}`;
-                        if (c.length === 6) {
-                            if (c.startsWith('6')) return `sh${c}`;
-                            if (c.startsWith('0') || c.startsWith('3')) return `sz${c}`;
-                            if (c.startsWith('83') || c.startsWith('87') || c.startsWith('43')) return `bj${c}`;
-                        }
-                        return null;
-                    }).filter(Boolean);
-
-                    if (codes.length > 0) {
-                        const qtUrl = `https://qt.gtimg.cn/q=${codes.map(c => `s_${c}`).join(',')}`;
-                        const qRes = await fetch(qtUrl);
-                        const qText = await qRes.text();
-
-                        const quoteMap: Record<string, { price: string; pct: number }> = {};
-                        qText.split(';').forEach(line => {
-                            if (line.includes('=')) {
-                                const rightSide = line.split('=')[1].replace(/"/g, '');
-                                const parts = rightSide.split('~');
-                                if (parts.length > 5) {
-                                    const ticker = parts[2];
-                                    const price = parts[3];
-                                    const pct = parseFloat(parts[5]);
-                                    quoteMap[ticker] = { price, pct };
-                                }
-                            }
-                        });
-                        setQuotes(quoteMap);
-                    }
-                }
-            } catch (err) {
-                console.error(err);
-            }
-        };
-        fetchHoldings();
-    }, [fund.code]);
-
-    // Resolve Display Data
-    // Priority: CommonData API -> Performance API -> Local DB
-    const currentNav = commonData?.nav ?? data?.dayEnd?.nav ?? fund.currentNav;
-    const dayChangePct = commonData?.navChangePercent ?? data?.dayEnd?.changeP ?? fund.dayChangePct;
-    const displayDate = commonData?.navDate ?? lastTradingDay ?? fund.lastUpdate;
-
-    // Initialize and Update ECharts
-    useEffect(() => {
-        if (!chartReady || !chartRef.current || !chartSeriesData) return;
-
-        if (!chartInstance.current) {
-            chartInstance.current = echarts.init(chartRef.current);
-        }
-
-        let { dates, fund: fundData, avg: avgData, bmk: bmkData } = chartSeriesData;
-
-        // Rebase to Anchor Date (0-line shifting) if provided
-        if (anchorDate) {
-            const anchorIdx = dates.indexOf(anchorDate);
-            if (anchorIdx !== -1) {
-                const baseFund = fundData[anchorIdx] || 0;
-                const baseAvg = avgData[anchorIdx] || 0;
-                const baseBmk = bmkData[anchorIdx] || 0;
-
-                const rebase = (v: number | undefined | null, base: number) => {
-                    if (v == null || isNaN(v)) return null;
-                    return ((100 + v) / (100 + base) - 1) * 100;
-                };
-
-                fundData = fundData.map(v => rebase(v, baseFund) as number);
-                avgData = avgData.map(v => rebase(v, baseAvg) as number);
-                bmkData = bmkData.map(v => rebase(v, baseBmk) as number);
-            }
-        }
-
-        const startStr = dates[0];
-        const endStr = dates[dates.length - 1];
-
-        const validFundData = fundData.filter(v => v != null) as number[];
-        const fundMin = validFundData.length > 0 ? Math.min(...validFundData) : 0;
-        const fundMax = validFundData.length > 0 ? Math.max(...validFundData) : 0;
-        const crossesZero = anchorDate ? (fundMin < 0 && fundMax > 0) : false;
-
-        // Build line color: if anchor mode + crosses zero, use a gradient that transitions at the zero-point
-        // zeroRatio = fraction from top of chart where y=0 falls (gradient goes top→bottom)
-        let color: string | echarts.graphic.LinearGradient;
-        if (anchorDate && crossesZero) {
-            const zeroRatio = fundMax / (fundMax - fundMin); // 0→1 from top
-            color = new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-                { offset: 0, color: '#f87171' },
-                { offset: Math.max(0, zeroRatio - 0.001), color: '#f87171' },
-                { offset: Math.min(1, zeroRatio + 0.001), color: '#34d399' },
-                { offset: 1, color: '#34d399' }
-            ]);
-        } else if (anchorDate) {
-            color = fundMax <= 0 ? '#34d399' : '#f87171';
+            setQuotes(nextQuotes);
+          } else {
+            setQuotes({});
+          }
         } else {
-            const firstVal = fundData[0] || 0;
-            const lastVal = fundData[fundData.length - 1] || 0;
-            color = lastVal >= firstVal ? '#f87171' : '#34d399';
+          setHoldings([]);
+          setQuotes({});
         }
+      } catch (err) {
+        console.error(err);
+      }
+    };
+    fetchHoldings();
+  }, [fund.code]);
 
-        const option: echarts.EChartsOption = {
-            title: {
-                text: `${startStr} 至 ${endStr}`,
-                left: '0%',
-                top: '0%',
-                textStyle: { fontSize: 12, color: isDark ? '#9ca3af' : '#666', fontWeight: 'normal' }
-            },
-            animation: true,
-            animationDuration: 300,
-            animationEasing: 'cubicOut',
-            backgroundColor: 'transparent',
-            grid: { left: 20, right: 10, bottom: 30, top: 10, containLabel: true }, // Auto calculate padding
-            tooltip: {
-                trigger: 'axis',
-                axisPointer: {
-                    type: 'cross',
-                    label: {
-                        backgroundColor: isDark ? '#374151' : '#6b7280',
-                        fontFamily: 'monospace'
-                    },
-                    crossStyle: {
-                        color: isDark ? '#9ca3af' : '#9ca3af',
-                        type: 'dashed'
-                    }
-                },
-                backgroundColor: isDark ? 'rgba(31, 41, 55, 0.95)' : 'rgba(255, 255, 255, 0.95)',
-                borderColor: isDark ? '#374151' : '#eee',
-                borderWidth: 1,
-                padding: [8, 12],
-                textStyle: { color: isDark ? '#f3f4f6' : '#333', fontSize: 12 },
-                formatter: (params: any) => {
-                    // Keep the detailed tooltip but clean it up
-                    if (!Array.isArray(params) || params.length === 0) return '';
+  // Resolve Display Data
+  // Priority: CommonData API -> Performance API -> Local DB
+  const currentNav = commonData?.nav ?? data?.dayEnd?.nav ?? fund.currentNav;
+  const dayChangePct = commonData?.navChangePercent ?? data?.dayEnd?.changeP ?? fund.dayChangePct;
+  const displayDate = commonData?.navDate ?? lastTradingDay ?? fund.lastUpdate;
 
-                    const date = params[0].axisValue;
-                    let html = `<div style="font-weight:bold; margin-bottom:4px; font-family:monospace;">${date}</div>`;
+  // Initialize and Update ECharts
+  useEffect(() => {
+    if (!chartReady || !chartRef.current || !chartSeriesData) return;
 
-                    params.forEach((item: any) => {
-                        const val = item.value;
-                        if (val == null) return; // 当日数据尚未到位，跳过
-                        // For the main fund series, use the trend color
-                        const itemColor = item.seriesName === fund.name ? color : item.color;
-                        const sign = val >= 0 ? '+' : '';
-                        const valColor = val >= 0 ? '#f87171' : '#34d399';
+    if (!chartInstance.current) {
+      chartInstance.current = echarts.init(chartRef.current);
+    }
 
-                        html += `
+    const {
+      dates,
+      fund: initialFundData,
+      avg: initialAvgData,
+      bmk: initialBmkData,
+    } = chartSeriesData;
+    let fundData = initialFundData;
+    let avgData = initialAvgData;
+    let bmkData = initialBmkData;
+
+    // Rebase to Anchor Date (0-line shifting) if provided
+    if (anchorDate) {
+      const anchorIdx = dates.indexOf(anchorDate);
+      if (anchorIdx !== -1) {
+        const baseFund = fundData[anchorIdx] || 0;
+        const baseAvg = avgData[anchorIdx] || 0;
+        const baseBmk = bmkData[anchorIdx] || 0;
+
+        const rebase = (v: number | undefined | null, base: number) => {
+          if (v == null || isNaN(v)) return null;
+          return ((100 + v) / (100 + base) - 1) * 100;
+        };
+
+        fundData = fundData.map((v) => rebase(v, baseFund) as number);
+        avgData = avgData.map((v) => rebase(v, baseAvg) as number);
+        bmkData = bmkData.map((v) => rebase(v, baseBmk) as number);
+      }
+    }
+
+    const startStr = dates[0];
+    const endStr = dates[dates.length - 1];
+    const isLargeSeries = dates.length > 260;
+    const shouldAnimate = !isLargeSeries;
+
+    const validFundData = fundData.filter((v) => v != null) as number[];
+    const fundMin = validFundData.length > 0 ? Math.min(...validFundData) : 0;
+    const fundMax = validFundData.length > 0 ? Math.max(...validFundData) : 0;
+    const crossesZero = anchorDate ? fundMin < 0 && fundMax > 0 : false;
+
+    // Build line color: if anchor mode + crosses zero, use a gradient that transitions at the zero-point
+    // zeroRatio = fraction from top of chart where y=0 falls (gradient goes top→bottom)
+    let color: string | echarts.graphic.LinearGradient;
+    if (anchorDate && crossesZero) {
+      const zeroRatio = fundMax / (fundMax - fundMin); // 0→1 from top
+      color = new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+        { offset: 0, color: '#f87171' },
+        { offset: Math.max(0, zeroRatio - 0.001), color: '#f87171' },
+        { offset: Math.min(1, zeroRatio + 0.001), color: '#34d399' },
+        { offset: 1, color: '#34d399' },
+      ]);
+    } else if (anchorDate) {
+      color = fundMax <= 0 ? '#34d399' : '#f87171';
+    } else {
+      const firstVal = fundData[0] || 0;
+      const lastVal = fundData[fundData.length - 1] || 0;
+      color = lastVal >= firstVal ? '#f87171' : '#34d399';
+    }
+
+    const option: echarts.EChartsOption = {
+      title: {
+        text: `${startStr} 至 ${endStr}`,
+        left: '0%',
+        top: '0%',
+        textStyle: { fontSize: 12, color: isDark ? '#9ca3af' : '#666', fontWeight: 'normal' },
+      },
+      animation: shouldAnimate,
+      animationDuration: shouldAnimate ? 300 : 0,
+      animationEasing: shouldAnimate ? 'cubicOut' : 'linear',
+      backgroundColor: 'transparent',
+      grid: { left: 20, right: 10, bottom: 30, top: 10, containLabel: true }, // Auto calculate padding
+      tooltip: {
+        trigger: 'axis',
+        axisPointer: {
+          type: 'cross',
+          label: {
+            backgroundColor: isDark ? '#374151' : '#6b7280',
+            fontFamily: 'monospace',
+          },
+          crossStyle: {
+            color: isDark ? '#9ca3af' : '#9ca3af',
+            type: 'dashed',
+          },
+        },
+        backgroundColor: isDark ? 'rgba(31, 41, 55, 0.95)' : 'rgba(255, 255, 255, 0.95)',
+        borderColor: isDark ? '#374151' : '#eee',
+        borderWidth: 1,
+        padding: [8, 12],
+        textStyle: { color: isDark ? '#f3f4f6' : '#333', fontSize: 12 },
+        formatter: (params: unknown) => {
+          if (!Array.isArray(params) || params.length === 0) return '';
+
+          const list = params as TooltipSeriesParam[];
+          const date = list[0]?.axisValue;
+          if (!date) return '';
+          let html = `<div style="font-weight:bold; margin-bottom:4px; font-family:monospace;">${date}</div>`;
+
+          list.forEach((item) => {
+            const val = item.value;
+            if (val == null) return; // 当日数据尚未到位，跳过
+            const sign = val >= 0 ? '+' : '';
+            const valColor = val >= 0 ? '#f87171' : '#34d399';
+
+            html += `
                         <div style="display:flex; justify-content:space-between; align-items:center; gap:16px; margin-bottom:2px;">
                             <span style="color:${isDark ? '#d1d5db' : '#4b5563'}">${item.seriesName}</span>
                             <span style="color:${valColor}; font-family:monospace; font-weight:600;">${sign}${val.toFixed(2)}%</span>
                         </div>`;
-                    });
-                    return html;
-                }
-            },
-            xAxis: {
-                type: 'category',
-                boundaryGap: false,
-                data: dates,
-                axisLine: { show: false },
-                axisTick: { show: false },
-                axisLabel: {
-                    // showMinLabel: true,
-                    // showMaxLabel: true,
-                    interval: 'auto',
-                    color: isDark ? '#9ca3af' : '#999',
-                    fontSize: 10,
-                    formatter: (value: string) => value.substring(2)
-                }
-            },
-            yAxis: {
-                type: 'value',
-                position: 'right', // Right side Y-axis like reference
-                axisLine: { show: false },
-                axisTick: { show: false },
-                splitLine: {
-                    show: true,
-                    lineStyle: {
-                        color: isDark ? '#374151' : '#f3f4f6',
-                        type: 'dashed',
-                        width: 1
-                    }
+          });
+          return html;
+        },
+      },
+      xAxis: {
+        type: 'category',
+        boundaryGap: false,
+        data: dates,
+        axisLine: { show: false },
+        axisTick: { show: false },
+        axisLabel: {
+          // showMinLabel: true,
+          // showMaxLabel: true,
+          interval: 'auto',
+          color: isDark ? '#9ca3af' : '#999',
+          fontSize: 10,
+          formatter: (value: string) => value.substring(2),
+        },
+      },
+      yAxis: {
+        type: 'value',
+        position: 'right', // Right side Y-axis like reference
+        axisLine: { show: false },
+        axisTick: { show: false },
+        splitLine: {
+          show: true,
+          lineStyle: {
+            color: isDark ? '#374151' : '#f3f4f6',
+            type: 'dashed',
+            width: 1,
+          },
+        },
+        axisLabel: {
+          show: true,
+          inside: false,
+          color: isDark ? '#9ca3af' : '#9ca3af',
+          fontSize: 10,
+          formatter: (val: number) => `${val.toFixed(0)}%`,
+        },
+      },
+      series: [
+        {
+          name: fund.name,
+          type: 'line',
+          data: fundData,
+          showSymbol: false,
+          symbol: 'circle',
+          symbolSize: 6,
+          smooth: true, // Smooth line
+          sampling: isLargeSeries ? 'lttb' : undefined,
+          progressive: isLargeSeries ? 300 : undefined,
+          progressiveThreshold: isLargeSeries ? 500 : undefined,
+          lineStyle: { width: 2, color: color },
+          itemStyle: { color: color, borderColor: '#fff', borderWidth: 1 },
+          areaStyle: anchorDate
+            ? undefined
+            : {
+                color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                  { offset: 0, color: color as string },
+                  { offset: 1, color: isDark ? 'rgba(0,0,0,0)' : 'rgba(255,255,255,0)' }, // Fade to transparent
+                ]),
+                opacity: 0.2,
+              },
+          markLine: anchorDate
+            ? {
+                silent: true,
+                symbol: 'none',
+                label: {
+                  show: true,
+                  position: 'insideEndTop',
+                  formatter: '持仓成本',
+                  color: isDark ? '#9ca3af' : '#6b7280',
+                  fontSize: 10,
+                  padding: [0, 4],
                 },
-                axisLabel: {
+                lineStyle: {
+                  color: isDark ? '#6b7280' : '#9ca3af',
+                  type: 'dashed',
+                  width: 1,
+                },
+                data: [{ yAxis: 0 }],
+              }
+            : undefined,
+          markPoint: (() => {
+            const points: MarkPointDatum[] = [];
+
+            if (anchorDate) {
+              // Watchlist: mark anchor date
+              const idx = dates.indexOf(anchorDate);
+              if (idx !== -1) {
+                points.push({
+                  name: 'anchor',
+                  coord: [anchorDate, fundData[idx]],
+                  symbol: 'pin',
+                  symbolSize: 36,
+                  itemStyle: { color: '#3b82f6' },
+                  label: {
                     show: true,
-                    inside: false,
-                    color: isDark ? '#9ca3af' : '#9ca3af',
+                    formatter: '锚',
+                    color: '#fff',
                     fontSize: 10,
-                    formatter: (val: number) => `${val.toFixed(0)}%`
-                }
-            },
-            series: [
-                {
-                    name: fund.name,
-                    type: 'line',
-                    data: fundData,
-                    showSymbol: false,
-                    symbol: 'circle',
-                    symbolSize: 6,
-                    smooth: true, // Smooth line
-                    lineStyle: { width: 2, color: color },
-                    itemStyle: { color: color, borderColor: '#fff', borderWidth: 1 },
-                    areaStyle: anchorDate ? undefined : {
-                        color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-                            { offset: 0, color: color as string },
-                            { offset: 1, color: isDark ? 'rgba(0,0,0,0)' : 'rgba(255,255,255,0)' } // Fade to transparent
-                        ]),
-                        opacity: 0.2
+                    fontWeight: 'bold',
+                  },
+                });
+              }
+            } else {
+              // Holdings: mark buy date
+              if (fund.buyDate) {
+                const idx = dates.indexOf(fund.buyDate);
+                if (idx !== -1) {
+                  points.push({
+                    name: 'buy',
+                    coord: [fund.buyDate, fundData[idx]],
+                    symbol: 'pin',
+                    symbolSize: 36,
+                    itemStyle: { color: '#3b82f6' },
+                    label: {
+                      show: true,
+                      formatter: '买',
+                      color: '#fff',
+                      fontSize: 10,
+                      fontWeight: 'bold',
                     },
-                    markLine: anchorDate ? {
-                        silent: true,
-                        symbol: 'none',
-                        label: {
-                            show: true,
-                            position: 'insideEndTop',
-                            formatter: '持仓成本',
-                            color: isDark ? '#9ca3af' : '#6b7280',
-                            fontSize: 10,
-                            padding: [0, 4]
-                        },
-                        lineStyle: {
-                            color: isDark ? '#6b7280' : '#9ca3af',
-                            type: 'dashed',
-                            width: 1
-                        },
-                        data: [
-                            { yAxis: 0 }
-                        ]
-                    } : undefined,
-                    markPoint: (() => {
-                        const points: any[] = [];
-
-                        if (anchorDate) {
-                            // Watchlist: mark anchor date
-                            const idx = dates.indexOf(anchorDate);
-                            if (idx !== -1) {
-                                points.push({
-                                    coord: [anchorDate, fundData[idx]],
-                                    symbol: 'pin',
-                                    symbolSize: 36,
-                                    itemStyle: { color: '#3b82f6' },
-                                    label: { show: true, formatter: '锚', color: '#fff', fontSize: 10, fontWeight: 'bold' }
-                                });
-                            }
-                        } else {
-                            // Holdings: mark buy date
-                            if (fund.buyDate) {
-                                const idx = dates.indexOf(fund.buyDate);
-                                if (idx !== -1) {
-                                    points.push({
-                                        coord: [fund.buyDate, fundData[idx]],
-                                        symbol: 'pin',
-                                        symbolSize: 36,
-                                        itemStyle: { color: '#3b82f6' },
-                                        label: { show: true, formatter: '买', color: '#fff', fontSize: 10, fontWeight: 'bold' }
-                                    });
-                                }
-                            }
-                            // Holdings: mark pending transactions
-                            if (fund.pendingTransactions) {
-                                fund.pendingTransactions.forEach(tx => {
-                                    const idx = dates.indexOf(tx.date);
-                                    if (idx !== -1) {
-                                        const isBuy = tx.type === 'buy';
-                                        points.push({
-                                            coord: [tx.date, fundData[idx]],
-                                            symbol: isBuy ? 'arrow' : 'triangle',
-                                            symbolSize: 14,
-                                            symbolRotate: isBuy ? 0 : 180,
-                                            itemStyle: { color: isBuy ? '#f87171' : '#34d399' },
-                                            label: { show: false }
-                                        });
-                                    }
-                                });
-                            }
-                        }
-
-                        return points.length > 0 ? { data: points, animation: true } : undefined;
-                    })(),
-                    z: 3
-                },
-                {
-                    name: '业绩基准',
-                    type: 'line',
-                    data: bmkData,
-                    showSymbol: false,
-                    smooth: true,
-                    lineStyle: { width: 1, color: '#fbbf24', type: 'dashed', opacity: 0.5 },
-                    itemStyle: { color: '#fbbf24' },
-                    z: 2
+                  });
                 }
-            ]
-        };
-
-        if (chartInstance.current) {
-            chartInstance.current.clear(); // Explicitly clear the chart to force a fresh animation
-            chartInstance.current.setOption(option);
-        }
-
-        const handleResize = () => chartInstance.current?.resize();
-        window.addEventListener('resize', handleResize);
-        return () => window.removeEventListener('resize', handleResize);
-    }, [chartReady, chartSeriesData, fund.name, isDark]);
-
-    // Derived History Table Data based on Chart Data + Current NAV
-    const historyData = useMemo(() => {
-        if (!chartSeriesData || !chartSeriesData.dates || chartSeriesData.dates.length === 0) return [];
-
-        const list = [];
-        const len = chartSeriesData.dates.length;
-
-        const finalReturn = chartSeriesData.fund[len - 1];
-
-        // Iterate backwards from the end
-        for (let i = len - 1; i >= 0; i--) {
-            const r = chartSeriesData.fund[i];
-            const rPrev = i > 0 ? chartSeriesData.fund[i - 1] : 0;
-
-            // Implied NAV
-            const val = currentNav * ((1 + r / 100) / (1 + finalReturn / 100));
-
-            // Daily Change
-            let changePct = 0;
-            if (i > 0) {
-                const vCurrent = 1 + r / 100;
-                const vPrev = 1 + rPrev / 100;
-                changePct = ((vCurrent - vPrev) / vPrev) * 100;
+              }
+              // Holdings: mark pending transactions
+              if (fund.pendingTransactions) {
+                fund.pendingTransactions.forEach((tx) => {
+                  const idx = dates.indexOf(tx.date);
+                  if (idx !== -1) {
+                    const isBuy = tx.type === 'buy';
+                    points.push({
+                      name: isBuy ? 'tx-buy' : 'tx-sell',
+                      coord: [tx.date, fundData[idx]],
+                      symbol: isBuy ? 'arrow' : 'triangle',
+                      symbolSize: 14,
+                      symbolRotate: isBuy ? 0 : 180,
+                      itemStyle: { color: isBuy ? '#f87171' : '#34d399' },
+                      label: { show: false },
+                    });
+                  }
+                });
+              }
             }
 
-            list.push({
-                date: chartSeriesData.dates[i].substring(5), // YYYY-MM-DD -> MM-DD
-                nav: val,
-                change: changePct
-            });
-        }
-        return list;
-    }, [chartSeriesData, currentNav]);
+            return points.length > 0 ? { data: points, animation: true } : undefined;
+          })(),
+          z: 3,
+        },
+        {
+          name: '业绩基准',
+          type: 'line',
+          data: bmkData,
+          showSymbol: false,
+          smooth: true,
+          sampling: isLargeSeries ? 'lttb' : undefined,
+          progressive: isLargeSeries ? 300 : undefined,
+          progressiveThreshold: isLargeSeries ? 500 : undefined,
+          lineStyle: { width: 1, color: '#fbbf24', type: 'dashed', opacity: 0.5 },
+          itemStyle: { color: '#fbbf24' },
+          z: 2,
+        },
+      ],
+    };
 
-    // Add ESC key listener to close
-    useEffect(() => {
-        const handleKeyDown = (e: KeyboardEvent) => {
-            if (e.key === 'Escape') onBack();
-        };
-        window.addEventListener('keydown', handleKeyDown);
-        return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [onBack]);
+    if (chartInstance.current) {
+      chartInstance.current.clear(); // Explicitly clear the chart to force a fresh animation
+      chartInstance.current.setOption(option);
+    }
 
-    const ranges: TimeRange[] = ['1M', '3M', '6M', '1Y', '3Y', '5Y'];
+    const handleResize = () => chartInstance.current?.resize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [
+    anchorDate,
+    chartReady,
+    chartSeriesData,
+    fund.buyDate,
+    fund.name,
+    fund.pendingTransactions,
+    isDark,
+  ]);
 
-    // Apply toggle limit
-    const displayedHistory = showAllHistory ? historyData : historyData.slice(0, 10);
+  useEffect(() => {
+    return () => {
+      if (chartInstance.current) {
+        chartInstance.current.dispose();
+        chartInstance.current = null;
+      }
+    };
+  }, []);
 
-    const isDesktop = typeof window !== 'undefined' && window.innerWidth >= 768;
+  // Derived History Table Data based on Chart Data + Current NAV
+  const historyData = useMemo(() => {
+    if (!chartSeriesData || !chartSeriesData.dates || chartSeriesData.dates.length === 0) return [];
 
-    return (
-        <motion.div
-            className="fixed inset-0 z-[60] md:p-4 lg:p-8 md:bg-black/30 md:backdrop-blur-sm md:flex md:items-start md:justify-center overflow-hidden"
+    const list = [];
+    const len = chartSeriesData.dates.length;
+
+    const finalReturn = chartSeriesData.fund[len - 1];
+
+    // Iterate backwards from the end
+    for (let i = len - 1; i >= 0; i--) {
+      const r = chartSeriesData.fund[i];
+      const rPrev = i > 0 ? chartSeriesData.fund[i - 1] : 0;
+
+      // Implied NAV
+      const val = currentNav * ((1 + r / 100) / (1 + finalReturn / 100));
+
+      // Daily Change
+      let changePct = 0;
+      if (i > 0) {
+        const vCurrent = 1 + r / 100;
+        const vPrev = 1 + rPrev / 100;
+        changePct = ((vCurrent - vPrev) / vPrev) * 100;
+      }
+
+      list.push({
+        date: chartSeriesData.dates[i].substring(5), // YYYY-MM-DD -> MM-DD
+        nav: val,
+        change: changePct,
+      });
+    }
+    return list;
+  }, [chartSeriesData, currentNav]);
+
+  // Add ESC key listener to close
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onBack();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onBack]);
+
+  const ranges: TimeRange[] = ['1M', '3M', '6M', '1Y', '3Y', '5Y'];
+
+  // Apply toggle limit
+  const displayedHistory = showAllHistory ? historyData : historyData.slice(0, 10);
+
+  const isDesktop = typeof window !== 'undefined' && window.innerWidth >= 768;
+
+  return (
+    <motion.div
+      className="fixed inset-0 z-[60] md:p-4 lg:p-8 md:bg-black/30 md:backdrop-blur-sm md:flex md:items-start md:justify-center overflow-hidden"
+      onClick={onBack}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.2 }}
+    >
+      <motion.div
+        className="bg-gray-50 dark:bg-app-bg-dark flex flex-col w-full h-full md:h-[calc(100vh-2rem)] lg:h-[calc(100vh-4rem)] md:max-w-7xl md:rounded-xl md:shadow-2xl md:border md:border-gray-200 dark:md:border-border-dark overflow-hidden relative"
+        onClick={(e) => e.stopPropagation()}
+        initial={isDesktop ? { opacity: 0, scale: 0.95, y: 20 } : { opacity: 1, x: '100%' }}
+        animate={isDesktop ? { opacity: 1, scale: 1, y: 0 } : { opacity: 1, x: 0 }}
+        exit={isDesktop ? { opacity: 0, scale: 0.95, y: 20 } : { opacity: 1, x: '100%' }}
+        transition={{ type: 'spring', damping: 28, stiffness: 280 }}
+      >
+        {/* Header */}
+        <div className="bg-white dark:bg-card-dark px-4 h-14 flex items-center justify-between shadow-sm dark:border-b dark:border-border-dark flex-shrink-0 z-10 transition-colors">
+          <button
             onClick={onBack}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-        >
-            <motion.div
-                className="bg-gray-50 dark:bg-app-bg-dark flex flex-col w-full h-full md:h-[calc(100vh-2rem)] lg:h-[calc(100vh-4rem)] md:max-w-7xl md:rounded-xl md:shadow-2xl md:border md:border-gray-200 dark:md:border-border-dark overflow-hidden relative"
-                onClick={(e) => e.stopPropagation()}
-                initial={isDesktop ? { opacity: 0, scale: 0.95, y: 20 } : { opacity: 1, x: '100%' }}
-                animate={isDesktop ? { opacity: 1, scale: 1, y: 0 } : { opacity: 1, x: 0 }}
-                exit={isDesktop ? { opacity: 0, scale: 0.95, y: 20 } : { opacity: 1, x: '100%' }}
-                transition={{ type: "spring", damping: 28, stiffness: 280 }}
-            >
-                {/* Header */}
-                <div className="bg-white dark:bg-card-dark px-4 h-14 flex items-center justify-between shadow-sm dark:border-b dark:border-border-dark flex-shrink-0 z-10 transition-colors">
-                    <button onClick={onBack} className="p-2 -ml-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/10 rounded-full transition-colors">
-                        <Icons.ArrowUp className="transform -rotate-90" size={24} />
-                    </button>
-                    <div className="text-center max-w-[70%]">
-                        <h2 className="font-bold text-gray-800 dark:text-gray-100 text-sm truncate">{fund.name}</h2>
-                        <p className="text-xs text-gray-500 dark:text-gray-400">{fund.code}</p>
+            className="p-2 -ml-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/10 rounded-full transition-colors"
+          >
+            <Icons.ArrowUp className="transform -rotate-90" size={24} />
+          </button>
+          <div className="text-center max-w-[70%]">
+            <h2 className="font-bold text-gray-800 dark:text-gray-100 text-sm truncate">
+              {fund.name}
+            </h2>
+            <p className="text-xs text-gray-500 dark:text-gray-400">{fund.code}</p>
+          </div>
+          <div className="w-10"></div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto flex flex-col no-scrollbar bg-gray-50 dark:bg-app-bg-dark">
+          {/* Hero Card */}
+          <div className="bg-white dark:bg-card-dark p-6 mb-2 transition-colors">
+            <div className="text-gray-500 dark:text-gray-400 text-xs mb-1">
+              {t('common.nav')} ({displayDate})
+            </div>
+            <div className="flex items-baseline gap-3">
+              <span className="text-3xl font-bold font-sans text-gray-900 dark:text-gray-100">
+                {currentNav.toFixed(4)}
+              </span>
+              <span className={`text-lg font-medium font-sans ${getSignColor(dayChangePct)}`}>
+                {formatPct(dayChangePct)}
+              </span>
+            </div>
+            <div className="mt-4 grid grid-cols-4 gap-2 text-sm">
+              <div className="bg-gray-50 dark:bg-white/5 p-2 rounded-lg transition-colors flex flex-col justify-between">
+                <div className="text-gray-400 text-xs mb-1">
+                  {anchorPrice ? t('common.anchorPrice') : t('common.cost')}
+                </div>
+                <div className="font-sans dark:text-gray-200 text-xs text-ellipsis overflow-hidden">
+                  {anchorPrice ? anchorPrice.toFixed(4) : fund.costPrice.toFixed(4)}
+                </div>
+              </div>
+              <div className="bg-gray-50 dark:bg-white/5 p-2 rounded-lg transition-colors flex flex-col justify-between">
+                <div className="text-gray-400 text-xs mb-1">
+                  {anchorDate ? '锚定日' : t('common.shares')}
+                </div>
+                <div className="font-sans dark:text-gray-200 text-xs text-ellipsis overflow-hidden">
+                  {anchorDate ? anchorDate : fund.holdingShares.toLocaleString()}
+                </div>
+              </div>
+
+              {(() => {
+                const totalCost = fund.costPrice * fund.holdingShares;
+                const holdingValue = currentNav * fund.holdingShares;
+                const totalGain = holdingValue - totalCost;
+                const dayGainVal = fund.dayChangeVal;
+
+                return (
+                  <>
+                    <div className="bg-gray-50 dark:bg-white/5 p-2 rounded-lg transition-colors flex flex-col justify-between">
+                      <div className="text-gray-400 text-xs mb-1">
+                        {anchorPrice ? t('common.anchorGain') : t('common.totalGain')}
+                      </div>
+                      {anchorPrice ? (
+                        <div
+                          className={`font-sans font-bold text-xs ${getSignColor(currentNav - anchorPrice)}`}
+                        >
+                          {formatPct(((currentNav - anchorPrice) / anchorPrice) * 100)}
+                        </div>
+                      ) : (
+                        <div className={`font-sans font-bold text-xs ${getSignColor(totalGain)}`}>
+                          {formatSignedCurrency(totalGain)}
+                        </div>
+                      )}
                     </div>
-                    <div className="w-10"></div>
+                    <div className="bg-gray-50 dark:bg-white/5 p-2 rounded-lg transition-colors flex flex-col justify-between">
+                      <div className="text-gray-400 text-xs mb-1">{t('common.dayGain')}</div>
+                      {anchorPrice ? (
+                        <div
+                          className={`font-sans font-bold text-xs ${getSignColor(dayChangePct)}`}
+                        >
+                          {formatPct(dayChangePct)}
+                        </div>
+                      ) : (
+                        <div className={`font-sans font-bold text-xs ${getSignColor(dayGainVal)}`}>
+                          {formatSignedCurrency(dayGainVal)}
+                        </div>
+                      )}
+                    </div>
+                  </>
+                );
+              })()}
+            </div>
+          </div>
+
+          {/* ECharts Section */}
+          <div className="bg-white dark:bg-card-dark p-4 mb-2 transition-colors">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-bold text-gray-800 dark:text-gray-100 text-sm border-l-4 border-blue-500 pl-2">
+                累计收益走势
+              </h3>
+              <div className="flex bg-gray-100 dark:bg-white/10 rounded-lg p-0.5 transition-colors">
+                {ranges.map((range) => (
+                  <button
+                    key={range}
+                    onClick={() => setTimeRange(range)}
+                    className={`px-2 py-1 text-[10px] rounded-md font-medium transition-all ${
+                      timeRange === range
+                        ? 'bg-white dark:bg-card-dark text-blue-600 shadow-sm'
+                        : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
+                    }`}
+                  >
+                    {range}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="relative w-full h-64">
+              {/* ECharts Container (Always mounted to preserve ECharts instance) */}
+              <div
+                ref={chartRef}
+                className={`w-full h-full transition-opacity duration-300 ${chartReady && !chartLoading && lastTradingDay ? 'opacity-100' : 'opacity-0'}`}
+              />
+
+              {/* Loading / Placeholder Overlay */}
+              {(!chartReady || chartLoading || !lastTradingDay) && (
+                <div className="absolute inset-0 flex items-center justify-center bg-gray-50 dark:bg-white/5 rounded transition-colors z-10">
+                  <Icons.Refresh className="animate-spin text-gray-300" size={24} />
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Historical Data Grid (Performance Summary) */}
+          {data ? (
+            <div className="bg-white dark:bg-card-dark p-4 mb-2 transition-colors">
+              <div className="grid grid-cols-4 gap-2 text-center">
+                {[
+                  { label: '近6月', val: data.dayEnd?.returns?.YTD },
+                  { label: '近1年', val: data.dayEnd?.returns?.Y1 },
+                  { label: '近3年', val: data.dayEnd?.returns?.Y3 },
+                  { label: '成立来', val: data.dayEnd?.returns?.sinceInception },
+                ].map((item, idx) => (
+                  <div key={idx} className="flex flex-col gap-1 py-1 rounded">
+                    <span className="text-xs text-gray-400 mb-1">{item.label}</span>
+                    <span className={`font-sans font-bold text-sm ${getSignColor(item.val || 0)}`}>
+                      {item.val ? formatPct(item.val) : '--'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
+
+          {/* History NAV Table */}
+          <div className="bg-white dark:bg-card-dark p-4 mb-2 transition-colors">
+            <div className="flex items-center justify-between mb-4 border-l-4 border-blue-500 pl-2">
+              <h3 className="font-bold text-gray-800 dark:text-gray-100 text-sm">
+                {t('common.historyNav')}
+              </h3>
+              <button
+                onClick={() => setShowAllHistory(!showAllHistory)}
+                className="text-xs text-gray-400 flex items-center hover:text-blue-500"
+              >
+                {showAllHistory ? '收起' : t('common.more')}
+                <Icons.ArrowUp
+                  className={`transform ml-0.5 transition-transform ${showAllHistory ? '' : 'rotate-180'}`}
+                  size={12}
+                />
+              </button>
+            </div>
+
+            <div className="space-y-0">
+              <div className="grid grid-cols-4 gap-2 text-xs text-gray-400 pb-3">
+                <div className="text-left pl-2">{t('common.date')}</div>
+                <div className="text-center">{t('common.unitNav')}</div>
+                <div className="text-center">{t('common.accNav')}</div>
+                <div className="text-right pr-2">{t('common.dayChgPct')}</div>
+              </div>
+
+              {displayedHistory.length > 0 ? (
+                displayedHistory.map((item, idx) => (
+                  <div
+                    key={idx}
+                    className="grid grid-cols-4 gap-2 py-3 border-t border-gray-50 dark:border-border-dark items-center text-sm transition-colors"
+                  >
+                    <div className="text-left pl-2 text-gray-600 dark:text-gray-400 font-medium font-sans">
+                      {item.date}
+                    </div>
+                    <div className="text-center text-gray-800 dark:text-gray-200 font-sans">
+                      {item.nav.toFixed(4)}
+                    </div>
+                    {/* Using derived nav for accumulated as well, since chart is adjusted returns */}
+                    <div className="text-center text-gray-800 dark:text-gray-200 font-sans">
+                      {item.nav.toFixed(4)}
+                    </div>
+                    <div
+                      className={`text-right pr-2 font-sans font-medium ${getSignColor(item.change)}`}
+                    >
+                      {formatPct(item.change)}
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="py-4 text-center text-gray-300 text-xs">Loading history...</div>
+              )}
+            </div>
+          </div>
+
+          {/* Holdings Section */}
+          {holdings.length > 0 && (
+            <div className="bg-white dark:bg-card-dark p-4 mb-2 transition-colors">
+              <h3 className="font-bold text-gray-800 dark:text-gray-100 text-sm mb-4 border-l-4 border-blue-500 pl-2">
+                持仓明细 <span className="text-xs text-gray-400 font-normal ml-1">(实时估算)</span>
+              </h3>
+
+              <div className="space-y-0">
+                {/* Table Header */}
+                <div className="grid grid-cols-10 gap-2 text-xs text-gray-400 pb-2 border-b border-gray-50 dark:border-border-dark">
+                  <div className="col-span-4 pl-1">股票名称</div>
+                  <div className="col-span-3 text-right">最新价/涨跌</div>
+                  <div className="col-span-3 text-right pr-1">持仓占比</div>
                 </div>
 
-                <div className="flex-1 overflow-y-auto flex flex-col no-scrollbar bg-gray-50 dark:bg-app-bg-dark">
-                    {/* Hero Card */}
-                    <div className="bg-white dark:bg-card-dark p-6 mb-2 transition-colors">
-                        <div className="text-gray-500 dark:text-gray-400 text-xs mb-1">{t('common.nav')} ({displayDate})</div>
-                        <div className="flex items-baseline gap-3">
-                            <span className="text-3xl font-bold font-sans text-gray-900 dark:text-gray-100">{currentNav.toFixed(4)}</span>
-                            <span className={`text-lg font-medium font-sans ${getSignColor(dayChangePct)}`}>
-                                {formatPct(dayChangePct)}
-                            </span>
-                        </div>
-                        <div className="mt-4 grid grid-cols-4 gap-2 text-sm">
-                            <div className="bg-gray-50 dark:bg-white/5 p-2 rounded-lg transition-colors flex flex-col justify-between">
-                                <div className="text-gray-400 text-xs mb-1">{anchorPrice ? t('common.anchorPrice') : t('common.cost')}</div>
-                                <div className="font-sans dark:text-gray-200 text-xs text-ellipsis overflow-hidden">{anchorPrice ? anchorPrice.toFixed(4) : fund.costPrice.toFixed(4)}</div>
-                            </div>
-                            <div className="bg-gray-50 dark:bg-white/5 p-2 rounded-lg transition-colors flex flex-col justify-between">
-                                <div className="text-gray-400 text-xs mb-1">{anchorDate ? '锚定日' : t('common.shares')}</div>
-                                <div className="font-sans dark:text-gray-200 text-xs text-ellipsis overflow-hidden">{anchorDate ? anchorDate : fund.holdingShares.toLocaleString()}</div>
-                            </div>
+                {/* List */}
+                {holdings.map((stock, idx) => {
+                  const quote = quotes[stock.ticker];
+                  const price = quote ? quote.price : '--';
+                  const pct = quote ? quote.pct : 0;
+                  const hasQuote = !!quote;
 
-                            {(() => {
-                                const totalCost = fund.costPrice * fund.holdingShares;
-                                const holdingValue = currentNav * fund.holdingShares;
-                                const totalGain = holdingValue - totalCost;
-                                const dayGainVal = fund.dayChangeVal;
-
-                                return (
-                                    <>
-                                        <div className="bg-gray-50 dark:bg-white/5 p-2 rounded-lg transition-colors flex flex-col justify-between">
-                                            <div className="text-gray-400 text-xs mb-1">{anchorPrice ? t('common.anchorGain') : t('common.totalGain')}</div>
-                                            {anchorPrice ? (
-                                                <div className={`font-sans font-bold text-xs ${getSignColor(currentNav - anchorPrice)}`}>
-                                                    {formatPct(((currentNav - anchorPrice) / anchorPrice) * 100)}
-                                                </div>
-                                            ) : (
-                                                <div className={`font-sans font-bold text-xs ${getSignColor(totalGain)}`}>
-                                                    {formatSignedCurrency(totalGain)}
-                                                </div>
-                                            )}
-                                        </div>
-                                        <div className="bg-gray-50 dark:bg-white/5 p-2 rounded-lg transition-colors flex flex-col justify-between">
-                                            <div className="text-gray-400 text-xs mb-1">{t('common.dayGain')}</div>
-                                            {anchorPrice ? (
-                                                <div className={`font-sans font-bold text-xs ${getSignColor(dayChangePct)}`}>
-                                                    {formatPct(dayChangePct)}
-                                                </div>
-                                            ) : (
-                                                <div className={`font-sans font-bold text-xs ${getSignColor(dayGainVal)}`}>
-                                                    {formatSignedCurrency(dayGainVal)}
-                                                </div>
-                                            )}
-                                        </div>
-                                    </>
-                                );
-                            })()}
+                  return (
+                    <div
+                      key={idx}
+                      className="grid grid-cols-10 gap-2 py-3 border-b border-gray-50 dark:border-border-dark items-center last:border-0 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors"
+                    >
+                      <div className="col-span-4 pl-1">
+                        <div className="font-medium text-gray-800 dark:text-gray-200 text-sm truncate">
+                          {stock.name}
                         </div>
+                        <div className="text-xs text-gray-400 font-sans">{stock.ticker}</div>
+                      </div>
+                      <div className="col-span-3 text-right">
+                        <div className="font-sans text-sm text-gray-800 dark:text-gray-200">
+                          {price}
+                        </div>
+                        {hasQuote && (
+                          <div className={`text-xs font-sans font-medium ${getSignColor(pct)}`}>
+                            {formatPct(pct)}
+                          </div>
+                        )}
+                      </div>
+                      <div className="col-span-3 text-right pr-1">
+                        <div className="font-sans text-gray-800 dark:text-gray-200 font-medium">
+                          {stock.weight.toFixed(2)}%
+                        </div>
+                        {/* Simple visual bar for weight */}
+                        <div className="w-full bg-gray-100 dark:bg-white/10 h-1 mt-1 rounded-full overflow-hidden flex justify-end">
+                          <div
+                            className="bg-blue-200 dark:bg-blue-800 h-full"
+                            style={{ width: `${Math.min(stock.weight * 5, 100)}%` }}
+                          />
+                        </div>
+                      </div>
                     </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
-                    {/* ECharts Section */}
-                    <div className="bg-white dark:bg-card-dark p-4 mb-2 transition-colors">
-                        <div className="flex items-center justify-between mb-4">
-                            <h3 className="font-bold text-gray-800 dark:text-gray-100 text-sm border-l-4 border-blue-500 pl-2">累计收益走势</h3>
-                            <div className="flex bg-gray-100 dark:bg-white/10 rounded-lg p-0.5 transition-colors">
-                                {ranges.map(range => (
-                                    <button
-                                        key={range}
-                                        onClick={() => setTimeRange(range)}
-                                        className={`px-2 py-1 text-[10px] rounded-md font-medium transition-all ${timeRange === range
-                                            ? 'bg-white dark:bg-card-dark text-blue-600 shadow-sm'
-                                            : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
-                                            }`}
-                                    >
-                                        {range}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-
-                        <div className="relative w-full h-64">
-                            {/* ECharts Container (Always mounted to preserve ECharts instance) */}
-                            <div 
-                                ref={chartRef} 
-                                className={`w-full h-full transition-opacity duration-300 ${chartReady && !chartLoading && lastTradingDay ? 'opacity-100' : 'opacity-0'}`} 
-                            />
-                            
-                            {/* Loading / Placeholder Overlay */}
-                            {(!chartReady || chartLoading || !lastTradingDay) && (
-                                <div className="absolute inset-0 flex items-center justify-center bg-gray-50 dark:bg-white/5 rounded transition-colors z-10">
-                                    <Icons.Refresh className="animate-spin text-gray-300" size={24} />
-                                </div>
-                            )}
-                        </div>
+          {/* Annual Returns Table */}
+          {data && data.annual && (
+            <div className="bg-white dark:bg-card-dark p-4 transition-colors">
+              <h3 className="font-bold text-gray-800 dark:text-gray-100 text-sm mb-4 border-l-4 border-blue-500 pl-2">
+                年度回报
+              </h3>
+              <div className="space-y-3">
+                {data.annual.returns
+                  ?.slice()
+                  .reverse()
+                  .map((item) => (
+                    <div
+                      key={item.k}
+                      className="flex justify-between items-center text-sm border-b border-gray-50 dark:border-border-dark pb-2 last:border-0"
+                    >
+                      <span className="text-gray-600 dark:text-gray-400 font-sans">{item.k}年</span>
+                      <span className={`font-sans font-medium ${getSignColor(item.v)}`}>
+                        {formatPct(item.v)}
+                      </span>
                     </div>
+                  ))}
+              </div>
+            </div>
+          )}
 
-                    {/* Historical Data Grid (Performance Summary) */}
-                    {data ? (
-                        <div className="bg-white dark:bg-card-dark p-4 mb-2 transition-colors">
-                            <div className="grid grid-cols-4 gap-2 text-center">
-                                {[
-                                    { label: '近6月', val: data.dayEnd?.returns?.YTD },
-                                    { label: '近1年', val: data.dayEnd?.returns?.Y1 },
-                                    { label: '近3年', val: data.dayEnd?.returns?.Y3 },
-                                    { label: '成立来', val: data.dayEnd?.returns?.sinceInception },
-                                ].map((item, idx) => (
-                                    <div key={idx} className="flex flex-col gap-1 py-1 rounded">
-                                        <span className="text-xs text-gray-400 mb-1">{item.label}</span>
-                                        <span className={`font-sans font-bold text-sm ${getSignColor(item.val || 0)}`}>
-                                            {item.val ? formatPct(item.val) : '--'}
-                                        </span>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    ) : null}
+          {/* Scrollable Area End Marker */}
+          <div className="pt-4 pb-6 w-full flex items-center justify-center text-xs text-gray-400 dark:text-gray-500 font-sans">
+            - 到底啦 -
+          </div>
+        </div>
 
-                    {/* History NAV Table */}
-                    <div className="bg-white dark:bg-card-dark p-4 mb-2 transition-colors">
-                        <div className="flex items-center justify-between mb-4 border-l-4 border-blue-500 pl-2">
-                            <h3 className="font-bold text-gray-800 dark:text-gray-100 text-sm">{t('common.historyNav')}</h3>
-                            <button
-                                onClick={() => setShowAllHistory(!showAllHistory)}
-                                className="text-xs text-gray-400 flex items-center hover:text-blue-500"
-                            >
-                                {showAllHistory ? '收起' : t('common.more')}
-                                <Icons.ArrowUp className={`transform ml-0.5 transition-transform ${showAllHistory ? '' : 'rotate-180'}`} size={12} />
-                            </button>
-                        </div>
-
-                        <div className="space-y-0">
-                            <div className="grid grid-cols-4 gap-2 text-xs text-gray-400 pb-3">
-                                <div className="text-left pl-2">{t('common.date')}</div>
-                                <div className="text-center">{t('common.unitNav')}</div>
-                                <div className="text-center">{t('common.accNav')}</div>
-                                <div className="text-right pr-2">{t('common.dayChgPct')}</div>
-                            </div>
-
-                            {displayedHistory.length > 0 ? displayedHistory.map((item, idx) => (
-                                <div key={idx} className="grid grid-cols-4 gap-2 py-3 border-t border-gray-50 dark:border-border-dark items-center text-sm transition-colors">
-                                    <div className="text-left pl-2 text-gray-600 dark:text-gray-400 font-medium font-sans">{item.date}</div>
-                                    <div className="text-center text-gray-800 dark:text-gray-200 font-sans">{item.nav.toFixed(4)}</div>
-                                    {/* Using derived nav for accumulated as well, since chart is adjusted returns */}
-                                    <div className="text-center text-gray-800 dark:text-gray-200 font-sans">{item.nav.toFixed(4)}</div>
-                                    <div className={`text-right pr-2 font-sans font-medium ${getSignColor(item.change)}`}>
-                                        {formatPct(item.change)}
-                                    </div>
-                                </div>
-                            )) : (
-                                <div className="py-4 text-center text-gray-300 text-xs">Loading history...</div>
-                            )}
-                        </div>
-                    </div>
-
-                    {/* Holdings Section */}
-                    {holdings.length > 0 && (
-                        <div className="bg-white dark:bg-card-dark p-4 mb-2 transition-colors">
-                            <h3 className="font-bold text-gray-800 dark:text-gray-100 text-sm mb-4 border-l-4 border-blue-500 pl-2">
-                                持仓明细 <span className="text-xs text-gray-400 font-normal ml-1">(实时估算)</span>
-                            </h3>
-
-                            <div className="space-y-0">
-                                {/* Table Header */}
-                                <div className="grid grid-cols-10 gap-2 text-xs text-gray-400 pb-2 border-b border-gray-50 dark:border-border-dark">
-                                    <div className="col-span-4 pl-1">股票名称</div>
-                                    <div className="col-span-3 text-right">最新价/涨跌</div>
-                                    <div className="col-span-3 text-right pr-1">持仓占比</div>
-                                </div>
-
-                                {/* List */}
-                                {holdings.map((stock, idx) => {
-                                    const quote = quotes[stock.ticker];
-                                    const price = quote ? quote.price : '--';
-                                    const pct = quote ? quote.pct : 0;
-                                    const hasQuote = !!quote;
-
-                                    return (
-                                        <div key={idx} className="grid grid-cols-10 gap-2 py-3 border-b border-gray-50 dark:border-border-dark items-center last:border-0 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
-                                            <div className="col-span-4 pl-1">
-                                                <div className="font-medium text-gray-800 dark:text-gray-200 text-sm truncate">{stock.name}</div>
-                                                <div className="text-xs text-gray-400 font-sans">{stock.ticker}</div>
-                                            </div>
-                                            <div className="col-span-3 text-right">
-                                                <div className="font-sans text-sm text-gray-800 dark:text-gray-200">{price}</div>
-                                                {hasQuote && (
-                                                    <div className={`text-xs font-sans font-medium ${getSignColor(pct)}`}>
-                                                        {formatPct(pct)}
-                                                    </div>
-                                                )}
-                                            </div>
-                                            <div className="col-span-3 text-right pr-1">
-                                                <div className="font-sans text-gray-800 dark:text-gray-200 font-medium">{stock.weight.toFixed(2)}%</div>
-                                                {/* Simple visual bar for weight */}
-                                                <div className="w-full bg-gray-100 dark:bg-white/10 h-1 mt-1 rounded-full overflow-hidden flex justify-end">
-                                                    <div className="bg-blue-200 dark:bg-blue-800 h-full" style={{ width: `${Math.min(stock.weight * 5, 100)}%` }} />
-                                                </div>
-                                            </div>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Annual Returns Table */}
-                    {data && data.annual && (
-                        <div className="bg-white dark:bg-card-dark p-4 transition-colors">
-                            <h3 className="font-bold text-gray-800 dark:text-gray-100 text-sm mb-4 border-l-4 border-blue-500 pl-2">年度回报</h3>
-                            <div className="space-y-3">
-                                {data.annual.returns?.slice().reverse().map((item) => (
-                                    <div key={item.k} className="flex justify-between items-center text-sm border-b border-gray-50 dark:border-border-dark pb-2 last:border-0">
-                                        <span className="text-gray-600 dark:text-gray-400 font-sans">{item.k}年</span>
-                                        <span className={`font-sans font-medium ${getSignColor(item.v)}`}>
-                                            {formatPct(item.v)}
-                                        </span>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Scrollable Area End Marker */}
-                    <div className="pt-4 pb-6 w-full flex items-center justify-center text-xs text-gray-400 dark:text-gray-500 font-sans">
-                        - 到底啦 -
-                    </div>
-                </div>
-
-                {/* Fixed Footer Bar */}
-                <div className="bg-white dark:bg-card-dark px-4 h-14 flex items-center justify-center shadow-[0_-1px_2px_rgba(0,0,0,0.05)] dark:border-t dark:border-border-dark flex-shrink-0 z-10 transition-colors">
-                    <span className="text-xs text-gray-400 dark:text-gray-500 font-sans">数据仅供参考，不构成投资建议</span>
-                </div>
-            </motion.div>
-        </motion.div>
-    );
+        {/* Fixed Footer Bar */}
+        <div className="bg-white dark:bg-card-dark px-4 h-14 flex items-center justify-center shadow-[0_-1px_2px_rgba(0,0,0,0.05)] dark:border-t dark:border-border-dark flex-shrink-0 z-10 transition-colors">
+          <span className="text-xs text-gray-400 dark:text-gray-500 font-sans">
+            数据仅供参考，不构成投资建议
+          </span>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
 };

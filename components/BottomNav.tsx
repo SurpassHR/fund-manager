@@ -1,5 +1,5 @@
 import React from 'react';
-import { TabType } from '../types';
+import type { TabType } from '../types';
 import { Icons } from './Icon';
 import { useTranslation } from '../services/i18n';
 
@@ -8,10 +8,16 @@ interface BottomNavProps {
   onTabChange: (tab: TabType) => void;
 }
 
+type IconComponent = React.ComponentType<{
+  size?: number;
+  strokeWidth?: number;
+  className?: string;
+}>;
+
 export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, onTabChange }) => {
   const { t } = useTranslation();
 
-  const tabs: { id: TabType; label: string; icon: React.FC<any> }[] = [
+  const tabs: { id: TabType; label: string; icon: IconComponent }[] = [
     { id: 'holding', label: t('common.holdings'), icon: Icons.Holdings },
     { id: 'watchlist', label: t('common.watchlist'), icon: Icons.User },
     { id: 'market', label: t('common.market'), icon: Icons.Chart },
@@ -29,8 +35,9 @@ export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, onTabChange }) 
             <button
               key={tab.id}
               onClick={() => onTabChange(tab.id)}
-              className={`flex flex-col items-center justify-center w-full h-full space-y-0.5 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors ${isActive ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400 dark:text-gray-500'
-                }`}
+              className={`flex flex-col items-center justify-center w-full h-full space-y-0.5 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors ${
+                isActive ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400 dark:text-gray-500'
+              }`}
             >
               <Icon size={20} strokeWidth={isActive ? 2.5 : 2} />
               <span className="text-[10px] font-medium">{tab.label}</span>

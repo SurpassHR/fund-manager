@@ -1,6 +1,14 @@
-import Dexie, { Table } from 'dexie';
-import { Fund, Account, AssetSummary, PendingTransaction, WatchlistItem } from '../types';
-import { fetchFundCommonData, fetchEastMoneyLatestNav, fetchFundHoldings, fetchRealTimeQuotes, checkIsMarketTrading, fetchGeneralTencentQuotes } from './api';
+import Dexie, { type Table } from 'dexie';
+import type { Fund, Account, AssetSummary, WatchlistItem, EquityHolding } from '../types';
+import {
+  fetchFundCommonData,
+  fetchEastMoneyLatestNav,
+  fetchFundHoldings,
+  fetchTencentStockQuotes,
+  checkIsMarketTrading,
+  fetchGeneralTencentQuotes,
+  buildTencentQuoteCodes,
+} from './api';
 
 class XiaoHuYangJiDB extends Dexie {
   funds!: Table<Fund>;
@@ -10,24 +18,24 @@ class XiaoHuYangJiDB extends Dexie {
   constructor() {
     super('XiaoHuYangJiDB');
     // Version 1
-    (this as any).version(1).stores({
-      funds: '++id, code, platform, name'
+    this.version(1).stores({
+      funds: '++id, code, platform, name',
     });
     // Version 2: Add accounts table
-    (this as any).version(2).stores({
-      funds: '++id, code, platform, name',
-      accounts: '++id, name'
-    });
-    // Version 3: pendingTransactions + settlementDays stored inline in funds
-    (this as any).version(3).stores({
-      funds: '++id, code, platform, name',
-      accounts: '++id, name'
-    });
-    // Version 4: Add watchlists table
-    (this as any).version(4).stores({
+    this.version(2).stores({
       funds: '++id, code, platform, name',
       accounts: '++id, name',
-      watchlists: '++id, code, type, name'
+    });
+    // Version 3: pendingTransactions + settlementDays stored inline in funds
+    this.version(3).stores({
+      funds: '++id, code, platform, name',
+      accounts: '++id, name',
+    });
+    // Version 4: Add watchlists table
+    this.version(4).stores({
+      funds: '++id, code, platform, name',
+      accounts: '++id, name',
+      watchlists: '++id, code, type, name',
     });
   }
 }
@@ -48,9 +56,7 @@ export const initDB = () => {
     initPromise = (async () => {
       const accountsCount = await db.accounts.count();
       if (accountsCount === 0) {
-        await db.accounts.bulkAdd([
-          { name: 'Default', isDefault: true },
-        ]);
+        await db.accounts.bulkAdd([{ name: 'Default', isDefault: true }]);
       }
     })();
   }
@@ -68,6 +74,60 @@ const getLocalDateString = () => {
   return `${year}-${month}-${day}`;
 };
 
+const normalizeTicker = (ticker?: string) => (ticker ? ticker.replace(/\D/g, '') : '');
+
+const isNearlyEqual = (a: number, b: number, eps = 1e-6) => Math.abs(a - b) < eps;
+
+type HoldingTicker = { ticker: string };
+type HoldingWithWeight = HoldingTicker & { weight: number };
+
+const calcWeightedChangePct = (
+  holdings: HoldingWithWeight[],
+  quotePctMap: Record<string, number>,
+) => {
+  let weightedPctSum = 0;
+  let totalWeight = 0;
+
+  holdings.forEach((h) => {
+    const key = normalizeTicker(h.ticker);
+    if (!key) return;
+    const pct = quotePctMap[key];
+    if (pct !== undefined) {
+      weightedPctSum += (h.weight / 100) * pct;
+      totalWeight += h.weight;
+    }
+  });
+
+  if (totalWeight > 0) {
+    return weightedPctSum / (totalWeight / 100);
+  }
+  return null;
+};
+
+const buildQuotePctMap = async (holdingsList: HoldingTicker[][], force?: boolean) => {
+  const codeSet = new Set<string>();
+  holdingsList.forEach((holdings) => {
+    const codes = buildTencentQuoteCodes(holdings.map((h) => h.ticker));
+    codes.forEach((code) => codeSet.add(code));
+  });
+
+  if (codeSet.size === 0) return {};
+
+  try {
+    const quoteMap = await fetchTencentStockQuotes(Array.from(codeSet), { force });
+    const pctMap: Record<string, number> = {};
+    Object.entries(quoteMap).forEach(([ticker, quote]) => {
+      if (typeof quote.pct === 'number') {
+        pctMap[ticker] = quote.pct;
+      }
+    });
+    return pctMap;
+  } catch (err) {
+    console.error('批量获取实时行情失败', err);
+    return {};
+  }
+};
+
 /**
  * 根据买入日期和时间，估算基金的“成本生效日期”（即这天的净值作为买入成本）
  * 收益只有在这个日期【之后】的市场交易日才会产生
@@ -76,10 +136,12 @@ const getCostDateStr = (buyDateStr: string, buyTime: 'before15' | 'after15'): st
   const d = new Date(buyDateStr);
 
   // 如果是周末买入，自动顺延到下周一，且相当于周一 15:00 前买入
-  if (d.getDay() === 0) { // 周日
+  if (d.getDay() === 0) {
+    // 周日
     d.setDate(d.getDate() + 1);
     buyTime = 'before15';
-  } else if (d.getDay() === 6) { // 周六
+  } else if (d.getDay() === 6) {
+    // 周六
     d.setDate(d.getDate() + 2);
     buyTime = 'before15';
   }
@@ -109,7 +171,7 @@ const getCostDateStr = (buyDateStr: string, buyTime: 'before15' | 'after15'): st
 export const getSettlementDate = (
   opDateStr: string,
   opTime: 'before15' | 'after15',
-  tPlusN: number
+  tPlusN: number,
 ): string => {
   const d = new Date(opDateStr);
 
@@ -147,8 +209,11 @@ export const getSettlementDate = (
  */
 let refreshPromise: Promise<void> | null = null;
 
-export const refreshFundData = () => {
+type RefreshOptions = { force?: boolean };
+
+export const refreshFundData = (options?: RefreshOptions) => {
   if (refreshPromise) return refreshPromise;
+  const forceRefresh = options?.force ?? false;
 
   refreshPromise = (async () => {
     try {
@@ -156,88 +221,106 @@ export const refreshFundData = () => {
       if (allFunds.length === 0) return;
 
       // 检查当前大盘是否已更新(真正处于开盘且在 9:20 以后)
-      const shouldUseEstimatedValue = await checkIsMarketTrading();
+      const shouldUseEstimatedValue = await checkIsMarketTrading({ force: forceRefresh });
+      const todayStr = getLocalDateString();
 
-      const results = await Promise.allSettled(
+      const baseResults = await Promise.allSettled(
         allFunds.map(async (fund) => {
-          // 1. 优先从东方财富获取最新 NAV 数据（晚间更新更及时）
-          let nav = 0, navDate = '', navChangePercent = 0;
-          const emData = await fetchEastMoneyLatestNav(fund.code);
+          let nav = 0;
+          let navDate = '';
+          let navChangePercent = 0;
 
+          const emData = await fetchEastMoneyLatestNav(fund.code, { force: forceRefresh });
           if (emData) {
             nav = emData.nav;
             navDate = emData.navDate;
             navChangePercent = emData.navChangePercent;
           } else {
-            // 降级使用晨星接口
-            const json = await fetchFundCommonData(fund.code);
-            if (!json?.data?.nav) return;
+            const json = await fetchFundCommonData(fund.code, { force: forceRefresh });
+            if (!json?.data?.nav) return null;
             ({ nav, navDate, navChangePercent } = json.data);
           }
 
-          let estimatedChangePct = navChangePercent;
-          let hasEstimate = false;
+          const isOfficialTodayNavOut = navDate === todayStr;
+          const shouldEstimate = shouldUseEstimatedValue && !isOfficialTodayNavOut;
 
-          const todayStr = getLocalDateString();
-          const isOfficialTodayNavOut = (navDate === todayStr);
+          return {
+            fund,
+            nav,
+            navDate,
+            navChangePercent,
+            shouldEstimate,
+          };
+        }),
+      );
 
-          // 如果处于交易日内（或已收盘但尚未跨天），且官方还未发布今天最新净值，则尝试通过持仓估算今日涨跌
-          if (shouldUseEstimatedValue && !isOfficialTodayNavOut) {
-            try {
-              // 2. 获取基金持仓
-              const holdingsJson = await fetchFundHoldings(fund.code);
-              const equityHoldings = holdingsJson?.data?.equityHoldings;
+      const candidates: Array<{
+        fund: Fund;
+        nav: number;
+        navDate: string;
+        navChangePercent: number;
+        shouldEstimate: boolean;
+      }> = [];
+      const estimateCandidates: Array<{
+        fund: Fund;
+        nav: number;
+        navDate: string;
+        navChangePercent: number;
+        shouldEstimate: boolean;
+      }> = [];
+      let failedBase = 0;
 
-              if (equityHoldings && equityHoldings.length > 0) {
-                // 取前十大持仓
-                const top10 = equityHoldings.slice(0, 10);
-
-                // 构造成腾讯接口需要的代码格式 (如 sh600519)
-                const codes = top10.map((h: any) => {
-                  const c = h.ticker;
-                  if (!c) return null;
-                  if (c.length === 5) return `hk${c}`;
-                  if (c.length === 6) {
-                    if (c.startsWith('6')) return `sh${c}`;
-                    if (c.startsWith('0') || c.startsWith('3')) return `sz${c}`;
-                    if (c.startsWith('83') || c.startsWith('87') || c.startsWith('43')) return `bj${c}`;
-                  }
-                  return null;
-                }).filter(Boolean);
-
-                if (codes.length > 0) {
-                  // 3. 批量获取最新股票报价
-                  const quoteMap = await fetchRealTimeQuotes(codes, top10);
-
-                  // 4. 计算前十大持仓的加权平均涨跌幅
-                  let weightedPctSum = 0;
-                  let totalWeight = 0;
-
-                  top10.forEach((h: any) => {
-                    const pct = quoteMap[h.ticker];
-                    if (pct !== undefined) {
-                      weightedPctSum += (h.weight / 100) * pct;
-                      totalWeight += h.weight;
-                    }
-                  });
-
-                  if (totalWeight > 0) {
-                    estimatedChangePct = (weightedPctSum / (totalWeight / 100));
-                    hasEstimate = true;
-                  }
-                }
-              }
-            } catch (estimateErr) {
-              console.error(`估算基金 ${fund.code} 净值失败`, estimateErr);
-              // 失败则使用接口返回的值，保持 silent fallback
-            }
+      baseResults.forEach((result) => {
+        if (result.status === 'fulfilled' && result.value) {
+          candidates.push(result.value);
+          if (result.value.shouldEstimate) {
+            estimateCandidates.push(result.value);
           }
+        } else if (result.status === 'rejected') {
+          failedBase += 1;
+        }
+      });
 
-          // 确定本次使用的收益率对应的真正日期
-          const effectivePctDate = hasEstimate ? getLocalDateString() : navDate;
+      if (failedBase > 0) console.warn(`刷新基金数据：${failedBase}/${allFunds.length} 个失败`);
 
-          // 判断今天是否应该计算“今日收益”
-          // 如果有效日期 <= 基金的成本生效日期，说明该基金【还在处理中】，不应产生那天的波动收益
+      const estimateMap = new Map<string, number>();
+
+      if (estimateCandidates.length > 0) {
+        const holdingsResults = await Promise.allSettled(
+          estimateCandidates.map(async (candidate) => {
+            const holdingsJson = await fetchFundHoldings(candidate.fund.code);
+            const equityHoldings = holdingsJson?.data?.equityHoldings as
+              | EquityHolding[]
+              | undefined;
+            if (!equityHoldings || equityHoldings.length === 0) return null;
+            return { code: candidate.fund.code, holdings: equityHoldings.slice(0, 10) };
+          }),
+        );
+
+        const holdingsMap = new Map<string, EquityHolding[]>();
+        holdingsResults.forEach((result) => {
+          if (result.status === 'fulfilled' && result.value) {
+            holdingsMap.set(result.value.code, result.value.holdings);
+          }
+        });
+
+        const quotePctMap = await buildQuotePctMap(Array.from(holdingsMap.values()), forceRefresh);
+        holdingsMap.forEach((holdings, code) => {
+          const estimated = calcWeightedChangePct(holdings, quotePctMap);
+          if (estimated !== null) {
+            estimateMap.set(code, estimated);
+          }
+        });
+      }
+
+      const updateResults = await Promise.allSettled(
+        candidates.map(async (candidate) => {
+          const { fund, nav, navDate, navChangePercent } = candidate;
+          const estimatedChangePct = estimateMap.get(fund.code);
+          const hasEstimate = candidate.shouldEstimate && estimatedChangePct !== undefined;
+
+          const effectivePctDate = hasEstimate ? todayStr : navDate;
+
           let isGainActive = true;
           if (fund.buyDate) {
             const costDateStr = getCostDateStr(fund.buyDate, fund.buyTime || 'before15');
@@ -248,26 +331,40 @@ export const refreshFundData = () => {
 
           let dayChangeVal = 0;
           if (isGainActive) {
-            if (hasEstimate) {
-              const mktVal = fund.holdingShares * nav;
+            const mktVal = fund.holdingShares * nav;
+            if (hasEstimate && estimatedChangePct !== undefined) {
               dayChangeVal = mktVal * (estimatedChangePct / 100);
             } else {
-              const mktVal = fund.holdingShares * nav;
-              dayChangeVal = mktVal * (navChangePercent / 100) / (1 + navChangePercent / 100);
+              dayChangeVal = (mktVal * (navChangePercent / 100)) / (1 + navChangePercent / 100);
             }
           }
+
+          const nextDayChangePct = isGainActive
+            ? hasEstimate && estimatedChangePct !== undefined
+              ? estimatedChangePct
+              : navChangePercent
+            : 0;
+
+          const shouldSkipUpdate =
+            isNearlyEqual(fund.currentNav, nav) &&
+            fund.lastUpdate === effectivePctDate &&
+            isNearlyEqual(fund.dayChangePct, nextDayChangePct) &&
+            isNearlyEqual(fund.dayChangeVal, dayChangeVal);
+
+          if (shouldSkipUpdate) return;
 
           await db.funds.update(fund.id!, {
             currentNav: nav,
             lastUpdate: effectivePctDate,
-            dayChangePct: isGainActive ? (hasEstimate ? estimatedChangePct : navChangePercent) : 0,
+            dayChangePct: nextDayChangePct,
             dayChangeVal: dayChangeVal,
           });
-        })
+        }),
       );
 
-      const failed = results.filter(r => r.status === 'rejected').length;
-      if (failed > 0) console.warn(`刷新基金数据：${failed}/${allFunds.length} 个失败`);
+      const failedUpdates = updateResults.filter((r) => r.status === 'rejected').length;
+      if (failedUpdates > 0)
+        console.warn(`刷新基金数据：${failedUpdates}/${allFunds.length} 个更新失败`);
 
       // === 自动结算在途交易 ===
       const todayForSettlement = getLocalDateString();
@@ -281,7 +378,7 @@ export const refreshFundData = () => {
         let newShares = fund.holdingShares;
         let newCostPrice = fund.costPrice;
 
-        const updatedPending = pending.map(tx => {
+        const updatedPending = pending.map((tx) => {
           if (tx.settled) return tx;
           if (tx.settlementDate > todayForSettlement) return tx; // 还没到期
 
@@ -327,101 +424,142 @@ let refreshWatchlistPromise: Promise<void> | null = null;
  * Updates both funds and indices/sectors using their respective APIs.
  * @returns A promise that resolves when the watchlist refresh is complete.
  */
-export const refreshWatchlistData = () => {
+export const refreshWatchlistData = (options?: RefreshOptions) => {
   if (refreshWatchlistPromise) return refreshWatchlistPromise;
+  const forceRefresh = options?.force ?? false;
 
   refreshWatchlistPromise = (async () => {
     try {
       const allItems = await db.watchlists.toArray();
       if (allItems.length === 0) return;
 
-      const fundItems = allItems.filter(i => i.type === 'fund');
-      const indexItems = allItems.filter(i => i.type === 'index');
+      const fundItems = allItems.filter((i) => i.type === 'fund');
+      const indexItems = allItems.filter((i) => i.type === 'index');
       const todayStr = getLocalDateString();
 
       // 1. Process Funds
       if (fundItems.length > 0) {
-        const shouldUseEstimatedValue = await checkIsMarketTrading();
-        await Promise.allSettled(
+        const shouldUseEstimatedValue = await checkIsMarketTrading({ force: forceRefresh });
+        const baseResults = await Promise.allSettled(
           fundItems.map(async (item) => {
             let nav = item.currentPrice;
             let navDate = '';
             let navChangePercent = item.dayChangePct;
 
-            const emData = await fetchEastMoneyLatestNav(item.code);
+            const emData = await fetchEastMoneyLatestNav(item.code, { force: forceRefresh });
             if (emData) {
               nav = emData.nav;
               navDate = emData.navDate;
               navChangePercent = emData.navChangePercent;
             } else {
-              const json = await fetchFundCommonData(item.code);
+              const json = await fetchFundCommonData(item.code, { force: forceRefresh });
               if (json?.data?.nav) {
                 ({ nav, navDate, navChangePercent } = json.data);
               }
             }
 
-            let effectivePctDate = navDate;
-            let estimatedChangePct = navChangePercent;
-            let hasEstimate = false;
+            const isOfficialTodayNavOut = navDate === todayStr;
+            const shouldEstimate = shouldUseEstimatedValue && !isOfficialTodayNavOut;
 
-            const isOfficialTodayNavOut = (navDate === todayStr);
+            return {
+              item,
+              nav,
+              navDate,
+              navChangePercent,
+              shouldEstimate,
+            };
+          }),
+        );
 
-            if (shouldUseEstimatedValue && !isOfficialTodayNavOut) {
-              try {
-                const holdingsJson = await fetchFundHoldings(item.code);
-                const equityHoldings = holdingsJson?.data?.equityHoldings;
-                if (equityHoldings && equityHoldings.length > 0) {
-                  const top10 = equityHoldings.slice(0, 10);
-                  const codes = top10.map((h: any) => {
-                    const c = h.ticker;
-                    if (!c) return null;
-                    if (c.length === 5) return `hk${c}`;
-                    if (c.length === 6) {
-                      if (c.startsWith('6')) return `sh${c}`;
-                      if (c.startsWith('0') || c.startsWith('3')) return `sz${c}`;
-                      if (c.startsWith('83') || c.startsWith('87') || c.startsWith('43')) return `bj${c}`;
-                    }
-                    return null;
-                  }).filter(Boolean);
+        const candidates: Array<{
+          item: WatchlistItem;
+          nav: number;
+          navDate: string;
+          navChangePercent: number;
+          shouldEstimate: boolean;
+        }> = [];
+        const estimateCandidates: Array<{
+          item: WatchlistItem;
+          nav: number;
+          navDate: string;
+          navChangePercent: number;
+          shouldEstimate: boolean;
+        }> = [];
 
-                  if (codes.length > 0) {
-                    const quoteMap = await fetchRealTimeQuotes(codes, top10);
-                    let weightedPctSum = 0;
-                    let totalWeight = 0;
-
-                    top10.forEach((h: any) => {
-                      const pct = quoteMap[h.ticker];
-                      if (pct !== undefined) {
-                        weightedPctSum += (h.weight / 100) * pct;
-                        totalWeight += h.weight;
-                      }
-                    });
-
-                    if (totalWeight > 0) {
-                      estimatedChangePct = (weightedPctSum / (totalWeight / 100));
-                      hasEstimate = true;
-                      effectivePctDate = todayStr;
-                    }
-                  }
-                }
-              } catch (e) {
-                console.warn(`Watchlist estimate failed for ${item.code}`);
-              }
+        baseResults.forEach((result) => {
+          if (result.status === 'fulfilled' && result.value) {
+            candidates.push(result.value);
+            if (result.value.shouldEstimate) {
+              estimateCandidates.push(result.value);
             }
+          }
+        });
+
+        const estimateMap = new Map<string, number>();
+        if (estimateCandidates.length > 0) {
+          const holdingsResults = await Promise.allSettled(
+            estimateCandidates.map(async (candidate) => {
+              const holdingsJson = await fetchFundHoldings(candidate.item.code);
+              const equityHoldings = holdingsJson?.data?.equityHoldings as
+                | EquityHolding[]
+                | undefined;
+              if (!equityHoldings || equityHoldings.length === 0) return null;
+              return { code: candidate.item.code, holdings: equityHoldings.slice(0, 10) };
+            }),
+          );
+
+          const holdingsMap = new Map<string, EquityHolding[]>();
+          holdingsResults.forEach((result) => {
+            if (result.status === 'fulfilled' && result.value) {
+              holdingsMap.set(result.value.code, result.value.holdings);
+            }
+          });
+
+          const quotePctMap = await buildQuotePctMap(
+            Array.from(holdingsMap.values()),
+            forceRefresh,
+          );
+          holdingsMap.forEach((holdings, code) => {
+            const estimated = calcWeightedChangePct(holdings, quotePctMap);
+            if (estimated !== null) {
+              estimateMap.set(code, estimated);
+            }
+          });
+        }
+
+        await Promise.allSettled(
+          candidates.map(async (candidate) => {
+            const { item, nav, navDate, navChangePercent } = candidate;
+            const estimatedChangePct = estimateMap.get(item.code);
+            const hasEstimate = candidate.shouldEstimate && estimatedChangePct !== undefined;
+            const effectivePctDate = hasEstimate ? todayStr : navDate;
+
+            const nextDayChangePct =
+              hasEstimate && estimatedChangePct !== undefined
+                ? estimatedChangePct
+                : navChangePercent;
+            const nextLastUpdate = effectivePctDate || todayStr;
+
+            const shouldSkipUpdate =
+              isNearlyEqual(item.currentPrice, nav) &&
+              isNearlyEqual(item.dayChangePct, nextDayChangePct) &&
+              item.lastUpdate === nextLastUpdate;
+
+            if (shouldSkipUpdate) return;
 
             await db.watchlists.update(item.id!, {
               currentPrice: nav,
-              dayChangePct: hasEstimate ? estimatedChangePct : navChangePercent,
-              lastUpdate: effectivePctDate || todayStr,
+              dayChangePct: nextDayChangePct,
+              lastUpdate: nextLastUpdate,
             });
-          })
+          }),
         );
       }
 
       // 2. Process Indices / Stocks
       if (indexItems.length > 0) {
-        const codes = indexItems.map(i => i.code);
-        const quotes = await fetchGeneralTencentQuotes(codes);
+        const codes = indexItems.map((i) => i.code);
+        const quotes = await fetchGeneralTencentQuotes(codes, { force: forceRefresh });
 
         await Promise.allSettled(
           indexItems.map(async (item) => {
@@ -433,7 +571,7 @@ export const refreshWatchlistData = () => {
                 lastUpdate: todayStr,
               });
             }
-          })
+          }),
         );
       }
     } catch (err) {
@@ -458,7 +596,7 @@ export const calculateSummary = (funds: Fund[]): AssetSummary => {
 
   const todayStr = getLocalDateString();
 
-  funds.forEach(fund => {
+  funds.forEach((fund) => {
     const assetValue = fund.holdingShares * fund.currentNav;
     const costValue = fund.holdingShares * fund.costPrice;
 
@@ -473,16 +611,15 @@ export const calculateSummary = (funds: Fund[]): AssetSummary => {
 
   const holdingGain = totalAssets - totalCost;
   const holdingGainPct = totalCost > 0 ? (holdingGain / totalCost) * 100 : 0;
-  const totalDayGainPct = (totalAssets - totalDayGain) > 0
-    ? (totalDayGain / (totalAssets - totalDayGain)) * 100
-    : 0;
+  const totalDayGainPct =
+    totalAssets - totalDayGain > 0 ? (totalDayGain / (totalAssets - totalDayGain)) * 100 : 0;
 
   return {
     totalAssets,
     totalDayGain,
     totalDayGainPct,
     holdingGain,
-    holdingGainPct
+    holdingGainPct,
   };
 };
 
@@ -504,7 +641,11 @@ export const exportFunds = async (): Promise<void> => {
   const data: ExportData = {
     version: 1,
     exportDate: new Date().toISOString(),
-    funds: allFunds.map(({ id, ...rest }) => rest as Fund), // 去掉自增 id
+    funds: allFunds.map((fund) => {
+      const cleanFund = { ...fund } as Fund & { id?: number };
+      delete cleanFund.id;
+      return cleanFund as Fund;
+    }), // 去掉自增 id
   };
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
@@ -532,7 +673,7 @@ export const importFunds = async (file: File): Promise<{ added: number; skipped:
   }
 
   const existingFunds = await db.funds.toArray();
-  const existingCodes = new Set(existingFunds.map(f => `${f.code}_${f.platform}`));
+  const existingCodes = new Set(existingFunds.map((f) => `${f.code}_${f.platform}`));
 
   let added = 0;
   let skipped = 0;
@@ -544,7 +685,8 @@ export const importFunds = async (file: File): Promise<{ added: number; skipped:
       continue;
     }
     // 去掉可能残留的 id 字段
-    const { id, ...cleanFund } = fund as Fund & { id?: number };
+    const cleanFund = { ...fund } as Fund & { id?: number };
+    delete cleanFund.id;
     await db.funds.add(cleanFund as Fund);
     added++;
     existingCodes.add(key);

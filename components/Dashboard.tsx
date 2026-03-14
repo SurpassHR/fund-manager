@@ -9,13 +9,13 @@ import {
 } from '../services/financeUtils';
 import { Icons } from './Icon';
 import { useTranslation } from '../services/i18n';
-import { HoldingsSnapshot } from '../services/aiAnalysis';
+import type { HoldingsSnapshot } from '../services/aiAnalysis';
 import { AccountManagerModal } from './AccountManagerModal';
 import { AddFundModal } from './AddFundModal';
 import { AdjustPositionModal } from './AdjustPositionModal';
 import { TransactionHistoryModal } from './TransactionHistoryModal';
 import { FundDetail } from './FundDetail';
-import { Fund } from '../types';
+import type { Fund } from '../types';
 import { AnimatePresence } from 'framer-motion';
 import { useSettings } from '../services/SettingsContext';
 import { AiHoldingsAnalysisModal } from './AiHoldingsAnalysisModal';
@@ -111,29 +111,57 @@ export const Dashboard: React.FC = () => {
   useEffect(() => {
     initDB();
 
-    // 仅在首次打开或距离上次刷新超过一定时间(比如60秒)时自动刷新一次
-    // 这样既能保证新开页总是获取最新(今天)的数据，又能避免在各个底部Tab之间频繁切换导致无限拉取
-    const lastAutoUpdateStr = sessionStorage.getItem('lastAutoUpdate_timestamp');
-    const now = Date.now();
-    if (!lastAutoUpdateStr || now - parseInt(lastAutoUpdateStr) > 60000) {
-      refreshFundData().then(() => {
+    const doRefresh = (force?: boolean) =>
+      refreshFundData({ force }).then(() => {
         sessionStorage.setItem('lastAutoUpdate_timestamp', Date.now().toString());
       });
+
+    const shouldAutoRefresh = () => {
+      const lastAutoUpdateStr = sessionStorage.getItem('lastAutoUpdate_timestamp');
+      const now = Date.now();
+      const lastAutoUpdate = lastAutoUpdateStr ? parseInt(lastAutoUpdateStr) : 0;
+      return !lastAutoUpdateStr || Number.isNaN(lastAutoUpdate) || now - lastAutoUpdate > 60000;
+    };
+
+    if (document.visibilityState === 'visible' && shouldAutoRefresh()) {
+      doRefresh();
     }
 
     let autoUpdateTimer: ReturnType<typeof setInterval> | null = null;
 
-    if (autoRefresh) {
-      // Auto-updater: Refresh every 15 seconds if enabled
+    const startAutoRefresh = () => {
+      if (!autoRefresh) return;
+      if (autoUpdateTimer) clearInterval(autoUpdateTimer);
       autoUpdateTimer = setInterval(() => {
-        refreshFundData().then(() => {
-          sessionStorage.setItem('lastAutoUpdate_timestamp', Date.now().toString());
-        });
+        if (document.visibilityState !== 'visible') return;
+        doRefresh();
       }, 15000);
-    }
+    };
+
+    const stopAutoRefresh = () => {
+      if (autoUpdateTimer) {
+        clearInterval(autoUpdateTimer);
+        autoUpdateTimer = null;
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        if (shouldAutoRefresh()) {
+          doRefresh();
+        }
+        startAutoRefresh();
+      } else {
+        stopAutoRefresh();
+      }
+    };
+
+    startAutoRefresh();
+    document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
-      if (autoUpdateTimer) clearInterval(autoUpdateTimer);
+      stopAutoRefresh();
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, [autoRefresh]);
 
@@ -252,7 +280,7 @@ export const Dashboard: React.FC = () => {
     const startTime = Date.now();
 
     try {
-      await refreshFundData();
+      await refreshFundData({ force: true });
     } finally {
       // Ensure minimum rotation visibly
       const elapsed = Date.now() - startTime;

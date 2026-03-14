@@ -3,7 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../services/db';
 import { useTranslation } from '../services/i18n';
 import { Icons } from './Icon';
-import { Account } from '../types';
+import type { Account } from '../types';
 
 interface AccountManagerModalProps {
   isOpen: boolean;
@@ -63,9 +63,7 @@ export const AccountManagerModal: React.FC<AccountManagerModalProps> = ({ isOpen
 
     const oldName = acc.name;
 
-    // Transaction to update account name AND update all funds using this account name (platform)
-    // Cast db to any to avoid TS error: Property 'transaction' does not exist on type 'XiaoHuYangJiDB'
-    await (db as any).transaction('rw', db.accounts, db.funds, async () => {
+    await db.transaction('rw', db.accounts, db.funds, async () => {
       await db.accounts.update(acc.id!, { name: newName });
       // Cascading update: find funds with old platform name and update to new name
       await db.funds.where('platform').equals(oldName).modify({ platform: newName });
@@ -78,14 +76,21 @@ export const AccountManagerModal: React.FC<AccountManagerModalProps> = ({ isOpen
     <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
       <div className="bg-white dark:bg-card-dark rounded-lg w-full max-w-sm overflow-hidden shadow-xl animate-in fade-in zoom-in duration-200 flex flex-col max-h-[90vh]">
         <div className="p-4 border-b border-gray-100 dark:border-border-dark flex justify-between items-center bg-gray-50 dark:bg-white/5 shrink-0">
-          <h2 className="font-bold text-gray-800 dark:text-gray-100">{t('common.manageAccounts')}</h2>
-          <button onClick={onClose}><Icons.Plus className="transform rotate-45 text-gray-400 hover:text-gray-600" /></button>
+          <h2 className="font-bold text-gray-800 dark:text-gray-100">
+            {t('common.manageAccounts')}
+          </h2>
+          <button onClick={onClose}>
+            <Icons.Plus className="transform rotate-45 text-gray-400 hover:text-gray-600" />
+          </button>
         </div>
 
         <div className="p-4 overflow-y-auto">
           <div className="space-y-2">
             {accounts?.map((acc) => (
-              <div key={acc.id} className="flex items-center justify-between p-3 bg-white dark:bg-[#1a1a1a] border border-gray-100 dark:border-white/5 rounded-lg hover:border-blue-100 dark:hover:border-blue-900 transition-colors group">
+              <div
+                key={acc.id}
+                className="flex items-center justify-between p-3 bg-white dark:bg-[#1a1a1a] border border-gray-100 dark:border-white/5 rounded-lg hover:border-blue-100 dark:hover:border-blue-900 transition-colors group"
+              >
                 {editingId === acc.id ? (
                   // Edit Mode
                   <div className="flex items-center gap-2 w-full">
@@ -101,7 +106,10 @@ export const AccountManagerModal: React.FC<AccountManagerModalProps> = ({ isOpen
                     >
                       <Icons.Check size={18} />
                     </button>
-                    <button onClick={handleCancelEdit} className="text-gray-400 p-1 hover:bg-gray-100 rounded">
+                    <button
+                      onClick={handleCancelEdit}
+                      className="text-gray-400 p-1 hover:bg-gray-100 rounded"
+                    >
                       <Icons.X size={18} />
                     </button>
                   </div>
@@ -109,7 +117,9 @@ export const AccountManagerModal: React.FC<AccountManagerModalProps> = ({ isOpen
                   // View Mode
                   <>
                     <span className="text-sm font-medium text-gray-700 truncate flex-1">
-                      {t(`filters.${acc.name}`) === `filters.${acc.name}` ? acc.name : t(`filters.${acc.name}`)}
+                      {t(`filters.${acc.name}`) === `filters.${acc.name}`
+                        ? acc.name
+                        : t(`filters.${acc.name}`)}
                     </span>
 
                     <div className="flex items-center gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">

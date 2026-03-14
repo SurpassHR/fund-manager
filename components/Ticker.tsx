@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { fetchMarketIndices } from '../services/api';
-import { MarketIndex } from '../types';
+import type { MarketIndex } from '../types';
 import { getSignColor, formatPct } from '../services/financeUtils';
 import { Icons } from './Icon';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -52,7 +52,6 @@ export const Ticker: React.FC = () => {
 
       {/* Ticker Container */}
       <div className="fixed bottom-[calc(3.5rem+env(safe-area-inset-bottom,0px))] left-0 right-0 flex flex-col z-40">
-
         {/* Expanded panel */}
         <AnimatePresence>
           {isExpanded && (
@@ -64,14 +63,33 @@ export const Ticker: React.FC = () => {
               className="w-full bg-white dark:bg-card-dark border-t border-gray-100 dark:border-border-dark overflow-hidden origin-bottom shadow-[0_-10px_40px_rgba(0,0,0,0.1)] dark:shadow-none"
             >
               <div className="w-full max-w-7xl mx-auto px-4 py-3 pb-4 flex flex-col gap-2">
-                <div className="text-xs font-bold font-sans text-gray-400 dark:text-gray-500 mb-2 uppercase">全球市场指数 (Global Indices)</div>
+                <div className="text-xs font-bold font-sans text-gray-400 dark:text-gray-500 mb-2 uppercase">
+                  全球市场指数 (Global Indices)
+                </div>
                 {indices.map((idx) => (
-                  <div key={idx.name} className="flex items-center justify-between py-2 border-b border-gray-50 dark:border-white/5 last:border-0 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors rounded-lg px-2 -mx-2">
-                    <span className="font-medium text-gray-700 dark:text-gray-200 text-sm w-32 truncate">{idx.name}</span>
+                  <div
+                    key={idx.name}
+                    className="flex items-center justify-between py-2 border-b border-gray-50 dark:border-white/5 last:border-0 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors rounded-lg px-2 -mx-2"
+                  >
+                    <span className="font-medium text-gray-700 dark:text-gray-200 text-sm w-32 truncate">
+                      {idx.name}
+                    </span>
                     <div className="flex gap-4 items-center justify-end text-sm flex-1">
-                      <span className={`font-sans font-bold w-16 text-right ${getSignColor(idx.change)}`}>{idx.value.toFixed(2)}</span>
-                      <span className={`font-sans w-16 text-right hidden sm:block ${getSignColor(idx.change)}`}>{idx.change.toFixed(2)}</span>
-                      <span className={`font-sans font-bold w-16 text-right ${getSignColor(idx.change)}`}>{formatPct(idx.changePct)}</span>
+                      <span
+                        className={`font-sans font-bold w-16 text-right ${getSignColor(idx.change)}`}
+                      >
+                        {idx.value.toFixed(2)}
+                      </span>
+                      <span
+                        className={`font-sans w-16 text-right hidden sm:block ${getSignColor(idx.change)}`}
+                      >
+                        {idx.change.toFixed(2)}
+                      </span>
+                      <span
+                        className={`font-sans font-bold w-16 text-right ${getSignColor(idx.change)}`}
+                      >
+                        {formatPct(idx.changePct)}
+                      </span>
                     </div>
                   </div>
                 ))}
@@ -87,7 +105,9 @@ export const Ticker: React.FC = () => {
         >
           <div className="w-full max-w-7xl px-4 flex items-center justify-between text-sm">
             <div className="flex items-center gap-4 w-full overflow-hidden">
-              <span className="font-medium text-gray-700 dark:text-gray-200 whitespace-nowrap">{current.name}</span>
+              <span className="font-medium text-gray-700 dark:text-gray-200 whitespace-nowrap">
+                {current.name}
+              </span>
               <span className={`font-sans font-bold ${getSignColor(current.change)}`}>
                 {current.value.toFixed(2)}
               </span>
@@ -99,8 +119,14 @@ export const Ticker: React.FC = () => {
               </span>
             </div>
             <div className="text-gray-400 pl-4 flex-shrink-0">
-              <motion.div animate={{ rotate: isExpanded ? 180 : 0 }} transition={{ type: "spring", stiffness: 200, damping: 15 }}>
-                <Icons.ArrowUp size={16} className={isExpanded ? "text-blue-500" : "text-gray-300 dark:text-gray-500"} />
+              <motion.div
+                animate={{ rotate: isExpanded ? 180 : 0 }}
+                transition={{ type: 'spring', stiffness: 200, damping: 15 }}
+              >
+                <Icons.ArrowUp
+                  size={16}
+                  className={isExpanded ? 'text-blue-500' : 'text-gray-300 dark:text-gray-500'}
+                />
               </motion.div>
             </div>
           </div>

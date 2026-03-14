@@ -1,15 +1,10 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, refreshWatchlistData } from '../services/db';
-import {
-  formatCurrency,
-  formatSignedCurrency,
-  getSignColor,
-  formatPct,
-} from '../services/financeUtils';
+import { getSignColor, formatPct } from '../services/financeUtils';
 import { Icons } from './Icon';
 import { useTranslation } from '../services/i18n';
-import { WatchlistItem, Fund } from '../types';
+import type { WatchlistItem, Fund } from '../types';
 import { AddWatchlistModal } from './AddWatchlistModal';
 import { FundDetail } from './FundDetail';
 
@@ -73,9 +68,6 @@ export const Watchlist: React.FC = () => {
     return () => window.removeEventListener('click', handleClick);
   }, []);
 
-  if (!watchlists)
-    return <div className="p-8 text-center text-gray-500">{t('common.loading')}</div>;
-
   const handleContextMenu = (e: React.MouseEvent, itemId: number) => {
     e.preventDefault();
     e.stopPropagation();
@@ -120,7 +112,7 @@ export const Watchlist: React.FC = () => {
     const startTime = Date.now();
 
     try {
-      await refreshWatchlistData();
+      await refreshWatchlistData({ force: true });
     } finally {
       const elapsed = Date.now() - startTime;
       if (elapsed < 1000) {
@@ -158,7 +150,8 @@ export const Watchlist: React.FC = () => {
   };
 
   const sortedWatchlists = useMemo(() => {
-    if (!sortState.key) return watchlists;
+    const list = watchlists ?? [];
+    if (!sortState.key) return list;
 
     const getSortValue = (item: WatchlistItem) => {
       if (sortState.key === 'dayChangePct') return item.dayChangePct;
@@ -167,12 +160,15 @@ export const Watchlist: React.FC = () => {
     };
 
     const direction = sortState.direction === 'asc' ? 1 : -1;
-    return [...watchlists].sort((a, b) => {
+    return [...list].sort((a, b) => {
       const diff = getSortValue(a) - getSortValue(b);
       if (diff === 0) return 0;
       return diff * direction;
     });
   }, [sortState.direction, sortState.key, watchlists]);
+
+  if (!watchlists)
+    return <div className="p-8 text-center text-gray-500">{t('common.loading')}</div>;
 
   return (
     <div

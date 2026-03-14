@@ -7,388 +7,416 @@ import { exportFunds, importFunds } from '../services/db';
 import { listGeminiModels, listOpenAiModels } from '../services/aiOcr';
 
 interface SettingsPageProps {
-    onBack?: () => void;
-    initialShowAiSettings?: boolean;
+  onBack?: () => void;
+  initialShowAiSettings?: boolean;
 }
 
 type ThemeOption = 'system' | 'light' | 'dark';
 
 export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack, initialShowAiSettings }) => {
-    const { t } = useTranslation();
-    const { mode, setMode } = useTheme();
-    const {
-        autoRefresh,
-        setAutoRefresh,
-        aiProvider,
-        setAiProvider,
-        openaiApiKey,
-        setOpenaiApiKey,
-        openaiModel,
-        setOpenaiModel,
-        geminiApiKey,
-        setGeminiApiKey,
-        geminiModel,
-        setGeminiModel,
-    } = useSettings();
-    const fileInputRef = useRef<HTMLInputElement>(null);
-    const [showAiSettings, setShowAiSettings] = useState(Boolean(initialShowAiSettings));
-    const [openaiModels, setOpenaiModels] = useState<string[]>([]);
-    const [geminiModels, setGeminiModels] = useState<string[]>([]);
-    const [openaiLoading, setOpenaiLoading] = useState(false);
-    const [geminiLoading, setGeminiLoading] = useState(false);
-    const [openaiError, setOpenaiError] = useState('');
-    const [geminiError, setGeminiError] = useState('');
+  const { t } = useTranslation();
+  const { mode, setMode } = useTheme();
+  const {
+    autoRefresh,
+    setAutoRefresh,
+    aiProvider,
+    setAiProvider,
+    openaiApiKey,
+    setOpenaiApiKey,
+    openaiModel,
+    setOpenaiModel,
+    geminiApiKey,
+    setGeminiApiKey,
+    geminiModel,
+    setGeminiModel,
+  } = useSettings();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [showAiSettings, setShowAiSettings] = useState(Boolean(initialShowAiSettings));
+  const [openaiModels, setOpenaiModels] = useState<string[]>([]);
+  const [geminiModels, setGeminiModels] = useState<string[]>([]);
+  const [openaiLoading, setOpenaiLoading] = useState(false);
+  const [geminiLoading, setGeminiLoading] = useState(false);
+  const [openaiError, setOpenaiError] = useState('');
+  const [geminiError, setGeminiError] = useState('');
 
-    const themeOptions: { value: ThemeOption; label: string; icon: React.ReactNode }[] = [
-        {
-            value: 'system',
-            label: t('common.themeSystem'),
-            icon: <Icons.Settings size={18} />,
-        },
-        {
-            value: 'light',
-            label: t('common.themeLight'),
-            icon: <Icons.Sun size={18} />,
-        },
-        {
-            value: 'dark',
-            label: t('common.themeDark'),
-            icon: <Icons.Moon size={18} />,
-        },
-    ];
+  const themeOptions: { value: ThemeOption; label: string; icon: React.ReactNode }[] = [
+    {
+      value: 'system',
+      label: t('common.themeSystem'),
+      icon: <Icons.Settings size={18} />,
+    },
+    {
+      value: 'light',
+      label: t('common.themeLight'),
+      icon: <Icons.Sun size={18} />,
+    },
+    {
+      value: 'dark',
+      label: t('common.themeDark'),
+      icon: <Icons.Moon size={18} />,
+    },
+  ];
 
-    const handleExport = async () => {
-        try {
-            await exportFunds();
-        } catch (e) {
-            console.error('Export failed', e);
-        }
-    };
-
-    const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
-        try {
-            const result = await importFunds(file);
-            const msg = (t('common.importSuccess') || '新增 {added} 条，跳过 {skipped} 条重复')
-                .replace('{added}', String(result.added))
-                .replace('{skipped}', String(result.skipped));
-            alert(msg);
-        } catch (err) {
-            alert(t('common.importError') || '导入失败');
-            console.error(err);
-        } finally {
-            if (fileInputRef.current) fileInputRef.current.value = '';
-        }
-    };
-
-    useEffect(() => {
-        if (initialShowAiSettings) {
-            setShowAiSettings(true);
-        }
-    }, [initialShowAiSettings]);
-
-    useEffect(() => {
-        let active = true;
-        if (!openaiApiKey) {
-            setOpenaiModels([]);
-            setOpenaiError('');
-            return;
-        }
-        setOpenaiLoading(true);
-        setOpenaiError('');
-        listOpenAiModels(openaiApiKey)
-            .then(models => {
-                if (!active) return;
-                setOpenaiModels(models);
-                if (!models.includes(openaiModel) && models[0]) {
-                    setOpenaiModel(models[0]);
-                }
-            })
-            .catch(() => {
-                if (!active) return;
-                setOpenaiError(t('common.modelFetchFailed') || '模型列表获取失败');
-                setOpenaiModels([]);
-            })
-            .finally(() => {
-                if (!active) return;
-                setOpenaiLoading(false);
-            });
-        return () => { active = false; };
-    }, [openaiApiKey]);
-
-    useEffect(() => {
-        let active = true;
-        if (!geminiApiKey) {
-            setGeminiModels([]);
-            setGeminiError('');
-            return;
-        }
-        setGeminiLoading(true);
-        setGeminiError('');
-        listGeminiModels(geminiApiKey)
-            .then(models => {
-                if (!active) return;
-                setGeminiModels(models);
-                if (!models.includes(geminiModel) && models[0]) {
-                    setGeminiModel(models[0]);
-                }
-            })
-            .catch(() => {
-                if (!active) return;
-                setGeminiError(t('common.modelFetchFailed') || '模型列表获取失败');
-                setGeminiModels([]);
-            })
-            .finally(() => {
-                if (!active) return;
-                setGeminiLoading(false);
-            });
-        return () => { active = false; };
-    }, [geminiApiKey]);
-
-    if (showAiSettings) {
-        return (
-            <div className="min-h-[60vh] pb-24">
-                <div className="flex items-center gap-3 px-4 py-3">
-                    <button
-                        onClick={() => setShowAiSettings(false)}
-                        className="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
-                    >
-                        <Icons.ArrowUp size={20} className="text-gray-600 dark:text-gray-300 -rotate-90" />
-                    </button>
-                    <h2 className="text-base font-bold text-gray-800 dark:text-gray-100">{t('common.aiSettings')}</h2>
-                </div>
-
-                <div className="px-4 mt-2">
-                    <div className="bg-white dark:bg-card-dark rounded-xl overflow-hidden shadow-sm p-4 space-y-4">
-                        <div>
-                            <label className="block text-xs font-bold text-gray-500 mb-1">{t('common.aiProvider') || '模型提供方'}</label>
-                            <select
-                                value={aiProvider}
-                                onChange={(e) => setAiProvider(e.target.value as 'openai' | 'gemini')}
-                                className="w-full p-3 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-white/5 focus:outline-none focus:border-blue-500 text-gray-900 dark:text-gray-100 text-sm"
-                            >
-                                <option value="openai">OpenAI</option>
-                                <option value="gemini">Gemini</option>
-                            </select>
-                        </div>
-
-                        <div className="space-y-2">
-                            <label className="block text-xs font-bold text-gray-500">{t('common.openaiKey') || 'OpenAI API Key'}</label>
-                            <input
-                                type="password"
-                                value={openaiApiKey}
-                                onChange={(e) => setOpenaiApiKey(e.target.value)}
-                                placeholder="sk-..."
-                                className="w-full p-3 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-white/5 focus:outline-none focus:border-blue-500 text-gray-900 dark:text-gray-100 text-sm"
-                            />
-                            <label className="block text-xs font-bold text-gray-500">{t('common.openaiModel') || 'OpenAI 模型'}</label>
-                            <select
-                                value={openaiModel}
-                                onChange={(e) => setOpenaiModel(e.target.value)}
-                                className="w-full p-3 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-white/5 focus:outline-none focus:border-blue-500 text-gray-900 dark:text-gray-100 text-sm"
-                            >
-                                {!openaiApiKey && (
-                                    <option value="">{t('common.modelSelectPlaceholder') || '请先填写 API Key'}</option>
-                                )}
-                                {openaiLoading && (
-                                    <option value="">{t('common.modelLoading') || '模型加载中...'}</option>
-                                )}
-                                {openaiError && !openaiLoading && (
-                                    <option value="">{openaiError}</option>
-                                )}
-                                {openaiModels.map(model => (
-                                    <option key={model} value={model}>{model}</option>
-                                ))}
-                                {!openaiModels.includes(openaiModel) && openaiModel && (
-                                    <option value={openaiModel}>{openaiModel}</option>
-                                )}
-                            </select>
-                        </div>
-
-                        <div className="space-y-2">
-                            <label className="block text-xs font-bold text-gray-500">{t('common.geminiKey') || 'Gemini API Key'}</label>
-                            <input
-                                type="password"
-                                value={geminiApiKey}
-                                onChange={(e) => setGeminiApiKey(e.target.value)}
-                                placeholder="AI..."
-                                className="w-full p-3 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-white/5 focus:outline-none focus:border-blue-500 text-gray-900 dark:text-gray-100 text-sm"
-                            />
-                            <label className="block text-xs font-bold text-gray-500">{t('common.geminiModel') || 'Gemini 模型'}</label>
-                            <select
-                                value={geminiModel}
-                                onChange={(e) => setGeminiModel(e.target.value)}
-                                className="w-full p-3 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-white/5 focus:outline-none focus:border-blue-500 text-gray-900 dark:text-gray-100 text-sm"
-                            >
-                                {!geminiApiKey && (
-                                    <option value="">{t('common.modelSelectPlaceholder') || '请先填写 API Key'}</option>
-                                )}
-                                {geminiLoading && (
-                                    <option value="">{t('common.modelLoading') || '模型加载中...'}</option>
-                                )}
-                                {geminiError && !geminiLoading && (
-                                    <option value="">{geminiError}</option>
-                                )}
-                                {geminiModels.map(model => (
-                                    <option key={model} value={model}>{model}</option>
-                                ))}
-                                {!geminiModels.includes(geminiModel) && geminiModel && (
-                                    <option value={geminiModel}>{geminiModel}</option>
-                                )}
-                            </select>
-                        </div>
-
-                        <p className="text-[10px] text-gray-400">
-                            {t('common.aiPrivacyTip') || '截图仅用于识别，不会保存到服务器。'}
-                        </p>
-                    </div>
-                </div>
-            </div>
-        );
+  const handleExport = async () => {
+    try {
+      await exportFunds();
+    } catch (e) {
+      console.error('Export failed', e);
     }
+  };
 
+  const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const result = await importFunds(file);
+      const msg = (t('common.importSuccess') || '新增 {added} 条，跳过 {skipped} 条重复')
+        .replace('{added}', String(result.added))
+        .replace('{skipped}', String(result.skipped));
+      alert(msg);
+    } catch (err) {
+      alert(t('common.importError') || '导入失败');
+      console.error(err);
+    } finally {
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  useEffect(() => {
+    if (initialShowAiSettings) {
+      setShowAiSettings(true);
+    }
+  }, [initialShowAiSettings]);
+
+  useEffect(() => {
+    let active = true;
+    if (!openaiApiKey) {
+      setOpenaiModels([]);
+      setOpenaiError('');
+      return;
+    }
+    setOpenaiLoading(true);
+    setOpenaiError('');
+    listOpenAiModels(openaiApiKey)
+      .then((models) => {
+        if (!active) return;
+        setOpenaiModels(models);
+        if (!models.includes(openaiModel) && models[0]) {
+          setOpenaiModel(models[0]);
+        }
+      })
+      .catch(() => {
+        if (!active) return;
+        setOpenaiError(t('common.modelFetchFailed') || '模型列表获取失败');
+        setOpenaiModels([]);
+      })
+      .finally(() => {
+        if (!active) return;
+        setOpenaiLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [openaiApiKey, openaiModel, setOpenaiModel, t]);
+
+  useEffect(() => {
+    let active = true;
+    if (!geminiApiKey) {
+      setGeminiModels([]);
+      setGeminiError('');
+      return;
+    }
+    setGeminiLoading(true);
+    setGeminiError('');
+    listGeminiModels(geminiApiKey)
+      .then((models) => {
+        if (!active) return;
+        setGeminiModels(models);
+        if (!models.includes(geminiModel) && models[0]) {
+          setGeminiModel(models[0]);
+        }
+      })
+      .catch(() => {
+        if (!active) return;
+        setGeminiError(t('common.modelFetchFailed') || '模型列表获取失败');
+        setGeminiModels([]);
+      })
+      .finally(() => {
+        if (!active) return;
+        setGeminiLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [geminiApiKey, geminiModel, setGeminiModel, t]);
+
+  if (showAiSettings) {
     return (
-        <div className="min-h-[60vh] pb-24">
-            {/* 标题栏 */}
-            <div className="flex items-center gap-3 px-4 py-3">
-                {onBack && (
-                    <button
-                        onClick={onBack}
-                        className="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
-                    >
-                        <Icons.ArrowUp size={20} className="text-gray-600 dark:text-gray-300 -rotate-90" />
-                    </button>
-                )}
-                <h2 className="text-base font-bold text-gray-800 dark:text-gray-100">{t('common.settings')}</h2>
+      <div className="min-h-[60vh] pb-24">
+        <div className="flex items-center gap-3 px-4 py-3">
+          <button
+            onClick={() => setShowAiSettings(false)}
+            className="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
+          >
+            <Icons.ArrowUp size={20} className="text-gray-600 dark:text-gray-300 -rotate-90" />
+          </button>
+          <h2 className="text-base font-bold text-gray-800 dark:text-gray-100">
+            {t('common.aiSettings')}
+          </h2>
+        </div>
+
+        <div className="px-4 mt-2">
+          <div className="bg-white dark:bg-card-dark rounded-xl overflow-hidden shadow-sm p-4 space-y-4">
+            <div>
+              <label className="block text-xs font-bold text-gray-500 mb-1">
+                {t('common.aiProvider') || '模型提供方'}
+              </label>
+              <select
+                value={aiProvider}
+                onChange={(e) => setAiProvider(e.target.value as 'openai' | 'gemini')}
+                className="w-full p-3 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-white/5 focus:outline-none focus:border-blue-500 text-gray-900 dark:text-gray-100 text-sm"
+              >
+                <option value="openai">OpenAI</option>
+                <option value="gemini">Gemini</option>
+              </select>
             </div>
 
-            {/* 主题设置 */}
-            <div className="px-4 mt-2">
-                <div className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-2 px-1">
-                    {t('common.theme')}
-                </div>
-                <div className="bg-white dark:bg-card-dark rounded-xl overflow-hidden shadow-sm">
-                    {themeOptions.map((opt, idx) => (
-                        <button
-                            key={opt.value}
-                            onClick={() => setMode(opt.value)}
-                            className={`w-full flex items-center justify-between px-4 py-3.5 transition-colors
+            <div className="space-y-2">
+              <label className="block text-xs font-bold text-gray-500">
+                {t('common.openaiKey') || 'OpenAI API Key'}
+              </label>
+              <input
+                type="password"
+                value={openaiApiKey}
+                onChange={(e) => setOpenaiApiKey(e.target.value)}
+                placeholder="sk-..."
+                className="w-full p-3 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-white/5 focus:outline-none focus:border-blue-500 text-gray-900 dark:text-gray-100 text-sm"
+              />
+              <label className="block text-xs font-bold text-gray-500">
+                {t('common.openaiModel') || 'OpenAI 模型'}
+              </label>
+              <select
+                value={openaiModel}
+                onChange={(e) => setOpenaiModel(e.target.value)}
+                className="w-full p-3 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-white/5 focus:outline-none focus:border-blue-500 text-gray-900 dark:text-gray-100 text-sm"
+              >
+                {!openaiApiKey && (
+                  <option value="">
+                    {t('common.modelSelectPlaceholder') || '请先填写 API Key'}
+                  </option>
+                )}
+                {openaiLoading && (
+                  <option value="">{t('common.modelLoading') || '模型加载中...'}</option>
+                )}
+                {openaiError && !openaiLoading && <option value="">{openaiError}</option>}
+                {openaiModels.map((model) => (
+                  <option key={model} value={model}>
+                    {model}
+                  </option>
+                ))}
+                {!openaiModels.includes(openaiModel) && openaiModel && (
+                  <option value={openaiModel}>{openaiModel}</option>
+                )}
+              </select>
+            </div>
+
+            <div className="space-y-2">
+              <label className="block text-xs font-bold text-gray-500">
+                {t('common.geminiKey') || 'Gemini API Key'}
+              </label>
+              <input
+                type="password"
+                value={geminiApiKey}
+                onChange={(e) => setGeminiApiKey(e.target.value)}
+                placeholder="AI..."
+                className="w-full p-3 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-white/5 focus:outline-none focus:border-blue-500 text-gray-900 dark:text-gray-100 text-sm"
+              />
+              <label className="block text-xs font-bold text-gray-500">
+                {t('common.geminiModel') || 'Gemini 模型'}
+              </label>
+              <select
+                value={geminiModel}
+                onChange={(e) => setGeminiModel(e.target.value)}
+                className="w-full p-3 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-white/5 focus:outline-none focus:border-blue-500 text-gray-900 dark:text-gray-100 text-sm"
+              >
+                {!geminiApiKey && (
+                  <option value="">
+                    {t('common.modelSelectPlaceholder') || '请先填写 API Key'}
+                  </option>
+                )}
+                {geminiLoading && (
+                  <option value="">{t('common.modelLoading') || '模型加载中...'}</option>
+                )}
+                {geminiError && !geminiLoading && <option value="">{geminiError}</option>}
+                {geminiModels.map((model) => (
+                  <option key={model} value={model}>
+                    {model}
+                  </option>
+                ))}
+                {!geminiModels.includes(geminiModel) && geminiModel && (
+                  <option value={geminiModel}>{geminiModel}</option>
+                )}
+              </select>
+            </div>
+
+            <p className="text-[10px] text-gray-400">
+              {t('common.aiPrivacyTip') || '截图仅用于识别，不会保存到服务器。'}
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-[60vh] pb-24">
+      {/* 标题栏 */}
+      <div className="flex items-center gap-3 px-4 py-3">
+        {onBack && (
+          <button
+            onClick={onBack}
+            className="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
+          >
+            <Icons.ArrowUp size={20} className="text-gray-600 dark:text-gray-300 -rotate-90" />
+          </button>
+        )}
+        <h2 className="text-base font-bold text-gray-800 dark:text-gray-100">
+          {t('common.settings')}
+        </h2>
+      </div>
+
+      {/* 主题设置 */}
+      <div className="px-4 mt-2">
+        <div className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-2 px-1">
+          {t('common.theme')}
+        </div>
+        <div className="bg-white dark:bg-card-dark rounded-xl overflow-hidden shadow-sm">
+          {themeOptions.map((opt, idx) => (
+            <button
+              key={opt.value}
+              onClick={() => setMode(opt.value)}
+              className={`w-full flex items-center justify-between px-4 py-3.5 transition-colors
                 hover:bg-gray-50 dark:hover:bg-white/5
                 ${idx < themeOptions.length - 1 ? 'border-b border-gray-100 dark:border-border-dark' : ''}
               `}
-                        >
-                            <div className="flex items-center gap-3">
-                                <div className="w-6 flex justify-center text-gray-500 dark:text-gray-400">
-                                    {opt.icon}
-                                </div>
-                                <span className="text-sm text-gray-800 dark:text-gray-100">{opt.label}</span>
-                            </div>
-                            {mode === opt.value && (
-                                <div className="w-5 h-5 rounded-full bg-blue-600 flex items-center justify-center">
-                                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-                                        <path d="M2 6L5 9L10 3" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                                    </svg>
-                                </div>
-                            )}
-                        </button>
-                    ))}
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-6 flex justify-center text-gray-500 dark:text-gray-400">
+                  {opt.icon}
                 </div>
-            </div>
-
-            {/* 功能设置 */}
-            <div className="px-4 mt-6">
-                <div className="text-xs font-bold font-sans text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-2 px-1">
-                    {t('common.features') || '功能'}
+                <span className="text-sm text-gray-800 dark:text-gray-100">{opt.label}</span>
+              </div>
+              {mode === opt.value && (
+                <div className="w-5 h-5 rounded-full bg-blue-600 flex items-center justify-center">
+                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                    <path
+                      d="M2 6L5 9L10 3"
+                      stroke="white"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
                 </div>
-                <div className="bg-white dark:bg-card-dark rounded-xl overflow-hidden shadow-sm">
-                    <div className="w-full flex items-center justify-between px-4 py-3.5">
-                        <div className="flex items-center gap-3">
-                            <div className="w-6 flex justify-center text-gray-500 dark:text-gray-400">
-                                <Icons.Refresh size={18} />
-                            </div>
-                            <span className="text-sm font-sans text-gray-800 dark:text-gray-100">
-                                {t('common.autoRefresh') || '自动刷新持仓行情'}
-                            </span>
-                        </div>
-                        <button
-                            onClick={() => setAutoRefresh(!autoRefresh)}
-                            className={`w-10 h-6 rounded-full transition-colors relative ${autoRefresh ? 'bg-blue-600' : 'bg-gray-200 dark:bg-gray-700'}`}
-                        >
-                            <div
-                                className={`w-4 h-4 rounded-full bg-white absolute top-1 transition-transform ${autoRefresh ? 'translate-x-5' : 'translate-x-1'}`}
-                            />
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            {/* AI 设置入口 */}
-            <div className="px-4 mt-6">
-                <div className="text-xs font-bold font-sans text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-2 px-1">
-                    {t('common.aiSettings') || 'AI 识别设置'}
-                </div>
-                <div className="bg-white dark:bg-card-dark rounded-xl overflow-hidden shadow-sm">
-                    <button
-                        onClick={() => setShowAiSettings(true)}
-                        className="w-full flex items-center justify-between px-4 py-3.5 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors"
-                    >
-                        <div className="flex items-center gap-3">
-                            <div className="w-6 flex justify-center text-gray-500 dark:text-gray-400">
-                                <Icons.Settings size={18} />
-                            </div>
-                            <span className="text-sm font-sans text-gray-800 dark:text-gray-100">
-                                {t('common.aiSettingsManage') || '管理 AI 识别设置'}
-                            </span>
-                        </div>
-                        <Icons.ArrowDown size={16} className="text-gray-400 -rotate-90" />
-                    </button>
-                </div>
-            </div>
-
-            {/* 数据管理 */}
-            <div className="px-4 mt-6">
-                <div className="text-xs font-bold font-sans text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-2 px-1">
-                    {t('common.data') || '数据'}
-                </div>
-                <div className="bg-white dark:bg-card-dark rounded-xl overflow-hidden shadow-sm">
-                    <button
-                        onClick={handleExport}
-                        className="w-full flex items-center justify-between px-4 py-3.5 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors border-b border-gray-100 dark:border-border-dark"
-                    >
-                        <div className="flex items-center gap-3">
-                            <div className="w-6 flex justify-center text-gray-500 dark:text-gray-400">
-                                <Icons.ArrowUp size={18} />
-                            </div>
-                            <span className="text-sm font-sans text-gray-800 dark:text-gray-100">
-                                {t('common.exportData') || '导出数据'}
-                            </span>
-                        </div>
-                        <Icons.ArrowDown size={16} className="text-gray-400 -rotate-90" />
-                    </button>
-                    <button
-                        onClick={() => fileInputRef.current?.click()}
-                        className="w-full flex items-center justify-between px-4 py-3.5 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors"
-                    >
-                        <div className="flex items-center gap-3">
-                            <div className="w-6 flex justify-center text-gray-500 dark:text-gray-400">
-                                <Icons.ArrowDown size={18} />
-                            </div>
-                            <span className="text-sm font-sans text-gray-800 dark:text-gray-100">
-                                {t('common.importData') || '导入数据'}
-                            </span>
-                        </div>
-                        <Icons.ArrowDown size={16} className="text-gray-400 -rotate-90" />
-                    </button>
-                </div>
-                <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept=".json"
-                    className="hidden"
-                    onChange={handleImport}
-                />
-            </div>
+              )}
+            </button>
+          ))}
         </div>
-    );
+      </div>
+
+      {/* 功能设置 */}
+      <div className="px-4 mt-6">
+        <div className="text-xs font-bold font-sans text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-2 px-1">
+          {t('common.features') || '功能'}
+        </div>
+        <div className="bg-white dark:bg-card-dark rounded-xl overflow-hidden shadow-sm">
+          <div className="w-full flex items-center justify-between px-4 py-3.5">
+            <div className="flex items-center gap-3">
+              <div className="w-6 flex justify-center text-gray-500 dark:text-gray-400">
+                <Icons.Refresh size={18} />
+              </div>
+              <span className="text-sm font-sans text-gray-800 dark:text-gray-100">
+                {t('common.autoRefresh') || '自动刷新持仓行情'}
+              </span>
+            </div>
+            <button
+              onClick={() => setAutoRefresh(!autoRefresh)}
+              className={`w-10 h-6 rounded-full transition-colors relative ${autoRefresh ? 'bg-blue-600' : 'bg-gray-200 dark:bg-gray-700'}`}
+            >
+              <div
+                className={`w-4 h-4 rounded-full bg-white absolute top-1 transition-transform ${autoRefresh ? 'translate-x-5' : 'translate-x-1'}`}
+              />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* AI 设置入口 */}
+      <div className="px-4 mt-6">
+        <div className="text-xs font-bold font-sans text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-2 px-1">
+          {t('common.aiSettings') || 'AI 识别设置'}
+        </div>
+        <div className="bg-white dark:bg-card-dark rounded-xl overflow-hidden shadow-sm">
+          <button
+            onClick={() => setShowAiSettings(true)}
+            className="w-full flex items-center justify-between px-4 py-3.5 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-6 flex justify-center text-gray-500 dark:text-gray-400">
+                <Icons.Settings size={18} />
+              </div>
+              <span className="text-sm font-sans text-gray-800 dark:text-gray-100">
+                {t('common.aiSettingsManage') || '管理 AI 识别设置'}
+              </span>
+            </div>
+            <Icons.ArrowDown size={16} className="text-gray-400 -rotate-90" />
+          </button>
+        </div>
+      </div>
+
+      {/* 数据管理 */}
+      <div className="px-4 mt-6">
+        <div className="text-xs font-bold font-sans text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-2 px-1">
+          {t('common.data') || '数据'}
+        </div>
+        <div className="bg-white dark:bg-card-dark rounded-xl overflow-hidden shadow-sm">
+          <button
+            onClick={handleExport}
+            className="w-full flex items-center justify-between px-4 py-3.5 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors border-b border-gray-100 dark:border-border-dark"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-6 flex justify-center text-gray-500 dark:text-gray-400">
+                <Icons.ArrowUp size={18} />
+              </div>
+              <span className="text-sm font-sans text-gray-800 dark:text-gray-100">
+                {t('common.exportData') || '导出数据'}
+              </span>
+            </div>
+            <Icons.ArrowDown size={16} className="text-gray-400 -rotate-90" />
+          </button>
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="w-full flex items-center justify-between px-4 py-3.5 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-6 flex justify-center text-gray-500 dark:text-gray-400">
+                <Icons.ArrowDown size={18} />
+              </div>
+              <span className="text-sm font-sans text-gray-800 dark:text-gray-100">
+                {t('common.importData') || '导入数据'}
+              </span>
+            </div>
+            <Icons.ArrowDown size={16} className="text-gray-400 -rotate-90" />
+          </button>
+        </div>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".json"
+          className="hidden"
+          onChange={handleImport}
+        />
+      </div>
+    </div>
+  );
 };
