@@ -1,8 +1,10 @@
-import React from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import type { Fund } from '../types';
 import { useTranslation } from '../services/i18n';
 import { Icons } from './Icon';
 import { db } from '../services/db';
+import { resetDragState, useEdgeSwipe } from '../services/edgeSwipeState';
+import { useOverlayRegistration } from '../services/overlayRegistration';
 
 interface TransactionHistoryModalProps {
   isOpen: boolean;
@@ -16,6 +18,38 @@ export const TransactionHistoryModal: React.FC<TransactionHistoryModalProps> = (
   fund,
 }) => {
   const { t } = useTranslation();
+  const overlayId = 'transaction-history-modal';
+  const { isDragging, dragX, activeOverlayId, setDragState, snapBackX } = useEdgeSwipe();
+  const [closeTargetX, setCloseTargetX] = useState<number | null>(null);
+  const translateX = isDragging && activeOverlayId === overlayId ? dragX : 0;
+  const snapX = activeOverlayId === overlayId ? snapBackX : null;
+  const transformX = closeTargetX ?? snapX ?? translateX;
+  const transition = closeTargetX !== null || snapX !== null ? 'transform 220ms ease' : 'none';
+
+  const handleClose = () => {
+    onClose();
+  };
+
+  const requestClose = useCallback(
+    (payload?: { source?: 'edge-swipe' | 'programmatic'; targetX?: number }) => {
+      if (payload?.source === 'edge-swipe' && payload.targetX !== undefined) {
+        setCloseTargetX(payload.targetX);
+        return;
+      }
+      handleClose();
+    },
+    [handleClose],
+  );
+
+  useOverlayRegistration(overlayId, isOpen, requestClose);
+
+  useEffect(() => {
+    return () => {
+      if (activeOverlayId === overlayId) {
+        resetDragState(setDragState);
+      }
+    };
+  }, [activeOverlayId, overlayId, setDragState]);
 
   if (!isOpen) return null;
 
@@ -43,12 +77,26 @@ export const TransactionHistoryModal: React.FC<TransactionHistoryModalProps> = (
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm sm:p-4 opacity-100 transition-opacity">
-      <div className="bg-white dark:bg-card-dark w-full sm:w-[480px] sm:rounded-2xl rounded-t-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] transition-transform translate-y-0 relative">
+      <div
+        className="bg-white dark:bg-card-dark w-full sm:w-[480px] sm:rounded-2xl rounded-t-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] transition-transform translate-y-0 relative"
+        style={{ transform: `translateX(${transformX}px)`, transition }}
+        onTransitionEnd={() => {
+          if (closeTargetX !== null) {
+            setCloseTargetX(null);
+            resetDragState(setDragState);
+            handleClose();
+            return;
+          }
+          if (snapX !== null) {
+            resetDragState(setDragState);
+          }
+        }}
+      >
         {/* 顶部标题栏 */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-border-dark shrink-0">
           <div className="flex items-center gap-3">
             <button
-              onClick={onClose}
+              onClick={handleClose}
               className="p-1.5 -ml-1.5 rounded-full hover:bg-gray-100 dark:hover:bg-white/10 transition-colors text-gray-500"
             >
               <Icons.ArrowUp size={20} className="-rotate-90" />
