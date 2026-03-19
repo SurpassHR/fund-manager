@@ -7,6 +7,7 @@ import { useTranslation } from '../services/i18n';
 import type { WatchlistItem, Fund } from '../types';
 import { AddWatchlistModal } from './AddWatchlistModal';
 import { FundDetail } from './FundDetail';
+import { AnimatePresence } from 'framer-motion';
 
 export const Watchlist: React.FC = () => {
   const watchlists = useLiveQuery(() => db.watchlists.toArray());
@@ -442,14 +443,17 @@ export const Watchlist: React.FC = () => {
         editItem={editingItem}
       />
 
-      {selectedItemForDetail && (
-        <FundDetail
-          fund={selectedItemForDetail.fund}
-          anchorDate={selectedItemForDetail.anchorDate}
-          anchorPrice={selectedItemForDetail.anchorPrice}
-          onBack={() => setSelectedItemForDetail(null)}
-        />
-      )}
+      <AnimatePresence>
+        {selectedItemForDetail && (
+          <FundDetail
+            key={`watchlist-detail-${selectedItemForDetail.fund.code}`}
+            fund={selectedItemForDetail.fund}
+            anchorDate={selectedItemForDetail.anchorDate}
+            anchorPrice={selectedItemForDetail.anchorPrice}
+            onBack={() => setSelectedItemForDetail(null)}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 };

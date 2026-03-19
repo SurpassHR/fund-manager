@@ -1076,6 +1076,7 @@ export const FundDetail: React.FC<FundDetailProps> = ({
       transition={{ duration: 0.2 }}
     >
       <div
+        className="w-full md:flex md:justify-center"
         style={{ transform: `translateX(${transformX}px)`, transition }}
         onTransitionEnd={(event) => {
           if (event.propertyName !== 'transform') return;
