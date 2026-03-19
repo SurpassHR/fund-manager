@@ -39,6 +39,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack, initialShowA
   } = useSettings();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [showAiSettings, setShowAiSettings] = useState(Boolean(initialShowAiSettings));
+  const [showGistSettings, setShowGistSettings] = useState(false);
   const [openaiModels, setOpenaiModels] = useState<string[]>([]);
   const [geminiModels, setGeminiModels] = useState<string[]>([]);
   const [openaiLoading, setOpenaiLoading] = useState(false);
@@ -361,6 +362,106 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack, initialShowA
     );
   }
 
+  if (showGistSettings) {
+    return (
+      <div className="min-h-[60vh] pb-24">
+        <div className="flex items-center gap-3 px-4 py-3">
+          <button
+            onClick={() => setShowGistSettings(false)}
+            className="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
+          >
+            <Icons.ArrowUp size={20} className="text-gray-600 dark:text-gray-300 -rotate-90" />
+          </button>
+          <h2 className="text-base font-bold text-gray-800 dark:text-gray-100">
+            {t('common.gistSync') || 'Gist Sync'}
+          </h2>
+        </div>
+
+        <div className="px-4 mt-2">
+          <div className="bg-white dark:bg-card-dark rounded-xl overflow-hidden shadow-sm p-4 space-y-3">
+            <div>
+              <label className="block text-xs font-bold text-gray-500 mb-1">
+                {t('common.gistToken') || 'GitHub Token'}
+              </label>
+              <input
+                type="password"
+                value={gistToken}
+                onChange={(e) => setGistToken(e.target.value)}
+                placeholder="ghp_..."
+                className="w-full p-3 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-white/5 focus:outline-none focus:border-blue-500 text-gray-900 dark:text-gray-100 text-sm"
+              />
+              <a
+                href="https://github.com/settings/tokens/new?description=fund-manager-sync&scopes=gist"
+                target="_blank"
+                rel="noreferrer"
+                className="inline-block mt-1.5 text-[11px] text-blue-600 dark:text-blue-400 hover:underline"
+              >
+                {t('common.gistTokenCreateLink') || 'Create a GitHub token with gist scope'}
+              </a>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-gray-500 mb-1">
+                {t('common.gistId') || 'Gist ID'}
+              </label>
+              <input
+                type="text"
+                value={gistId}
+                onChange={(e) => setGistId(e.target.value)}
+                placeholder={
+                  t('common.gistIdPlaceholder') || 'Leave empty to auto-create on upload'
+                }
+                className="w-full p-3 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-white/5 focus:outline-none focus:border-blue-500 text-gray-900 dark:text-gray-100 text-sm"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-gray-500 mb-1">
+                {t('common.gistFileName') || 'Gist File Name'}
+              </label>
+              <input
+                type="text"
+                value={gistFileName}
+                onChange={(e) => setGistFileName(e.target.value)}
+                placeholder="fund-manager-sync.json"
+                className="w-full p-3 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-white/5 focus:outline-none focus:border-blue-500 text-gray-900 dark:text-gray-100 text-sm"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              <button
+                onClick={handleTestGistConnection}
+                disabled={syncLoading}
+                className="px-3 py-2 text-xs font-bold rounded-lg bg-gray-100 dark:bg-white/10 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-white/15 disabled:opacity-50"
+              >
+                {t('common.gistTestConnection') || 'Test Connection'}
+              </button>
+              <button
+                onClick={handlePushToGist}
+                disabled={syncLoading}
+                className="px-3 py-2 text-xs font-bold rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
+              >
+                {t('common.gistPush') || 'Upload to Gist'}
+              </button>
+              <button
+                onClick={handlePullFromGist}
+                disabled={syncLoading}
+                className="px-3 py-2 text-xs font-bold rounded-lg bg-amber-500 text-white hover:bg-amber-600 disabled:opacity-50"
+              >
+                {t('common.gistPull') || 'Download from Gist'}
+              </button>
+            </div>
+
+            <p className="text-[10px] text-gray-400">
+              {t('common.gistSyncTip') ||
+                'Token is stored locally only. Download action will overwrite local data.'}
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-[60vh] pb-24">
       {/* 标题栏 */}
@@ -509,79 +610,28 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack, initialShowA
           className="hidden"
           onChange={handleImport}
         />
+      </div>
 
-        <div className="mt-4 bg-white dark:bg-card-dark rounded-xl overflow-hidden shadow-sm p-4 space-y-3">
-          <div className="text-xs font-bold font-sans text-gray-400 dark:text-gray-500 uppercase tracking-wide">
-            {t('common.gistSync') || 'Gist Sync'}
-          </div>
-
-          <div>
-            <label className="block text-xs font-bold text-gray-500 mb-1">
-              {t('common.gistToken') || 'GitHub Token'}
-            </label>
-            <input
-              type="password"
-              value={gistToken}
-              onChange={(e) => setGistToken(e.target.value)}
-              placeholder="ghp_..."
-              className="w-full p-3 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-white/5 focus:outline-none focus:border-blue-500 text-gray-900 dark:text-gray-100 text-sm"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-bold text-gray-500 mb-1">
-              {t('common.gistId') || 'Gist ID'}
-            </label>
-            <input
-              type="text"
-              value={gistId}
-              onChange={(e) => setGistId(e.target.value)}
-              placeholder={t('common.gistIdPlaceholder') || 'Leave empty to auto-create on upload'}
-              className="w-full p-3 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-white/5 focus:outline-none focus:border-blue-500 text-gray-900 dark:text-gray-100 text-sm"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-bold text-gray-500 mb-1">
-              {t('common.gistFileName') || 'Gist File Name'}
-            </label>
-            <input
-              type="text"
-              value={gistFileName}
-              onChange={(e) => setGistFileName(e.target.value)}
-              placeholder="fund-manager-sync.json"
-              className="w-full p-3 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-white/5 focus:outline-none focus:border-blue-500 text-gray-900 dark:text-gray-100 text-sm"
-            />
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-            <button
-              onClick={handleTestGistConnection}
-              disabled={syncLoading}
-              className="px-3 py-2 text-xs font-bold rounded-lg bg-gray-100 dark:bg-white/10 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-white/15 disabled:opacity-50"
-            >
-              {t('common.gistTestConnection') || 'Test Connection'}
-            </button>
-            <button
-              onClick={handlePushToGist}
-              disabled={syncLoading}
-              className="px-3 py-2 text-xs font-bold rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
-            >
-              {t('common.gistPush') || 'Upload to Gist'}
-            </button>
-            <button
-              onClick={handlePullFromGist}
-              disabled={syncLoading}
-              className="px-3 py-2 text-xs font-bold rounded-lg bg-amber-500 text-white hover:bg-amber-600 disabled:opacity-50"
-            >
-              {t('common.gistPull') || 'Download from Gist'}
-            </button>
-          </div>
-
-          <p className="text-[10px] text-gray-400">
-            {t('common.gistSyncTip') ||
-              'Token is stored locally only. Download action will overwrite local data.'}
-          </p>
+      {/* Gist 同步设置入口 */}
+      <div className="px-4 mt-6">
+        <div className="text-xs font-bold font-sans text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-2 px-1">
+          {t('common.gistSync') || 'Gist Sync'}
+        </div>
+        <div className="bg-white dark:bg-card-dark rounded-xl overflow-hidden shadow-sm">
+          <button
+            onClick={() => setShowGistSettings(true)}
+            className="w-full flex items-center justify-between px-4 py-3.5 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-6 flex justify-center text-gray-500 dark:text-gray-400">
+                <Icons.Settings size={18} />
+              </div>
+              <span className="text-sm font-sans text-gray-800 dark:text-gray-100">
+                {t('common.gistSettingsManage') || 'Manage Gist Sync Settings'}
+              </span>
+            </div>
+            <Icons.ArrowDown size={16} className="text-gray-400 -rotate-90" />
+          </button>
         </div>
       </div>
     </div>
