@@ -407,7 +407,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack, initialShowA
 
   if (showAiSettings) {
     return (
-      <div className="min-h-[60vh] pb-24">
+      <div className="min-h-[60vh] pb-44 md:pb-28">
         <div className="flex items-center gap-3 px-4 py-3">
           <button
             onClick={() => setShowAiSettings(false)}
@@ -525,7 +525,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack, initialShowA
 
   if (showGistSyncSettings) {
     return (
-      <div className="min-h-[60vh] pb-24">
+      <div className="min-h-[60vh] pb-44 md:pb-28">
         <div className="flex items-center gap-3 px-4 py-3">
           <button
             onClick={() => setShowGistSyncSettings(false)}
@@ -639,7 +639,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack, initialShowA
   }
 
   return (
-    <div className="min-h-[60vh] pb-24">
+    <div className="min-h-[60vh] pb-44 md:pb-28">
       {/* 标题栏 */}
       <div className="flex items-center gap-3 px-4 py-3">
         {onBack && (
