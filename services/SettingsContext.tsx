@@ -17,6 +17,12 @@ interface SettingsContextValue {
   setGeminiApiKey: (val: string) => void;
   geminiModel: string;
   setGeminiModel: (val: string) => void;
+  gistToken: string;
+  setGistToken: (val: string) => void;
+  gistId: string;
+  setGistId: (val: string) => void;
+  gistFileName: string;
+  setGistFileName: (val: string) => void;
 }
 
 const STORAGE_KEY = 'app-settings-preference';
@@ -28,6 +34,9 @@ const defaultSettings = {
   openaiModel: 'gpt-4o-mini',
   geminiApiKey: '',
   geminiModel: 'gemini-3.1-flash-lite-preview',
+  gistToken: '',
+  gistId: '',
+  gistFileName: 'fund-manager-sync.json',
 };
 
 const SettingsContext = createContext<SettingsContextValue>({
@@ -43,6 +52,12 @@ const SettingsContext = createContext<SettingsContextValue>({
   setGeminiApiKey: () => {},
   geminiModel: defaultSettings.geminiModel,
   setGeminiModel: () => {},
+  gistToken: defaultSettings.gistToken,
+  setGistToken: () => {},
+  gistId: defaultSettings.gistId,
+  setGistId: () => {},
+  gistFileName: defaultSettings.gistFileName,
+  setGistFileName: () => {},
 });
 
 export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -76,6 +91,9 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const setOpenaiModel = (val: string) => updateSettings({ openaiModel: val });
   const setGeminiApiKey = (val: string) => updateSettings({ geminiApiKey: val });
   const setGeminiModel = (val: string) => updateSettings({ geminiModel: val });
+  const setGistToken = (val: string) => updateSettings({ gistToken: val });
+  const setGistId = (val: string) => updateSettings({ gistId: val });
+  const setGistFileName = (val: string) => updateSettings({ gistFileName: val });
 
   return (
     <SettingsContext.Provider
@@ -92,6 +110,12 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         setGeminiApiKey,
         geminiModel: settings.geminiModel,
         setGeminiModel,
+        gistToken: settings.gistToken,
+        setGistToken,
+        gistId: settings.gistId,
+        setGistId,
+        gistFileName: settings.gistFileName,
+        setGistFileName,
       }}
     >
       {children}

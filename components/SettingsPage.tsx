@@ -3,8 +3,9 @@ import { Icons } from './Icon';
 import { useTranslation } from '../services/i18n';
 import { useTheme } from '../services/ThemeContext';
 import { useSettings } from '../services/SettingsContext';
-import { exportFunds, importFunds } from '../services/db';
+import { exportFunds, exportSyncPayload, importFunds, importSyncPayload } from '../services/db';
 import { listGeminiModels, listOpenAiModels } from '../services/aiOcr';
+import { pullFromGist, pushToGist, testGistAuth } from '../services/gistSync';
 
 interface SettingsPageProps {
   onBack?: () => void;
@@ -29,6 +30,12 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack, initialShowA
     setGeminiApiKey,
     geminiModel,
     setGeminiModel,
+    gistToken,
+    setGistToken,
+    gistId,
+    setGistId,
+    gistFileName,
+    setGistFileName,
   } = useSettings();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [showAiSettings, setShowAiSettings] = useState(Boolean(initialShowAiSettings));
@@ -38,6 +45,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack, initialShowA
   const [geminiLoading, setGeminiLoading] = useState(false);
   const [openaiError, setOpenaiError] = useState('');
   const [geminiError, setGeminiError] = useState('');
+  const [syncLoading, setSyncLoading] = useState(false);
 
   const themeOptions: { value: ThemeOption; label: string; icon: React.ReactNode }[] = [
     {
@@ -79,6 +87,91 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack, initialShowA
       console.error(err);
     } finally {
       if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const handleTestGistConnection = async () => {
+    if (!gistToken.trim()) {
+      alert(t('common.gistTokenRequired') || 'Please enter GitHub token');
+      return;
+    }
+
+    setSyncLoading(true);
+    try {
+      const result = await testGistAuth(gistToken.trim());
+      alert(
+        (t('common.gistConnectionSuccess') || 'Connected as {user}').replace(
+          '{user}',
+          result.login,
+        ),
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      alert(`${t('common.gistConnectionFailed') || 'Connection failed'}: ${message}`);
+    } finally {
+      setSyncLoading(false);
+    }
+  };
+
+  const handlePushToGist = async () => {
+    if (!gistToken.trim()) {
+      alert(t('common.gistTokenRequired') || 'Please enter GitHub token');
+      return;
+    }
+
+    setSyncLoading(true);
+    try {
+      const syncPayload = await exportSyncPayload();
+      const result = await pushToGist({
+        token: gistToken.trim(),
+        gistId: gistId.trim() || undefined,
+        fileName: gistFileName.trim() || 'fund-manager-sync.json',
+        syncPayload,
+      });
+      if (!gistId.trim()) {
+        setGistId(result.gistId);
+      }
+      alert(
+        (t('common.gistPushSuccess') || 'Uploaded to gist: {id}').replace('{id}', result.gistId),
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      alert(`${t('common.gistPushFailed') || 'Upload failed'}: ${message}`);
+    } finally {
+      setSyncLoading(false);
+    }
+  };
+
+  const handlePullFromGist = async () => {
+    if (!gistToken.trim()) {
+      alert(t('common.gistTokenRequired') || 'Please enter GitHub token');
+      return;
+    }
+    if (!gistId.trim()) {
+      alert(t('common.gistIdRequired') || 'Please enter Gist ID');
+      return;
+    }
+
+    const confirmed = window.confirm(
+      t('common.gistPullOverwriteConfirm') ||
+        'This will overwrite local holdings, accounts and watchlist. Continue?',
+    );
+    if (!confirmed) return;
+
+    setSyncLoading(true);
+    try {
+      const { payload } = await pullFromGist({
+        token: gistToken.trim(),
+        gistId: gistId.trim(),
+        fileName: gistFileName.trim() || 'fund-manager-sync.json',
+      });
+      await importSyncPayload(payload, { overwrite: true });
+      alert(t('common.gistPullSuccess') || 'Downloaded and replaced local data');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      alert(`${t('common.gistPullFailed') || 'Download failed'}: ${message}`);
+    } finally {
+      setSyncLoading(false);
     }
   };
 
@@ -416,6 +509,80 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack, initialShowA
           className="hidden"
           onChange={handleImport}
         />
+
+        <div className="mt-4 bg-white dark:bg-card-dark rounded-xl overflow-hidden shadow-sm p-4 space-y-3">
+          <div className="text-xs font-bold font-sans text-gray-400 dark:text-gray-500 uppercase tracking-wide">
+            {t('common.gistSync') || 'Gist Sync'}
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-gray-500 mb-1">
+              {t('common.gistToken') || 'GitHub Token'}
+            </label>
+            <input
+              type="password"
+              value={gistToken}
+              onChange={(e) => setGistToken(e.target.value)}
+              placeholder="ghp_..."
+              className="w-full p-3 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-white/5 focus:outline-none focus:border-blue-500 text-gray-900 dark:text-gray-100 text-sm"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-gray-500 mb-1">
+              {t('common.gistId') || 'Gist ID'}
+            </label>
+            <input
+              type="text"
+              value={gistId}
+              onChange={(e) => setGistId(e.target.value)}
+              placeholder={t('common.gistIdPlaceholder') || 'Leave empty to auto-create on upload'}
+              className="w-full p-3 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-white/5 focus:outline-none focus:border-blue-500 text-gray-900 dark:text-gray-100 text-sm"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-gray-500 mb-1">
+              {t('common.gistFileName') || 'Gist File Name'}
+            </label>
+            <input
+              type="text"
+              value={gistFileName}
+              onChange={(e) => setGistFileName(e.target.value)}
+              placeholder="fund-manager-sync.json"
+              className="w-full p-3 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-white/5 focus:outline-none focus:border-blue-500 text-gray-900 dark:text-gray-100 text-sm"
+            />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            <button
+              onClick={handleTestGistConnection}
+              disabled={syncLoading}
+              className="px-3 py-2 text-xs font-bold rounded-lg bg-gray-100 dark:bg-white/10 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-white/15 disabled:opacity-50"
+            >
+              {t('common.gistTestConnection') || 'Test Connection'}
+            </button>
+            <button
+              onClick={handlePushToGist}
+              disabled={syncLoading}
+              className="px-3 py-2 text-xs font-bold rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
+            >
+              {t('common.gistPush') || 'Upload to Gist'}
+            </button>
+            <button
+              onClick={handlePullFromGist}
+              disabled={syncLoading}
+              className="px-3 py-2 text-xs font-bold rounded-lg bg-amber-500 text-white hover:bg-amber-600 disabled:opacity-50"
+            >
+              {t('common.gistPull') || 'Download from Gist'}
+            </button>
+          </div>
+
+          <p className="text-[10px] text-gray-400">
+            {t('common.gistSyncTip') ||
+              'Token is stored locally only. Download action will overwrite local data.'}
+          </p>
+        </div>
       </div>
     </div>
   );
