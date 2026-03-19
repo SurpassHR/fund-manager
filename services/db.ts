@@ -9,6 +9,7 @@ import {
   fetchGeneralTencentQuotes,
   buildTencentQuoteCodes,
 } from './api';
+import type { SyncPayload } from './gistSync';
 import {
   buildFundBackupKey,
   buildFundBackupPayload,
@@ -688,4 +689,87 @@ export const importFundsFromBackupContent = async (
   }
 
   return { added, skipped };
+};
+
+export const exportSyncPayload = async (): Promise<SyncPayload> => {
+  const [funds, accounts, watchlists] = await Promise.all([
+    db.funds.toArray(),
+    db.accounts.toArray(),
+    db.watchlists.toArray(),
+  ]);
+
+  const cleanFunds = funds.map((fund) => {
+    const clean = { ...fund } as Fund & { id?: number };
+    delete clean.id;
+    return clean as Fund;
+  });
+
+  const cleanAccounts = accounts.map((account) => {
+    const clean = { ...account } as Account & { id?: number };
+    delete clean.id;
+    return clean as Account;
+  });
+
+  const cleanWatchlists = watchlists.map((item) => {
+    const clean = { ...item } as WatchlistItem & { id?: number };
+    delete clean.id;
+    return clean as WatchlistItem;
+  });
+
+  return {
+    schemaVersion: 1,
+    exportedAt: new Date().toISOString(),
+    app: 'fund-manager',
+    payload: {
+      funds: cleanFunds,
+      accounts: cleanAccounts,
+      watchlists: cleanWatchlists,
+    },
+  };
+};
+
+export const importSyncPayload = async (
+  syncPayload: SyncPayload,
+  options?: { overwrite?: boolean },
+): Promise<void> => {
+  const overwrite = options?.overwrite ?? true;
+  const { funds, accounts, watchlists } = syncPayload.payload;
+
+  await db.transaction('rw', db.funds, db.accounts, db.watchlists, async () => {
+    if (overwrite) {
+      await Promise.all([db.funds.clear(), db.accounts.clear(), db.watchlists.clear()]);
+    }
+
+    if (accounts.length > 0) {
+      await db.accounts.bulkAdd(
+        accounts.map((account) => {
+          const clean = { ...account } as Account & { id?: number };
+          delete clean.id;
+          return clean as Account;
+        }),
+      );
+    } else {
+      await db.accounts.add({ name: 'Default', isDefault: true });
+    }
+
+    if (funds.length > 0) {
+      await db.funds.bulkAdd(
+        funds.map((fund) => {
+          const clean = { ...fund } as Fund & { id?: number };
+          delete clean.id;
+          return clean as Fund;
+        }),
+      );
+    }
+
+    if (watchlists.length > 0) {
+      await db.watchlists.bulkAdd(
+        watchlists.map((item) => {
+          const clean = { ...item } as WatchlistItem & { id?: number };
+          delete clean.id;
+          return clean as WatchlistItem;
+        }),
+      );
+    }
+  });
 };

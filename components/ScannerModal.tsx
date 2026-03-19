@@ -8,7 +8,7 @@ import type { OcrHoldingItem } from '../services/aiOcr';
 import { searchFunds, fetchFundCommonData } from '../services/api';
 import { db } from '../services/db';
 import type { Fund } from '../types';
-import { resetDragState, useEdgeSwipe } from '../services/edgeSwipeState';
+import { resetDragState, useEdgeSwipe } from '../services/useEdgeSwipe';
 import { useOverlayRegistration } from '../services/overlayRegistration';
 
 interface ScannerModalProps {
@@ -58,19 +58,19 @@ export const ScannerModal: React.FC<ScannerModalProps> = ({ isOpen, onClose }) =
 
   const [existingCodes, setExistingCodes] = useState<Set<string>>(new Set());
 
-  const resetState = () => {
+  const resetState = useCallback(() => {
     setScanning(false);
     setFile(null);
     setPreview('');
     setReviewItems([]);
     setIsReviewing(false);
     setConflictMap({});
-  };
+  }, []);
 
-  const handleClose = () => {
+  const handleClose = useCallback(() => {
     resetState();
     onClose();
-  };
+  }, [onClose, resetState]);
 
   const requestClose = useCallback(
     (payload?: { source?: 'edge-swipe' | 'programmatic'; targetX?: number }) => {

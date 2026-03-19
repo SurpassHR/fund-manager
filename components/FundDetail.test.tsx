@@ -1,14 +1,14 @@
 import '@testing-library/jest-dom';
 import { render, screen } from '@testing-library/react';
 import { expect, it } from 'vitest';
+import { TradeMarkerLegend } from './TradeMarkerLegend';
 import {
-  TradeMarkerLegend,
   buildChartOption,
   buildFundSeries,
   buildLegendViewModel,
   buildTradeMarkers,
   getTradeLegendLabels,
-} from './FundDetail';
+} from './fundDetailChartUtils';
 
 it('marks buy with red dot', () => {
   const markers = buildTradeMarkers({

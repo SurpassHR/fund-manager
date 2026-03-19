@@ -12,7 +12,8 @@ import { Icons } from './components/Icon';
 import { LanguageProvider, useTranslation } from './services/i18n';
 import { ThemeProvider } from './services/ThemeContext';
 import { SettingsProvider } from './services/SettingsContext';
-import { EdgeSwipeProvider, resetDragState, useEdgeSwipe } from './services/edgeSwipeState';
+import { EdgeSwipeProvider } from './services/edgeSwipeState';
+import { resetDragState, useEdgeSwipe } from './services/useEdgeSwipe';
 import { closeTopOverlay, getActiveOverlayId } from './services/overlayStack';
 import { computeSwipeProgress } from './services/edgeSwipeUtils';
 

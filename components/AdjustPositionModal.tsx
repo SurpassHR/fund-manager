@@ -3,8 +3,9 @@ import { db, getSettlementDate } from '../services/db';
 import { useTranslation } from '../services/i18n';
 import { Icons } from './Icon';
 import type { Fund, PendingTransaction } from '../types';
-import { resetDragState, useEdgeSwipe } from '../services/edgeSwipeState';
+import { resetDragState, useEdgeSwipe } from '../services/useEdgeSwipe';
 import { useOverlayRegistration } from '../services/overlayRegistration';
+import { parseSellInputToShares } from './adjustPositionUtils';
 
 interface AdjustPositionModalProps {
   isOpen: boolean;
@@ -30,6 +31,7 @@ export const AdjustPositionModal: React.FC<AdjustPositionModalProps> = ({
   const [opDate, setOpDate] = useState('');
   const [opTime, setOpTime] = useState<'before15' | 'after15'>('before15');
   const [amount, setAmount] = useState('');
+  const [inputError, setInputError] = useState('');
   const [calculatedSettlementDate, setCalculatedSettlementDate] = useState('');
 
   const noSpinnerClass =
@@ -41,13 +43,19 @@ export const AdjustPositionModal: React.FC<AdjustPositionModalProps> = ({
       setOpDate(new Date().toISOString().split('T')[0]);
       setOpTime(new Date().getHours() < 15 ? 'before15' : 'after15');
       setAmount('');
+      setInputError('');
       setCalculatedSettlementDate('');
     }
   }, [isOpen]);
 
-  const handleClose = () => {
+  useEffect(() => {
+    setAmount('');
+    setInputError('');
+  }, [type]);
+
+  const handleClose = useCallback(() => {
     onClose();
-  };
+  }, [onClose]);
 
   const requestClose = useCallback(
     (payload?: { source?: 'edge-swipe' | 'programmatic'; targetX?: number }) => {
@@ -81,8 +89,18 @@ export const AdjustPositionModal: React.FC<AdjustPositionModalProps> = ({
 
   if (!isOpen) return null;
 
+  const parsedSell = type === 'sell' ? parseSellInputToShares(amount, fund.holdingShares) : null;
+
   const handleSave = async () => {
-    const val = parseFloat(amount);
+    let val = parseFloat(amount);
+    if (type === 'sell') {
+      if (!parsedSell || parsedSell.shares == null || parsedSell.error) {
+        setInputError('请输入正确的减仓格式（如 50、50%、1/3）');
+        return;
+      }
+      val = parsedSell.shares;
+    }
+
     if (isNaN(val) || val <= 0) {
       alert(type === 'buy' ? '请输入有效的加仓金额' : '请输入有效的减仓份额');
       return;
@@ -92,6 +110,8 @@ export const AdjustPositionModal: React.FC<AdjustPositionModalProps> = ({
       alert(`减仓份额不能超过当前持有份额 (${fund.holdingShares.toFixed(2)})`);
       return;
     }
+
+    setInputError('');
 
     const newTx: PendingTransaction = {
       id: `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
@@ -227,12 +247,56 @@ export const AdjustPositionModal: React.FC<AdjustPositionModalProps> = ({
                 : t('common.sellShares') || '减仓份额'}
             </label>
             <input
-              type="number"
+              type={type === 'buy' ? 'number' : 'text'}
               value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              placeholder={type === 'buy' ? '0.00' : `最大 ${fund.holdingShares.toFixed(2)}`}
+              onChange={(e) => {
+                setAmount(e.target.value);
+                setInputError('');
+              }}
+              placeholder={
+                type === 'buy' ? '0.00' : `如 50、50%、1/3（最大 ${fund.holdingShares.toFixed(2)}）`
+              }
               className={`w-full p-3 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-white/5 text-gray-900 dark:text-white font-bold font-sans focus:border-blue-500 outline-none text-lg ${noSpinnerClass}`}
             />
+
+            {type === 'sell' && (
+              <>
+                <div className="mt-2 flex items-center gap-2">
+                  {[
+                    { label: '1/4', value: '1/4' },
+                    { label: '1/3', value: '1/3' },
+                    { label: '1/2', value: '1/2' },
+                    { label: '全部', value: '1/1' },
+                  ].map((item) => (
+                    <button
+                      key={item.value}
+                      type="button"
+                      onClick={() => {
+                        setAmount(item.value);
+                        setInputError('');
+                      }}
+                      className="px-2.5 py-1.5 text-xs font-bold rounded-md bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-white/15"
+                    >
+                      {item.label}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="mt-2 text-xs">
+                  {inputError ? (
+                    <span className="text-red-500">{inputError}</span>
+                  ) : parsedSell?.shares != null ? (
+                    <span className="text-gray-500 dark:text-gray-400">
+                      将减仓 {parsedSell.shares.toFixed(2)} 份
+                    </span>
+                  ) : (
+                    <span className="text-gray-400 dark:text-gray-500">
+                      输入格式支持：份额、百分比（如 50%）、分数（如 1/3）
+                    </span>
+                  )}
+                </div>
+              </>
+            )}
           </div>
 
           {/* 确认日展示 */}

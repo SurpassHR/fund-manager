@@ -3,7 +3,7 @@ import type { Fund } from '../types';
 import { useTranslation } from '../services/i18n';
 import { Icons } from './Icon';
 import { db } from '../services/db';
-import { resetDragState, useEdgeSwipe } from '../services/edgeSwipeState';
+import { resetDragState, useEdgeSwipe } from '../services/useEdgeSwipe';
 import { useOverlayRegistration } from '../services/overlayRegistration';
 
 interface TransactionHistoryModalProps {
@@ -26,9 +26,9 @@ export const TransactionHistoryModal: React.FC<TransactionHistoryModalProps> = (
   const transformX = closeTargetX ?? snapX ?? translateX;
   const transition = closeTargetX !== null || snapX !== null ? 'transform 220ms ease' : 'none';
 
-  const handleClose = () => {
+  const handleClose = useCallback(() => {
     onClose();
-  };
+  }, [onClose]);
 
   const requestClose = useCallback(
     (payload?: { source?: 'edge-swipe' | 'programmatic'; targetX?: number }) => {
