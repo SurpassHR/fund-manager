@@ -46,6 +46,11 @@ export const AddFundModal: React.FC<AddFundModalProps> = ({ isOpen, onClose, edi
   const [buyTime, setBuyTime] = useState<'before15' | 'after15'>('before15'); // 15:00前还是后
   const [settlementDays, setSettlementDays] = useState<number>(1); // T+N
 
+  const getFallbackAccountName = useCallback(() => {
+    if (!accounts || accounts.length === 0) return 'Default';
+    return accounts.find((acc) => acc.isDefault)?.name || accounts[0].name;
+  }, [accounts]);
+
   // 初始化 / 编辑模式填充
   useEffect(() => {
     if (isOpen) {
@@ -62,7 +67,7 @@ export const AddFundModal: React.FC<AddFundModalProps> = ({ isOpen, onClose, edi
         setCostPrice(editFund.costPrice.toFixed(4));
         setGain(initialGain.toFixed(2));
         setNavChangePct(editFund.dayChangePct);
-        setSelectedAccount(editFund.platform);
+        setSelectedAccount(editFund.platform || getFallbackAccountName());
         setBuyDate(editFund.buyDate || new Date().toISOString().split('T')[0]);
         setBuyTime(editFund.buyTime || 'before15');
         setSettlementDays(editFund.settlementDays ?? 1);
@@ -75,14 +80,22 @@ export const AddFundModal: React.FC<AddFundModalProps> = ({ isOpen, onClose, edi
         setShares('');
         setCostPrice('');
         setGain('');
-        setSelectedAccount('Default');
+        setSelectedAccount(getFallbackAccountName());
         setBuyDate(new Date().toISOString().split('T')[0]);
         setBuyTime(new Date().getHours() < 15 ? 'before15' : 'after15');
         setSettlementDays(1);
       }
       setError('');
     }
-  }, [isOpen, editFund]);
+  }, [isOpen, editFund, getFallbackAccountName]);
+
+  useEffect(() => {
+    if (!isOpen || !accounts || accounts.length === 0) return;
+    const exists = accounts.some((acc) => acc.name === selectedAccount);
+    if (!exists) {
+      setSelectedAccount(getFallbackAccountName());
+    }
+  }, [accounts, getFallbackAccountName, isOpen, selectedAccount]);
 
   const handleClose = useCallback(() => {
     setQuery('');

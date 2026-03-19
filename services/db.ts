@@ -350,11 +350,22 @@ export const refreshFundData = (options?: RefreshOptions) => {
               : navChangePercent
             : 0;
 
+          const officialDayChangePct = navChangePercent;
+          const estimatedDayChangePct =
+            isGainActive && hasEstimate && estimatedChangePct !== undefined
+              ? estimatedChangePct
+              : 0;
+          const todayChangeIsEstimated =
+            isGainActive && hasEstimate && estimatedChangePct !== undefined;
+
           const shouldSkipUpdate =
             isNearlyEqual(fund.currentNav, nav) &&
             fund.lastUpdate === effectivePctDate &&
             isNearlyEqual(fund.dayChangePct, nextDayChangePct) &&
-            isNearlyEqual(fund.dayChangeVal, dayChangeVal);
+            isNearlyEqual(fund.dayChangeVal, dayChangeVal) &&
+            isNearlyEqual(fund.officialDayChangePct ?? 0, officialDayChangePct) &&
+            isNearlyEqual(fund.estimatedDayChangePct ?? 0, estimatedDayChangePct) &&
+            Boolean(fund.todayChangeIsEstimated) === todayChangeIsEstimated;
 
           if (shouldSkipUpdate) return;
 
@@ -363,6 +374,9 @@ export const refreshFundData = (options?: RefreshOptions) => {
             lastUpdate: effectivePctDate,
             dayChangePct: nextDayChangePct,
             dayChangeVal: dayChangeVal,
+            officialDayChangePct,
+            estimatedDayChangePct,
+            todayChangeIsEstimated,
           });
         }),
       );

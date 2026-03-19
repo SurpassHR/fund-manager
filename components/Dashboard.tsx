@@ -26,7 +26,13 @@ export const Dashboard: React.FC = () => {
   const [activeFilter, setActiveFilter] = useState('All');
   const [showValues, setShowValues] = useState(true);
   const [sortState, setSortState] = useState<{
-    key: 'dayChangePct' | 'dayChangeVal' | 'totalGain' | 'marketValue' | null;
+    key:
+      | 'officialDayChangePct'
+      | 'estimatedDayChangePct'
+      | 'todayGain'
+      | 'totalGain'
+      | 'marketValue'
+      | null;
     direction: 'asc' | 'desc';
   }>({ key: null, direction: 'desc' });
   const [isAiAnalysisOpen, setIsAiAnalysisOpen] = useState(false);
@@ -194,8 +200,16 @@ export const Dashboard: React.FC = () => {
     return f.lastUpdate > max ? f.lastUpdate : max;
   }, '');
   const displayDate = latestDateStr ? latestDateStr.substring(5) : 'Today';
+  const todayStr = getLocalDateString();
 
-  const handleSort = (key: 'dayChangePct' | 'dayChangeVal' | 'totalGain' | 'marketValue') => {
+  const handleSort = (
+    key:
+      | 'officialDayChangePct'
+      | 'estimatedDayChangePct'
+      | 'todayGain'
+      | 'totalGain'
+      | 'marketValue',
+  ) => {
     setSortState((prev) => {
       if (prev.key === key) {
         return { key, direction: prev.direction === 'asc' ? 'desc' : 'asc' };
@@ -210,9 +224,13 @@ export const Dashboard: React.FC = () => {
     const getSortValue = (fund: Fund) => {
       const holdingValue = fund.holdingShares * fund.currentNav;
       if (sortState.key === 'marketValue') return holdingValue;
-      if (sortState.key === 'totalGain') return holdingValue - fund.holdingShares * fund.costPrice;
-      if (sortState.key === 'dayChangeVal') return fund.dayChangeVal;
-      return fund.dayChangePct;
+      if (sortState.key === 'totalGain') {
+        const estimateGainVal = (holdingValue * (fund.estimatedDayChangePct ?? 0)) / 100;
+        return holdingValue - fund.holdingShares * fund.costPrice + estimateGainVal;
+      }
+      if (sortState.key === 'todayGain') return fund.dayChangeVal;
+      if (sortState.key === 'estimatedDayChangePct') return fund.dayChangePct;
+      return fund.officialDayChangePct ?? fund.dayChangePct;
     };
 
     const direction = sortState.direction === 'asc' ? 1 : -1;
@@ -505,17 +523,17 @@ export const Dashboard: React.FC = () => {
           </button>
         </div>
 
-        <div className="hidden md:grid md:flex-[4] w-full grid-cols-5 gap-4 text-right font-medium">
+        <div className="hidden md:grid md:flex-[5] w-full grid-cols-6 gap-4 text-right font-medium">
           <div className="text-left">
             {t('common.cost')} / {t('common.nav')}
           </div>
           <button
-            onClick={() => handleSort('dayChangePct')}
+            onClick={() => handleSort('officialDayChangePct')}
             className="text-right cursor-pointer hover:text-gray-600 flex items-center justify-end gap-1"
             type="button"
           >
-            {t('common.dayChgPct')}
-            {sortState.key === 'dayChangePct' && (
+            {t('common.yesterdayChangePct') || '昨日涨幅'}
+            {sortState.key === 'officialDayChangePct' && (
               <Icons.ArrowUp
                 size={12}
                 className={sortState.direction === 'asc' ? '' : 'rotate-180'}
@@ -523,12 +541,25 @@ export const Dashboard: React.FC = () => {
             )}
           </button>
           <button
-            onClick={() => handleSort('dayChangeVal')}
+            onClick={() => handleSort('estimatedDayChangePct')}
+            className="text-right cursor-pointer hover:text-gray-600 flex items-center justify-end gap-1"
+            type="button"
+          >
+            {t('common.todayChangePct') || '今日涨幅'}
+            {sortState.key === 'estimatedDayChangePct' && (
+              <Icons.ArrowUp
+                size={12}
+                className={sortState.direction === 'asc' ? '' : 'rotate-180'}
+              />
+            )}
+          </button>
+          <button
+            onClick={() => handleSort('todayGain')}
             className="text-right cursor-pointer hover:text-gray-600 flex items-center justify-end gap-1"
             type="button"
           >
             {t('common.dayGain')}
-            {sortState.key === 'dayChangeVal' && (
+            {sortState.key === 'todayGain' && (
               <Icons.ArrowUp
                 size={12}
                 className={sortState.direction === 'asc' ? '' : 'rotate-180'}
@@ -568,12 +599,12 @@ export const Dashboard: React.FC = () => {
           <div className="flex-1 text-left">{t('common.fund')}</div>
           <div className="flex gap-2 text-right">
             <button
-              onClick={() => handleSort('dayChangePct')}
-              className="w-[4.5rem] cursor-pointer flex items-center justify-end gap-0.5"
+              onClick={() => handleSort('officialDayChangePct')}
+              className="w-[6.25rem] cursor-pointer flex items-center justify-end gap-0.5"
               type="button"
             >
-              {t('common.dayChgPct')}
-              {sortState.key === 'dayChangePct' && (
+              {t('common.yesterdayChangePct') || '昨日涨幅'}
+              {sortState.key === 'officialDayChangePct' && (
                 <Icons.ArrowUp
                   size={12}
                   className={sortState.direction === 'asc' ? '' : 'rotate-180'}
@@ -581,12 +612,12 @@ export const Dashboard: React.FC = () => {
               )}
             </button>
             <button
-              onClick={() => handleSort('dayChangeVal')}
-              className="w-[4.5rem] cursor-pointer flex items-center justify-end gap-0.5"
+              onClick={() => handleSort('estimatedDayChangePct')}
+              className="w-[6.25rem] cursor-pointer flex items-center justify-end gap-0.5"
               type="button"
             >
-              {t('common.dayGain')}
-              {sortState.key === 'dayChangeVal' && (
+              {t('common.todayChangePct') || '今日涨幅'}
+              {sortState.key === 'estimatedDayChangePct' && (
                 <Icons.ArrowUp
                   size={12}
                   className={sortState.direction === 'asc' ? '' : 'rotate-180'}
@@ -603,7 +634,17 @@ export const Dashboard: React.FC = () => {
           const holdingValue = fund.holdingShares * fund.currentNav;
           const totalCost = fund.holdingShares * fund.costPrice;
           const totalReturn = holdingValue - totalCost;
-          const totalReturnPct = totalCost !== 0 ? (totalReturn / totalCost) * 100 : 0;
+          const officialDayChangePct = fund.officialDayChangePct ?? fund.dayChangePct;
+          const todayChangePct = fund.dayChangePct;
+          const estimatedGainVal = (holdingValue * (fund.estimatedDayChangePct ?? 0)) / 100;
+          const adjustedHoldingGain = totalReturn + estimatedGainVal;
+          const adjustedHoldingGainPct =
+            totalCost !== 0 ? (adjustedHoldingGain / totalCost) * 100 : 0;
+          const todayChangeTag = fund.todayChangeIsEstimated
+            ? t('common.estimated') || '估值'
+            : fund.lastUpdate === todayStr
+              ? t('common.updated') || '已更新'
+              : '';
           const displayPlatform =
             t(`filters.${fund.platform}`) === `filters.${fund.platform}`
               ? fund.platform
@@ -627,7 +668,7 @@ export const Dashboard: React.FC = () => {
                   <span className="text-[10px] px-1 py-0.5 rounded bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 font-sans">
                     {fund.code}
                   </span>
-                  <span className="text-[10px] px-1 py-0.5 rounded bg-gray-100 dark:bg-white/10 text-gray-500 dark:text-gray-400 font-sans">
+                  <span className="text-[10px] px-1 py-0.5 rounded bg-gray-100 dark:bg-white/10 text-gray-500 dark:text-gray-400 font-sans whitespace-nowrap min-w-[4.5em] max-w-[7.5em] truncate text-center">
                     {displayPlatform}
                   </span>
                   <h3 className="text-sm font-medium text-gray-800 dark:text-gray-100 truncate font-sans">
@@ -658,23 +699,33 @@ export const Dashboard: React.FC = () => {
               </div>
 
               {/* Desktop Grid Layout */}
-              <div className="hidden md:grid flex-[4] w-full grid-cols-5 gap-4 text-right items-start text-sm">
+              <div className="hidden md:grid flex-[5] w-full grid-cols-6 gap-4 text-right items-start text-sm">
                 <div className="text-left text-gray-500 text-xs">
                   <div className="font-sans">{formatCurrency(fund.costPrice, 4)}</div>
                   <div className="font-sans text-gray-400">{fund.currentNav.toFixed(4)}</div>
                 </div>
-                <div className={`font-medium font-sans ${getSignColor(fund.dayChangePct)}`}>
-                  {formatPct(fund.dayChangePct)}
+                <div className={`font-medium font-sans ${getSignColor(officialDayChangePct)}`}>
+                  {formatPct(officialDayChangePct)}
                 </div>
-                <div className={`font-medium font-sans ${getSignColor(fund.dayChangeVal)}`}>
-                  {formatSignedCurrency(fund.dayChangeVal)}
+                <div className={`font-medium font-sans ${getSignColor(todayChangePct)}`}>
+                  {formatPct(todayChangePct)}
+                  {todayChangeTag && (
+                    <span className="ml-1 text-[10px] text-gray-500 dark:text-gray-400">
+                      {todayChangeTag}
+                    </span>
+                  )}
+                </div>
+                <div className="flex flex-col items-end gap-1">
+                  <div className={`font-medium font-sans ${getSignColor(fund.dayChangeVal)}`}>
+                    {formatSignedCurrency(fund.dayChangeVal)}
+                  </div>
                 </div>
                 <div className="flex flex-col items-end">
-                  <div className={`font-medium font-sans ${getSignColor(totalReturn)}`}>
-                    {formatSignedCurrency(totalReturn)}
+                  <div className={`font-medium font-sans ${getSignColor(adjustedHoldingGain)}`}>
+                    {formatSignedCurrency(adjustedHoldingGain)}
                   </div>
-                  <div className={`text-[10px] font-sans ${getSignColor(totalReturnPct)}`}>
-                    {formatPct(totalReturnPct)}
+                  <div className={`text-[10px] font-sans ${getSignColor(adjustedHoldingGainPct)}`}>
+                    {formatPct(adjustedHoldingGainPct)}
                   </div>
                 </div>
                 <div className="font-bold text-gray-800 dark:text-gray-100 font-sans">
@@ -683,23 +734,26 @@ export const Dashboard: React.FC = () => {
               </div>
 
               {/* Mobile Flex Layout */}
-              <div className="md:hidden flex flex-none gap-2 text-right items-start">
-                <div className="w-[4.5rem] flex flex-col items-end">
+              <div className="md:hidden flex flex-none gap-3 text-right items-start">
+                <div className="w-[6.25rem] flex flex-col items-end">
                   <div
-                    className={`text-base font-bold font-sans ${getSignColor(fund.dayChangePct)}`}
+                    className={`text-base font-bold font-sans leading-none ${getSignColor(officialDayChangePct)}`}
                   >
-                    {formatPct(fund.dayChangePct)}
+                    {formatPct(officialDayChangePct)}
                   </div>
-                  <div className="text-[10px] text-gray-300 font-sans">
-                    {fund.currentNav.toFixed(4)}
+                  <div className="text-[10px] text-gray-400 font-sans">
+                    {t('common.yesterdayChangePct') || '昨日涨幅'}
                   </div>
                 </div>
 
-                <div className="w-[4.5rem] flex items-start justify-end">
+                <div className="w-[6.25rem] flex flex-col items-end">
                   <div
-                    className={`text-base font-bold font-sans ${getSignColor(fund.dayChangeVal)}`}
+                    className={`text-base font-bold font-sans leading-none ${getSignColor(todayChangePct)}`}
                   >
-                    {formatSignedCurrency(fund.dayChangeVal)}
+                    {formatPct(todayChangePct)}
+                  </div>
+                  <div className="text-[10px] text-gray-400 font-sans">
+                    {todayChangeTag || t('common.todayChangePct') || '今日涨幅'}
                   </div>
                 </div>
               </div>

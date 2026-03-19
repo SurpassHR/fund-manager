@@ -272,6 +272,9 @@ export const ScannerModal: React.FC<ScannerModalProps> = ({ isOpen, onClose }) =
   const handleImport = async () => {
     const existingFunds = await db.funds.toArray();
     const existingMap = new Map(existingFunds.map((f) => [f.code, f]));
+    const accounts = await db.accounts.toArray();
+    const fallbackAccountName =
+      accounts.find((acc) => acc.isDefault)?.name || accounts[0]?.name || 'Default';
 
     for (const item of reviewItems) {
       const code = item.matchedCode;
@@ -305,7 +308,7 @@ export const ScannerModal: React.FC<ScannerModalProps> = ({ isOpen, onClose }) =
       const payload: Fund = {
         code,
         name,
-        platform: 'Default',
+        platform: existing?.platform || fallbackAccountName,
         holdingShares: shares,
         costPrice,
         currentNav,

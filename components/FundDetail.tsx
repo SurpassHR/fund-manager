@@ -688,6 +688,11 @@ export const FundDetail: React.FC<FundDetailProps> = ({
       exit={isEdgeClosing ? { opacity: 1 } : { opacity: 0 }}
       transition={{ duration: 0.2 }}
     >
+      {/*
+        关键布局保护：此容器必须保持 `w-full md:flex md:justify-center`。
+        原因：外层是 fixed + 桌面端居中弹层，若误删该 class，详情页在桌面端会回退为左贴且视觉变窄。
+        请勿随意移除此样式，除非同步验证桌面端详情页宽度与居中行为。
+      */}
       <div
         className="w-full md:flex md:justify-center"
         style={{ transform: `translateX(${transformX}px)`, transition }}

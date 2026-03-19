@@ -1,4 +1,5 @@
 import '@testing-library/jest-dom';
+import { readFileSync } from 'node:fs';
 import { render, screen } from '@testing-library/react';
 import { expect, it } from 'vitest';
 import { TradeMarkerLegend } from './TradeMarkerLegend';
@@ -9,6 +10,11 @@ import {
   buildTradeMarkers,
   getTradeLegendLabels,
 } from './fundDetailChartUtils';
+
+it('keeps desktop detail wrapper full-width centering classes', () => {
+  const source = readFileSync(`${process.cwd()}/components/FundDetail.tsx`, 'utf-8');
+  expect(source).toContain('className="w-full md:flex md:justify-center"');
+});
 
 it('marks buy with red dot', () => {
   const markers = buildTradeMarkers({
