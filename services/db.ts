@@ -9,7 +9,11 @@ import {
   fetchGeneralTencentQuotes,
   buildTencentQuoteCodes,
 } from './api';
-import type { SyncPayload } from './gistSync';
+import {
+  buildFundBackupKey,
+  buildFundBackupPayload,
+  parseAndNormalizeFundBackup,
+} from './fundBackup';
 
 class XiaoHuYangJiDB extends Dexie {
   funds!: Table<Fund>;
@@ -626,12 +630,6 @@ export const calculateSummary = (funds: Fund[]): AssetSummary => {
 
 // === 导入导出 ===
 
-interface ExportData {
-  version: number;
-  exportDate: string;
-  funds: Fund[];
-}
-
 /**
  * Exports all tracked funds from IndexedDB to a JSON file.
  * Triggers a download of the backup file in the browser.
@@ -639,15 +637,7 @@ interface ExportData {
  */
 export const exportFunds = async (): Promise<void> => {
   const allFunds = await db.funds.toArray();
-  const data: ExportData = {
-    version: 1,
-    exportDate: new Date().toISOString(),
-    funds: allFunds.map((fund) => {
-      const cleanFund = { ...fund } as Fund & { id?: number };
-      delete cleanFund.id;
-      return cleanFund as Fund;
-    }), // 去掉自增 id
-  };
+  const data = buildFundBackupPayload(allFunds);
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -667,114 +657,35 @@ export const exportFunds = async (): Promise<void> => {
  */
 export const importFunds = async (file: File): Promise<{ added: number; skipped: number }> => {
   const text = await file.text();
-  const data: ExportData = JSON.parse(text);
+  return importFundsFromBackupContent(text);
+};
 
-  if (!data.version || !Array.isArray(data.funds)) {
-    throw new Error('无效的备份文件格式');
-  }
+export const exportFundsToJsonString = async (): Promise<string> => {
+  const allFunds = await db.funds.toArray();
+  return JSON.stringify(buildFundBackupPayload(allFunds), null, 2);
+};
+
+export const importFundsFromBackupContent = async (
+  content: string | unknown,
+): Promise<{ added: number; skipped: number }> => {
+  const importedFunds = parseAndNormalizeFundBackup(content);
 
   const existingFunds = await db.funds.toArray();
-  const existingCodes = new Set(existingFunds.map((f) => `${f.code}_${f.platform}`));
+  const existingCodes = new Set(existingFunds.map((f) => buildFundBackupKey(f)));
 
   let added = 0;
   let skipped = 0;
 
-  for (const fund of data.funds) {
-    const key = `${fund.code}_${fund.platform}`;
+  for (const fund of importedFunds) {
+    const key = buildFundBackupKey(fund);
     if (existingCodes.has(key)) {
       skipped++;
       continue;
     }
-    // 去掉可能残留的 id 字段
-    const cleanFund = { ...fund } as Fund & { id?: number };
-    delete cleanFund.id;
-    await db.funds.add(cleanFund as Fund);
+    await db.funds.add(fund);
     added++;
     existingCodes.add(key);
   }
 
   return { added, skipped };
-};
-
-export const exportSyncPayload = async (): Promise<SyncPayload> => {
-  const [funds, accounts, watchlists] = await Promise.all([
-    db.funds.toArray(),
-    db.accounts.toArray(),
-    db.watchlists.toArray(),
-  ]);
-
-  const cleanFunds = funds.map((fund) => {
-    const clean = { ...fund } as Fund & { id?: number };
-    delete clean.id;
-    return clean as Fund;
-  });
-
-  const cleanAccounts = accounts.map((account) => {
-    const clean = { ...account } as Account & { id?: number };
-    delete clean.id;
-    return clean as Account;
-  });
-
-  const cleanWatchlists = watchlists.map((item) => {
-    const clean = { ...item } as WatchlistItem & { id?: number };
-    delete clean.id;
-    return clean as WatchlistItem;
-  });
-
-  return {
-    schemaVersion: 1,
-    exportedAt: new Date().toISOString(),
-    app: 'fund-manager',
-    payload: {
-      funds: cleanFunds,
-      accounts: cleanAccounts,
-      watchlists: cleanWatchlists,
-    },
-  };
-};
-
-export const importSyncPayload = async (
-  syncPayload: SyncPayload,
-  options?: { overwrite?: boolean },
-): Promise<void> => {
-  const overwrite = options?.overwrite ?? true;
-  const { funds, accounts, watchlists } = syncPayload.payload;
-
-  await db.transaction('rw', db.funds, db.accounts, db.watchlists, async () => {
-    if (overwrite) {
-      await Promise.all([db.funds.clear(), db.accounts.clear(), db.watchlists.clear()]);
-    }
-
-    if (accounts.length > 0) {
-      await db.accounts.bulkAdd(
-        accounts.map((account) => {
-          const clean = { ...account } as Account & { id?: number };
-          delete clean.id;
-          return clean as Account;
-        }),
-      );
-    } else {
-      await db.accounts.add({ name: 'Default', isDefault: true });
-    }
-
-    if (funds.length > 0) {
-      await db.funds.bulkAdd(
-        funds.map((fund) => {
-          const clean = { ...fund } as Fund & { id?: number };
-          delete clean.id;
-          return clean as Fund;
-        }),
-      );
-    }
-
-    if (watchlists.length > 0) {
-      await db.watchlists.bulkAdd(
-        watchlists.map((item) => {
-          const clean = { ...item } as WatchlistItem & { id?: number };
-          delete clean.id;
-          return clean as WatchlistItem;
-        }),
-      );
-    }
-  });
 };

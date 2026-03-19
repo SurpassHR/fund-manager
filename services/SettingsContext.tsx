@@ -4,6 +4,13 @@ import React, { createContext, useContext, useState } from 'react';
 
 export type AiProvider = 'openai' | 'gemini';
 
+export interface DefaultGistTargetSnapshot {
+  id: string;
+  description: string;
+  updatedAt: string;
+  fileName: string;
+}
+
 interface SettingsContextValue {
   autoRefresh: boolean;
   setAutoRefresh: (val: boolean) => void;
@@ -17,12 +24,10 @@ interface SettingsContextValue {
   setGeminiApiKey: (val: string) => void;
   geminiModel: string;
   setGeminiModel: (val: string) => void;
-  gistToken: string;
-  setGistToken: (val: string) => void;
-  gistId: string;
-  setGistId: (val: string) => void;
-  gistFileName: string;
-  setGistFileName: (val: string) => void;
+  githubToken: string;
+  setGithubToken: (val: string) => void;
+  defaultGistTarget: DefaultGistTargetSnapshot | null;
+  setDefaultGistTarget: (val: DefaultGistTargetSnapshot | null) => void;
 }
 
 const STORAGE_KEY = 'app-settings-preference';
@@ -34,9 +39,54 @@ const defaultSettings = {
   openaiModel: 'gpt-4o-mini',
   geminiApiKey: '',
   geminiModel: 'gemini-3.1-flash-lite-preview',
-  gistToken: '',
-  gistId: '',
-  gistFileName: 'fund-manager-sync.json',
+  githubToken: '',
+  defaultGistTarget: null as DefaultGistTargetSnapshot | null,
+};
+
+const parseDefaultGistTarget = (value: unknown): DefaultGistTargetSnapshot | null => {
+  if (!value || typeof value !== 'object') return null;
+  const candidate = value as Partial<DefaultGistTargetSnapshot>;
+  if (
+    typeof candidate.id !== 'string' ||
+    typeof candidate.description !== 'string' ||
+    typeof candidate.updatedAt !== 'string' ||
+    typeof candidate.fileName !== 'string'
+  ) {
+    return null;
+  }
+  return {
+    id: candidate.id,
+    description: candidate.description,
+    updatedAt: candidate.updatedAt,
+    fileName: candidate.fileName,
+  };
+};
+
+const parseSavedSettings = (saved: string): typeof defaultSettings => {
+  const parsed = JSON.parse(saved) as Record<string, unknown>;
+  if (!parsed || typeof parsed !== 'object') {
+    return defaultSettings;
+  }
+
+  return {
+    autoRefresh:
+      typeof parsed.autoRefresh === 'boolean' ? parsed.autoRefresh : defaultSettings.autoRefresh,
+    aiProvider:
+      parsed.aiProvider === 'openai' || parsed.aiProvider === 'gemini'
+        ? parsed.aiProvider
+        : defaultSettings.aiProvider,
+    openaiApiKey:
+      typeof parsed.openaiApiKey === 'string' ? parsed.openaiApiKey : defaultSettings.openaiApiKey,
+    openaiModel:
+      typeof parsed.openaiModel === 'string' ? parsed.openaiModel : defaultSettings.openaiModel,
+    geminiApiKey:
+      typeof parsed.geminiApiKey === 'string' ? parsed.geminiApiKey : defaultSettings.geminiApiKey,
+    geminiModel:
+      typeof parsed.geminiModel === 'string' ? parsed.geminiModel : defaultSettings.geminiModel,
+    githubToken:
+      typeof parsed.githubToken === 'string' ? parsed.githubToken : defaultSettings.githubToken,
+    defaultGistTarget: parseDefaultGistTarget(parsed.defaultGistTarget),
+  };
 };
 
 const SettingsContext = createContext<SettingsContextValue>({
@@ -52,12 +102,10 @@ const SettingsContext = createContext<SettingsContextValue>({
   setGeminiApiKey: () => {},
   geminiModel: defaultSettings.geminiModel,
   setGeminiModel: () => {},
-  gistToken: defaultSettings.gistToken,
-  setGistToken: () => {},
-  gistId: defaultSettings.gistId,
-  setGistId: () => {},
-  gistFileName: defaultSettings.gistFileName,
-  setGistFileName: () => {},
+  githubToken: defaultSettings.githubToken,
+  setGithubToken: () => {},
+  defaultGistTarget: defaultSettings.defaultGistTarget,
+  setDefaultGistTarget: () => {},
 });
 
 export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -65,11 +113,7 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
-        const parsed = JSON.parse(saved);
-        return {
-          ...defaultSettings,
-          ...parsed,
-        };
+        return parseSavedSettings(saved);
       }
     } catch (e) {
       console.error('Failed to parse settings', e);
@@ -91,9 +135,9 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const setOpenaiModel = (val: string) => updateSettings({ openaiModel: val });
   const setGeminiApiKey = (val: string) => updateSettings({ geminiApiKey: val });
   const setGeminiModel = (val: string) => updateSettings({ geminiModel: val });
-  const setGistToken = (val: string) => updateSettings({ gistToken: val });
-  const setGistId = (val: string) => updateSettings({ gistId: val });
-  const setGistFileName = (val: string) => updateSettings({ gistFileName: val });
+  const setGithubToken = (val: string) => updateSettings({ githubToken: val });
+  const setDefaultGistTarget = (val: DefaultGistTargetSnapshot | null) =>
+    updateSettings({ defaultGistTarget: val });
 
   return (
     <SettingsContext.Provider
@@ -110,12 +154,10 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         setGeminiApiKey,
         geminiModel: settings.geminiModel,
         setGeminiModel,
-        gistToken: settings.gistToken,
-        setGistToken,
-        gistId: settings.gistId,
-        setGistId,
-        gistFileName: settings.gistFileName,
-        setGistFileName,
+        githubToken: settings.githubToken,
+        setGithubToken,
+        defaultGistTarget: settings.defaultGistTarget,
+        setDefaultGistTarget,
       }}
     >
       {children}

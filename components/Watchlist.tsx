@@ -446,6 +446,7 @@ export const Watchlist: React.FC = () => {
       <AnimatePresence>
         {selectedItemForDetail && (
           <FundDetail
+            key={`watchlist-detail-${selectedItemForDetail.fund.code}`}
             fund={selectedItemForDetail.fund}
             anchorDate={selectedItemForDetail.anchorDate}
             anchorPrice={selectedItemForDetail.anchorPrice}

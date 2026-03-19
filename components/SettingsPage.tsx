@@ -3,9 +3,25 @@ import { Icons } from './Icon';
 import { useTranslation } from '../services/i18n';
 import { useTheme } from '../services/ThemeContext';
 import { useSettings } from '../services/SettingsContext';
-import { exportFunds, exportSyncPayload, importFunds, importSyncPayload } from '../services/db';
+import {
+  exportFunds,
+  exportFundsToJsonString,
+  importFunds,
+  importFundsFromBackupContent,
+} from '../services/db';
 import { listGeminiModels, listOpenAiModels } from '../services/aiOcr';
-import { pullFromGist, pushToGist, testGistAuth } from '../services/gistSync';
+import {
+  createSyncGist,
+  downloadSyncGistContent,
+  GIST_SYNC_FILENAME,
+  GistClientError,
+  listSyncGists,
+  overwriteSyncGist,
+  validateGithubTokenFormat,
+  verifyGithubToken,
+  type GistListItem,
+} from '../services/gistSync';
+import { GistSyncChooserCard } from './GistSyncChooserCard';
 
 interface SettingsPageProps {
   onBack?: () => void;
@@ -30,23 +46,30 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack, initialShowA
     setGeminiApiKey,
     geminiModel,
     setGeminiModel,
-    gistToken,
-    setGistToken,
-    gistId,
-    setGistId,
-    gistFileName,
-    setGistFileName,
+    githubToken,
+    setGithubToken,
+    defaultGistTarget,
+    setDefaultGistTarget,
   } = useSettings();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [showAiSettings, setShowAiSettings] = useState(Boolean(initialShowAiSettings));
-  const [showGistSettings, setShowGistSettings] = useState(false);
+  const [showGistSyncSettings, setShowGistSyncSettings] = useState(false);
   const [openaiModels, setOpenaiModels] = useState<string[]>([]);
   const [geminiModels, setGeminiModels] = useState<string[]>([]);
   const [openaiLoading, setOpenaiLoading] = useState(false);
   const [geminiLoading, setGeminiLoading] = useState(false);
   const [openaiError, setOpenaiError] = useState('');
   const [geminiError, setGeminiError] = useState('');
-  const [syncLoading, setSyncLoading] = useState(false);
+  const [tokenFormatState, setTokenFormatState] = useState<'idle' | 'valid' | 'invalid'>('idle');
+  const [tokenApiState, setTokenApiState] = useState<'idle' | 'checking' | 'valid' | 'invalid'>(
+    'idle',
+  );
+  const [syncGists, setSyncGists] = useState<GistListItem[]>([]);
+  const [gistChooserOpen, setGistChooserOpen] = useState(false);
+  const [gistChooserMode, setGistChooserMode] = useState<'download' | 'upload'>('download');
+  const [syncBusy, setSyncBusy] = useState(false);
+  const [gistListRefreshing, setGistListRefreshing] = useState(false);
+  const [gistListCooldownSec, setGistListCooldownSec] = useState(0);
 
   const themeOptions: { value: ThemeOption; label: string; icon: React.ReactNode }[] = [
     {
@@ -91,89 +114,189 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack, initialShowA
     }
   };
 
-  const handleTestGistConnection = async () => {
-    if (!gistToken.trim()) {
-      alert(t('common.gistTokenRequired') || 'Please enter GitHub token');
-      return;
+  const getSyncErrorMessage = (error: unknown): string => {
+    if (!(error instanceof GistClientError)) {
+      return t('common.gistSyncErrorUnknown') || 'Gist 同步失败，请稍后重试。';
     }
 
-    setSyncLoading(true);
-    try {
-      const result = await testGistAuth(gistToken.trim());
-      alert(
-        (t('common.gistConnectionSuccess') || 'Connected as {user}').replace(
-          '{user}',
-          result.login,
-        ),
-      );
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      alert(`${t('common.gistConnectionFailed') || 'Connection failed'}: ${message}`);
-    } finally {
-      setSyncLoading(false);
+    if (error.code === 'UNAUTHORIZED') {
+      return t('common.gistSyncErrorUnauthorized') || 'Token 未授权（401）。';
     }
+    if (error.code === 'FORBIDDEN') {
+      return t('common.gistSyncErrorForbidden') || '访问被拒绝（403）。';
+    }
+    if (error.code === 'NOT_FOUND' || error.code === 'SYNC_FILE_NOT_FOUND') {
+      return t('common.gistSyncErrorNotFound') || '目标 gist 不存在（404）。';
+    }
+    if (error.code === 'VALIDATION_FAILED' || error.code === 'UNPROCESSABLE') {
+      return t('common.gistSyncErrorValidation') || '请求校验失败（422）。';
+    }
+    if (error.code === 'NETWORK_ERROR') {
+      return t('common.gistSyncErrorNetwork') || '网络异常，请重试。';
+    }
+
+    return t('common.gistSyncErrorUnknown') || 'Gist 同步失败，请稍后重试。';
   };
 
-  const handlePushToGist = async () => {
-    if (!gistToken.trim()) {
-      alert(t('common.gistTokenRequired') || 'Please enter GitHub token');
-      return;
-    }
-
-    setSyncLoading(true);
-    try {
-      const syncPayload = await exportSyncPayload();
-      const result = await pushToGist({
-        token: gistToken.trim(),
-        gistId: gistId.trim() || undefined,
-        fileName: gistFileName.trim() || 'fund-manager-sync.json',
-        syncPayload,
-      });
-      if (!gistId.trim()) {
-        setGistId(result.gistId);
+  const getUnknownSyncErrorMessage = (error: unknown): string => {
+    if (error instanceof Error) {
+      if (error.message.includes('无效的备份文件格式')) {
+        return (
+          t('common.gistSyncErrorInvalidBackup') ||
+          'Gist 文件内容不是有效备份格式，请选择包含 fund-manager-sync.json 的正确备份。'
+        );
       }
-      alert(
-        (t('common.gistPushSuccess') || 'Uploaded to gist: {id}').replace('{id}', result.gistId),
-      );
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      alert(`${t('common.gistPushFailed') || 'Upload failed'}: ${message}`);
-    } finally {
-      setSyncLoading(false);
+
+      if (error.message.trim()) {
+        const prefix = t('common.gistSyncErrorUnknownWithReason') || 'Gist 同步失败：';
+        return `${prefix} ${error.message}`;
+      }
+    }
+
+    return t('common.gistSyncErrorUnknown') || 'Gist 同步失败，请稍后重试。';
+  };
+
+  const refreshSyncGists = async (token: string) => {
+    const list = await listSyncGists(token);
+    setSyncGists(list);
+
+    if (!defaultGistTarget) return;
+    const foundDefault = list.find((item) => item.id === defaultGistTarget.id);
+    if (!foundDefault) {
+      setDefaultGistTarget(null);
+      alert(t('common.gistDefaultTargetFallback') || '默认目标已失效，请重新选择。');
     }
   };
 
-  const handlePullFromGist = async () => {
-    if (!gistToken.trim()) {
-      alert(t('common.gistTokenRequired') || 'Please enter GitHub token');
-      return;
-    }
-    if (!gistId.trim()) {
-      alert(t('common.gistIdRequired') || 'Please enter Gist ID');
-      return;
-    }
+  const triggerGistListRefresh = async (rateLimited = false) => {
+    if (!githubToken || tokenApiState !== 'valid') return;
+    if (gistListRefreshing) return;
+    if (rateLimited && gistListCooldownSec > 0) return;
 
-    const confirmed = window.confirm(
-      t('common.gistPullOverwriteConfirm') ||
-        'This will overwrite local holdings, accounts and watchlist. Continue?',
-    );
-    if (!confirmed) return;
-
-    setSyncLoading(true);
+    setGistListRefreshing(true);
     try {
-      const { payload } = await pullFromGist({
-        token: gistToken.trim(),
-        gistId: gistId.trim(),
-        fileName: gistFileName.trim() || 'fund-manager-sync.json',
-      });
-      await importSyncPayload(payload, { overwrite: true });
-      alert(t('common.gistPullSuccess') || 'Downloaded and replaced local data');
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      alert(`${t('common.gistPullFailed') || 'Download failed'}: ${message}`);
+      await refreshSyncGists(githubToken);
+      if (rateLimited) {
+        setGistListCooldownSec(5);
+      }
     } finally {
-      setSyncLoading(false);
+      setGistListRefreshing(false);
     }
+  };
+
+  const saveDefaultTarget = (gist: GistListItem) => {
+    setDefaultGistTarget({
+      id: gist.id,
+      description: gist.description,
+      updatedAt: gist.updated_at,
+      fileName: GIST_SYNC_FILENAME,
+    });
+  };
+
+  const handleDownloadFromGist = async (gistId: string) => {
+    if (!githubToken || syncBusy) return;
+    const target = syncGists.find((item) => item.id === gistId);
+    if (target?.isBackupValid === false) {
+      alert(
+        t('common.gistSyncErrorInvalidBackup') ||
+          'Gist 文件内容不是有效备份格式，请选择包含 fund-manager-sync.json 的正确备份。',
+      );
+      return;
+    }
+
+    setSyncBusy(true);
+    try {
+      const content = await downloadSyncGistContent({ token: githubToken, gistId });
+      await importFundsFromBackupContent(content);
+      const selected = target ?? syncGists.find((item) => item.id === gistId);
+      if (selected) {
+        saveDefaultTarget(selected);
+      }
+      alert(t('common.gistSyncDownloadSuccess') || '已从 gist 下载并导入。');
+      setGistChooserOpen(false);
+      await refreshSyncGists(githubToken);
+    } catch (error) {
+      alert(
+        error instanceof GistClientError
+          ? getSyncErrorMessage(error)
+          : getUnknownSyncErrorMessage(error),
+      );
+      if (defaultGistTarget?.id === gistId) {
+        setDefaultGistTarget(null);
+      }
+    } finally {
+      setSyncBusy(false);
+    }
+  };
+
+  const handleUploadToGist = async (
+    payload:
+      | { mode: 'create'; description: string }
+      | { mode: 'overwrite'; gistId: string; description: string },
+  ) => {
+    if (!githubToken || syncBusy) return;
+    setSyncBusy(true);
+    try {
+      const backupContent = await exportFundsToJsonString();
+      const saved =
+        payload.mode === 'create'
+          ? await createSyncGist({
+              token: githubToken,
+              content: backupContent,
+              description: payload.description,
+            })
+          : await overwriteSyncGist({
+              token: githubToken,
+              gistId: payload.gistId,
+              content: backupContent,
+              description: payload.description,
+            });
+
+      saveDefaultTarget(saved);
+      alert(t('common.gistSyncUploadSuccess') || '上传到 gist 成功。');
+      setGistChooserOpen(false);
+      await refreshSyncGists(githubToken);
+    } catch (error) {
+      alert(
+        error instanceof GistClientError
+          ? getSyncErrorMessage(error)
+          : getUnknownSyncErrorMessage(error),
+      );
+    } finally {
+      setSyncBusy(false);
+    }
+  };
+
+  const handleDownloadClick = async () => {
+    if (!githubToken) {
+      return;
+    }
+
+    if (defaultGistTarget) {
+      await handleDownloadFromGist(defaultGistTarget.id);
+      return;
+    }
+
+    setGistChooserMode('download');
+    setGistChooserOpen(true);
+  };
+
+  const handleUploadClick = async () => {
+    if (!githubToken) {
+      return;
+    }
+
+    if (defaultGistTarget) {
+      await handleUploadToGist({
+        mode: 'overwrite',
+        gistId: defaultGistTarget.id,
+        description: defaultGistTarget.description,
+      });
+      return;
+    }
+
+    setGistChooserMode('upload');
+    setGistChooserOpen(true);
   };
 
   useEffect(() => {
@@ -243,6 +366,44 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack, initialShowA
       active = false;
     };
   }, [geminiApiKey, geminiModel, setGeminiModel, t]);
+
+  useEffect(() => {
+    const formatted = validateGithubTokenFormat(githubToken);
+    if (!formatted.isValid) {
+      setTokenFormatState(githubToken ? 'invalid' : 'idle');
+      setTokenApiState('idle');
+      setSyncGists([]);
+      return;
+    }
+
+    setTokenFormatState('valid');
+    setTokenApiState('checking');
+    let active = true;
+
+    verifyGithubToken(formatted.normalizedToken)
+      .then(async () => {
+        if (!active) return;
+        setTokenApiState('valid');
+        await refreshSyncGists(formatted.normalizedToken);
+      })
+      .catch(() => {
+        if (!active) return;
+        setTokenApiState('invalid');
+        setSyncGists([]);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [githubToken]);
+
+  useEffect(() => {
+    if (gistListCooldownSec <= 0) return;
+    const timer = setTimeout(() => {
+      setGistListCooldownSec((prev) => Math.max(0, prev - 1));
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, [gistListCooldownSec]);
 
   if (showAiSettings) {
     return (
@@ -362,102 +523,117 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack, initialShowA
     );
   }
 
-  if (showGistSettings) {
+  if (showGistSyncSettings) {
     return (
       <div className="min-h-[60vh] pb-24">
         <div className="flex items-center gap-3 px-4 py-3">
           <button
-            onClick={() => setShowGistSettings(false)}
+            onClick={() => setShowGistSyncSettings(false)}
             className="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
           >
             <Icons.ArrowUp size={20} className="text-gray-600 dark:text-gray-300 -rotate-90" />
           </button>
           <h2 className="text-base font-bold text-gray-800 dark:text-gray-100">
-            {t('common.gistSync') || 'Gist Sync'}
+            {t('common.gistSync') || 'GitHub Gist 同步'}
           </h2>
         </div>
 
         <div className="px-4 mt-2">
           <div className="bg-white dark:bg-card-dark rounded-xl overflow-hidden shadow-sm p-4 space-y-3">
-            <div>
-              <label className="block text-xs font-bold text-gray-500 mb-1">
-                {t('common.gistToken') || 'GitHub Token'}
+            <div className="space-y-1">
+              <label className="block text-xs font-bold text-gray-500">
+                {t('common.githubToken') || 'GitHub Token'}
               </label>
               <input
                 type="password"
-                value={gistToken}
-                onChange={(e) => setGistToken(e.target.value)}
-                placeholder="ghp_..."
+                value={githubToken}
+                onChange={(e) => setGithubToken(e.target.value)}
+                placeholder={t('common.githubTokenPlaceholder') || 'ghp_xxx / github_pat_xxx'}
                 className="w-full p-3 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-white/5 focus:outline-none focus:border-blue-500 text-gray-900 dark:text-gray-100 text-sm"
               />
-              <a
-                href="https://github.com/settings/tokens/new?description=fund-manager-sync&scopes=gist"
-                target="_blank"
-                rel="noreferrer"
-                className="inline-block mt-1.5 text-[11px] text-blue-600 dark:text-blue-400 hover:underline"
-              >
-                {t('common.gistTokenCreateLink') || 'Create a GitHub token with gist scope'}
-              </a>
+              <p className="text-[11px] text-gray-400">
+                {t('common.githubTokenHelp') || 'Token 仅保存在本地。'}
+              </p>
+              <p className="text-[11px] text-gray-500">
+                {tokenFormatState === 'invalid' &&
+                  (t('common.githubTokenFormatInvalid') || 'Token 格式看起来不合法。')}
+                {tokenFormatState === 'valid' &&
+                  (t('common.githubTokenFormatValid') || 'Token 格式校验通过。')}
+              </p>
+              <p className="text-[11px] text-gray-500">
+                {tokenApiState === 'checking' &&
+                  (t('common.githubTokenApiChecking') || '正在向 GitHub 验证 Token...')}
+                {tokenApiState === 'valid' &&
+                  (t('common.githubTokenApiValid') || 'GitHub Token 验证通过。')}
+                {tokenApiState === 'invalid' &&
+                  (t('common.githubTokenApiInvalid') || 'GitHub Token 验证失败。')}
+              </p>
             </div>
 
-            <div>
-              <label className="block text-xs font-bold text-gray-500 mb-1">
-                {t('common.gistId') || 'Gist ID'}
-              </label>
-              <input
-                type="text"
-                value={gistId}
-                onChange={(e) => setGistId(e.target.value)}
-                placeholder={
-                  t('common.gistIdPlaceholder') || 'Leave empty to auto-create on upload'
-                }
-                className="w-full p-3 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-white/5 focus:outline-none focus:border-blue-500 text-gray-900 dark:text-gray-100 text-sm"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-gray-500 mb-1">
-                {t('common.gistFileName') || 'Gist File Name'}
-              </label>
-              <input
-                type="text"
-                value={gistFileName}
-                onChange={(e) => setGistFileName(e.target.value)}
-                placeholder="fund-manager-sync.json"
-                className="w-full p-3 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-white/5 focus:outline-none focus:border-blue-500 text-gray-900 dark:text-gray-100 text-sm"
-              />
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            <div className="flex flex-wrap gap-2">
               <button
-                onClick={handleTestGistConnection}
-                disabled={syncLoading}
-                className="px-3 py-2 text-xs font-bold rounded-lg bg-gray-100 dark:bg-white/10 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-white/15 disabled:opacity-50"
+                type="button"
+                onClick={handleDownloadClick}
+                disabled={tokenApiState !== 'valid' || syncBusy}
+                className="rounded-lg px-3 py-2 text-sm text-white bg-blue-600 disabled:opacity-50"
               >
-                {t('common.gistTestConnection') || 'Test Connection'}
+                {t('common.gistSyncDownload') || '从 Gist 下载'}
               </button>
               <button
-                onClick={handlePushToGist}
-                disabled={syncLoading}
-                className="px-3 py-2 text-xs font-bold rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
+                type="button"
+                onClick={handleUploadClick}
+                disabled={tokenApiState !== 'valid' || syncBusy}
+                className="rounded-lg px-3 py-2 text-sm text-white bg-blue-600 disabled:opacity-50"
               >
-                {t('common.gistPush') || 'Upload to Gist'}
+                {t('common.gistSyncUpload') || '上传到 Gist'}
               </button>
               <button
-                onClick={handlePullFromGist}
-                disabled={syncLoading}
-                className="px-3 py-2 text-xs font-bold rounded-lg bg-amber-500 text-white hover:bg-amber-600 disabled:opacity-50"
+                type="button"
+                onClick={() => {
+                  setGistChooserMode('download');
+                  setGistChooserOpen(true);
+                }}
+                disabled={tokenApiState !== 'valid'}
+                className="rounded-lg px-3 py-2 text-sm text-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-white/5 disabled:opacity-50"
               >
-                {t('common.gistPull') || 'Download from Gist'}
+                {t('common.gistChooserSelect') || '选择目标'}
               </button>
             </div>
 
-            <p className="text-[10px] text-gray-400">
-              {t('common.gistSyncTip') ||
-                'Token is stored locally only. Download action will overwrite local data.'}
+            <p className="text-[11px] text-gray-500">
+              {defaultGistTarget
+                ? `${t('common.gistDefaultTarget') || '默认目标 Gist'}: ${defaultGistTarget.description || defaultGistTarget.id}`
+                : t('common.gistDefaultTargetNone') || '未设置默认目标'}
             </p>
+            {tokenApiState === 'valid' && syncGists.length === 0 && (
+              <p className="text-[11px] text-amber-600">
+                {t('common.gistChooserEmpty') || '没有可用 gist，请先新建。'}
+              </p>
+            )}
           </div>
         </div>
+
+        <GistSyncChooserCard
+          isOpen={gistChooserOpen}
+          defaultMode={gistChooserMode}
+          gists={syncGists}
+          onRefreshList={
+            tokenApiState === 'valid'
+              ? () => {
+                  void triggerGistListRefresh(true);
+                }
+              : undefined
+          }
+          isRefreshingList={gistListRefreshing}
+          refreshCooldownSec={gistListCooldownSec}
+          onClose={() => setGistChooserOpen(false)}
+          onRequestDownload={(gistId) => {
+            void handleDownloadFromGist(gistId);
+          }}
+          onRequestUpload={(payload) => {
+            void handleUploadToGist(payload);
+          }}
+        />
       </div>
     );
   }
@@ -612,22 +788,22 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack, initialShowA
         />
       </div>
 
-      {/* Gist 同步设置入口 */}
+      {/* Gist 同步设置入口（二级菜单） */}
       <div className="px-4 mt-6">
         <div className="text-xs font-bold font-sans text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-2 px-1">
-          {t('common.gistSync') || 'Gist Sync'}
+          {t('common.sync') || '同步'}
         </div>
         <div className="bg-white dark:bg-card-dark rounded-xl overflow-hidden shadow-sm">
           <button
-            onClick={() => setShowGistSettings(true)}
+            onClick={() => setShowGistSyncSettings(true)}
             className="w-full flex items-center justify-between px-4 py-3.5 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors"
           >
             <div className="flex items-center gap-3">
               <div className="w-6 flex justify-center text-gray-500 dark:text-gray-400">
-                <Icons.Settings size={18} />
+                <Icons.Refresh size={18} />
               </div>
               <span className="text-sm font-sans text-gray-800 dark:text-gray-100">
-                {t('common.gistSettingsManage') || 'Manage Gist Sync Settings'}
+                {t('common.gistSync') || 'GitHub Gist 同步'}
               </span>
             </div>
             <Icons.ArrowDown size={16} className="text-gray-400 -rotate-90" />
