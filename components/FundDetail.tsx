@@ -194,12 +194,14 @@ export const FundDetail: React.FC<FundDetailProps> = ({
   const isDark = theme === 'dark';
   const fundId = fund.id ?? fund.code;
   const overlayId = `fund-detail:${fundId}`;
-  const { isDragging, dragX, activeOverlayId, setDragState, snapBackX } = useEdgeSwipe();
+  const { isDragging, activeOverlayId, setDragState, snapBackX } = useEdgeSwipe();
   const [closeTargetX, setCloseTargetX] = useState<number | null>(null);
   const [isEdgeClosing, setIsEdgeClosing] = useState(false);
-  const translateX = isDragging && activeOverlayId === overlayId ? dragX : 0;
+  const translateX =
+    isDragging && activeOverlayId === overlayId ? 'var(--edge-swipe-drag-x, 0px)' : '0px';
   const snapX = activeOverlayId === overlayId ? snapBackX : null;
-  const transformX = closeTargetX ?? snapX ?? translateX;
+  const transformX =
+    closeTargetX !== null ? `${closeTargetX}px` : snapX !== null ? `${snapX}px` : translateX;
   const transition = closeTargetX !== null || snapX !== null ? 'transform 220ms ease' : 'none';
 
   // snap-back animation is driven by App.tsx via snapBackX
@@ -694,8 +696,8 @@ export const FundDetail: React.FC<FundDetailProps> = ({
         请勿随意移除此样式，除非同步验证桌面端详情页宽度与居中行为。
       */}
       <div
-        className="w-full md:flex md:justify-center"
-        style={{ transform: `translateX(${transformX}px)`, transition }}
+        className="w-full h-full md:flex md:justify-center"
+        style={{ transform: `translateX(${transformX})`, transition }}
         onTransitionEnd={(event) => {
           if (event.propertyName !== 'transform') return;
           if (closeTargetX !== null) {
@@ -709,7 +711,7 @@ export const FundDetail: React.FC<FundDetailProps> = ({
         }}
       >
         <motion.div
-          className="bg-gray-50 dark:bg-app-bg-dark flex flex-col w-full h-full md:h-[calc(100vh-2rem)] lg:h-[calc(100vh-4rem)] md:w-[50vw] md:min-w-[960px] md:rounded-xl md:shadow-2xl md:border md:border-gray-200 dark:md:border-border-dark overflow-hidden relative"
+          className="bg-gray-50 dark:bg-app-bg-dark flex flex-col min-h-0 w-full h-full md:h-[calc(100vh-2rem)] lg:h-[calc(100vh-4rem)] md:w-[50vw] md:min-w-[960px] md:rounded-xl md:shadow-2xl md:border md:border-gray-200 dark:md:border-border-dark overflow-hidden relative"
           onClick={(e) => e.stopPropagation()}
           initial={isDesktop ? { opacity: 0, scale: 0.95, y: 20 } : { opacity: 1, x: '100%' }}
           animate={isDesktop ? { opacity: 1, scale: 1, y: 0 } : { opacity: 1, x: 0 }}
@@ -739,7 +741,7 @@ export const FundDetail: React.FC<FundDetailProps> = ({
             <div className="w-10"></div>
           </div>
 
-          <div className="flex-1 overflow-y-auto flex flex-col no-scrollbar bg-gray-50 dark:bg-app-bg-dark">
+          <div className="flex-1 min-h-0 overflow-y-auto overscroll-y-contain touch-pan-y flex flex-col no-scrollbar bg-gray-50 dark:bg-app-bg-dark">
             {/* Hero Card */}
             <div className="bg-white dark:bg-card-dark p-6 mb-2 transition-colors">
               <div className="text-gray-500 dark:text-gray-400 text-xs mb-1">

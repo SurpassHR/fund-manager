@@ -15,7 +15,6 @@ import { SettingsProvider } from './services/SettingsContext';
 import { EdgeSwipeProvider } from './services/edgeSwipeState';
 import { resetDragState, useEdgeSwipe } from './services/useEdgeSwipe';
 import { closeTopOverlay, getActiveOverlayId } from './services/overlayStack';
-import { computeSwipeProgress } from './services/edgeSwipeUtils';
 
 const EDGE_ZONE = 20;
 
@@ -77,6 +76,7 @@ const AppContent: React.FC = () => {
     let startY = 0;
     let edge: 'left' | 'right' | null = null;
     let active = false;
+    let draggingOverlayId: string | null = null;
     let pointerId: number | null = null;
     let captureElement: HTMLElement | null = null;
 
@@ -89,29 +89,24 @@ const AppContent: React.FC = () => {
       pointerId = null;
     };
 
+    const setDragXVar = (dragX: number) => {
+      document.documentElement.style.setProperty('--edge-swipe-drag-x', `${dragX}px`);
+    };
+
     const getScreenWidth = () => window.visualViewport?.width ?? window.innerWidth;
 
-    const shouldIgnoreTarget = (target: EventTarget | null) => {
-      if (!(target instanceof HTMLElement)) return false;
-      if (target.closest('[data-no-edge-swipe]')) return true;
-      if (target.closest('input, textarea, select, [contenteditable]')) return true;
-
-      let el: HTMLElement | null = target;
-      while (el) {
-        const style = window.getComputedStyle(el);
-        const overflowX = style.overflowX;
-        if ((overflowX === 'auto' || overflowX === 'scroll') && el.scrollWidth > el.clientWidth) {
-          return true;
-        }
-        el = el.parentElement;
+    const clampDragX = (currentEdge: 'left' | 'right', dx: number, width: number) => {
+      if (currentEdge === 'left') {
+        return Math.max(0, Math.min(width, dx));
       }
-      return false;
+      return Math.min(0, Math.max(-width, dx));
     };
+
+    const shouldCloseByDragX = (dragX: number, width: number) => Math.abs(dragX) >= 0.5 * width;
 
     const onPointerDown = (event: PointerEvent) => {
       if (event.pointerType !== 'touch' || !event.isPrimary) return;
       if (active) return;
-      if (shouldIgnoreTarget(event.target)) return;
       const { clientX, clientY } = event;
       const width = getScreenWidth();
       if (clientX <= EDGE_ZONE) edge = 'left';
@@ -130,30 +125,7 @@ const AppContent: React.FC = () => {
       if (!active || !edge) return;
       const width = getScreenWidth();
       const dx = event.clientX - startX;
-      const dy = event.clientY - startY;
-      if (Math.abs(dx) <= 2 * Math.abs(dy)) {
-        resetDragState(setDragState);
-        active = false;
-        edge = null;
-        releasePointerCapture();
-        return;
-      }
-      if ((edge === 'left' && dx <= 0) || (edge === 'right' && dx >= 0)) {
-        resetDragState(setDragState);
-        active = false;
-        edge = null;
-        releasePointerCapture();
-        return;
-      }
-      const result = computeSwipeProgress({
-        edge,
-        startX,
-        startY,
-        currentX: event.clientX,
-        currentY: event.clientY,
-        screenWidth: width,
-      });
-      if (!result.isValid) return;
+      const dragXValue = clampDragX(edge, dx, width);
       if (pointerId !== null && event.target instanceof HTMLElement) {
         const target = event.target;
         if (!target.hasPointerCapture(pointerId)) {
@@ -166,7 +138,9 @@ const AppContent: React.FC = () => {
       if (!activeOverlayId) {
         resetDragState(setDragState);
         active = false;
+        draggingOverlayId = null;
         edge = null;
+        setDragXVar(0);
         releasePointerCapture();
         return;
       }
@@ -175,40 +149,41 @@ const AppContent: React.FC = () => {
         event.preventDefault();
       }
 
-      setDragState((prev) => ({
-        ...prev,
-        isDragging: true,
-        dragX: result.dragX,
-        edge,
-        activeOverlayId,
-        snapBackX: null,
-      }));
+      setDragXVar(dragXValue);
+      if (draggingOverlayId !== activeOverlayId) {
+        draggingOverlayId = activeOverlayId;
+        setDragState((prev) => ({
+          ...prev,
+          isDragging: true,
+          dragX: 0,
+          edge,
+          activeOverlayId,
+          snapBackX: null,
+        }));
+      }
     };
 
     const onPointerEnd = (event: PointerEvent) => {
       if (pointerId !== null && event.pointerId !== pointerId) return;
       if (!active || !edge) return;
       const width = getScreenWidth();
-      const result = computeSwipeProgress({
-        edge,
-        startX,
-        startY,
-        currentX: event.clientX,
-        currentY: event.clientY,
-        screenWidth: width,
-      });
+      const dx = event.clientX - startX;
+      const dragXValue = clampDragX(edge, dx, width);
+      const shouldClose = shouldCloseByDragX(dragXValue, width);
 
       const activeOverlayId = getActiveOverlayId();
       if (!activeOverlayId) {
         resetDragState(setDragState);
         active = false;
+        draggingOverlayId = null;
         edge = null;
+        setDragXVar(0);
         releasePointerCapture();
         return;
       }
 
-      if (result.isValid && result.shouldClose) {
-        const targetX = result.dragX > 0 ? width : -width;
+      if (shouldClose) {
+        const targetX = dragXValue > 0 ? width : -width;
         setDragState((prev) => ({
           ...prev,
           closeTargetX: targetX,
@@ -216,7 +191,7 @@ const AppContent: React.FC = () => {
         }));
         closeTopOverlay({ source: 'edge-swipe', targetX });
       } else {
-        const snapX = result.dragX;
+        const snapX = dragXValue;
         setDragState((prev) => ({
           ...prev,
           isDragging: false,
@@ -237,6 +212,7 @@ const AppContent: React.FC = () => {
       }
 
       active = false;
+      draggingOverlayId = null;
       edge = null;
       releasePointerCapture();
     };
@@ -246,13 +222,14 @@ const AppContent: React.FC = () => {
       if (!active) return;
       resetDragState(setDragState);
       active = false;
+      draggingOverlayId = null;
       edge = null;
+      setDragXVar(0);
       releasePointerCapture();
     };
 
     const onTouchStart = (event: TouchEvent) => {
       if (event.touches.length !== 1) return;
-      if (shouldIgnoreTarget(event.target)) return;
       const touch = event.touches[0];
       const width = getScreenWidth();
       if (touch.clientX <= EDGE_ZONE) edge = 'left';
@@ -269,68 +246,51 @@ const AppContent: React.FC = () => {
       const width = getScreenWidth();
       const touch = event.touches[0];
       const dx = touch.clientX - startX;
-      const dy = touch.clientY - startY;
-      if (Math.abs(dx) <= 2 * Math.abs(dy)) {
-        resetDragState(setDragState);
-        active = false;
-        edge = null;
-        return;
-      }
-      if ((edge === 'left' && dx <= 0) || (edge === 'right' && dx >= 0)) {
-        resetDragState(setDragState);
-        active = false;
-        edge = null;
-        return;
-      }
-      const result = computeSwipeProgress({
-        edge,
-        startX,
-        startY,
-        currentX: touch.clientX,
-        currentY: touch.clientY,
-        screenWidth: width,
-      });
-      if (!result.isValid) return;
+      const dragXValue = clampDragX(edge, dx, width);
       const activeOverlayId = getActiveOverlayId();
       if (!activeOverlayId) {
         resetDragState(setDragState);
         active = false;
+        draggingOverlayId = null;
         edge = null;
+        setDragXVar(0);
         return;
       }
       event.preventDefault();
-      setDragState((prev) => ({
-        ...prev,
-        isDragging: true,
-        dragX: result.dragX,
-        edge,
-        activeOverlayId,
-        snapBackX: null,
-      }));
+      setDragXVar(dragXValue);
+      if (draggingOverlayId !== activeOverlayId) {
+        draggingOverlayId = activeOverlayId;
+        setDragState((prev) => ({
+          ...prev,
+          isDragging: true,
+          dragX: 0,
+          edge,
+          activeOverlayId,
+          snapBackX: null,
+        }));
+      }
     };
 
     const onTouchEnd = (event: TouchEvent) => {
       if (!active || !edge) return;
       const width = getScreenWidth();
       const touch = event.changedTouches[0];
-      const result = computeSwipeProgress({
-        edge,
-        startX,
-        startY,
-        currentX: touch.clientX,
-        currentY: touch.clientY,
-        screenWidth: width,
-      });
+      const dx = touch.clientX - startX;
+      const dragXValue = clampDragX(edge, dx, width);
+      const shouldClose = shouldCloseByDragX(dragXValue, width);
 
       const activeOverlayId = getActiveOverlayId();
       if (!activeOverlayId) {
         resetDragState(setDragState);
         active = false;
+        draggingOverlayId = null;
         edge = null;
+        setDragXVar(0);
         return;
       }
-      if (result.isValid && result.shouldClose) {
-        const targetX = result.dragX > 0 ? width : -width;
+
+      if (shouldClose) {
+        const targetX = dragXValue > 0 ? width : -width;
         setDragState((prev) => ({
           ...prev,
           closeTargetX: targetX,
@@ -338,7 +298,7 @@ const AppContent: React.FC = () => {
         }));
         closeTopOverlay({ source: 'edge-swipe', targetX });
       } else {
-        const snapX = result.dragX;
+        const snapX = dragXValue;
         setDragState((prev) => ({
           ...prev,
           isDragging: false,
@@ -358,6 +318,7 @@ const AppContent: React.FC = () => {
         });
       }
       active = false;
+      draggingOverlayId = null;
       edge = null;
     };
 
@@ -365,7 +326,9 @@ const AppContent: React.FC = () => {
       if (!active) return;
       resetDragState(setDragState);
       active = false;
+      draggingOverlayId = null;
       edge = null;
+      setDragXVar(0);
     };
 
     const supportsPointer = 'PointerEvent' in window;
@@ -385,7 +348,9 @@ const AppContent: React.FC = () => {
       if (active || isDraggingRef.current) {
         resetDragState(setDragState);
         active = false;
+        draggingOverlayId = null;
         edge = null;
+        setDragXVar(0);
         releasePointerCapture();
       }
     };
@@ -406,6 +371,7 @@ const AppContent: React.FC = () => {
       }
       window.removeEventListener('resize', onResize);
       window.visualViewport?.removeEventListener('resize', onResize);
+      setDragXVar(0);
     };
   }, [setDragState]);
 

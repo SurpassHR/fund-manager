@@ -26,13 +26,15 @@ export const WelcomeModal: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [isVisible, setIsVisible] = useState(false);
   const overlayId = 'welcome-modal';
-  const { isDragging, dragX, activeOverlayId, setDragState, snapBackX } = useEdgeSwipe();
+  const { isDragging, activeOverlayId, setDragState, snapBackX } = useEdgeSwipe();
   const [closeTargetX, setCloseTargetX] = useState<number | null>(null);
   const closeTimeoutRef = useRef<number | null>(null);
   const openRafRef = useRef<number | null>(null);
-  const translateX = isDragging && activeOverlayId === overlayId ? dragX : 0;
+  const translateX =
+    isDragging && activeOverlayId === overlayId ? 'var(--edge-swipe-drag-x, 0px)' : '0px';
   const snapX = activeOverlayId === overlayId ? snapBackX : null;
-  const transformX = closeTargetX ?? snapX ?? translateX;
+  const transformX =
+    closeTargetX !== null ? `${closeTargetX}px` : snapX !== null ? `${snapX}px` : translateX;
   const transition = closeTargetX !== null || snapX !== null ? 'transform 220ms ease' : undefined;
   const modalOffsetY = isVisible ? 0 : 10;
   const modalScale = isVisible ? 1 : 0.96;
@@ -177,7 +179,7 @@ export const WelcomeModal: React.FC = () => {
         data-testid="welcome-modal-card"
         className={`bg-white dark:bg-card-dark rounded-2xl w-full max-w-sm overflow-hidden shadow-2xl max-h-[90vh] flex flex-col transition-all duration-[260ms] ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform ${isVisible ? 'opacity-100' : 'opacity-0'}`}
         style={{
-          transform: `translate3d(${transformX}px, ${modalOffsetY}px, 0) scale(${modalScale})`,
+          transform: `translate3d(${transformX}, ${modalOffsetY}px, 0) scale(${modalScale})`,
           transition,
         }}
         onTransitionEnd={() => {

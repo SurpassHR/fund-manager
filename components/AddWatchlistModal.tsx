@@ -21,11 +21,13 @@ export const AddWatchlistModal: React.FC<AddWatchlistModalProps> = ({
 }) => {
   const { t } = useTranslation();
   const overlayId = 'add-watchlist-modal';
-  const { isDragging, dragX, activeOverlayId, setDragState, snapBackX } = useEdgeSwipe();
+  const { isDragging, activeOverlayId, setDragState, snapBackX } = useEdgeSwipe();
   const [closeTargetX, setCloseTargetX] = useState<number | null>(null);
-  const translateX = isDragging && activeOverlayId === overlayId ? dragX : 0;
+  const translateX =
+    isDragging && activeOverlayId === overlayId ? 'var(--edge-swipe-drag-x, 0px)' : '0px';
   const snapX = activeOverlayId === overlayId ? snapBackX : null;
-  const transformX = closeTargetX ?? snapX ?? translateX;
+  const transformX =
+    closeTargetX !== null ? `${closeTargetX}px` : snapX !== null ? `${snapX}px` : translateX;
   const transition = closeTargetX !== null || snapX !== null ? 'transform 220ms ease' : 'none';
   const [type, setType] = useState<'fund' | 'index'>('fund');
   const [code, setCode] = useState('');
@@ -202,7 +204,7 @@ export const AddWatchlistModal: React.FC<AddWatchlistModalProps> = ({
         exit={{ opacity: 0 }}
       >
         <div
-          style={{ transform: `translateX(${transformX}px)`, transition }}
+          style={{ transform: `translateX(${transformX})`, transition }}
           onTransitionEnd={() => {
             if (closeTargetX !== null) {
               setCloseTargetX(null);

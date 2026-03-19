@@ -19,11 +19,13 @@ export const TransactionHistoryModal: React.FC<TransactionHistoryModalProps> = (
 }) => {
   const { t } = useTranslation();
   const overlayId = 'transaction-history-modal';
-  const { isDragging, dragX, activeOverlayId, setDragState, snapBackX } = useEdgeSwipe();
+  const { isDragging, activeOverlayId, setDragState, snapBackX } = useEdgeSwipe();
   const [closeTargetX, setCloseTargetX] = useState<number | null>(null);
-  const translateX = isDragging && activeOverlayId === overlayId ? dragX : 0;
+  const translateX =
+    isDragging && activeOverlayId === overlayId ? 'var(--edge-swipe-drag-x, 0px)' : '0px';
   const snapX = activeOverlayId === overlayId ? snapBackX : null;
-  const transformX = closeTargetX ?? snapX ?? translateX;
+  const transformX =
+    closeTargetX !== null ? `${closeTargetX}px` : snapX !== null ? `${snapX}px` : translateX;
   const transition = closeTargetX !== null || snapX !== null ? 'transform 220ms ease' : 'none';
 
   const handleClose = useCallback(() => {
@@ -79,7 +81,7 @@ export const TransactionHistoryModal: React.FC<TransactionHistoryModalProps> = (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm sm:p-4 opacity-100 transition-opacity">
       <div
         className="bg-white dark:bg-card-dark w-full sm:w-[480px] sm:rounded-2xl rounded-t-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] transition-transform translate-y-0 relative"
-        style={{ transform: `translateX(${transformX}px)`, transition }}
+        style={{ transform: `translateX(${transformX})`, transition }}
         onTransitionEnd={() => {
           if (closeTargetX !== null) {
             setCloseTargetX(null);
