@@ -20,7 +20,7 @@ import {
   validateGithubTokenFormat,
   verifyGithubToken,
   type GistListItem,
-} from '../services/gistSync';
+} from '../services/gistSync/index';
 import { GistSyncChooserCard } from './GistSyncChooserCard';
 
 interface SettingsPageProps {
