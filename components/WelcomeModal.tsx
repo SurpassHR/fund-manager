@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from '../services/i18n';
 import { resetDragState, useEdgeSwipe } from '../services/useEdgeSwipe';
 import { useOverlayRegistration } from '../services/overlayRegistration';
@@ -19,27 +19,88 @@ try {
   /* ignore */
 }
 
+const MODAL_TRANSITION_MS = 260;
+
 export const WelcomeModal: React.FC = () => {
   const { t, language } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
+  const [isVisible, setIsVisible] = useState(false);
   const overlayId = 'welcome-modal';
   const { isDragging, dragX, activeOverlayId, setDragState, snapBackX } = useEdgeSwipe();
   const [closeTargetX, setCloseTargetX] = useState<number | null>(null);
+  const closeTimeoutRef = useRef<number | null>(null);
+  const openRafRef = useRef<number | null>(null);
   const translateX = isDragging && activeOverlayId === overlayId ? dragX : 0;
   const snapX = activeOverlayId === overlayId ? snapBackX : null;
   const transformX = closeTargetX ?? snapX ?? translateX;
-  const transition = closeTargetX !== null || snapX !== null ? 'transform 220ms ease' : 'none';
+  const transition = closeTargetX !== null || snapX !== null ? 'transform 220ms ease' : undefined;
+  const modalOffsetY = isVisible ? 0 : 10;
+  const modalScale = isVisible ? 1 : 0.96;
+
+  const openModal = useCallback(() => {
+    if (closeTimeoutRef.current !== null) {
+      window.clearTimeout(closeTimeoutRef.current);
+      closeTimeoutRef.current = null;
+    }
+    if (openRafRef.current !== null) {
+      window.cancelAnimationFrame(openRafRef.current);
+      openRafRef.current = null;
+    }
+
+    setCloseTargetX(null);
+    setIsOpen(true);
+    setIsVisible(false);
+
+    openRafRef.current = window.requestAnimationFrame(() => {
+      setIsVisible(true);
+      openRafRef.current = null;
+    });
+  }, []);
 
   useEffect(() => {
     const lastSeen = localStorage.getItem('lastSeenVersion');
     if (lastSeen !== CURRENT_VERSION) {
-      setIsOpen(true);
+      openModal();
     }
+  }, [openModal]);
+
+  useEffect(() => {
+    const openHandler = () => {
+      openModal();
+    };
+
+    window.addEventListener('open-changelog', openHandler as EventListener);
+    return () => {
+      window.removeEventListener('open-changelog', openHandler as EventListener);
+    };
+  }, [openModal]);
+
+  const closeImmediately = useCallback(() => {
+    if (closeTimeoutRef.current !== null) {
+      window.clearTimeout(closeTimeoutRef.current);
+      closeTimeoutRef.current = null;
+    }
+    if (openRafRef.current !== null) {
+      window.cancelAnimationFrame(openRafRef.current);
+      openRafRef.current = null;
+    }
+
+    localStorage.setItem('lastSeenVersion', CURRENT_VERSION);
+    setIsVisible(false);
+    setIsOpen(false);
   }, []);
 
   const handleClose = useCallback(() => {
     localStorage.setItem('lastSeenVersion', CURRENT_VERSION);
-    setIsOpen(false);
+    setIsVisible(false);
+
+    if (closeTimeoutRef.current !== null) {
+      window.clearTimeout(closeTimeoutRef.current);
+    }
+    closeTimeoutRef.current = window.setTimeout(() => {
+      setIsOpen(false);
+      closeTimeoutRef.current = null;
+    }, MODAL_TRANSITION_MS);
   }, []);
 
   const requestClose = useCallback(
@@ -57,11 +118,32 @@ export const WelcomeModal: React.FC = () => {
 
   useEffect(() => {
     return () => {
+      if (closeTimeoutRef.current !== null) {
+        window.clearTimeout(closeTimeoutRef.current);
+      }
+      if (openRafRef.current !== null) {
+        window.cancelAnimationFrame(openRafRef.current);
+      }
       if (activeOverlayId === overlayId) {
         resetDragState(setDragState);
       }
     };
   }, [activeOverlayId, overlayId, setDragState]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        handleClose();
+      }
+    };
+
+    window.addEventListener('keydown', onKeyDown);
+    return () => {
+      window.removeEventListener('keydown', onKeyDown);
+    };
+  }, [handleClose, isOpen]);
 
   if (!isOpen) return null;
 
@@ -85,15 +167,24 @@ export const WelcomeModal: React.FC = () => {
       );
 
   return (
-    <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
       <div
-        className="bg-white dark:bg-card-dark rounded-2xl w-full max-w-sm overflow-hidden shadow-2xl animate-in zoom-in-95 fade-in duration-300 max-h-[90vh] flex flex-col"
-        style={{ transform: `translateX(${transformX}px)`, transition }}
+        data-testid="welcome-backdrop"
+        className={`absolute inset-0 transition-all duration-[260ms] ease-[cubic-bezier(0.22,1,0.36,1)] ${isVisible ? 'bg-black/60 backdrop-blur-sm' : 'bg-black/0 backdrop-blur-0'}`}
+        onClick={handleClose}
+      />
+      <div
+        data-testid="welcome-modal-card"
+        className={`bg-white dark:bg-card-dark rounded-2xl w-full max-w-sm overflow-hidden shadow-2xl max-h-[90vh] flex flex-col transition-all duration-[260ms] ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform ${isVisible ? 'opacity-100' : 'opacity-0'}`}
+        style={{
+          transform: `translate3d(${transformX}px, ${modalOffsetY}px, 0) scale(${modalScale})`,
+          transition,
+        }}
         onTransitionEnd={() => {
           if (closeTargetX !== null) {
             setCloseTargetX(null);
             resetDragState(setDragState);
-            handleClose();
+            closeImmediately();
             return;
           }
           if (snapX !== null) {
