@@ -1,0 +1,26 @@
+{
+  "documents": {
+    "docs_github_com_en_rest_gists_gists.md": {
+      "url": "https://docs.github.com/en/rest/gists/gists?apiVersion=2022-11-28#update-a-gist",
+      "title": "REST API endpoints for gists - GitHub Docs",
+      "fetchedAt": "2026-03-19T09:29:30.590Z",
+      "expiresAt": "2026-03-20T09:29:30.590Z",
+      "size": 15202
+    },
+    "docs_github_com_en_rest_users_users.md": {
+      "url": "https://docs.github.com/en/rest/users/users?apiVersion=2022-11-28#get-the-authenticated-user",
+      "title": "REST API endpoints for users - GitHub Docs",
+      "fetchedAt": "2026-03-19T09:29:31.424Z",
+      "expiresAt": "2026-03-20T09:29:31.424Z",
+      "size": 15215
+    },
+    "docs_github_com_en_authentication_keeping-your-account-and-data-se.md": {
+      "url": "https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens",
+      "title": "Managing your personal access tokens - GitHub Docs",
+      "fetchedAt": "2026-03-19T09:29:38.969Z",
+      "expiresAt": "2026-03-20T09:29:38.969Z",
+      "size": 15246
+    }
+  },
+  "lastUpdated": "2026-03-19T09:29:38.969Z"
+}
