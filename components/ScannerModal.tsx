@@ -42,12 +42,14 @@ export const ScannerModal: React.FC<ScannerModalProps> = ({ isOpen, onClose }) =
   const fileInputRef = useRef<HTMLInputElement>(null);
   const lastAutoValidateSignatureRef = useRef('');
   const overlayId = 'scanner-modal';
-  const { isDragging, dragX, activeOverlayId, setDragState, snapBackX } = useEdgeSwipe();
+  const { isDragging, activeOverlayId, setDragState, snapBackX } = useEdgeSwipe();
   const [closeTargetX, setCloseTargetX] = useState<number | null>(null);
   const overlayOpen = isOpen || isReviewing;
-  const translateX = isDragging && activeOverlayId === overlayId ? dragX : 0;
+  const translateX =
+    isDragging && activeOverlayId === overlayId ? 'var(--edge-swipe-drag-x, 0px)' : '0px';
   const snapX = activeOverlayId === overlayId ? snapBackX : null;
-  const transformX = closeTargetX ?? snapX ?? translateX;
+  const transformX =
+    closeTargetX !== null ? `${closeTargetX}px` : snapX !== null ? `${snapX}px` : translateX;
   const transition = closeTargetX !== null || snapX !== null ? 'transform 220ms ease' : 'none';
 
   const { t } = useTranslation();
@@ -347,7 +349,7 @@ export const ScannerModal: React.FC<ScannerModalProps> = ({ isOpen, onClose }) =
             transition={{ duration: 0.2 }}
           >
             <div
-              style={{ transform: `translateX(${transformX}px)`, transition }}
+              style={{ transform: `translateX(${transformX})`, transition }}
               onTransitionEnd={() => {
                 if (closeTargetX !== null) {
                   setCloseTargetX(null);
@@ -453,7 +455,7 @@ export const ScannerModal: React.FC<ScannerModalProps> = ({ isOpen, onClose }) =
             transition={{ duration: 0.2 }}
           >
             <div
-              style={{ transform: `translateX(${transformX}px)`, transition }}
+              style={{ transform: `translateX(${transformX})`, transition }}
               onTransitionEnd={() => {
                 if (closeTargetX !== null) {
                   setCloseTargetX(null);

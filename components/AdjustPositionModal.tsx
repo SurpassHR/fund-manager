@@ -20,11 +20,13 @@ export const AdjustPositionModal: React.FC<AdjustPositionModalProps> = ({
 }) => {
   const { t } = useTranslation();
   const overlayId = 'adjust-position-modal';
-  const { isDragging, dragX, activeOverlayId, setDragState, snapBackX } = useEdgeSwipe();
+  const { isDragging, activeOverlayId, setDragState, snapBackX } = useEdgeSwipe();
   const [closeTargetX, setCloseTargetX] = useState<number | null>(null);
-  const translateX = isDragging && activeOverlayId === overlayId ? dragX : 0;
+  const translateX =
+    isDragging && activeOverlayId === overlayId ? 'var(--edge-swipe-drag-x, 0px)' : '0px';
   const snapX = activeOverlayId === overlayId ? snapBackX : null;
-  const transformX = closeTargetX ?? snapX ?? translateX;
+  const transformX =
+    closeTargetX !== null ? `${closeTargetX}px` : snapX !== null ? `${snapX}px` : translateX;
   const transition = closeTargetX !== null || snapX !== null ? 'transform 220ms ease' : 'none';
 
   const [type, setType] = useState<'buy' | 'sell'>('buy');
@@ -137,7 +139,7 @@ export const AdjustPositionModal: React.FC<AdjustPositionModalProps> = ({
     <div className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
       <div
         className="bg-white dark:bg-card-dark rounded-xl w-full max-w-md overflow-hidden shadow-2xl flex flex-col max-h-[90vh]"
-        style={{ transform: `translateX(${transformX}px)`, transition }}
+        style={{ transform: `translateX(${transformX})`, transition }}
         onTransitionEnd={() => {
           if (closeTargetX !== null) {
             setCloseTargetX(null);
