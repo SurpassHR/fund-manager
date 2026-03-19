@@ -1090,7 +1090,7 @@ export const FundDetail: React.FC<FundDetailProps> = ({
         }}
       >
         <motion.div
-          className="bg-gray-50 dark:bg-app-bg-dark flex flex-col w-full h-full md:h-[calc(100vh-2rem)] lg:h-[calc(100vh-4rem)] md:max-w-7xl md:rounded-xl md:shadow-2xl md:border md:border-gray-200 dark:md:border-border-dark overflow-hidden relative"
+          className="bg-gray-50 dark:bg-app-bg-dark flex flex-col w-full h-full md:h-[calc(100vh-2rem)] lg:h-[calc(100vh-4rem)] md:w-[50vw] md:min-w-[960px] md:rounded-xl md:shadow-2xl md:border md:border-gray-200 dark:md:border-border-dark overflow-hidden relative"
           onClick={(e) => e.stopPropagation()}
           initial={isDesktop ? { opacity: 0, scale: 0.95, y: 20 } : { opacity: 1, x: '100%' }}
           animate={isDesktop ? { opacity: 1, scale: 1, y: 0 } : { opacity: 1, x: 0 }}
