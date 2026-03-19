@@ -41,9 +41,11 @@ Notes:
 
 ## Tooling + Configs
 
+- Package manager: npm (project is ESM via `"type": "module"`).
 - ESLint config: `eslint.config.js` with React/TS rules and hooks checks.
 - Prettier config: `prettier.config.cjs` (single quotes, semicolons, 100-width).
 - TS config: `tsconfig.json` with ES2022 target and `@/*` alias to repo root.
+- TS test config: `tsconfig.test.json` (adds `vitest/globals`, includes tests).
 - Vitest config: `vitest.config.ts` (jsdom, globals, setup file).
 - Vite config: `vite.config.ts` (GitHub Pages base, commit injection, dev proxy).
 
@@ -57,6 +59,7 @@ TypeScript config notes:
 
 - `moduleResolution` is `bundler` and `module` is `ESNext`.
 - `allowImportingTsExtensions` is enabled; prefer existing patterns in a file.
+- `allowJs` is true; avoid introducing new JS unless needed.
 - `noEmit` is true; builds rely on Vite/tsc for type checks.
 
 ## Code Style (Observed + Expected)
@@ -136,6 +139,7 @@ State + storage:
 ## Vite/Runtime Assumptions
 
 - Vite base is `/fund-manager/` for GitHub Pages.
+- Dev server runs on port 3000 and binds to `0.0.0.0`.
 - Danjuan requests rely on dev proxy `/djapi` with forced `Referer` header.
 - Vite config injects latest 5 commits into `import.meta.env.VITE_COMMITS_JSON`.
 - Optional Gemini translation happens when `GEMINI_API_KEY` exists.
