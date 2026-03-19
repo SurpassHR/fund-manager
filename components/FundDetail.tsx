@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useMemo } from 'react';
+import React, { useCallback, useEffect, useState, useRef, useMemo } from 'react';
 import type {
   Fund,
   FundPerformanceResponse,
@@ -11,6 +11,8 @@ import { Icons } from './Icon';
 import { formatPct, getSignColor, formatSignedCurrency } from '../services/financeUtils';
 import { useTranslation } from '../services/i18n';
 import { useTheme } from '../services/ThemeContext';
+import { resetDragState, useEdgeSwipe } from '../services/edgeSwipeState';
+import { useOverlayRegistration } from '../services/overlayRegistration';
 import {
   buildTencentQuoteCodes,
   fetchFundCommonData,
@@ -204,6 +206,41 @@ export const FundDetail: React.FC<FundDetailProps> = ({
   const { t } = useTranslation();
   const { theme } = useTheme();
   const isDark = theme === 'dark';
+  const fundId = fund.id ?? fund.code;
+  const overlayId = `fund-detail:${fundId}`;
+  const { isDragging, dragX, activeOverlayId, setDragState, snapBackX } = useEdgeSwipe();
+  const [closeTargetX, setCloseTargetX] = useState<number | null>(null);
+  const [isEdgeClosing, setIsEdgeClosing] = useState(false);
+  const translateX = isDragging && activeOverlayId === overlayId ? dragX : 0;
+  const snapX = activeOverlayId === overlayId ? snapBackX : null;
+  const transformX = closeTargetX ?? snapX ?? translateX;
+  const transition = closeTargetX !== null || snapX !== null ? 'transform 220ms ease' : 'none';
+
+  // snap-back animation is driven by App.tsx via snapBackX
+
+  const requestClose = useCallback(
+    (payload?: { source?: 'edge-swipe' | 'programmatic'; targetX?: number }) => {
+      if (payload?.source === 'edge-swipe' && payload.targetX !== undefined) {
+        setCloseTargetX(payload.targetX);
+        setIsEdgeClosing(true);
+        return;
+      }
+      onBack();
+    },
+    [onBack],
+  );
+
+  useOverlayRegistration(overlayId, true, requestClose);
+
+  useEffect(() => {
+    return () => {
+      if (activeOverlayId === overlayId) {
+        resetDragState(setDragState);
+      }
+    };
+  }, [activeOverlayId, overlayId, setDragState]);
+
+  // snap-back animation is driven by App.tsx via snapBackX
 
   // Data States
   const [data, setData] = useState<FundPerformanceResponse['data'] | null>(null);
@@ -823,325 +860,353 @@ export const FundDetail: React.FC<FundDetailProps> = ({
       onClick={onBack}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
+      exit={isEdgeClosing ? { opacity: 1 } : { opacity: 0 }}
       transition={{ duration: 0.2 }}
     >
-      <motion.div
-        className="bg-gray-50 dark:bg-app-bg-dark flex flex-col w-full h-full md:h-[calc(100vh-2rem)] lg:h-[calc(100vh-4rem)] md:max-w-7xl md:rounded-xl md:shadow-2xl md:border md:border-gray-200 dark:md:border-border-dark overflow-hidden relative"
-        onClick={(e) => e.stopPropagation()}
-        initial={isDesktop ? { opacity: 0, scale: 0.95, y: 20 } : { opacity: 1, x: '100%' }}
-        animate={isDesktop ? { opacity: 1, scale: 1, y: 0 } : { opacity: 1, x: 0 }}
-        exit={isDesktop ? { opacity: 0, scale: 0.95, y: 20 } : { opacity: 1, x: '100%' }}
-        transition={{ type: 'spring', damping: 28, stiffness: 280 }}
+      <div
+        style={{ transform: `translateX(${transformX}px)`, transition }}
+        onTransitionEnd={(event) => {
+          if (event.propertyName !== 'transform') return;
+          if (closeTargetX !== null) {
+            resetDragState(setDragState);
+            onBack();
+            return;
+          }
+          if (snapX !== null) {
+            resetDragState(setDragState);
+          }
+        }}
       >
-        {/* Header */}
-        <div className="bg-white dark:bg-card-dark px-4 h-14 flex items-center justify-between shadow-sm dark:border-b dark:border-border-dark flex-shrink-0 z-10 transition-colors">
-          <button
-            onClick={onBack}
-            className="p-2 -ml-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/10 rounded-full transition-colors"
-          >
-            <Icons.ArrowUp className="transform -rotate-90" size={24} />
-          </button>
-          <div className="text-center max-w-[70%]">
-            <h2 className="font-bold text-gray-800 dark:text-gray-100 text-sm truncate">
-              {fund.name}
-            </h2>
-            <p className="text-xs text-gray-500 dark:text-gray-400">{fund.code}</p>
-          </div>
-          <div className="w-10"></div>
-        </div>
-
-        <div className="flex-1 overflow-y-auto flex flex-col no-scrollbar bg-gray-50 dark:bg-app-bg-dark">
-          {/* Hero Card */}
-          <div className="bg-white dark:bg-card-dark p-6 mb-2 transition-colors">
-            <div className="text-gray-500 dark:text-gray-400 text-xs mb-1">
-              {t('common.nav')} ({displayDate})
+        <motion.div
+          className="bg-gray-50 dark:bg-app-bg-dark flex flex-col w-full h-full md:h-[calc(100vh-2rem)] lg:h-[calc(100vh-4rem)] md:max-w-7xl md:rounded-xl md:shadow-2xl md:border md:border-gray-200 dark:md:border-border-dark overflow-hidden relative"
+          onClick={(e) => e.stopPropagation()}
+          initial={isDesktop ? { opacity: 0, scale: 0.95, y: 20 } : { opacity: 1, x: '100%' }}
+          animate={isDesktop ? { opacity: 1, scale: 1, y: 0 } : { opacity: 1, x: 0 }}
+          exit={
+            isDesktop
+              ? { opacity: 0, scale: 0.95, y: 20 }
+              : isEdgeClosing
+                ? { opacity: 1, x: 0 }
+                : { opacity: 1, x: '100%' }
+          }
+          transition={{ type: 'spring', damping: 28, stiffness: 280 }}
+        >
+          {/* Header */}
+          <div className="bg-white dark:bg-card-dark px-4 h-14 flex items-center justify-between shadow-sm dark:border-b dark:border-border-dark flex-shrink-0 z-10 transition-colors">
+            <button
+              onClick={onBack}
+              className="p-2 -ml-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/10 rounded-full transition-colors"
+            >
+              <Icons.ArrowUp className="transform -rotate-90" size={24} />
+            </button>
+            <div className="text-center max-w-[70%]">
+              <h2 className="font-bold text-gray-800 dark:text-gray-100 text-sm truncate">
+                {fund.name}
+              </h2>
+              <p className="text-xs text-gray-500 dark:text-gray-400">{fund.code}</p>
             </div>
-            <div className="flex items-baseline gap-3">
-              <span className="text-3xl font-bold font-sans text-gray-900 dark:text-gray-100">
-                {currentNav.toFixed(4)}
-              </span>
-              <span className={`text-lg font-medium font-sans ${getSignColor(dayChangePct)}`}>
-                {formatPct(dayChangePct)}
-              </span>
-            </div>
-            <div className="mt-4 grid grid-cols-4 gap-2 text-sm">
-              <div className="bg-gray-50 dark:bg-white/5 p-2 rounded-lg transition-colors flex flex-col justify-between">
-                <div className="text-gray-400 text-xs mb-1">
-                  {anchorPrice ? t('common.anchorPrice') : t('common.cost')}
-                </div>
-                <div className="font-sans dark:text-gray-200 text-xs text-ellipsis overflow-hidden">
-                  {anchorPrice ? anchorPrice.toFixed(4) : fund.costPrice.toFixed(4)}
-                </div>
-              </div>
-              <div className="bg-gray-50 dark:bg-white/5 p-2 rounded-lg transition-colors flex flex-col justify-between">
-                <div className="text-gray-400 text-xs mb-1">
-                  {anchorDate ? '锚定日' : t('common.shares')}
-                </div>
-                <div className="font-sans dark:text-gray-200 text-xs text-ellipsis overflow-hidden">
-                  {anchorDate ? anchorDate : fund.holdingShares.toLocaleString()}
-                </div>
-              </div>
-
-              {(() => {
-                const totalCost = fund.costPrice * fund.holdingShares;
-                const holdingValue = currentNav * fund.holdingShares;
-                const totalGain = holdingValue - totalCost;
-                const dayGainVal = fund.dayChangeVal;
-
-                return (
-                  <>
-                    <div className="bg-gray-50 dark:bg-white/5 p-2 rounded-lg transition-colors flex flex-col justify-between">
-                      <div className="text-gray-400 text-xs mb-1">
-                        {anchorPrice ? t('common.anchorGain') : t('common.totalGain')}
-                      </div>
-                      {anchorPrice ? (
-                        <div
-                          className={`font-sans font-bold text-xs ${getSignColor(currentNav - anchorPrice)}`}
-                        >
-                          {formatPct(((currentNav - anchorPrice) / anchorPrice) * 100)}
-                        </div>
-                      ) : (
-                        <div className={`font-sans font-bold text-xs ${getSignColor(totalGain)}`}>
-                          {formatSignedCurrency(totalGain)}
-                        </div>
-                      )}
-                    </div>
-                    <div className="bg-gray-50 dark:bg-white/5 p-2 rounded-lg transition-colors flex flex-col justify-between">
-                      <div className="text-gray-400 text-xs mb-1">{t('common.dayGain')}</div>
-                      {anchorPrice ? (
-                        <div
-                          className={`font-sans font-bold text-xs ${getSignColor(dayChangePct)}`}
-                        >
-                          {formatPct(dayChangePct)}
-                        </div>
-                      ) : (
-                        <div className={`font-sans font-bold text-xs ${getSignColor(dayGainVal)}`}>
-                          {formatSignedCurrency(dayGainVal)}
-                        </div>
-                      )}
-                    </div>
-                  </>
-                );
-              })()}
-            </div>
+            <div className="w-10"></div>
           </div>
 
-          {/* ECharts Section */}
-          <div className="bg-white dark:bg-card-dark p-4 mb-2 transition-colors">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-bold text-gray-800 dark:text-gray-100 text-sm border-l-4 border-blue-500 pl-2">
-                累计收益走势
-              </h3>
-              <div className="flex bg-gray-100 dark:bg-white/10 rounded-lg p-0.5 transition-colors">
-                {ranges.map((range) => (
-                  <button
-                    key={range}
-                    onClick={() => setTimeRange(range)}
-                    className={`px-2 py-1 text-[10px] rounded-md font-medium transition-all ${
-                      timeRange === range
-                        ? 'bg-white dark:bg-card-dark text-blue-600 shadow-sm'
-                        : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
-                    }`}
-                  >
-                    {range}
-                  </button>
-                ))}
+          <div className="flex-1 overflow-y-auto flex flex-col no-scrollbar bg-gray-50 dark:bg-app-bg-dark">
+            {/* Hero Card */}
+            <div className="bg-white dark:bg-card-dark p-6 mb-2 transition-colors">
+              <div className="text-gray-500 dark:text-gray-400 text-xs mb-1">
+                {t('common.nav')} ({displayDate})
               </div>
-            </div>
-
-            <div className="relative w-full h-64">
-              {/* ECharts Container (Always mounted to preserve ECharts instance) */}
-              <div
-                ref={chartRef}
-                className={`w-full h-full transition-opacity duration-300 ${chartReady && !chartLoading && lastTradingDay ? 'opacity-100' : 'opacity-0'}`}
-              />
-
-              {/* Loading / Placeholder Overlay */}
-              {(!chartReady || chartLoading || !lastTradingDay) && (
-                <div className="absolute inset-0 flex items-center justify-center bg-gray-50 dark:bg-white/5 rounded transition-colors z-10">
-                  <Icons.Refresh className="animate-spin text-gray-300" size={24} />
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Historical Data Grid (Performance Summary) */}
-          {data ? (
-            <div className="bg-white dark:bg-card-dark p-4 mb-2 transition-colors">
-              <div className="grid grid-cols-4 gap-2 text-center">
-                {[
-                  { label: '近6月', val: data.dayEnd?.returns?.YTD },
-                  { label: '近1年', val: data.dayEnd?.returns?.Y1 },
-                  { label: '近3年', val: data.dayEnd?.returns?.Y3 },
-                  { label: '成立来', val: data.dayEnd?.returns?.sinceInception },
-                ].map((item, idx) => (
-                  <div key={idx} className="flex flex-col gap-1 py-1 rounded">
-                    <span className="text-xs text-gray-400 mb-1">{item.label}</span>
-                    <span className={`font-sans font-bold text-sm ${getSignColor(item.val || 0)}`}>
-                      {item.val ? formatPct(item.val) : '--'}
-                    </span>
+              <div className="flex items-baseline gap-3">
+                <span className="text-3xl font-bold font-sans text-gray-900 dark:text-gray-100">
+                  {currentNav.toFixed(4)}
+                </span>
+                <span className={`text-lg font-medium font-sans ${getSignColor(dayChangePct)}`}>
+                  {formatPct(dayChangePct)}
+                </span>
+              </div>
+              <div className="mt-4 grid grid-cols-4 gap-2 text-sm">
+                <div className="bg-gray-50 dark:bg-white/5 p-2 rounded-lg transition-colors flex flex-col justify-between">
+                  <div className="text-gray-400 text-xs mb-1">
+                    {anchorPrice ? t('common.anchorPrice') : t('common.cost')}
                   </div>
-                ))}
-              </div>
-            </div>
-          ) : null}
-
-          {/* History NAV Table */}
-          <div className="bg-white dark:bg-card-dark p-4 mb-2 transition-colors">
-            <div className="flex items-center justify-between mb-4 border-l-4 border-blue-500 pl-2">
-              <h3 className="font-bold text-gray-800 dark:text-gray-100 text-sm">
-                {t('common.historyNav')}
-              </h3>
-              <button
-                onClick={() => setShowAllHistory(!showAllHistory)}
-                className="text-xs text-gray-400 flex items-center hover:text-blue-500"
-              >
-                {showAllHistory ? '收起' : t('common.more')}
-                <Icons.ArrowUp
-                  className={`transform ml-0.5 transition-transform ${showAllHistory ? '' : 'rotate-180'}`}
-                  size={12}
-                />
-              </button>
-            </div>
-
-            <div className="space-y-0">
-              <div className="grid grid-cols-4 gap-2 text-xs text-gray-400 pb-3">
-                <div className="text-left pl-2">{t('common.date')}</div>
-                <div className="text-center">{t('common.unitNav')}</div>
-                <div className="text-center">{t('common.accNav')}</div>
-                <div className="text-right pr-2">{t('common.dayChgPct')}</div>
-              </div>
-
-              {displayedHistory.length > 0 ? (
-                displayedHistory.map((item, idx) => (
-                  <div
-                    key={idx}
-                    className="grid grid-cols-4 gap-2 py-3 border-t border-gray-50 dark:border-border-dark items-center text-sm transition-colors"
-                  >
-                    <div className="text-left pl-2 text-gray-600 dark:text-gray-400 font-medium font-sans">
-                      {item.date}
-                    </div>
-                    <div className="text-center text-gray-800 dark:text-gray-200 font-sans">
-                      {item.nav.toFixed(4)}
-                    </div>
-                    {/* Using derived nav for accumulated as well, since chart is adjusted returns */}
-                    <div className="text-center text-gray-800 dark:text-gray-200 font-sans">
-                      {item.nav.toFixed(4)}
-                    </div>
-                    <div
-                      className={`text-right pr-2 font-sans font-medium ${getSignColor(item.change)}`}
-                    >
-                      {formatPct(item.change)}
-                    </div>
+                  <div className="font-sans dark:text-gray-200 text-xs text-ellipsis overflow-hidden">
+                    {anchorPrice ? anchorPrice.toFixed(4) : fund.costPrice.toFixed(4)}
                   </div>
-                ))
-              ) : (
-                <div className="py-4 text-center text-gray-300 text-xs">Loading history...</div>
-              )}
-            </div>
-          </div>
-
-          {/* Holdings Section */}
-          {holdings.length > 0 && (
-            <div className="bg-white dark:bg-card-dark p-4 mb-2 transition-colors">
-              <h3 className="font-bold text-gray-800 dark:text-gray-100 text-sm mb-4 border-l-4 border-blue-500 pl-2">
-                持仓明细 <span className="text-xs text-gray-400 font-normal ml-1">(实时估算)</span>
-              </h3>
-
-              <div className="space-y-0">
-                {/* Table Header */}
-                <div className="grid grid-cols-10 gap-2 text-xs text-gray-400 pb-2 border-b border-gray-50 dark:border-border-dark">
-                  <div className="col-span-4 pl-1">股票名称</div>
-                  <div className="col-span-3 text-right">最新价/涨跌</div>
-                  <div className="col-span-3 text-right pr-1">持仓占比</div>
+                </div>
+                <div className="bg-gray-50 dark:bg-white/5 p-2 rounded-lg transition-colors flex flex-col justify-between">
+                  <div className="text-gray-400 text-xs mb-1">
+                    {anchorDate ? '锚定日' : t('common.shares')}
+                  </div>
+                  <div className="font-sans dark:text-gray-200 text-xs text-ellipsis overflow-hidden">
+                    {anchorDate ? anchorDate : fund.holdingShares.toLocaleString()}
+                  </div>
                 </div>
 
-                {/* List */}
-                {holdings.map((stock, idx) => {
-                  const quote = quotes[stock.ticker];
-                  const price = quote ? quote.price : '--';
-                  const pct = quote ? quote.pct : 0;
-                  const hasQuote = !!quote;
+                {(() => {
+                  const totalCost = fund.costPrice * fund.holdingShares;
+                  const holdingValue = currentNav * fund.holdingShares;
+                  const totalGain = holdingValue - totalCost;
+                  const dayGainVal = fund.dayChangeVal;
 
                   return (
-                    <div
-                      key={idx}
-                      className="grid grid-cols-10 gap-2 py-3 border-b border-gray-50 dark:border-border-dark items-center last:border-0 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors"
-                    >
-                      <div className="col-span-4 pl-1">
-                        <div className="font-medium text-gray-800 dark:text-gray-200 text-sm truncate">
-                          {stock.name}
+                    <>
+                      <div className="bg-gray-50 dark:bg-white/5 p-2 rounded-lg transition-colors flex flex-col justify-between">
+                        <div className="text-gray-400 text-xs mb-1">
+                          {anchorPrice ? t('common.anchorGain') : t('common.totalGain')}
                         </div>
-                        <div className="text-xs text-gray-400 font-sans">{stock.ticker}</div>
-                      </div>
-                      <div className="col-span-3 text-right">
-                        <div className="font-sans text-sm text-gray-800 dark:text-gray-200">
-                          {price}
-                        </div>
-                        {hasQuote && (
-                          <div className={`text-xs font-sans font-medium ${getSignColor(pct)}`}>
-                            {formatPct(pct)}
+                        {anchorPrice ? (
+                          <div
+                            className={`font-sans font-bold text-xs ${getSignColor(currentNav - anchorPrice)}`}
+                          >
+                            {formatPct(((currentNav - anchorPrice) / anchorPrice) * 100)}
+                          </div>
+                        ) : (
+                          <div className={`font-sans font-bold text-xs ${getSignColor(totalGain)}`}>
+                            {formatSignedCurrency(totalGain)}
                           </div>
                         )}
                       </div>
-                      <div className="col-span-3 text-right pr-1">
-                        <div className="font-sans text-gray-800 dark:text-gray-200 font-medium">
-                          {stock.weight.toFixed(2)}%
-                        </div>
-                        {/* Simple visual bar for weight */}
-                        <div className="w-full bg-gray-100 dark:bg-white/10 h-1 mt-1 rounded-full overflow-hidden flex justify-end">
+                      <div className="bg-gray-50 dark:bg-white/5 p-2 rounded-lg transition-colors flex flex-col justify-between">
+                        <div className="text-gray-400 text-xs mb-1">{t('common.dayGain')}</div>
+                        {anchorPrice ? (
                           <div
-                            className="bg-blue-200 dark:bg-blue-800 h-full"
-                            style={{ width: `${Math.min(stock.weight * 5, 100)}%` }}
-                          />
-                        </div>
+                            className={`font-sans font-bold text-xs ${getSignColor(dayChangePct)}`}
+                          >
+                            {formatPct(dayChangePct)}
+                          </div>
+                        ) : (
+                          <div
+                            className={`font-sans font-bold text-xs ${getSignColor(dayGainVal)}`}
+                          >
+                            {formatSignedCurrency(dayGainVal)}
+                          </div>
+                        )}
                       </div>
-                    </div>
+                    </>
                   );
-                })}
+                })()}
               </div>
             </div>
-          )}
 
-          {/* Annual Returns Table */}
-          {data && data.annual && (
-            <div className="bg-white dark:bg-card-dark p-4 transition-colors">
-              <h3 className="font-bold text-gray-800 dark:text-gray-100 text-sm mb-4 border-l-4 border-blue-500 pl-2">
-                年度回报
-              </h3>
-              <div className="space-y-3">
-                {data.annual.returns
-                  ?.slice()
-                  .reverse()
-                  .map((item) => (
-                    <div
-                      key={item.k}
-                      className="flex justify-between items-center text-sm border-b border-gray-50 dark:border-border-dark pb-2 last:border-0"
+            {/* ECharts Section */}
+            <div className="bg-white dark:bg-card-dark p-4 mb-2 transition-colors">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-bold text-gray-800 dark:text-gray-100 text-sm border-l-4 border-blue-500 pl-2">
+                  累计收益走势
+                </h3>
+                <div className="flex bg-gray-100 dark:bg-white/10 rounded-lg p-0.5 transition-colors">
+                  {ranges.map((range) => (
+                    <button
+                      key={range}
+                      onClick={() => setTimeRange(range)}
+                      className={`px-2 py-1 text-[10px] rounded-md font-medium transition-all ${
+                        timeRange === range
+                          ? 'bg-white dark:bg-card-dark text-blue-600 shadow-sm'
+                          : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
+                      }`}
                     >
-                      <span className="text-gray-600 dark:text-gray-400 font-sans">{item.k}年</span>
-                      <span className={`font-sans font-medium ${getSignColor(item.v)}`}>
-                        {formatPct(item.v)}
+                      {range}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="relative w-full h-64">
+                {/* ECharts Container (Always mounted to preserve ECharts instance) */}
+                <div
+                  ref={chartRef}
+                  className={`w-full h-full transition-opacity duration-300 ${chartReady && !chartLoading && lastTradingDay ? 'opacity-100' : 'opacity-0'}`}
+                />
+
+                {/* Loading / Placeholder Overlay */}
+                {(!chartReady || chartLoading || !lastTradingDay) && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-gray-50 dark:bg-white/5 rounded transition-colors z-10">
+                    <Icons.Refresh className="animate-spin text-gray-300" size={24} />
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Historical Data Grid (Performance Summary) */}
+            {data ? (
+              <div className="bg-white dark:bg-card-dark p-4 mb-2 transition-colors">
+                <div className="grid grid-cols-4 gap-2 text-center">
+                  {[
+                    { label: '近6月', val: data.dayEnd?.returns?.YTD },
+                    { label: '近1年', val: data.dayEnd?.returns?.Y1 },
+                    { label: '近3年', val: data.dayEnd?.returns?.Y3 },
+                    { label: '成立来', val: data.dayEnd?.returns?.sinceInception },
+                  ].map((item, idx) => (
+                    <div key={idx} className="flex flex-col gap-1 py-1 rounded">
+                      <span className="text-xs text-gray-400 mb-1">{item.label}</span>
+                      <span
+                        className={`font-sans font-bold text-sm ${getSignColor(item.val || 0)}`}
+                      >
+                        {item.val ? formatPct(item.val) : '--'}
                       </span>
                     </div>
                   ))}
+                </div>
+              </div>
+            ) : null}
+
+            {/* History NAV Table */}
+            <div className="bg-white dark:bg-card-dark p-4 mb-2 transition-colors">
+              <div className="flex items-center justify-between mb-4 border-l-4 border-blue-500 pl-2">
+                <h3 className="font-bold text-gray-800 dark:text-gray-100 text-sm">
+                  {t('common.historyNav')}
+                </h3>
+                <button
+                  onClick={() => setShowAllHistory(!showAllHistory)}
+                  className="text-xs text-gray-400 flex items-center hover:text-blue-500"
+                >
+                  {showAllHistory ? '收起' : t('common.more')}
+                  <Icons.ArrowUp
+                    className={`transform ml-0.5 transition-transform ${showAllHistory ? '' : 'rotate-180'}`}
+                    size={12}
+                  />
+                </button>
+              </div>
+
+              <div className="space-y-0">
+                <div className="grid grid-cols-4 gap-2 text-xs text-gray-400 pb-3">
+                  <div className="text-left pl-2">{t('common.date')}</div>
+                  <div className="text-center">{t('common.unitNav')}</div>
+                  <div className="text-center">{t('common.accNav')}</div>
+                  <div className="text-right pr-2">{t('common.dayChgPct')}</div>
+                </div>
+
+                {displayedHistory.length > 0 ? (
+                  displayedHistory.map((item, idx) => (
+                    <div
+                      key={idx}
+                      className="grid grid-cols-4 gap-2 py-3 border-t border-gray-50 dark:border-border-dark items-center text-sm transition-colors"
+                    >
+                      <div className="text-left pl-2 text-gray-600 dark:text-gray-400 font-medium font-sans">
+                        {item.date}
+                      </div>
+                      <div className="text-center text-gray-800 dark:text-gray-200 font-sans">
+                        {item.nav.toFixed(4)}
+                      </div>
+                      {/* Using derived nav for accumulated as well, since chart is adjusted returns */}
+                      <div className="text-center text-gray-800 dark:text-gray-200 font-sans">
+                        {item.nav.toFixed(4)}
+                      </div>
+                      <div
+                        className={`text-right pr-2 font-sans font-medium ${getSignColor(item.change)}`}
+                      >
+                        {formatPct(item.change)}
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="py-4 text-center text-gray-300 text-xs">Loading history...</div>
+                )}
               </div>
             </div>
-          )}
 
-          {/* Scrollable Area End Marker */}
-          <div className="pt-4 pb-6 w-full flex items-center justify-center text-xs text-gray-400 dark:text-gray-500 font-sans">
-            - 到底啦 -
+            {/* Holdings Section */}
+            {holdings.length > 0 && (
+              <div className="bg-white dark:bg-card-dark p-4 mb-2 transition-colors">
+                <h3 className="font-bold text-gray-800 dark:text-gray-100 text-sm mb-4 border-l-4 border-blue-500 pl-2">
+                  持仓明细{' '}
+                  <span className="text-xs text-gray-400 font-normal ml-1">(实时估算)</span>
+                </h3>
+
+                <div className="space-y-0">
+                  {/* Table Header */}
+                  <div className="grid grid-cols-10 gap-2 text-xs text-gray-400 pb-2 border-b border-gray-50 dark:border-border-dark">
+                    <div className="col-span-4 pl-1">股票名称</div>
+                    <div className="col-span-3 text-right">最新价/涨跌</div>
+                    <div className="col-span-3 text-right pr-1">持仓占比</div>
+                  </div>
+
+                  {/* List */}
+                  {holdings.map((stock, idx) => {
+                    const quote = quotes[stock.ticker];
+                    const price = quote ? quote.price : '--';
+                    const pct = quote ? quote.pct : 0;
+                    const hasQuote = !!quote;
+
+                    return (
+                      <div
+                        key={idx}
+                        className="grid grid-cols-10 gap-2 py-3 border-b border-gray-50 dark:border-border-dark items-center last:border-0 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors"
+                      >
+                        <div className="col-span-4 pl-1">
+                          <div className="font-medium text-gray-800 dark:text-gray-200 text-sm truncate">
+                            {stock.name}
+                          </div>
+                          <div className="text-xs text-gray-400 font-sans">{stock.ticker}</div>
+                        </div>
+                        <div className="col-span-3 text-right">
+                          <div className="font-sans text-sm text-gray-800 dark:text-gray-200">
+                            {price}
+                          </div>
+                          {hasQuote && (
+                            <div className={`text-xs font-sans font-medium ${getSignColor(pct)}`}>
+                              {formatPct(pct)}
+                            </div>
+                          )}
+                        </div>
+                        <div className="col-span-3 text-right pr-1">
+                          <div className="font-sans text-gray-800 dark:text-gray-200 font-medium">
+                            {stock.weight.toFixed(2)}%
+                          </div>
+                          {/* Simple visual bar for weight */}
+                          <div className="w-full bg-gray-100 dark:bg-white/10 h-1 mt-1 rounded-full overflow-hidden flex justify-end">
+                            <div
+                              className="bg-blue-200 dark:bg-blue-800 h-full"
+                              style={{ width: `${Math.min(stock.weight * 5, 100)}%` }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Annual Returns Table */}
+            {data && data.annual && (
+              <div className="bg-white dark:bg-card-dark p-4 transition-colors">
+                <h3 className="font-bold text-gray-800 dark:text-gray-100 text-sm mb-4 border-l-4 border-blue-500 pl-2">
+                  年度回报
+                </h3>
+                <div className="space-y-3">
+                  {data.annual.returns
+                    ?.slice()
+                    .reverse()
+                    .map((item) => (
+                      <div
+                        key={item.k}
+                        className="flex justify-between items-center text-sm border-b border-gray-50 dark:border-border-dark pb-2 last:border-0"
+                      >
+                        <span className="text-gray-600 dark:text-gray-400 font-sans">
+                          {item.k}年
+                        </span>
+                        <span className={`font-sans font-medium ${getSignColor(item.v)}`}>
+                          {formatPct(item.v)}
+                        </span>
+                      </div>
+                    ))}
+                </div>
+              </div>
+            )}
+
+            {/* Scrollable Area End Marker */}
+            <div className="pt-4 pb-6 w-full flex items-center justify-center text-xs text-gray-400 dark:text-gray-500 font-sans">
+              - 到底啦 -
+            </div>
           </div>
-        </div>
 
-        {/* Fixed Footer Bar */}
-        <div className="bg-white dark:bg-card-dark px-4 h-14 flex items-center justify-center shadow-[0_-1px_2px_rgba(0,0,0,0.05)] dark:border-t dark:border-border-dark flex-shrink-0 z-10 transition-colors">
-          <span className="text-xs text-gray-400 dark:text-gray-500 font-sans">
-            数据仅供参考，不构成投资建议
-          </span>
-        </div>
-      </motion.div>
+          {/* Fixed Footer Bar */}
+          <div className="bg-white dark:bg-card-dark px-4 h-14 flex items-center justify-center shadow-[0_-1px_2px_rgba(0,0,0,0.05)] dark:border-t dark:border-border-dark flex-shrink-0 z-10 transition-colors">
+            <span className="text-xs text-gray-400 dark:text-gray-500 font-sans">
+              数据仅供参考，不构成投资建议
+            </span>
+          </div>
+        </motion.div>
+      </div>
     </motion.div>
   );
 };

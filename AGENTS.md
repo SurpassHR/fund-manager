@@ -7,6 +7,16 @@ This file provides guidance to agents when working with code in this repository.
 - Cursor rules: none found in `.cursor/rules/` or `.cursorrules`.
 - Copilot rules: none found in `.github/copilot-instructions.md`.
 
+## Repo Layout (Observed)
+
+- Entry point: `index.tsx` mounts `App.tsx` and throws on missing `#root`.
+- UI: `components/` for React components and modals.
+- Services/data: `services/` for API, DB, i18n, settings, theme, etc.
+- Shared types: `types.ts` (reused throughout services and components).
+- Styling: `app.css` plus Tailwind utility classes.
+- Tests: `setupTests.ts` and optional `test/` fixtures.
+- Vite env types: `src/vite-env.d.ts` (only file in `src/`).
+
 ## Build, Lint, Test
 
 - Install: `npm install`
@@ -29,6 +39,26 @@ Notes:
 - Test typings are isolated in `tsconfig.test.json`.
 - Add tests as `*.test.ts`/`*.test.tsx` near source files or in `__tests__/`.
 
+## Tooling + Configs
+
+- ESLint config: `eslint.config.js` with React/TS rules and hooks checks.
+- Prettier config: `prettier.config.cjs` (single quotes, semicolons, 100-width).
+- TS config: `tsconfig.json` with ES2022 target and `@/*` alias to repo root.
+- Vitest config: `vitest.config.ts` (jsdom, globals, setup file).
+- Vite config: `vite.config.ts` (GitHub Pages base, commit injection, dev proxy).
+
+ESLint highlights:
+
+- `@typescript-eslint/no-unused-vars` warns; ignore args with `_` prefix.
+- `@typescript-eslint/consistent-type-imports` warns; prefer `import type`.
+- `react-refresh/only-export-components` warns; allow constant exports only.
+
+TypeScript config notes:
+
+- `moduleResolution` is `bundler` and `module` is `ESNext`.
+- `allowImportingTsExtensions` is enabled; prefer existing patterns in a file.
+- `noEmit` is true; builds rely on Vite/tsc for type checks.
+
 ## Code Style (Observed + Expected)
 
 - Language: TypeScript + React 19, ES modules.
@@ -36,24 +66,28 @@ Notes:
 - Use `React.FC` only if it matches existing patterns in the file.
 - Prefer `const` over `let` unless reassigned; use explicit `return` in early exits.
 - Keep async flows readable; prefer `async/await` with `try/catch` and clear fallbacks.
-- Use `console.error`/`console.warn` with context and fallback behavior, not silent failures.
-- For invalid app state (e.g. missing root element), throw an `Error` early.
-- Use type-only imports where possible; lint warns on mixed value/type imports.
-- Keep types in `types.ts` and reuse them instead of inline `any`.
-- If `any` is needed (3rd-party responses), confine it to parsing boundaries.
+- Avoid deep nested ternaries in JSX; use helpers or early returns.
+- Use Tailwind utilities consistently; keep class lists readable and wrapped.
 
 Formatting (Prettier enforced):
 
 - Single quotes, semicolons, trailing commas.
 - 2-space indentation.
 - Prefer 100-character line width; wrap JSX props if needed.
-- Keep JSX attributes aligned and readable; avoid deeply nested ternaries.
+- Keep JSX attributes aligned and readable.
 
 Imports:
 
 - Group order: React/builtins, third-party, internal absolute (`@/`), then relative.
 - Use relative paths for local siblings as seen in existing files.
 - Keep named imports sorted logically (not necessarily alphabetically).
+- Use type-only imports; ESLint warns on mixed value/type imports.
+
+Types:
+
+- Keep shared types in `types.ts` and reuse them instead of inline `any`.
+- If `any` is needed (3rd-party responses), confine it to parsing boundaries.
+- Prefer explicit return types on exported async helpers for clarity.
 
 Naming:
 
@@ -68,8 +102,22 @@ Error handling:
 - API helpers return `null`/`[]` on failure and log with context.
 - Re-throw only when the caller must handle a fallback (`fetchRealTimeQuotes`).
 - Avoid user-visible errors for background refresh; use graceful degradation.
+- Throw early for invalid app state (e.g. missing root element).
 
-I18n:
+State + storage:
+
+- IndexedDB is managed via Dexie in `services/db.ts`.
+- Use existing `initPromise`/`refreshPromise` guards for concurrency safety.
+- Prefer session/local storage patterns already used in components.
+
+## Testing Guidance
+
+- Use Vitest globals (`describe`, `it`, `expect`, `vi`) as configured in ESLint.
+- Add tests near the component/service they cover.
+- Prefer RTL queries via `screen` and semantic selectors.
+- Keep tests deterministic; avoid relying on real network calls.
+
+## I18n
 
 - Use `useTranslation().t("common.xxx")` from `services/i18n.tsx`.
 - Missing keys return the path; language defaults to `zh` with no persistence.

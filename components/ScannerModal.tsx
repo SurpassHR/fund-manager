@@ -8,6 +8,8 @@ import type { OcrHoldingItem } from '../services/aiOcr';
 import { searchFunds, fetchFundCommonData } from '../services/api';
 import { db } from '../services/db';
 import type { Fund } from '../types';
+import { resetDragState, useEdgeSwipe } from '../services/edgeSwipeState';
+import { useOverlayRegistration } from '../services/overlayRegistration';
 
 interface ScannerModalProps {
   isOpen: boolean;
@@ -39,6 +41,14 @@ export const ScannerModal: React.FC<ScannerModalProps> = ({ isOpen, onClose }) =
   const [conflictMap, setConflictMap] = useState<Record<string, ConflictDecision>>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
   const lastAutoValidateSignatureRef = useRef('');
+  const overlayId = 'scanner-modal';
+  const { isDragging, dragX, activeOverlayId, setDragState, snapBackX } = useEdgeSwipe();
+  const [closeTargetX, setCloseTargetX] = useState<number | null>(null);
+  const overlayOpen = isOpen || isReviewing;
+  const translateX = isDragging && activeOverlayId === overlayId ? dragX : 0;
+  const snapX = activeOverlayId === overlayId ? snapBackX : null;
+  const transformX = closeTargetX ?? snapX ?? translateX;
+  const transition = closeTargetX !== null || snapX !== null ? 'transform 220ms ease' : 'none';
 
   const { t } = useTranslation();
   const { aiProvider, openaiApiKey, openaiModel, geminiApiKey, geminiModel } = useSettings();
@@ -61,6 +71,27 @@ export const ScannerModal: React.FC<ScannerModalProps> = ({ isOpen, onClose }) =
     resetState();
     onClose();
   };
+
+  const requestClose = useCallback(
+    (payload?: { source?: 'edge-swipe' | 'programmatic'; targetX?: number }) => {
+      if (payload?.source === 'edge-swipe' && payload.targetX !== undefined) {
+        setCloseTargetX(payload.targetX);
+        return;
+      }
+      handleClose();
+    },
+    [handleClose],
+  );
+
+  useOverlayRegistration(overlayId, overlayOpen, requestClose);
+
+  useEffect(() => {
+    return () => {
+      if (activeOverlayId === overlayId) {
+        resetDragState(setDragState);
+      }
+    };
+  }, [activeOverlayId, overlayId, setDragState]);
 
   const handleSelectFile = (f?: File | null) => {
     if (!f) return;
@@ -312,80 +343,95 @@ export const ScannerModal: React.FC<ScannerModalProps> = ({ isOpen, onClose }) =
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
           >
-            <motion.div
-              className="bg-white dark:bg-card-dark rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl max-h-[90vh] flex flex-col"
-              onClick={(e) => e.stopPropagation()}
-              initial={isDesktop ? { opacity: 0, scale: 0.95, y: 20 } : { opacity: 1, y: 40 }}
-              animate={isDesktop ? { opacity: 1, scale: 1, y: 0 } : { opacity: 1, y: 0 }}
-              exit={isDesktop ? { opacity: 0, scale: 0.95, y: 20 } : { opacity: 1, y: 40 }}
-              transition={{ type: 'spring', damping: 28, stiffness: 280 }}
+            <div
+              style={{ transform: `translateX(${transformX}px)`, transition }}
+              onTransitionEnd={() => {
+                if (closeTargetX !== null) {
+                  setCloseTargetX(null);
+                  resetDragState(setDragState);
+                  handleClose();
+                  return;
+                }
+                if (snapX !== null) {
+                  resetDragState(setDragState);
+                }
+              }}
             >
-              <div className="p-4 border-b border-gray-100 dark:border-border-dark flex justify-between items-center bg-gray-50 dark:bg-white/5">
-                <h3 className="font-bold text-gray-800 dark:text-gray-100">
-                  {t('common.smartEntry')}
-                </h3>
-                <button onClick={handleClose}>
-                  <Icons.Plus className="transform rotate-45 text-gray-400" />
-                </button>
-              </div>
-
-              <div className="p-6 space-y-4 overflow-y-auto">
-                <div
-                  className="w-full aspect-[3/4] bg-gray-50 dark:bg-white/5 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600 flex flex-col items-center justify-center relative overflow-hidden"
-                  onDragOver={(e) => e.preventDefault()}
-                  onDrop={handleDrop}
-                >
-                  {preview ? (
-                    <img
-                      src={preview}
-                      alt="preview"
-                      className="absolute inset-0 w-full h-full object-contain"
-                    />
-                  ) : (
-                    <>
-                      <Icons.Scan size={48} className="text-gray-300 dark:text-gray-600 mb-4" />
-                      <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
-                        {t('common.uploadTip')}
-                      </p>
-                      <p className="text-[10px] text-gray-400 mt-1">
-                        {t('common.dragPasteTip') || '支持拖拽或粘贴图片'}
-                      </p>
-                    </>
-                  )}
-                  {scanning && (
-                    <div className="absolute inset-0 bg-blue-500/10 dark:bg-blue-500/20 flex flex-col items-center justify-center">
-                      <div className="text-blue-600 font-bold">{t('common.ocrProcessing')}</div>
-                    </div>
-                  )}
-                </div>
-
-                <p className="text-xs text-gray-400 px-2">{t('common.ocrPrivacy')}</p>
-
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => fileInputRef.current?.click()}
-                    className="flex-1 bg-gray-100 dark:bg-white/10 text-gray-700 dark:text-gray-200 py-2.5 rounded-xl font-bold"
-                  >
-                    {t('common.selectImage')}
-                  </button>
-                  <button
-                    onClick={handleAnalyze}
-                    disabled={!file || scanning}
-                    className="flex-1 bg-blue-600 text-white py-2.5 rounded-xl font-bold disabled:opacity-50"
-                  >
-                    {scanning ? t('common.analyzing') : t('common.startOcr')}
+              <motion.div
+                className="bg-white dark:bg-card-dark rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl max-h-[90vh] flex flex-col"
+                onClick={(e) => e.stopPropagation()}
+                initial={isDesktop ? { opacity: 0, scale: 0.95, y: 20 } : { opacity: 1, y: 40 }}
+                animate={isDesktop ? { opacity: 1, scale: 1, y: 0 } : { opacity: 1, y: 0 }}
+                exit={isDesktop ? { opacity: 0, scale: 0.95, y: 20 } : { opacity: 1, y: 40 }}
+                transition={{ type: 'spring', damping: 28, stiffness: 280 }}
+              >
+                <div className="p-4 border-b border-gray-100 dark:border-border-dark flex justify-between items-center bg-gray-50 dark:bg-white/5">
+                  <h3 className="font-bold text-gray-800 dark:text-gray-100">
+                    {t('common.smartEntry')}
+                  </h3>
+                  <button onClick={handleClose}>
+                    <Icons.Plus className="transform rotate-45 text-gray-400" />
                   </button>
                 </div>
 
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={handleFileChange}
-                />
-              </div>
-            </motion.div>
+                <div className="p-6 space-y-4 overflow-y-auto">
+                  <div
+                    className="w-full aspect-[3/4] bg-gray-50 dark:bg-white/5 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600 flex flex-col items-center justify-center relative overflow-hidden"
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={handleDrop}
+                  >
+                    {preview ? (
+                      <img
+                        src={preview}
+                        alt="preview"
+                        className="absolute inset-0 w-full h-full object-contain"
+                      />
+                    ) : (
+                      <>
+                        <Icons.Scan size={48} className="text-gray-300 dark:text-gray-600 mb-4" />
+                        <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                          {t('common.uploadTip')}
+                        </p>
+                        <p className="text-[10px] text-gray-400 mt-1">
+                          {t('common.dragPasteTip') || '支持拖拽或粘贴图片'}
+                        </p>
+                      </>
+                    )}
+                    {scanning && (
+                      <div className="absolute inset-0 bg-blue-500/10 dark:bg-blue-500/20 flex flex-col items-center justify-center">
+                        <div className="text-blue-600 font-bold">{t('common.ocrProcessing')}</div>
+                      </div>
+                    )}
+                  </div>
+
+                  <p className="text-xs text-gray-400 px-2">{t('common.ocrPrivacy')}</p>
+
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => fileInputRef.current?.click()}
+                      className="flex-1 bg-gray-100 dark:bg-white/10 text-gray-700 dark:text-gray-200 py-2.5 rounded-xl font-bold"
+                    >
+                      {t('common.selectImage')}
+                    </button>
+                    <button
+                      onClick={handleAnalyze}
+                      disabled={!file || scanning}
+                      className="flex-1 bg-blue-600 text-white py-2.5 rounded-xl font-bold disabled:opacity-50"
+                    >
+                      {scanning ? t('common.analyzing') : t('common.startOcr')}
+                    </button>
+                  </div>
+
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleFileChange}
+                  />
+                </div>
+              </motion.div>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
@@ -403,151 +449,171 @@ export const ScannerModal: React.FC<ScannerModalProps> = ({ isOpen, onClose }) =
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
           >
-            <motion.div
-              className="bg-white dark:bg-card-dark rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl max-h-[90vh] flex flex-col"
-              onClick={(e) => e.stopPropagation()}
-              initial={isDesktop ? { opacity: 0, scale: 0.95, y: 20 } : { opacity: 1, y: 40 }}
-              animate={isDesktop ? { opacity: 1, scale: 1, y: 0 } : { opacity: 1, y: 0 }}
-              exit={isDesktop ? { opacity: 0, scale: 0.95, y: 20 } : { opacity: 1, y: 40 }}
-              transition={{ type: 'spring', damping: 28, stiffness: 280 }}
+            <div
+              style={{ transform: `translateX(${transformX}px)`, transition }}
+              onTransitionEnd={() => {
+                if (closeTargetX !== null) {
+                  setCloseTargetX(null);
+                  resetDragState(setDragState);
+                  handleClose();
+                  return;
+                }
+                if (snapX !== null) {
+                  resetDragState(setDragState);
+                }
+              }}
             >
-              <div className="p-4 border-b border-gray-100 dark:border-border-dark flex justify-between items-center bg-gray-50 dark:bg-white/5">
-                <h3 className="font-bold text-gray-800 dark:text-gray-100">
-                  {t('common.ocrReview') || '识别结果确认'}
-                </h3>
-                <button
-                  onClick={() => {
-                    setIsReviewing(false);
-                    lastAutoValidateSignatureRef.current = '';
-                  }}
-                >
-                  <Icons.Plus className="transform rotate-45 text-gray-400" />
-                </button>
-              </div>
-              <div className="p-6 space-y-3 overflow-y-auto">
-                <div className="flex items-center justify-between">
-                  <button onClick={handleValidate} className="text-xs text-blue-600 font-bold">
-                    {t('common.validateFunds') || '重新验证'}
-                  </button>
-                </div>
-
-                <div className="space-y-3">
-                  {reviewItems.map((item) => {
-                    const isConflict = item.matchedCode && existingCodes.has(item.matchedCode);
-                    const decision = item.matchedCode ? conflictMap[item.matchedCode] : undefined;
-
-                    return (
-                      <div
-                        key={item.id}
-                        className="p-3 rounded-lg border border-gray-100 dark:border-border-dark"
-                      >
-                        <div className="flex items-center justify-between mb-2">
-                          <input
-                            value={item.name}
-                            onChange={(e) => updateReviewItem(item.id, { name: e.target.value })}
-                            className="flex-1 mr-2 px-2 py-1 border border-gray-200 dark:border-gray-700 rounded text-sm bg-white dark:bg-white/5"
-                          />
-                          <span
-                            className={`text-[10px] ${item.matched ? 'text-green-600' : 'text-gray-400'}`}
-                          >
-                            {item.matched
-                              ? t('common.matched') || '已匹配'
-                              : t('common.unmatched') || '未匹配'}
-                          </span>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-2 text-xs">
-                          <input
-                            value={item.amount ?? ''}
-                            onChange={(e) =>
-                              updateReviewItem(item.id, { amount: parseNumInput(e.target.value) })
-                            }
-                            placeholder={t('common.holdingAmount') || '持仓金额'}
-                            className="px-2 py-1 border border-gray-200 dark:border-gray-700 rounded bg-white dark:bg-white/5"
-                          />
-                          <input
-                            value={item.dayGain ?? ''}
-                            onChange={(e) =>
-                              updateReviewItem(item.id, { dayGain: parseNumInput(e.target.value) })
-                            }
-                            placeholder={t('common.dayGain') || '昨日收益'}
-                            className="px-2 py-1 border border-gray-200 dark:border-gray-700 rounded bg-white dark:bg-white/5"
-                          />
-                          <input
-                            value={item.holdingGain ?? ''}
-                            onChange={(e) =>
-                              updateReviewItem(item.id, {
-                                holdingGain: parseNumInput(e.target.value),
-                              })
-                            }
-                            placeholder={t('common.totalGain') || '持有收益'}
-                            className="px-2 py-1 border border-gray-200 dark:border-gray-700 rounded bg-white dark:bg-white/5"
-                          />
-                          <input
-                            value={item.holdingGainPct ?? ''}
-                            onChange={(e) =>
-                              updateReviewItem(item.id, {
-                                holdingGainPct: parseNumInput(e.target.value),
-                              })
-                            }
-                            placeholder={t('common.totalGainPct') || '持有收益率%'}
-                            className="px-2 py-1 border border-gray-200 dark:border-gray-700 rounded bg-white dark:bg-white/5"
-                          />
-                        </div>
-
-                        {item.matchedName && (
-                          <div className="text-[10px] text-gray-400 mt-2">
-                            {item.matchedName} ({item.matchedCode})
-                          </div>
-                        )}
-
-                        {isConflict && item.matchedCode && (
-                          <div className="mt-2 flex gap-2 text-[10px]">
-                            <button
-                              onClick={() =>
-                                setConflictMap((prev) => ({ ...prev, [item.matchedCode!]: 'keep' }))
-                              }
-                              className={`px-2 py-1 rounded ${decision === 'keep' ? 'bg-gray-200 dark:bg-white/10' : 'bg-gray-50 dark:bg-white/5'}`}
-                            >
-                              {t('common.keepExisting') || '保留已有'}
-                            </button>
-                            <button
-                              onClick={() =>
-                                setConflictMap((prev) => ({
-                                  ...prev,
-                                  [item.matchedCode!]: 'overwrite',
-                                }))
-                              }
-                              className={`px-2 py-1 rounded ${decision === 'overwrite' ? 'bg-blue-600 text-white' : 'bg-gray-50 dark:bg-white/5'}`}
-                            >
-                              {t('common.overwrite') || '覆盖'}
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-
-                <div className="flex gap-2 pt-2">
+              <motion.div
+                className="bg-white dark:bg-card-dark rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl max-h-[90vh] flex flex-col"
+                onClick={(e) => e.stopPropagation()}
+                initial={isDesktop ? { opacity: 0, scale: 0.95, y: 20 } : { opacity: 1, y: 40 }}
+                animate={isDesktop ? { opacity: 1, scale: 1, y: 0 } : { opacity: 1, y: 0 }}
+                exit={isDesktop ? { opacity: 0, scale: 0.95, y: 20 } : { opacity: 1, y: 40 }}
+                transition={{ type: 'spring', damping: 28, stiffness: 280 }}
+              >
+                <div className="p-4 border-b border-gray-100 dark:border-border-dark flex justify-between items-center bg-gray-50 dark:bg-white/5">
+                  <h3 className="font-bold text-gray-800 dark:text-gray-100">
+                    {t('common.ocrReview') || '识别结果确认'}
+                  </h3>
                   <button
                     onClick={() => {
                       setIsReviewing(false);
                       lastAutoValidateSignatureRef.current = '';
                     }}
-                    className="flex-1 bg-gray-100 dark:bg-white/10 text-gray-700 dark:text-gray-200 py-2.5 rounded-xl font-bold"
                   >
-                    {t('common.cancel')}
-                  </button>
-                  <button
-                    onClick={handleImport}
-                    className="flex-1 bg-blue-600 text-white py-2.5 rounded-xl font-bold"
-                  >
-                    {t('common.confirmImport') || '确认导入'}
+                    <Icons.Plus className="transform rotate-45 text-gray-400" />
                   </button>
                 </div>
-              </div>
-            </motion.div>
+                <div className="p-6 space-y-3 overflow-y-auto">
+                  <div className="flex items-center justify-between">
+                    <button onClick={handleValidate} className="text-xs text-blue-600 font-bold">
+                      {t('common.validateFunds') || '重新验证'}
+                    </button>
+                  </div>
+
+                  <div className="space-y-3">
+                    {reviewItems.map((item) => {
+                      const isConflict = item.matchedCode && existingCodes.has(item.matchedCode);
+                      const decision = item.matchedCode ? conflictMap[item.matchedCode] : undefined;
+
+                      return (
+                        <div
+                          key={item.id}
+                          className="p-3 rounded-lg border border-gray-100 dark:border-border-dark"
+                        >
+                          <div className="flex items-center justify-between mb-2">
+                            <input
+                              value={item.name}
+                              onChange={(e) => updateReviewItem(item.id, { name: e.target.value })}
+                              className="flex-1 mr-2 px-2 py-1 border border-gray-200 dark:border-gray-700 rounded text-sm bg-white dark:bg-white/5"
+                            />
+                            <span
+                              className={`text-[10px] ${item.matched ? 'text-green-600' : 'text-gray-400'}`}
+                            >
+                              {item.matched
+                                ? t('common.matched') || '已匹配'
+                                : t('common.unmatched') || '未匹配'}
+                            </span>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-2 text-xs">
+                            <input
+                              value={item.amount ?? ''}
+                              onChange={(e) =>
+                                updateReviewItem(item.id, { amount: parseNumInput(e.target.value) })
+                              }
+                              placeholder={t('common.holdingAmount') || '持仓金额'}
+                              className="px-2 py-1 border border-gray-200 dark:border-gray-700 rounded bg-white dark:bg-white/5"
+                            />
+                            <input
+                              value={item.dayGain ?? ''}
+                              onChange={(e) =>
+                                updateReviewItem(item.id, {
+                                  dayGain: parseNumInput(e.target.value),
+                                })
+                              }
+                              placeholder={t('common.dayGain') || '昨日收益'}
+                              className="px-2 py-1 border border-gray-200 dark:border-gray-700 rounded bg-white dark:bg-white/5"
+                            />
+                            <input
+                              value={item.holdingGain ?? ''}
+                              onChange={(e) =>
+                                updateReviewItem(item.id, {
+                                  holdingGain: parseNumInput(e.target.value),
+                                })
+                              }
+                              placeholder={t('common.totalGain') || '持有收益'}
+                              className="px-2 py-1 border border-gray-200 dark:border-gray-700 rounded bg-white dark:bg-white/5"
+                            />
+                            <input
+                              value={item.holdingGainPct ?? ''}
+                              onChange={(e) =>
+                                updateReviewItem(item.id, {
+                                  holdingGainPct: parseNumInput(e.target.value),
+                                })
+                              }
+                              placeholder={t('common.totalGainPct') || '持有收益率%'}
+                              className="px-2 py-1 border border-gray-200 dark:border-gray-700 rounded bg-white dark:bg-white/5"
+                            />
+                          </div>
+
+                          {item.matchedName && (
+                            <div className="text-[10px] text-gray-400 mt-2">
+                              {item.matchedName} ({item.matchedCode})
+                            </div>
+                          )}
+
+                          {isConflict && item.matchedCode && (
+                            <div className="mt-2 flex gap-2 text-[10px]">
+                              <button
+                                onClick={() =>
+                                  setConflictMap((prev) => ({
+                                    ...prev,
+                                    [item.matchedCode!]: 'keep',
+                                  }))
+                                }
+                                className={`px-2 py-1 rounded ${decision === 'keep' ? 'bg-gray-200 dark:bg-white/10' : 'bg-gray-50 dark:bg-white/5'}`}
+                              >
+                                {t('common.keepExisting') || '保留已有'}
+                              </button>
+                              <button
+                                onClick={() =>
+                                  setConflictMap((prev) => ({
+                                    ...prev,
+                                    [item.matchedCode!]: 'overwrite',
+                                  }))
+                                }
+                                className={`px-2 py-1 rounded ${decision === 'overwrite' ? 'bg-blue-600 text-white' : 'bg-gray-50 dark:bg-white/5'}`}
+                              >
+                                {t('common.overwrite') || '覆盖'}
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  <div className="flex gap-2 pt-2">
+                    <button
+                      onClick={() => {
+                        setIsReviewing(false);
+                        lastAutoValidateSignatureRef.current = '';
+                      }}
+                      className="flex-1 bg-gray-100 dark:bg-white/10 text-gray-700 dark:text-gray-200 py-2.5 rounded-xl font-bold"
+                    >
+                      {t('common.cancel')}
+                    </button>
+                    <button
+                      onClick={handleImport}
+                      className="flex-1 bg-blue-600 text-white py-2.5 rounded-xl font-bold"
+                    >
+                      {t('common.confirmImport') || '确认导入'}
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>

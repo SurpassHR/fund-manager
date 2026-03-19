@@ -1,10 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useState, useEffect } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../services/db';
 import { useTranslation } from '../services/i18n';
 import { Icons } from './Icon';
 import type { MorningstarFund, Fund } from '../types';
 import { searchFunds, fetchFundCommonData } from '../services/api';
+import { resetDragState, useEdgeSwipe } from '../services/edgeSwipeState';
+import { useOverlayRegistration } from '../services/overlayRegistration';
 
 interface AddFundModalProps {
   isOpen: boolean;
@@ -15,6 +17,13 @@ interface AddFundModalProps {
 export const AddFundModal: React.FC<AddFundModalProps> = ({ isOpen, onClose, editFund }) => {
   const { t } = useTranslation();
   const accounts = useLiveQuery(() => db.accounts.toArray());
+  const overlayId = 'add-fund-modal';
+  const { isDragging, dragX, activeOverlayId, setDragState, snapBackX } = useEdgeSwipe();
+  const [closeTargetX, setCloseTargetX] = useState<number | null>(null);
+  const translateX = isDragging && activeOverlayId === overlayId ? dragX : 0;
+  const snapX = activeOverlayId === overlayId ? snapBackX : null;
+  const transformX = closeTargetX ?? snapX ?? translateX;
+  const transition = closeTargetX !== null || snapX !== null ? 'transform 220ms ease' : 'none';
 
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<MorningstarFund[]>([]);
@@ -74,6 +83,40 @@ export const AddFundModal: React.FC<AddFundModalProps> = ({ isOpen, onClose, edi
       setError('');
     }
   }, [isOpen, editFund]);
+
+  const handleClose = () => {
+    setQuery('');
+    setResults([]);
+    setSelectedFund(null);
+    setCurrentNav(0);
+    setAmount('');
+    setShares('');
+    setCostPrice('');
+    setGain('');
+    setError('');
+    onClose();
+  };
+
+  const requestClose = useCallback(
+    (payload?: { source?: 'edge-swipe' | 'programmatic'; targetX?: number }) => {
+      if (payload?.source === 'edge-swipe' && payload.targetX !== undefined) {
+        setCloseTargetX(payload.targetX);
+        return;
+      }
+      handleClose();
+    },
+    [handleClose],
+  );
+
+  useOverlayRegistration(overlayId, isOpen, requestClose);
+
+  useEffect(() => {
+    return () => {
+      if (activeOverlayId === overlayId) {
+        resetDragState(setDragState);
+      }
+    };
+  }, [activeOverlayId, overlayId, setDragState]);
 
   if (!isOpen) return null;
 
@@ -237,19 +280,6 @@ export const AddFundModal: React.FC<AddFundModalProps> = ({ isOpen, onClose, edi
     handleClose();
   };
 
-  const handleClose = () => {
-    setQuery('');
-    setResults([]);
-    setSelectedFund(null);
-    setCurrentNav(0);
-    setAmount('');
-    setShares('');
-    setCostPrice('');
-    setGain('');
-    setError('');
-    onClose();
-  };
-
   const getGainColor = (val: string) => {
     if (!val) return 'text-gray-900';
     const num = parseFloat(val);
@@ -274,7 +304,21 @@ export const AddFundModal: React.FC<AddFundModalProps> = ({ isOpen, onClose, edi
 
   return (
     <div className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-white dark:bg-card-dark rounded-xl w-full max-w-md overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
+      <div
+        className="bg-white dark:bg-card-dark rounded-xl w-full max-w-md overflow-hidden shadow-2xl flex flex-col max-h-[90vh]"
+        style={{ transform: `translateX(${transformX}px)`, transition }}
+        onTransitionEnd={() => {
+          if (closeTargetX !== null) {
+            setCloseTargetX(null);
+            resetDragState(setDragState);
+            handleClose();
+            return;
+          }
+          if (snapX !== null) {
+            resetDragState(setDragState);
+          }
+        }}
+      >
         {/* 标题 */}
         <div className="p-4 border-b border-gray-100 dark:border-border-dark flex justify-between items-center bg-gray-50 dark:bg-white/5 shrink-0">
           <h3 className="font-bold text-gray-800 dark:text-gray-100">

@@ -1,8 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { db, getSettlementDate } from '../services/db';
 import { useTranslation } from '../services/i18n';
 import { Icons } from './Icon';
 import type { Fund, PendingTransaction } from '../types';
+import { resetDragState, useEdgeSwipe } from '../services/edgeSwipeState';
+import { useOverlayRegistration } from '../services/overlayRegistration';
 
 interface AdjustPositionModalProps {
   isOpen: boolean;
@@ -16,6 +18,13 @@ export const AdjustPositionModal: React.FC<AdjustPositionModalProps> = ({
   fund,
 }) => {
   const { t } = useTranslation();
+  const overlayId = 'adjust-position-modal';
+  const { isDragging, dragX, activeOverlayId, setDragState, snapBackX } = useEdgeSwipe();
+  const [closeTargetX, setCloseTargetX] = useState<number | null>(null);
+  const translateX = isDragging && activeOverlayId === overlayId ? dragX : 0;
+  const snapX = activeOverlayId === overlayId ? snapBackX : null;
+  const transformX = closeTargetX ?? snapX ?? translateX;
+  const transition = closeTargetX !== null || snapX !== null ? 'transform 220ms ease' : 'none';
 
   const [type, setType] = useState<'buy' | 'sell'>('buy');
   const [opDate, setOpDate] = useState('');
@@ -35,6 +44,31 @@ export const AdjustPositionModal: React.FC<AdjustPositionModalProps> = ({
       setCalculatedSettlementDate('');
     }
   }, [isOpen]);
+
+  const handleClose = () => {
+    onClose();
+  };
+
+  const requestClose = useCallback(
+    (payload?: { source?: 'edge-swipe' | 'programmatic'; targetX?: number }) => {
+      if (payload?.source === 'edge-swipe' && payload.targetX !== undefined) {
+        setCloseTargetX(payload.targetX);
+        return;
+      }
+      handleClose();
+    },
+    [handleClose],
+  );
+
+  useOverlayRegistration(overlayId, isOpen, requestClose);
+
+  useEffect(() => {
+    return () => {
+      if (activeOverlayId === overlayId) {
+        resetDragState(setDragState);
+      }
+    };
+  }, [activeOverlayId, overlayId, setDragState]);
 
   // 实时计算确认日
   useEffect(() => {
@@ -81,13 +115,27 @@ export const AdjustPositionModal: React.FC<AdjustPositionModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-white dark:bg-card-dark rounded-xl w-full max-w-md overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
+      <div
+        className="bg-white dark:bg-card-dark rounded-xl w-full max-w-md overflow-hidden shadow-2xl flex flex-col max-h-[90vh]"
+        style={{ transform: `translateX(${transformX}px)`, transition }}
+        onTransitionEnd={() => {
+          if (closeTargetX !== null) {
+            setCloseTargetX(null);
+            resetDragState(setDragState);
+            handleClose();
+            return;
+          }
+          if (snapX !== null) {
+            resetDragState(setDragState);
+          }
+        }}
+      >
         {/* 标题 */}
         <div className="p-4 border-b border-gray-100 dark:border-border-dark flex justify-between items-center bg-gray-50 dark:bg-white/5 shrink-0">
           <h3 className="font-bold text-gray-800 dark:text-gray-100">
             {t('common.adjustPosition') || '加减仓'}
           </h3>
-          <button onClick={onClose}>
+          <button onClick={handleClose}>
             <Icons.Plus className="transform rotate-45 text-gray-400" />
           </button>
         </div>
@@ -209,7 +257,7 @@ export const AdjustPositionModal: React.FC<AdjustPositionModalProps> = ({
           {/* 操作按钮 */}
           <div className="flex gap-3 pt-2">
             <button
-              onClick={onClose}
+              onClick={handleClose}
               className="flex-1 py-3 text-sm font-bold text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-white/10 rounded-xl hover:bg-gray-200 dark:hover:bg-white/15"
             >
               {t('common.cancel')}
