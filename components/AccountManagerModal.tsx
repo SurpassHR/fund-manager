@@ -25,8 +25,9 @@ export const AccountManagerModal: React.FC<AccountManagerModalProps> = ({ isOpen
   if (!isOpen) return null;
 
   const handleAddAccount = async () => {
-    if (newAccountName.trim()) {
-      await db.accounts.add({ name: newAccountName.trim(), isDefault: false });
+    const normalized = normalizeAccountName(newAccountName);
+    if (normalized) {
+      await db.accounts.add({ name: normalized, isDefault: false });
       setNewAccountName('');
       setIsAdding(false);
     }
@@ -53,7 +54,7 @@ export const AccountManagerModal: React.FC<AccountManagerModalProps> = ({ isOpen
   };
 
   const handleSaveEdit = async (acc: Account) => {
-    const newName = editName.trim();
+    const newName = normalizeAccountName(editName);
     if (!newName || !acc.id) return;
 
     if (newName === acc.name) {
@@ -97,8 +98,9 @@ export const AccountManagerModal: React.FC<AccountManagerModalProps> = ({ isOpen
                     <input
                       autoFocus
                       value={editName}
-                      onChange={(e) => setEditName(e.target.value)}
-                      className="flex-1 px-2 py-1 border border-blue-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      maxLength={4}
+                      onChange={(e) => setEditName(normalizeAccountName(e.target.value))}
+                      className="flex-1 px-2 py-1 border border-blue-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 whitespace-nowrap"
                     />
                     <button
                       onClick={() => handleSaveEdit(acc)}
@@ -116,7 +118,7 @@ export const AccountManagerModal: React.FC<AccountManagerModalProps> = ({ isOpen
                 ) : (
                   // View Mode
                   <>
-                    <span className="text-sm font-medium text-gray-700 truncate flex-1">
+                    <span className="text-sm font-medium text-gray-700 truncate whitespace-nowrap flex-1">
                       {t(`filters.${acc.name}`) === `filters.${acc.name}`
                         ? acc.name
                         : t(`filters.${acc.name}`)}
@@ -155,9 +157,10 @@ export const AccountManagerModal: React.FC<AccountManagerModalProps> = ({ isOpen
                 autoFocus
                 type="text"
                 value={newAccountName}
-                onChange={(e) => setNewAccountName(e.target.value)}
+                maxLength={4}
+                onChange={(e) => setNewAccountName(normalizeAccountName(e.target.value))}
                 placeholder={t('common.accountName')}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-blue-500 whitespace-nowrap"
               />
               <div className="flex gap-2 justify-end">
                 <button
@@ -187,4 +190,8 @@ export const AccountManagerModal: React.FC<AccountManagerModalProps> = ({ isOpen
       </div>
     </div>
   );
+};
+const normalizeAccountName = (value: string) => {
+  const noLineBreak = value.replace(/[\r\n]/g, '').trim();
+  return Array.from(noLineBreak).slice(0, 4).join('');
 };

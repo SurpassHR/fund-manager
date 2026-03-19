@@ -9,33 +9,36 @@ export interface Fund {
   lastUpdate: string;
   dayChangePct: number; // Percentage change (e.g., 1.5 for 1.5%)
   dayChangeVal: number; // Value change per share implied or pre-calculated
+  officialDayChangePct?: number; // 上一个交易日收盘涨跌幅
+  estimatedDayChangePct?: number; // 今日盘中估值涨跌幅（不可用时为 0）
+  todayChangeIsEstimated?: boolean; // 今日涨幅是否为盘中估值
   buyDate?: string; // YYYY-MM-DD
   buyTime?: 'before15' | 'after15';
-  settlementDays?: number;              // T+N 中的 N，默认 1
+  settlementDays?: number; // T+N 中的 N，默认 1
   pendingTransactions?: PendingTransaction[]; // 在途交易列表
 }
 
 export interface PendingTransaction {
-  id: string;                          // uuid
-  type: 'buy' | 'sell';               // 加仓/减仓
-  date: string;                        // 操作日期 YYYY-MM-DD
-  time: 'before15' | 'after15';       // 15:00 前后
-  amount: number;                      // 加仓金额(元) / 减仓份额
-  settlementDate: string;              // 份额确认日 YYYY-MM-DD
-  settled: boolean;                    // 是否已结算
+  id: string; // uuid
+  type: 'buy' | 'sell'; // 加仓/减仓
+  date: string; // 操作日期 YYYY-MM-DD
+  time: 'before15' | 'after15'; // 15:00 前后
+  amount: number; // 加仓金额(元) / 减仓份额
+  settlementDate: string; // 份额确认日 YYYY-MM-DD
+  settled: boolean; // 是否已结算
 }
 
 export interface WatchlistItem {
   id?: number;
   code: string;
   name: string;
-  type: 'fund' | 'index';             // 基金或指数/板块
-  platform?: string;                  // 仅针对基金可能需要渠道区分
-  anchorPrice: number;                // 锚点价格 / 点数
-  anchorDate: string;                 // 锚定日期 YYYY-MM-DD
-  currentPrice: number;               // 当前最新价格 / 点数
-  dayChangePct: number;               // 最新日涨跌幅(%)
-  lastUpdate: string;                 // 最后更新时间/日期
+  type: 'fund' | 'index'; // 基金或指数/板块
+  platform?: string; // 仅针对基金可能需要渠道区分
+  anchorPrice: number; // 锚点价格 / 点数
+  anchorDate: string; // 锚定日期 YYYY-MM-DD
+  currentPrice: number; // 当前最新价格 / 点数
+  dayChangePct: number; // 最新日涨跌幅(%)
+  lastUpdate: string; // 最后更新时间/日期
 }
 
 export interface Account {
