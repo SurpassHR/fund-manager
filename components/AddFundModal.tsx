@@ -5,7 +5,7 @@ import { useTranslation } from '../services/i18n';
 import { Icons } from './Icon';
 import type { MorningstarFund, Fund } from '../types';
 import { searchFunds, fetchFundCommonData } from '../services/api';
-import { resetDragState, useEdgeSwipe } from '../services/edgeSwipeState';
+import { resetDragState, useEdgeSwipe } from '../services/useEdgeSwipe';
 import { useOverlayRegistration } from '../services/overlayRegistration';
 
 interface AddFundModalProps {
@@ -84,7 +84,7 @@ export const AddFundModal: React.FC<AddFundModalProps> = ({ isOpen, onClose, edi
     }
   }, [isOpen, editFund]);
 
-  const handleClose = () => {
+  const handleClose = useCallback(() => {
     setQuery('');
     setResults([]);
     setSelectedFund(null);
@@ -95,7 +95,7 @@ export const AddFundModal: React.FC<AddFundModalProps> = ({ isOpen, onClose, edi
     setGain('');
     setError('');
     onClose();
-  };
+  }, [onClose]);
 
   const requestClose = useCallback(
     (payload?: { source?: 'edge-swipe' | 'programmatic'; targetX?: number }) => {

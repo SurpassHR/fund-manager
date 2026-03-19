@@ -13,7 +13,7 @@ import { buildChartOption, buildLegendViewModel, buildTradeMarkers } from './fun
 import { formatPct, getSignColor, formatSignedCurrency } from '../services/financeUtils';
 import { useTranslation } from '../services/i18n';
 import { useTheme } from '../services/ThemeContext';
-import { resetDragState, useEdgeSwipe } from '../services/edgeSwipeState';
+import { resetDragState, useEdgeSwipe } from '../services/useEdgeSwipe';
 import { useOverlayRegistration } from '../services/overlayRegistration';
 import {
   buildTencentQuoteCodes,

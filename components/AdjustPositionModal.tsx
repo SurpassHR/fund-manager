@@ -3,7 +3,7 @@ import { db, getSettlementDate } from '../services/db';
 import { useTranslation } from '../services/i18n';
 import { Icons } from './Icon';
 import type { Fund, PendingTransaction } from '../types';
-import { resetDragState, useEdgeSwipe } from '../services/edgeSwipeState';
+import { resetDragState, useEdgeSwipe } from '../services/useEdgeSwipe';
 import { useOverlayRegistration } from '../services/overlayRegistration';
 
 interface AdjustPositionModalProps {
@@ -45,9 +45,9 @@ export const AdjustPositionModal: React.FC<AdjustPositionModalProps> = ({
     }
   }, [isOpen]);
 
-  const handleClose = () => {
+  const handleClose = useCallback(() => {
     onClose();
-  };
+  }, [onClose]);
 
   const requestClose = useCallback(
     (payload?: { source?: 'edge-swipe' | 'programmatic'; targetX?: number }) => {

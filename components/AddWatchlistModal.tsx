@@ -5,7 +5,7 @@ import { useTranslation } from '../services/i18n';
 import type { WatchlistItem, MorningstarFund } from '../types';
 import { searchFunds, fetchHistoricalFundNav, fetchHistoricalIndexPrice } from '../services/api';
 import { motion, AnimatePresence } from 'framer-motion';
-import { resetDragState, useEdgeSwipe } from '../services/edgeSwipeState';
+import { resetDragState, useEdgeSwipe } from '../services/useEdgeSwipe';
 import { useOverlayRegistration } from '../services/overlayRegistration';
 
 interface AddWatchlistModalProps {
@@ -100,9 +100,9 @@ export const AddWatchlistModal: React.FC<AddWatchlistModalProps> = ({
     }
   }, [isOpen, editItem]);
 
-  const handleClose = () => {
+  const handleClose = useCallback(() => {
     onClose();
-  };
+  }, [onClose]);
 
   const requestClose = useCallback(
     (payload?: { source?: 'edge-swipe' | 'programmatic'; targetX?: number }) => {

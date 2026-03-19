@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from '../services/i18n';
-import { resetDragState, useEdgeSwipe } from '../services/edgeSwipeState';
+import { resetDragState, useEdgeSwipe } from '../services/useEdgeSwipe';
 import { useOverlayRegistration } from '../services/overlayRegistration';
 
 interface CommitEntry {
@@ -37,10 +37,10 @@ export const WelcomeModal: React.FC = () => {
     }
   }, []);
 
-  const handleClose = () => {
+  const handleClose = useCallback(() => {
     localStorage.setItem('lastSeenVersion', CURRENT_VERSION);
     setIsOpen(false);
-  };
+  }, []);
 
   const requestClose = useCallback(
     (payload?: { source?: 'edge-swipe' | 'programmatic'; targetX?: number }) => {
