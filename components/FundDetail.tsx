@@ -6,6 +6,7 @@ import type {
   EquityHolding,
   MorningstarGrowthDataResponse,
   DanjuanGrowthDataResponse,
+  PendingTransaction,
 } from '../types';
 import { Icons } from './Icon';
 import { formatPct, getSignColor, formatSignedCurrency } from '../services/financeUtils';
@@ -60,6 +61,379 @@ type MarkPointDatum = {
     fontSize?: number;
     fontWeight?: 'normal' | 'bold' | 'bolder' | 'lighter' | number;
   };
+};
+
+type TradeMarkerInput = {
+  dates: string[];
+  fundData: Array<number | null | undefined>;
+  isWatchlist: boolean;
+  buyDate?: string;
+  anchorDate?: string;
+  pendingTransactions?: PendingTransaction[];
+  holdingShares: number;
+};
+
+type FundSeriesInput = {
+  name: string;
+  data: Array<number | null>;
+  markers: MarkPointDatum[];
+  isLargeSeries: boolean;
+  color: string | echarts.graphic.LinearGradient;
+  anchorDate?: string;
+  isDark: boolean;
+};
+
+type ChartOptionInput = {
+  fundName: string;
+  dates: string[];
+  fundData: Array<number | null>;
+  bmkData: Array<number | null>;
+  markers: MarkPointDatum[];
+  isLargeSeries: boolean;
+  color: string | echarts.graphic.LinearGradient;
+  anchorDate?: string;
+  isDark: boolean;
+  shouldAnimate: boolean;
+  startStr: string;
+  endStr: string;
+  tooltipFormatter: (params: unknown) => string;
+};
+
+const MARKER_COLORS = {
+  buy: '#f87171',
+  sell: '#3b82f6',
+  liquidation: '#fbbf24',
+  anchor: '#3b82f6',
+};
+
+const MARKER_DEFAULTS = {
+  symbol: 'circle',
+  symbolSize: 8,
+  label: { show: false },
+} as const;
+
+const compareTransactions = (a: PendingTransaction, b: PendingTransaction) => {
+  if (a.date === b.date) {
+    const aTime = a.time === 'after15' ? 1 : 0;
+    const bTime = b.time === 'after15' ? 1 : 0;
+    return aTime - bTime;
+  }
+  return a.date.localeCompare(b.date);
+};
+
+export const buildTradeMarkers = ({
+  dates,
+  fundData,
+  isWatchlist,
+  buyDate,
+  anchorDate,
+  pendingTransactions,
+  holdingShares,
+}: TradeMarkerInput): MarkPointDatum[] => {
+  const points: MarkPointDatum[] = [];
+
+  if (isWatchlist) {
+    if (anchorDate) {
+      const idx = dates.indexOf(anchorDate);
+      if (idx !== -1) {
+        points.push({
+          name: 'anchor',
+          coord: [anchorDate, fundData[idx] ?? null],
+          itemStyle: { color: MARKER_COLORS.anchor },
+          ...MARKER_DEFAULTS,
+        });
+      }
+    }
+    return points;
+  }
+
+  if (buyDate) {
+    const idx = dates.indexOf(buyDate);
+    if (idx !== -1) {
+      points.push({
+        name: 'buy',
+        coord: [buyDate, fundData[idx] ?? null],
+        itemStyle: { color: MARKER_COLORS.buy },
+        ...MARKER_DEFAULTS,
+      });
+    }
+  }
+
+  const transactions = pendingTransactions || [];
+  const sellTxs = transactions.filter((tx) => tx.type === 'sell');
+  const buyTxs = transactions.filter((tx) => tx.type === 'buy');
+
+  let liquidationDate: string | null = null;
+  if (holdingShares === 0 && buyTxs.length === 0 && sellTxs.length > 0) {
+    const sortedSells = [...sellTxs].sort(compareTransactions);
+    let runningShares = holdingShares + sortedSells.reduce((sum, tx) => sum + tx.amount, 0);
+
+    for (const tx of sortedSells) {
+      runningShares -= tx.amount;
+      if (runningShares <= 0) {
+        liquidationDate = tx.date;
+        break;
+      }
+    }
+
+    if (liquidationDate && !dates.includes(liquidationDate)) {
+      liquidationDate = null;
+    }
+  }
+
+  sellTxs.forEach((tx) => {
+    const idx = dates.indexOf(tx.date);
+    if (idx === -1) return;
+
+    if (liquidationDate && liquidationDate === tx.date) {
+      points.push({
+        name: 'liquidation',
+        coord: [tx.date, fundData[idx] ?? null],
+        itemStyle: { color: MARKER_COLORS.liquidation },
+        ...MARKER_DEFAULTS,
+      });
+      return;
+    }
+
+    points.push({
+      name: 'sell',
+      coord: [tx.date, fundData[idx] ?? null],
+      itemStyle: { color: MARKER_COLORS.sell },
+      ...MARKER_DEFAULTS,
+    });
+  });
+
+  return points;
+};
+
+export const buildFundSeries = ({
+  name,
+  data,
+  markers,
+  isLargeSeries,
+  color,
+  anchorDate,
+  isDark,
+}: FundSeriesInput): echarts.SeriesOption => ({
+  name,
+  type: 'line',
+  data,
+  showSymbol: false,
+  symbol: 'circle',
+  symbolSize: 6,
+  smooth: true,
+  sampling: isLargeSeries ? 'lttb' : undefined,
+  progressive: isLargeSeries ? 300 : undefined,
+  progressiveThreshold: isLargeSeries ? 500 : undefined,
+  lineStyle: { width: 2, color },
+  itemStyle: { color, borderColor: '#fff', borderWidth: 1 },
+  areaStyle: anchorDate
+    ? undefined
+    : {
+        color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+          { offset: 0, color: color as string },
+          { offset: 1, color: isDark ? 'rgba(0,0,0,0)' : 'rgba(255,255,255,0)' },
+        ]),
+        opacity: 0.2,
+      },
+  markLine: anchorDate
+    ? {
+        silent: true,
+        symbol: 'none',
+        label: {
+          show: true,
+          position: 'insideEndTop',
+          formatter: '持仓成本',
+          color: isDark ? '#9ca3af' : '#6b7280',
+          fontSize: 10,
+          padding: [0, 4],
+        },
+        lineStyle: {
+          color: isDark ? '#6b7280' : '#9ca3af',
+          type: 'dashed',
+          width: 1,
+        },
+        data: [{ yAxis: 0 }],
+      }
+    : undefined,
+  markPoint: markers.length > 0 ? { data: markers, animation: true } : undefined,
+  z: 3,
+});
+
+export const buildChartOption = ({
+  fundName,
+  dates,
+  fundData,
+  bmkData,
+  markers,
+  isLargeSeries,
+  color,
+  anchorDate,
+  isDark,
+  shouldAnimate,
+  startStr,
+  endStr,
+  tooltipFormatter,
+}: ChartOptionInput): echarts.EChartsOption => ({
+  title: {
+    text: `${startStr} 至 ${endStr}`,
+    left: '0%',
+    top: '0%',
+    textStyle: { fontSize: 12, color: isDark ? '#9ca3af' : '#666', fontWeight: 'normal' },
+  },
+  animation: shouldAnimate,
+  animationDuration: shouldAnimate ? 300 : 0,
+  animationEasing: shouldAnimate ? 'cubicOut' : 'linear',
+  backgroundColor: 'transparent',
+  grid: { left: 20, right: 10, bottom: 30, top: 10, containLabel: true },
+  tooltip: {
+    trigger: 'axis',
+    axisPointer: {
+      type: 'cross',
+      label: {
+        backgroundColor: isDark ? '#374151' : '#6b7280',
+        fontFamily: 'monospace',
+      },
+      crossStyle: {
+        color: isDark ? '#9ca3af' : '#9ca3af',
+        type: 'dashed',
+      },
+    },
+    backgroundColor: isDark ? 'rgba(31, 41, 55, 0.95)' : 'rgba(255, 255, 255, 0.95)',
+    borderColor: isDark ? '#374151' : '#eee',
+    borderWidth: 1,
+    padding: [8, 12],
+    textStyle: { color: isDark ? '#f3f4f6' : '#333', fontSize: 12 },
+    formatter: tooltipFormatter,
+  },
+  xAxis: {
+    type: 'category',
+    boundaryGap: false,
+    data: dates,
+    axisLine: { show: false },
+    axisTick: { show: false },
+    axisLabel: {
+      interval: 'auto',
+      color: isDark ? '#9ca3af' : '#999',
+      fontSize: 10,
+      formatter: (value: string) => value.substring(2),
+    },
+  },
+  yAxis: {
+    type: 'value',
+    position: 'right',
+    axisLine: { show: false },
+    axisTick: { show: false },
+    splitLine: {
+      show: true,
+      lineStyle: {
+        color: isDark ? '#374151' : '#f3f4f6',
+        type: 'dashed',
+        width: 1,
+      },
+    },
+    axisLabel: {
+      show: true,
+      inside: false,
+      color: isDark ? '#9ca3af' : '#9ca3af',
+      fontSize: 10,
+      formatter: (val: number) => `${val.toFixed(0)}%`,
+    },
+  },
+  series: [
+    buildFundSeries({
+      name: fundName,
+      data: fundData,
+      markers,
+      isLargeSeries,
+      color,
+      anchorDate,
+      isDark,
+    }),
+    {
+      name: '业绩基准',
+      type: 'line',
+      data: bmkData,
+      showSymbol: false,
+      smooth: true,
+      sampling: isLargeSeries ? 'lttb' : undefined,
+      progressive: isLargeSeries ? 300 : undefined,
+      progressiveThreshold: isLargeSeries ? 500 : undefined,
+      lineStyle: { width: 1, color: '#fbbf24', type: 'dashed', opacity: 0.5 },
+      itemStyle: { color: '#fbbf24' },
+      z: 2,
+    },
+  ],
+});
+
+export const getTradeLegendLabels = (t: (key: string) => string) => ({
+  buy: t('common.tradeBuyLabel'),
+  sell: t('common.tradeSellLabel'),
+  liquidation: t('common.tradeLiquidationLabel'),
+  anchor: t('common.tradeAnchorLabel'),
+});
+
+export const buildLegendViewModel = ({
+  isWatchlist,
+  t,
+}: {
+  isWatchlist: boolean;
+  t: (key: string) => string;
+}): { mode: 'holding' | 'watchlist'; labels: ReturnType<typeof getTradeLegendLabels> } => ({
+  mode: isWatchlist ? 'watchlist' : 'holding',
+  labels: getTradeLegendLabels(t),
+});
+
+export const TradeMarkerLegend = ({
+  mode,
+  labels,
+}: {
+  mode: 'holding' | 'watchlist';
+  labels: { buy: string; sell: string; liquidation: string; anchor: string };
+}) => {
+  if (mode === 'watchlist') {
+    return (
+      <div className="flex items-center gap-3 text-xs text-gray-500 dark:text-gray-400">
+        <span className="inline-flex items-center gap-1">
+          <span
+            data-testid="legend-dot-anchor"
+            className="inline-block h-2 w-2 rounded-full"
+            style={{ backgroundColor: MARKER_COLORS.anchor }}
+          />
+          {labels.anchor}
+        </span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-3 text-xs text-gray-500 dark:text-gray-400">
+      <span className="inline-flex items-center gap-1">
+        <span
+          data-testid="legend-dot-buy"
+          className="inline-block h-2 w-2 rounded-full"
+          style={{ backgroundColor: MARKER_COLORS.buy }}
+        />
+        {labels.buy}
+      </span>
+      <span className="inline-flex items-center gap-1">
+        <span
+          data-testid="legend-dot-sell"
+          className="inline-block h-2 w-2 rounded-full"
+          style={{ backgroundColor: MARKER_COLORS.sell }}
+        />
+        {labels.sell}
+      </span>
+      <span className="inline-flex items-center gap-1">
+        <span
+          data-testid="legend-dot-liquidation"
+          className="inline-block h-2 w-2 rounded-full"
+          style={{ backgroundColor: MARKER_COLORS.liquidation }}
+        />
+        {labels.liquidation}
+      </span>
+    </div>
+  );
 };
 
 interface GrowthDataCacheRecord {
@@ -562,220 +936,54 @@ export const FundDetail: React.FC<FundDetailProps> = ({
       color = lastVal >= firstVal ? '#f87171' : '#34d399';
     }
 
-    const option: echarts.EChartsOption = {
-      title: {
-        text: `${startStr} 至 ${endStr}`,
-        left: '0%',
-        top: '0%',
-        textStyle: { fontSize: 12, color: isDark ? '#9ca3af' : '#666', fontWeight: 'normal' },
-      },
-      animation: shouldAnimate,
-      animationDuration: shouldAnimate ? 300 : 0,
-      animationEasing: shouldAnimate ? 'cubicOut' : 'linear',
-      backgroundColor: 'transparent',
-      grid: { left: 20, right: 10, bottom: 30, top: 10, containLabel: true }, // Auto calculate padding
-      tooltip: {
-        trigger: 'axis',
-        axisPointer: {
-          type: 'cross',
-          label: {
-            backgroundColor: isDark ? '#374151' : '#6b7280',
-            fontFamily: 'monospace',
-          },
-          crossStyle: {
-            color: isDark ? '#9ca3af' : '#9ca3af',
-            type: 'dashed',
-          },
-        },
-        backgroundColor: isDark ? 'rgba(31, 41, 55, 0.95)' : 'rgba(255, 255, 255, 0.95)',
-        borderColor: isDark ? '#374151' : '#eee',
-        borderWidth: 1,
-        padding: [8, 12],
-        textStyle: { color: isDark ? '#f3f4f6' : '#333', fontSize: 12 },
-        formatter: (params: unknown) => {
-          if (!Array.isArray(params) || params.length === 0) return '';
+    const tooltipFormatter = (params: unknown) => {
+      if (!Array.isArray(params) || params.length === 0) return '';
 
-          const list = params as TooltipSeriesParam[];
-          const date = list[0]?.axisValue;
-          if (!date) return '';
-          let html = `<div style="font-weight:bold; margin-bottom:4px; font-family:monospace;">${date}</div>`;
+      const list = params as TooltipSeriesParam[];
+      const date = list[0]?.axisValue;
+      if (!date) return '';
+      let html = `<div style="font-weight:bold; margin-bottom:4px; font-family:monospace;">${date}</div>`;
 
-          list.forEach((item) => {
-            const val = item.value;
-            if (val == null) return; // 当日数据尚未到位，跳过
-            const sign = val >= 0 ? '+' : '';
-            const valColor = val >= 0 ? '#f87171' : '#34d399';
+      list.forEach((item) => {
+        const val = item.value;
+        if (val == null) return;
+        const sign = val >= 0 ? '+' : '';
+        const valColor = val >= 0 ? '#f87171' : '#34d399';
 
-            html += `
+        html += `
                         <div style="display:flex; justify-content:space-between; align-items:center; gap:16px; margin-bottom:2px;">
                             <span style="color:${isDark ? '#d1d5db' : '#4b5563'}">${item.seriesName}</span>
                             <span style="color:${valColor}; font-family:monospace; font-weight:600;">${sign}${val.toFixed(2)}%</span>
                         </div>`;
-          });
-          return html;
-        },
-      },
-      xAxis: {
-        type: 'category',
-        boundaryGap: false,
-        data: dates,
-        axisLine: { show: false },
-        axisTick: { show: false },
-        axisLabel: {
-          // showMinLabel: true,
-          // showMaxLabel: true,
-          interval: 'auto',
-          color: isDark ? '#9ca3af' : '#999',
-          fontSize: 10,
-          formatter: (value: string) => value.substring(2),
-        },
-      },
-      yAxis: {
-        type: 'value',
-        position: 'right', // Right side Y-axis like reference
-        axisLine: { show: false },
-        axisTick: { show: false },
-        splitLine: {
-          show: true,
-          lineStyle: {
-            color: isDark ? '#374151' : '#f3f4f6',
-            type: 'dashed',
-            width: 1,
-          },
-        },
-        axisLabel: {
-          show: true,
-          inside: false,
-          color: isDark ? '#9ca3af' : '#9ca3af',
-          fontSize: 10,
-          formatter: (val: number) => `${val.toFixed(0)}%`,
-        },
-      },
-      series: [
-        {
-          name: fund.name,
-          type: 'line',
-          data: fundData,
-          showSymbol: false,
-          symbol: 'circle',
-          symbolSize: 6,
-          smooth: true, // Smooth line
-          sampling: isLargeSeries ? 'lttb' : undefined,
-          progressive: isLargeSeries ? 300 : undefined,
-          progressiveThreshold: isLargeSeries ? 500 : undefined,
-          lineStyle: { width: 2, color: color },
-          itemStyle: { color: color, borderColor: '#fff', borderWidth: 1 },
-          areaStyle: anchorDate
-            ? undefined
-            : {
-                color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-                  { offset: 0, color: color as string },
-                  { offset: 1, color: isDark ? 'rgba(0,0,0,0)' : 'rgba(255,255,255,0)' }, // Fade to transparent
-                ]),
-                opacity: 0.2,
-              },
-          markLine: anchorDate
-            ? {
-                silent: true,
-                symbol: 'none',
-                label: {
-                  show: true,
-                  position: 'insideEndTop',
-                  formatter: '持仓成本',
-                  color: isDark ? '#9ca3af' : '#6b7280',
-                  fontSize: 10,
-                  padding: [0, 4],
-                },
-                lineStyle: {
-                  color: isDark ? '#6b7280' : '#9ca3af',
-                  type: 'dashed',
-                  width: 1,
-                },
-                data: [{ yAxis: 0 }],
-              }
-            : undefined,
-          markPoint: (() => {
-            const points: MarkPointDatum[] = [];
-
-            if (anchorDate) {
-              // Watchlist: mark anchor date
-              const idx = dates.indexOf(anchorDate);
-              if (idx !== -1) {
-                points.push({
-                  name: 'anchor',
-                  coord: [anchorDate, fundData[idx]],
-                  symbol: 'pin',
-                  symbolSize: 36,
-                  itemStyle: { color: '#3b82f6' },
-                  label: {
-                    show: true,
-                    formatter: '锚',
-                    color: '#fff',
-                    fontSize: 10,
-                    fontWeight: 'bold',
-                  },
-                });
-              }
-            } else {
-              // Holdings: mark buy date
-              if (fund.buyDate) {
-                const idx = dates.indexOf(fund.buyDate);
-                if (idx !== -1) {
-                  points.push({
-                    name: 'buy',
-                    coord: [fund.buyDate, fundData[idx]],
-                    symbol: 'pin',
-                    symbolSize: 36,
-                    itemStyle: { color: '#3b82f6' },
-                    label: {
-                      show: true,
-                      formatter: '买',
-                      color: '#fff',
-                      fontSize: 10,
-                      fontWeight: 'bold',
-                    },
-                  });
-                }
-              }
-              // Holdings: mark pending transactions
-              if (fund.pendingTransactions) {
-                fund.pendingTransactions.forEach((tx) => {
-                  const idx = dates.indexOf(tx.date);
-                  if (idx !== -1) {
-                    const isBuy = tx.type === 'buy';
-                    points.push({
-                      name: isBuy ? 'tx-buy' : 'tx-sell',
-                      coord: [tx.date, fundData[idx]],
-                      symbol: isBuy ? 'arrow' : 'triangle',
-                      symbolSize: 14,
-                      symbolRotate: isBuy ? 0 : 180,
-                      itemStyle: { color: isBuy ? '#f87171' : '#34d399' },
-                      label: { show: false },
-                    });
-                  }
-                });
-              }
-            }
-
-            return points.length > 0 ? { data: points, animation: true } : undefined;
-          })(),
-          z: 3,
-        },
-        {
-          name: '业绩基准',
-          type: 'line',
-          data: bmkData,
-          showSymbol: false,
-          smooth: true,
-          sampling: isLargeSeries ? 'lttb' : undefined,
-          progressive: isLargeSeries ? 300 : undefined,
-          progressiveThreshold: isLargeSeries ? 500 : undefined,
-          lineStyle: { width: 1, color: '#fbbf24', type: 'dashed', opacity: 0.5 },
-          itemStyle: { color: '#fbbf24' },
-          z: 2,
-        },
-      ],
+      });
+      return html;
     };
+
+    const markers = buildTradeMarkers({
+      dates,
+      fundData,
+      isWatchlist: Boolean(anchorDate),
+      buyDate: fund.buyDate,
+      anchorDate,
+      pendingTransactions: fund.pendingTransactions,
+      holdingShares: fund.holdingShares,
+    });
+
+    const option = buildChartOption({
+      fundName: fund.name,
+      dates,
+      fundData: fundData.map((val) => (val == null || isNaN(val) ? null : val)),
+      bmkData: bmkData.map((val) => (val == null || isNaN(val) ? null : val)),
+      markers,
+      isLargeSeries,
+      color,
+      anchorDate,
+      isDark,
+      shouldAnimate,
+      startStr,
+      endStr,
+      tooltipFormatter,
+    });
 
     if (chartInstance.current) {
       chartInstance.current.clear(); // Explicitly clear the chart to force a fresh animation
@@ -848,6 +1056,10 @@ export const FundDetail: React.FC<FundDetailProps> = ({
   }, [onBack]);
 
   const ranges: TimeRange[] = ['1M', '3M', '6M', '1Y', '3Y', '5Y'];
+  const legendViewModel = useMemo(
+    () => buildLegendViewModel({ isWatchlist: Boolean(anchorDate), t }),
+    [anchorDate, t],
+  );
 
   // Apply toggle limit
   const displayedHistory = showAllHistory ? historyData : historyData.slice(0, 10);
@@ -988,7 +1200,7 @@ export const FundDetail: React.FC<FundDetailProps> = ({
 
             {/* ECharts Section */}
             <div className="bg-white dark:bg-card-dark p-4 mb-2 transition-colors">
-              <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center justify-between mb-2">
                 <h3 className="font-bold text-gray-800 dark:text-gray-100 text-sm border-l-4 border-blue-500 pl-2">
                   累计收益走势
                 </h3>
@@ -1007,6 +1219,10 @@ export const FundDetail: React.FC<FundDetailProps> = ({
                     </button>
                   ))}
                 </div>
+              </div>
+
+              <div className="mb-3">
+                <TradeMarkerLegend mode={legendViewModel.mode} labels={legendViewModel.labels} />
               </div>
 
               <div className="relative w-full h-64">
