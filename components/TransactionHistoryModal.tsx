@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import type { Fund, PendingTransaction } from '../types';
 import { useTranslation } from '../services/i18n';
 import { Icons } from './Icon';
-import { db } from '../services/db';
+import { deletePendingTransaction } from '../services/db';
 import { resetDragState, useEdgeSwipe } from '../services/useEdgeSwipe';
 import { useOverlayRegistration } from '../services/overlayRegistration';
 
@@ -10,17 +10,21 @@ interface TransactionHistoryModalProps {
   isOpen: boolean;
   onClose: () => void;
   fund: Fund;
+  onTransactionsDeleted?: (affectedFundIds: number[]) => void;
 }
 
 export const TransactionHistoryModal: React.FC<TransactionHistoryModalProps> = ({
   isOpen,
   onClose,
   fund,
+  onTransactionsDeleted,
 }) => {
   const { t } = useTranslation();
   const overlayId = 'transaction-history-modal';
   const { isDragging, activeOverlayId, setDragState, snapBackX } = useEdgeSwipe();
   const [closeTargetX, setCloseTargetX] = useState<number | null>(null);
+  const [transactions, setTransactions] = useState<PendingTransaction[]>(fund.pendingTransactions || []);
+  const [deleteFeedback, setDeleteFeedback] = useState<string | null>(null);
   const translateX =
     isDragging && activeOverlayId === overlayId ? 'var(--edge-swipe-drag-x, 0px)' : '0px';
   const snapX = activeOverlayId === overlayId ? snapBackX : null;
@@ -53,10 +57,15 @@ export const TransactionHistoryModal: React.FC<TransactionHistoryModalProps> = (
     };
   }, [activeOverlayId, overlayId, setDragState]);
 
+  useEffect(() => {
+    setTransactions(fund.pendingTransactions || []);
+    setDeleteFeedback(null);
+  }, [fund.id, fund.pendingTransactions]);
+
   if (!isOpen) return null;
 
   // 按操作日期倒序排列
-  const transactions = [...(fund.pendingTransactions || [])].sort(
+  const sortedTransactions = [...transactions].sort(
     (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
   );
 
@@ -76,20 +85,64 @@ export const TransactionHistoryModal: React.FC<TransactionHistoryModalProps> = (
     return '--';
   };
 
-  const handleCancel = async (txId: string) => {
-    if (!window.confirm(t('common.cancelConfirm') || '确定要撤销这笔在途交易吗？')) {
+  const isTransferType = (type: PendingTransaction['type']) => {
+    return type === 'transferOut' || type === 'transferIn';
+  };
+
+  const handleDelete = async (tx: PendingTransaction) => {
+    if (!fund.id) {
       return;
     }
 
-    const newPending = (fund.pendingTransactions || []).filter((tx) => tx.id !== txId);
+    const confirmMessage = tx.transferId && isTransferType(tx.type)
+      ? t('common.linkedDeleteConfirm') || '删除该调仓记录将同时删除关联记录，是否继续？'
+      : tx.settled
+        ? t('common.deleteConfirm') || '确定要删除这条已确认交易记录吗？'
+        : t('common.cancelConfirm') || '确定要撤销这笔在途交易吗？';
+
+    if (!window.confirm(confirmMessage)) {
+      return;
+    }
+
+    setDeleteFeedback(null);
 
     try {
-      await db.funds.update(fund.id!, {
-        pendingTransactions: newPending,
+      const result = await deletePendingTransaction({
+        fundId: fund.id,
+        txId: tx.id,
+        transferId: tx.transferId,
+        type: tx.type,
       });
-      // 不关闭弹窗，因为可能还要操作别的记录
+
+      if ('code' in result && result.code === 'LINKED_DELETE_OVER_LIMIT') {
+        setDeleteFeedback(
+          t(result.userMessageKey) || '关联记录数量异常，已阻止删除，请稍后重试。',
+        );
+        return;
+      }
+
+      if (result.deletedCount <= 0) {
+        return;
+      }
+
+      const isCurrentFundAffected = result.affectedFundIds.includes(fund.id);
+      if (isCurrentFundAffected) {
+        setTransactions((prev) => {
+          if (tx.transferId && isTransferType(tx.type)) {
+            return prev.filter(
+              (item) => !(item.transferId === tx.transferId && isTransferType(item.type)),
+            );
+          }
+          return prev.filter((item) => item.id !== tx.id);
+        });
+      }
+
+      if (result.affectedFundIds.length > 0) {
+        onTransactionsDeleted?.(result.affectedFundIds);
+      }
     } catch (e) {
-      console.error('Failed to cancel transaction', e);
+      console.error('Failed to delete transaction', e);
+      setDeleteFeedback(t('common.deleteFailed') || '删除失败，请稍后重试');
     }
   };
 
@@ -130,14 +183,19 @@ export const TransactionHistoryModal: React.FC<TransactionHistoryModalProps> = (
 
         {/* 列表内容区 */}
         <div className="p-4 overflow-y-auto flex-grow bg-gray-50/50 dark:bg-transparent">
-          {transactions.length === 0 ? (
+          {deleteFeedback && (
+            <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700 dark:border-amber-900/50 dark:bg-amber-900/20 dark:text-amber-200">
+              {deleteFeedback}
+            </div>
+          )}
+          {sortedTransactions.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-gray-400">
               <Icons.Grid size={40} className="mb-3 opacity-20" />
               <p className="text-sm">{t('common.noHistory') || '暂无交易记录'}</p>
             </div>
           ) : (
             <div className="space-y-3">
-              {transactions.map((tx) => (
+              {sortedTransactions.map((tx) => (
                 <div
                   key={tx.id}
                   className="bg-white dark:bg-white/5 border border-gray-100 dark:border-border-dark rounded-xl p-4 shadow-sm flex items-center justify-between"
@@ -190,14 +248,12 @@ export const TransactionHistoryModal: React.FC<TransactionHistoryModalProps> = (
                     </div>
                   </div>
 
-                  {!tx.settled && (
-                    <button
-                      onClick={() => handleCancel(tx.id)}
-                      className="px-3 py-1.5 text-xs font-medium text-gray-500 bg-gray-100 hover:bg-red-50 hover:text-red-500 dark:bg-white/10 dark:text-gray-300 dark:hover:bg-red-900/30 dark:hover:text-red-400 rounded-lg transition-colors border border-transparent hover:border-red-100 dark:hover:border-red-900/50"
-                    >
-                      {t('common.undo') || '撤销'}
-                    </button>
-                  )}
+                  <button
+                    onClick={() => handleDelete(tx)}
+                    className="px-3 py-1.5 text-xs font-medium text-gray-500 bg-gray-100 hover:bg-red-50 hover:text-red-500 dark:bg-white/10 dark:text-gray-300 dark:hover:bg-red-900/30 dark:hover:text-red-400 rounded-lg transition-colors border border-transparent hover:border-red-100 dark:hover:border-red-900/50"
+                  >
+                    {tx.settled ? t('common.delete') || '删除' : t('common.undo') || '撤销'}
+                  </button>
                 </div>
               ))}
             </div>

@@ -70,9 +70,93 @@ const compareTransactions = (a: PendingTransaction, b: PendingTransaction) => {
   if (a.date === b.date) {
     const aTime = a.time === 'after15' ? 1 : 0;
     const bTime = b.time === 'after15' ? 1 : 0;
+    if (aTime === bTime) {
+      return a.id.localeCompare(b.id);
+    }
     return aTime - bTime;
   }
   return a.date.localeCompare(b.date);
+};
+
+type BuildTradeMarkersFromTransactionsInput = {
+  dates: string[];
+  fundData: Array<number | null | undefined>;
+  transactions?: PendingTransaction[];
+  holdingShares: number;
+};
+
+export const buildTradeMarkersFromTransactions = ({
+  dates,
+  fundData,
+  transactions,
+  holdingShares,
+}: BuildTradeMarkersFromTransactionsInput): MarkPointDatum[] => {
+  const points: MarkPointDatum[] = [];
+  const sortedTransactions = [...(transactions || [])].sort(compareTransactions);
+  const sellTransactions = sortedTransactions.filter(
+    (tx) => tx.type === 'sell' || tx.type === 'transferOut',
+  );
+  const buyTransactions = sortedTransactions.filter(
+    (tx) => tx.type === 'buy' || tx.type === 'transferIn',
+  );
+
+  let liquidationDate: string | null = null;
+  if (holdingShares === 0 && buyTransactions.length === 0 && sellTransactions.length > 0) {
+    let runningShares = holdingShares + sellTransactions.reduce((sum, tx) => {
+      if (tx.type === 'transferOut') {
+        return sum + (tx.outShares ?? tx.amount);
+      }
+      return sum + tx.amount;
+    }, 0);
+
+    for (const tx of sellTransactions) {
+      const outAmount = tx.type === 'transferOut' ? (tx.outShares ?? tx.amount) : tx.amount;
+      runningShares -= outAmount;
+      if (runningShares <= 0) {
+        liquidationDate = tx.date;
+        break;
+      }
+    }
+
+    if (liquidationDate && !dates.includes(liquidationDate)) {
+      liquidationDate = null;
+    }
+  }
+
+  sortedTransactions.forEach((tx) => {
+    const idx = dates.indexOf(tx.date);
+    if (idx === -1) return;
+
+    const isOutTransaction = tx.type === 'sell' || tx.type === 'transferOut';
+    if (isOutTransaction && liquidationDate && liquidationDate === tx.date) {
+      points.push({
+        name: 'liquidation',
+        coord: [tx.date, fundData[idx] ?? null],
+        itemStyle: { color: TRADE_MARKER_COLORS.liquidation },
+        ...MARKER_DEFAULTS,
+      });
+      return;
+    }
+
+    if (isOutTransaction) {
+      points.push({
+        name: 'sell',
+        coord: [tx.date, fundData[idx] ?? null],
+        itemStyle: { color: TRADE_MARKER_COLORS.sell },
+        ...MARKER_DEFAULTS,
+      });
+      return;
+    }
+
+    points.push({
+      name: 'buy',
+      coord: [tx.date, fundData[idx] ?? null],
+      itemStyle: { color: TRADE_MARKER_COLORS.buy },
+      ...MARKER_DEFAULTS,
+    });
+  });
+
+  return points;
 };
 
 export const buildTradeMarkers = ({
@@ -113,50 +197,14 @@ export const buildTradeMarkers = ({
     }
   }
 
-  const transactions = pendingTransactions || [];
-  const sellTxs = transactions.filter((tx) => tx.type === 'sell' || tx.type === 'transferOut');
-  const buyTxs = transactions.filter((tx) => tx.type === 'buy' || tx.type === 'transferIn');
-
-  let liquidationDate: string | null = null;
-  if (holdingShares === 0 && buyTxs.length === 0 && sellTxs.length > 0) {
-    const sortedSells = [...sellTxs].sort(compareTransactions);
-    let runningShares = holdingShares + sortedSells.reduce((sum, tx) => sum + tx.amount, 0);
-
-    for (const tx of sortedSells) {
-      const outAmount = tx.type === 'transferOut' ? (tx.outShares ?? tx.amount) : tx.amount;
-      runningShares -= outAmount;
-      if (runningShares <= 0) {
-        liquidationDate = tx.date;
-        break;
-      }
-    }
-
-    if (liquidationDate && !dates.includes(liquidationDate)) {
-      liquidationDate = null;
-    }
-  }
-
-  sellTxs.forEach((tx) => {
-    const idx = dates.indexOf(tx.date);
-    if (idx === -1) return;
-
-    if (liquidationDate && liquidationDate === tx.date) {
-      points.push({
-        name: 'liquidation',
-        coord: [tx.date, fundData[idx] ?? null],
-        itemStyle: { color: TRADE_MARKER_COLORS.liquidation },
-        ...MARKER_DEFAULTS,
-      });
-      return;
-    }
-
-    points.push({
-      name: 'sell',
-      coord: [tx.date, fundData[idx] ?? null],
-      itemStyle: { color: TRADE_MARKER_COLORS.sell },
-      ...MARKER_DEFAULTS,
-    });
-  });
+  points.push(
+    ...buildTradeMarkersFromTransactions({
+      dates,
+      fundData,
+      transactions: pendingTransactions,
+      holdingShares,
+    }),
+  );
 
   return points;
 };

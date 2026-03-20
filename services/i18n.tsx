@@ -221,6 +221,12 @@ const dictionary = {
       transactionHistory: 'Transaction History',
       noHistory: 'No transaction history',
       cancelConfirm: 'Are you sure you want to cancel this pending transaction?',
+      deleteConfirm: 'Are you sure you want to delete this settled transaction?',
+      linkedDeleteConfirm:
+        'Deleting this rebalance transaction will also delete its linked record. Continue?',
+      linkedDeleteOverLimit:
+        'Linked records exceeded safe limit. Deletion was blocked. Please retry later.',
+      deleteFailed: 'Delete failed. Please try again later.',
       undo: 'Undo',
       all: 'All',
       defaultAccount: 'Default',
@@ -473,6 +479,10 @@ const dictionary = {
       transactionHistory: '交易记录',
       noHistory: '暂无交易记录',
       cancelConfirm: '确定要撤销这笔在途交易吗？',
+      deleteConfirm: '确定要删除这条已确认交易记录吗？',
+      linkedDeleteConfirm: '删除该调仓记录将同时删除关联记录，是否继续？',
+      linkedDeleteOverLimit: '关联记录数量异常，已阻止删除，请稍后重试。',
+      deleteFailed: '删除失败，请稍后重试',
       undo: '撤销',
       all: '全部',
       defaultAccount: '默认',

@@ -330,6 +330,28 @@ export const Dashboard: React.FC = () => {
     }
   };
 
+  const handleTransactionsDeleted = async (affectedFundIds: number[]) => {
+    if (affectedFundIds.length === 0) return;
+
+    const refreshedFunds = await db.funds.bulkGet(affectedFundIds);
+    const refreshedFundMap = new Map<number, Fund>();
+    refreshedFunds.forEach((item) => {
+      if (item?.id != null) {
+        refreshedFundMap.set(item.id, item);
+      }
+    });
+
+    setSelectedFund((prev) => {
+      if (!prev?.id || !affectedFundIds.includes(prev.id)) return prev;
+      return refreshedFundMap.get(prev.id) ?? null;
+    });
+
+    setHistoryFund((prev) => {
+      if (!prev?.id || !affectedFundIds.includes(prev.id)) return prev;
+      return refreshedFundMap.get(prev.id) ?? null;
+    });
+  };
+
   return (
     <div
       className="pb-36 md:pb-24 bg-app-bg dark:bg-app-bg-dark min-h-full"
@@ -853,6 +875,7 @@ export const Dashboard: React.FC = () => {
           isOpen={!!historyFund}
           onClose={() => setHistoryFund(null)}
           fund={historyFund}
+          onTransactionsDeleted={handleTransactionsDeleted}
         />
       )}
       <AiHoldingsAnalysisModal
