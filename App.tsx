@@ -73,6 +73,20 @@ const AppContent: React.FC = () => {
   }, []);
 
   useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      const activeOverlayId = getActiveOverlayId();
+      if (!activeOverlayId) return;
+      closeTopOverlay({ source: 'programmatic', targetX: window.innerWidth });
+    };
+
+    window.addEventListener('keydown', onKeyDown);
+    return () => {
+      window.removeEventListener('keydown', onKeyDown);
+    };
+  }, []);
+
+  useEffect(() => {
     let startX = 0;
     let startY = 0;
     let edge: 'left' | 'right' | null = null;

@@ -34,7 +34,7 @@ export const TransactionHistoryModal: React.FC<TransactionHistoryModalProps> = (
 
   const requestClose = useCallback(
     (payload?: { source?: 'edge-swipe' | 'programmatic'; targetX?: number }) => {
-      if (payload?.source === 'edge-swipe' && payload.targetX !== undefined) {
+      if (payload?.targetX !== undefined) {
         setCloseTargetX(payload.targetX);
         return;
       }
@@ -94,10 +94,14 @@ export const TransactionHistoryModal: React.FC<TransactionHistoryModalProps> = (
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm sm:p-4 opacity-100 transition-opacity">
+    <div
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm sm:p-4 opacity-100 transition-opacity"
+      onClick={() => requestClose({ source: 'programmatic', targetX: window.innerWidth })}
+    >
       <div
         className="bg-white dark:bg-card-dark w-full sm:w-[480px] sm:rounded-2xl rounded-t-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] transition-transform translate-y-0 relative"
         style={{ transform: `translateX(${transformX})`, transition }}
+        onClick={(e) => e.stopPropagation()}
         onTransitionEnd={() => {
           if (closeTargetX !== null) {
             setCloseTargetX(null);
