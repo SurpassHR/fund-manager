@@ -418,8 +418,8 @@ export const Dashboard: React.FC = () => {
         </div>
       )}
 
-      <div className="mx-auto w-full max-w-7xl px-0 md:px-4 lg:px-6">
-        <div className="sticky top-14 z-20 border-b border-[var(--app-shell-line)] bg-[var(--app-shell-panel)]/95 backdrop-blur-xl dark:border-border-dark dark:bg-card-dark/85 md:top-14 md:mt-2 md:rounded-[1.75rem] md:border md:shadow-[0_10px_30px_rgba(15,23,42,0.05)]">
+      <div className="mx-auto w-full max-w-7xl px-0 pt-20 md:px-4 md:pt-24 lg:px-6">
+        <div className="sticky top-[4.5rem] z-20 border-b border-[var(--app-shell-line)] bg-[var(--app-shell-panel)]/95 backdrop-blur-xl dark:border-border-dark dark:bg-card-dark/85 md:top-[5rem] md:mt-2 md:rounded-[1.75rem] md:border md:shadow-[0_10px_30px_rgba(15,23,42,0.05)]">
           <div className="relative flex items-center gap-3 overflow-x-auto px-3 py-3 no-scrollbar md:flex-wrap md:gap-4 md:px-5 md:py-3.5">
             <div className="mr-1 hidden min-w-[10rem] shrink-0 md:block">
               <div className="text-[10px] font-semibold tracking-[0.24em] text-slate-400 dark:text-gray-500">
@@ -473,30 +473,80 @@ export const Dashboard: React.FC = () => {
           </div>
         </div>
 
-        <section className="relative overflow-hidden border-b border-[var(--app-shell-line)] bg-[var(--app-shell-panel)]/92 px-4 pb-4 pt-4 dark:border-border-dark dark:bg-card-dark md:mt-3 md:rounded-[1.75rem] md:border md:px-6 md:pb-5 md:pt-5 md:shadow-[0_12px_32px_rgba(15,23,42,0.05)]">
+        <section className="relative mt-3 overflow-hidden border-b border-[var(--app-shell-line)] bg-[var(--app-shell-panel)]/92 px-4 pb-3 pt-3 dark:border-border-dark dark:bg-card-dark md:mt-3 md:rounded-[1.75rem] md:border md:px-6 md:pb-4 md:pt-4 md:shadow-[0_12px_32px_rgba(15,23,42,0.05)]">
           <div className="pointer-events-none absolute inset-0">
             <div className="absolute inset-y-0 left-0 w-full bg-[radial-gradient(circle_at_top_left,_rgba(148,163,184,0.12),_transparent_34%),radial-gradient(circle_at_bottom_right,_rgba(226,232,240,0.8),_transparent_28%)] dark:bg-[radial-gradient(circle_at_top_left,_rgba(96,165,250,0.12),_transparent_35%),radial-gradient(circle_at_bottom_right,_rgba(59,130,246,0.10),_transparent_28%)]" />
           </div>
 
-          <div className="relative flex flex-col gap-5 lg:flex-row lg:items-stretch lg:justify-between">
-            <div className="flex-1">
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <div className="text-[11px] font-semibold tracking-[0.24em] text-slate-400 dark:text-gray-500">
-                    资产概览
-                  </div>
-                  <div className="mt-2 flex items-center gap-2 text-sm text-slate-500 dark:text-gray-400">
-                    <span>{t('common.totalAssets')}</span>
-                    <button
-                      onClick={() => setShowValues(!showValues)}
-                      className="rounded-full border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)]/90 p-1.5 text-slate-500 transition-colors hover:text-slate-800 dark:border-white/10 dark:bg-white/5 dark:text-gray-400 dark:hover:text-gray-100"
-                    >
-                      {showValues ? <Icons.Eye size={18} /> : <Icons.EyeOff size={18} />}
-                    </button>
+          <div className="relative flex flex-col gap-5">
+
+            <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_24rem] xl:grid-cols-[minmax(0,1fr)_26rem]">
+              <div className="min-w-0">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="text-[11px] font-semibold tracking-[0.24em] text-slate-400 dark:text-gray-500">
+                        资产概览
+                      </div>
+
+                      <div className="flex items-center gap-2 lg:hidden">
+                        <button
+                          onClick={handleManualRefresh}
+                          disabled={cooldown > 0 || isRefreshing}
+                          className={`relative flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border transition-transform active:scale-95 ${
+                            cooldown > 0 || isRefreshing
+                              ? 'cursor-not-allowed border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] text-slate-500 dark:border-white/10 dark:bg-white/10 dark:text-gray-400'
+                              : 'cursor-pointer border-[var(--app-shell-line-strong)] bg-[var(--app-shell-panel-strong)] text-slate-800 dark:border-blue-400/30 dark:bg-blue-500/15 dark:text-blue-100'
+                          }`}
+                        >
+                          <Icons.Refresh size={16} className={isRefreshing ? 'animate-spin' : ''} />
+                          {cooldown > 0 && !isRefreshing && (
+                            <div
+                              className="absolute inset-0 dark:hidden"
+                              style={{
+                                background: `conic-gradient(transparent ${100 - cooldown}%, rgba(0,0,0,0.18) ${100 - cooldown}%, rgba(0,0,0,0.18) 100%)`,
+                              }}
+                            />
+                          )}
+                          {cooldown > 0 && !isRefreshing && (
+                            <div
+                              className="absolute inset-0 hidden dark:block"
+                              style={{
+                                background: `conic-gradient(transparent ${100 - cooldown}%, rgba(15,23,42,0.75) ${100 - cooldown}%, rgba(15,23,42,0.75) 100%)`,
+                              }}
+                            />
+                          )}
+                        </button>
+                        <div className="rounded-full border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)]/90 px-3 py-1.5 text-[11px] font-semibold tracking-[0.18em] text-slate-500 dark:border-white/10 dark:bg-white/5 dark:text-gray-400">
+                          {displayDate}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="mt-2 flex items-center gap-2 text-sm text-slate-500 dark:text-gray-400">
+                      <span>{t('common.totalAssets')}</span>
+                      <button
+                        onClick={() => setShowValues(!showValues)}
+                        className="rounded-full border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)]/90 p-1.5 text-slate-500 transition-colors hover:text-slate-800 dark:border-white/10 dark:bg-white/5 dark:text-gray-400 dark:hover:text-gray-100"
+                      >
+                        {showValues ? <Icons.Eye size={18} /> : <Icons.EyeOff size={18} />}
+                      </button>
+                    </div>
+                    <div className="text-4xl font-black tracking-[-0.04em] text-slate-900 dark:text-gray-50 md:text-5xl">
+                      {showValues ? formatCurrency(summary.totalAssets) : '****'}
+                    </div>
+                    <div className={`mt-2 text-sm font-semibold ${getSignColor(summary.holdingGain)}`}>
+                      {t('common.totalGain')} · {showValues ? formatSignedCurrency(summary.holdingGain) : '****'}
+                      <span className="ml-1 text-xs font-medium">
+                        ({showValues ? formatPct(summary.holdingGainPct) : '****'})
+                      </span>
+                    </div>
                   </div>
                 </div>
+              </div>
 
-                <div className="flex items-center gap-2">
+              <div className="mt-2 flex flex-col gap-2 lg:mt-0">
+                <div className="flex flex-col gap-2 lg:flex-row lg:items-start">
+                  <div className="hidden items-center gap-2 lg:flex lg:shrink-0">
                   <button
                     onClick={handleManualRefresh}
                     disabled={cooldown > 0 || isRefreshing}
@@ -527,62 +577,48 @@ export const Dashboard: React.FC = () => {
                   <div className="rounded-full border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)]/90 px-3 py-1.5 text-[11px] font-semibold tracking-[0.18em] text-slate-500 dark:border-white/10 dark:bg-white/5 dark:text-gray-400">
                     {displayDate}
                   </div>
-                </div>
-              </div>
-
-              <div className="mt-4 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-                <div>
-                  <div className="text-4xl font-black tracking-[-0.04em] text-slate-900 dark:text-gray-50 md:text-5xl">
-                    {showValues ? formatCurrency(summary.totalAssets) : '****'}
                   </div>
-                  <div className={`mt-2 text-sm font-semibold ${getSignColor(summary.holdingGain)}`}>
-                    {t('common.totalGain')} ·{' '}
-                    {showValues ? formatSignedCurrency(summary.holdingGain) : '****'}
-                    <span className="ml-1 text-xs font-medium">
-                      ({showValues ? formatPct(summary.holdingGainPct) : '****'})
-                    </span>
+
+                  <div className="grid grid-cols-3 gap-2 lg:flex lg:min-w-0 lg:flex-1 lg:gap-2">
+                    <div className="min-w-0 flex-1 rounded-2xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)]/90 px-3.5 py-2 dark:border-white/10 dark:bg-white/5">
+                      <div className="text-[9px] font-semibold tracking-[0.12em] whitespace-nowrap text-slate-400 dark:text-gray-500">
+                        当前账户
+                      </div>
+                      <div className="mt-1 truncate text-[13px] font-semibold text-slate-800 dark:text-gray-100">
+                        {activeFilterLabel}
+                      </div>
+                    </div>
+                    <div className="min-w-0 flex-1 rounded-2xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)]/90 px-3.5 py-2 dark:border-white/10 dark:bg-white/5">
+                      <div className="text-[9px] font-semibold tracking-[0.12em] whitespace-nowrap text-slate-400 dark:text-gray-500">
+                        持仓数量
+                      </div>
+                      <div className="mt-1 truncate text-[13px] font-semibold text-slate-800 dark:text-gray-100">
+                        {sortedFunds.length}
+                      </div>
+                    </div>
+                    <div className="min-w-0 flex-1 rounded-2xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)]/90 px-3.5 py-2 dark:border-white/10 dark:bg-white/5">
+                      <div className="text-[9px] font-semibold tracking-[0.12em] whitespace-nowrap text-slate-400 dark:text-gray-500">
+                        自动刷新
+                      </div>
+                      <div className="mt-1 truncate text-[13px] font-semibold text-slate-800 dark:text-gray-100">
+                        {autoRefresh ? '已开启' : '已关闭'}
+                      </div>
+                    </div>
                   </div>
                 </div>
 
-                <div className="rounded-2xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)]/80 px-4 py-3 backdrop-blur-sm dark:border-white/10 dark:bg-white/5 md:min-w-[14rem]">
-                  <div className="text-[11px] font-semibold tracking-[0.18em] text-slate-400 dark:text-gray-500">
+                <div className="rounded-2xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)]/80 px-4 py-3 backdrop-blur-sm dark:border-white/10 dark:bg-white/5">
+                  <div className="text-[11px] font-semibold tracking-[0.16em] text-slate-400 dark:text-gray-500">
                     {t('common.dayGain')}
                   </div>
                   <div
-                    className={`mt-2 flex items-end gap-2 text-2xl font-black tracking-[-0.03em] ${getSignColor(summary.totalDayGain)}`}
+                    className={`mt-2 flex items-end gap-2 text-[1.65rem] font-black tracking-[-0.03em] ${getSignColor(summary.totalDayGain)}`}
                   >
                     <span>{showValues ? formatSignedCurrency(summary.totalDayGain) : '****'}</span>
-                    <span className="pb-1 text-xs font-semibold tracking-[0.16em] text-slate-400 dark:text-gray-500">
+                    <span className="pb-0.5 text-[13px] font-semibold tracking-[0.12em] text-slate-400 dark:text-gray-500">
                       {showValues ? formatPct(summary.totalDayGainPct) : '****'}
                     </span>
                   </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="grid gap-3 sm:grid-cols-3 lg:w-[20rem] lg:grid-cols-1 xl:w-[24rem] xl:grid-cols-3">
-              <div className="rounded-2xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)]/90 px-4 py-3 dark:border-white/10 dark:bg-white/5">
-                <div className="text-[11px] font-semibold tracking-[0.18em] text-slate-400 dark:text-gray-500">
-                  当前账户
-                </div>
-                <div className="mt-2 text-base font-semibold text-slate-800 dark:text-gray-100">
-                  {activeFilterLabel}
-                </div>
-              </div>
-              <div className="rounded-2xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)]/90 px-4 py-3 dark:border-white/10 dark:bg-white/5">
-                <div className="text-[11px] font-semibold tracking-[0.18em] text-slate-400 dark:text-gray-500">
-                  持仓数量
-                </div>
-                <div className="mt-2 text-base font-semibold text-slate-800 dark:text-gray-100">
-                  {sortedFunds.length}
-                </div>
-              </div>
-              <div className="rounded-2xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)]/90 px-4 py-3 dark:border-white/10 dark:bg-white/5">
-                <div className="text-[11px] font-semibold tracking-[0.18em] text-slate-400 dark:text-gray-500">
-                  自动刷新
-                </div>
-                <div className="mt-2 text-base font-semibold text-slate-800 dark:text-gray-100">
-                  {autoRefresh ? '已开启' : '已关闭'}
                 </div>
               </div>
             </div>

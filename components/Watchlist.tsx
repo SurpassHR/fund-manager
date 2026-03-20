@@ -245,7 +245,7 @@ export const Watchlist: React.FC = () => {
             <div className="absolute inset-y-0 left-0 w-full bg-[radial-gradient(circle_at_top_left,_rgba(148,163,184,0.12),_transparent_34%),radial-gradient(circle_at_bottom_right,_rgba(226,232,240,0.8),_transparent_28%)] dark:bg-[radial-gradient(circle_at_top_left,_rgba(96,165,250,0.12),_transparent_35%),radial-gradient(circle_at_bottom_right,_rgba(59,130,246,0.10),_transparent_28%)]" />
           </div>
 
-          <div className="relative flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+          <div className="relative flex items-start justify-between gap-3 md:items-end">
             <div>
               <div className="text-[11px] font-semibold tracking-[0.24em] text-slate-400 dark:text-gray-500">
                 自选概览
@@ -258,7 +258,7 @@ export const Watchlist: React.FC = () => {
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex shrink-0 items-center gap-2">
               <button
                 onClick={handleManualRefresh}
                 disabled={cooldown > 0 || isRefreshing}
