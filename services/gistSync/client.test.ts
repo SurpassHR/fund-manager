@@ -75,6 +75,10 @@ describe('gistSync/client', () => {
     expect(gists).toHaveLength(2);
     expect(gists.map((item) => item.id)).toEqual(['c', 'a']);
     expect(gists.every((item) => item.hasSyncFile)).toBe(true);
+    expect(mockedFetch).toHaveBeenCalledWith(
+      'https://api.github.com/gists',
+      expect.objectContaining({ cache: 'no-store' }),
+    );
   });
 
   it('maps 401/403/422 and network errors to typed client error', async () => {

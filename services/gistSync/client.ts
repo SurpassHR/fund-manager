@@ -87,6 +87,7 @@ const githubRequest = async <T>(params: {
   try {
     const response = await fetch(`${GITHUB_API_BASE}${path}`, {
       method,
+      cache: 'no-store',
       headers: buildGithubHeaders(token),
       body: body ? JSON.stringify(body) : undefined,
     });
@@ -287,6 +288,7 @@ export const downloadSyncGistContent = async (params: {
   if (file.raw_url) {
     try {
       const response = await fetch(file.raw_url, {
+        cache: 'no-store',
         headers: buildGithubHeaders(token),
       });
 

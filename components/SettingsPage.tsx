@@ -54,9 +54,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack, initialShowA
     setDefaultGistTarget,
   } = useSettings();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [activeView, setActiveView] = useState<SettingsView>(
-    initialShowAiSettings ? 'ai' : 'main',
-  );
+  const [activeView, setActiveView] = useState<SettingsView>(initialShowAiSettings ? 'ai' : 'main');
   const [openaiModels, setOpenaiModels] = useState<string[]>([]);
   const [geminiModels, setGeminiModels] = useState<string[]>([]);
   const [openaiLoading, setOpenaiLoading] = useState(false);
@@ -168,6 +166,19 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack, initialShowA
     if (!foundDefault) {
       setDefaultGistTarget(null);
       alert(t('common.gistDefaultTargetFallback') || '默认目标已失效，请重新选择。');
+      return;
+    }
+
+    if (
+      foundDefault.description !== defaultGistTarget.description ||
+      foundDefault.updated_at !== defaultGistTarget.updatedAt
+    ) {
+      setDefaultGistTarget({
+        id: foundDefault.id,
+        description: foundDefault.description,
+        updatedAt: foundDefault.updated_at,
+        fileName: GIST_SYNC_FILENAME,
+      });
     }
   };
 
@@ -210,12 +221,15 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack, initialShowA
     setSyncBusy(true);
     try {
       const content = await downloadSyncGistContent({ token: githubToken, gistId });
-      await importFundsFromBackupContent(content);
+      const importResult = await importFundsFromBackupContent(content);
       const selected = target ?? syncGists.find((item) => item.id === gistId);
       if (selected) {
         saveDefaultTarget(selected);
       }
-      alert(t('common.gistSyncDownloadSuccess') || '已从 gist 下载并导入。');
+      const importSummary = (t('common.importSuccess') || '新增 {added} 条，跳过 {skipped} 条重复')
+        .replace('{added}', String(importResult.added))
+        .replace('{skipped}', String(importResult.skipped));
+      alert(`${t('common.gistSyncDownloadSuccess') || '已从 gist 下载并导入。'}\n${importSummary}`);
       setGistChooserOpen(false);
       await refreshSyncGists(githubToken);
     } catch (error) {
@@ -409,232 +423,228 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack, initialShowA
   }, [gistListCooldownSec]);
 
   const aiSettingsView = (
-      <div className="min-h-[60vh] pb-44 md:pb-28">
-        <div className="flex items-center gap-3 px-4 py-3">
-          <button
-            onClick={() => setActiveView('main')}
-            className="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
-          >
-            <Icons.ArrowUp size={20} className="text-gray-600 dark:text-gray-300 -rotate-90" />
-          </button>
-          <h2 className="text-base font-bold text-gray-800 dark:text-gray-100">
-            {t('common.aiSettings')}
-          </h2>
-        </div>
+    <div className="min-h-[60vh] pb-44 md:pb-28">
+      <div className="flex items-center gap-3 px-4 py-3">
+        <button
+          onClick={() => setActiveView('main')}
+          className="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
+        >
+          <Icons.ArrowUp size={20} className="text-gray-600 dark:text-gray-300 -rotate-90" />
+        </button>
+        <h2 className="text-base font-bold text-gray-800 dark:text-gray-100">
+          {t('common.aiSettings')}
+        </h2>
+      </div>
 
-        <div className="px-4 mt-2">
-          <div className="bg-white dark:bg-card-dark rounded-xl overflow-hidden shadow-sm p-4 space-y-4">
-            <div>
-              <label className="block text-xs font-bold text-gray-500 mb-1">
-                {t('common.aiProvider') || '模型提供方'}
-              </label>
-              <select
-                value={aiProvider}
-                onChange={(e) => setAiProvider(e.target.value as 'openai' | 'gemini')}
-                className="w-full p-3 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-white/5 focus:outline-none focus:border-blue-500 text-gray-900 dark:text-gray-100 text-sm"
-              >
-                <option value="openai">OpenAI</option>
-                <option value="gemini">Gemini</option>
-              </select>
-            </div>
-
-            <div className="space-y-2">
-              <label className="block text-xs font-bold text-gray-500">
-                {t('common.openaiKey') || 'OpenAI API Key'}
-              </label>
-              <input
-                type="password"
-                value={openaiApiKey}
-                onChange={(e) => setOpenaiApiKey(e.target.value)}
-                placeholder="sk-..."
-                className="w-full p-3 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-white/5 focus:outline-none focus:border-blue-500 text-gray-900 dark:text-gray-100 text-sm"
-              />
-              <label className="block text-xs font-bold text-gray-500">
-                {t('common.openaiModel') || 'OpenAI 模型'}
-              </label>
-              <select
-                value={openaiModel}
-                onChange={(e) => setOpenaiModel(e.target.value)}
-                className="w-full p-3 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-white/5 focus:outline-none focus:border-blue-500 text-gray-900 dark:text-gray-100 text-sm"
-              >
-                {!openaiApiKey && (
-                  <option value="">
-                    {t('common.modelSelectPlaceholder') || '请先填写 API Key'}
-                  </option>
-                )}
-                {openaiLoading && (
-                  <option value="">{t('common.modelLoading') || '模型加载中...'}</option>
-                )}
-                {openaiError && !openaiLoading && <option value="">{openaiError}</option>}
-                {openaiModels.map((model) => (
-                  <option key={model} value={model}>
-                    {model}
-                  </option>
-                ))}
-                {!openaiModels.includes(openaiModel) && openaiModel && (
-                  <option value={openaiModel}>{openaiModel}</option>
-                )}
-              </select>
-            </div>
-
-            <div className="space-y-2">
-              <label className="block text-xs font-bold text-gray-500">
-                {t('common.geminiKey') || 'Gemini API Key'}
-              </label>
-              <input
-                type="password"
-                value={geminiApiKey}
-                onChange={(e) => setGeminiApiKey(e.target.value)}
-                placeholder="AI..."
-                className="w-full p-3 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-white/5 focus:outline-none focus:border-blue-500 text-gray-900 dark:text-gray-100 text-sm"
-              />
-              <label className="block text-xs font-bold text-gray-500">
-                {t('common.geminiModel') || 'Gemini 模型'}
-              </label>
-              <select
-                value={geminiModel}
-                onChange={(e) => setGeminiModel(e.target.value)}
-                className="w-full p-3 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-white/5 focus:outline-none focus:border-blue-500 text-gray-900 dark:text-gray-100 text-sm"
-              >
-                {!geminiApiKey && (
-                  <option value="">
-                    {t('common.modelSelectPlaceholder') || '请先填写 API Key'}
-                  </option>
-                )}
-                {geminiLoading && (
-                  <option value="">{t('common.modelLoading') || '模型加载中...'}</option>
-                )}
-                {geminiError && !geminiLoading && <option value="">{geminiError}</option>}
-                {geminiModels.map((model) => (
-                  <option key={model} value={model}>
-                    {model}
-                  </option>
-                ))}
-                {!geminiModels.includes(geminiModel) && geminiModel && (
-                  <option value={geminiModel}>{geminiModel}</option>
-                )}
-              </select>
-            </div>
-
-            <p className="text-[10px] text-gray-400">
-              {t('common.aiPrivacyTip') || '截图仅用于识别，不会保存到服务器。'}
-            </p>
+      <div className="px-4 mt-2">
+        <div className="bg-white dark:bg-card-dark rounded-xl overflow-hidden shadow-sm p-4 space-y-4">
+          <div>
+            <label className="block text-xs font-bold text-gray-500 mb-1">
+              {t('common.aiProvider') || '模型提供方'}
+            </label>
+            <select
+              value={aiProvider}
+              onChange={(e) => setAiProvider(e.target.value as 'openai' | 'gemini')}
+              className="w-full p-3 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-white/5 focus:outline-none focus:border-blue-500 text-gray-900 dark:text-gray-100 text-sm"
+            >
+              <option value="openai">OpenAI</option>
+              <option value="gemini">Gemini</option>
+            </select>
           </div>
+
+          <div className="space-y-2">
+            <label className="block text-xs font-bold text-gray-500">
+              {t('common.openaiKey') || 'OpenAI API Key'}
+            </label>
+            <input
+              type="password"
+              value={openaiApiKey}
+              onChange={(e) => setOpenaiApiKey(e.target.value)}
+              placeholder="sk-..."
+              className="w-full p-3 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-white/5 focus:outline-none focus:border-blue-500 text-gray-900 dark:text-gray-100 text-sm"
+            />
+            <label className="block text-xs font-bold text-gray-500">
+              {t('common.openaiModel') || 'OpenAI 模型'}
+            </label>
+            <select
+              value={openaiModel}
+              onChange={(e) => setOpenaiModel(e.target.value)}
+              className="w-full p-3 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-white/5 focus:outline-none focus:border-blue-500 text-gray-900 dark:text-gray-100 text-sm"
+            >
+              {!openaiApiKey && (
+                <option value="">{t('common.modelSelectPlaceholder') || '请先填写 API Key'}</option>
+              )}
+              {openaiLoading && (
+                <option value="">{t('common.modelLoading') || '模型加载中...'}</option>
+              )}
+              {openaiError && !openaiLoading && <option value="">{openaiError}</option>}
+              {openaiModels.map((model) => (
+                <option key={model} value={model}>
+                  {model}
+                </option>
+              ))}
+              {!openaiModels.includes(openaiModel) && openaiModel && (
+                <option value={openaiModel}>{openaiModel}</option>
+              )}
+            </select>
+          </div>
+
+          <div className="space-y-2">
+            <label className="block text-xs font-bold text-gray-500">
+              {t('common.geminiKey') || 'Gemini API Key'}
+            </label>
+            <input
+              type="password"
+              value={geminiApiKey}
+              onChange={(e) => setGeminiApiKey(e.target.value)}
+              placeholder="AI..."
+              className="w-full p-3 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-white/5 focus:outline-none focus:border-blue-500 text-gray-900 dark:text-gray-100 text-sm"
+            />
+            <label className="block text-xs font-bold text-gray-500">
+              {t('common.geminiModel') || 'Gemini 模型'}
+            </label>
+            <select
+              value={geminiModel}
+              onChange={(e) => setGeminiModel(e.target.value)}
+              className="w-full p-3 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-white/5 focus:outline-none focus:border-blue-500 text-gray-900 dark:text-gray-100 text-sm"
+            >
+              {!geminiApiKey && (
+                <option value="">{t('common.modelSelectPlaceholder') || '请先填写 API Key'}</option>
+              )}
+              {geminiLoading && (
+                <option value="">{t('common.modelLoading') || '模型加载中...'}</option>
+              )}
+              {geminiError && !geminiLoading && <option value="">{geminiError}</option>}
+              {geminiModels.map((model) => (
+                <option key={model} value={model}>
+                  {model}
+                </option>
+              ))}
+              {!geminiModels.includes(geminiModel) && geminiModel && (
+                <option value={geminiModel}>{geminiModel}</option>
+              )}
+            </select>
+          </div>
+
+          <p className="text-[10px] text-gray-400">
+            {t('common.aiPrivacyTip') || '截图仅用于识别，不会保存到服务器。'}
+          </p>
         </div>
       </div>
+    </div>
   );
 
   const gistSyncSettingsView = (
-      <div className="min-h-[60vh] pb-44 md:pb-28">
-        <div className="flex items-center gap-3 px-4 py-3">
-          <button
-            onClick={() => setActiveView('main')}
-            className="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
-          >
-            <Icons.ArrowUp size={20} className="text-gray-600 dark:text-gray-300 -rotate-90" />
-          </button>
-          <h2 className="text-base font-bold text-gray-800 dark:text-gray-100">
-            {t('common.gistSync') || 'GitHub Gist 同步'}
-          </h2>
-        </div>
-
-        <div className="px-4 mt-2">
-          <div className="bg-white dark:bg-card-dark rounded-xl overflow-hidden shadow-sm p-4 space-y-3">
-            <div className="space-y-1">
-              <label className="block text-xs font-bold text-gray-500">
-                {t('common.githubToken') || 'GitHub Token'}
-              </label>
-              <input
-                type="password"
-                value={githubToken}
-                onChange={(e) => setGithubToken(e.target.value)}
-                placeholder={t('common.githubTokenPlaceholder') || 'ghp_xxx / github_pat_xxx'}
-                className="w-full p-3 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-white/5 focus:outline-none focus:border-blue-500 text-gray-900 dark:text-gray-100 text-sm"
-              />
-              <p className="text-[11px] text-gray-400">
-                {t('common.githubTokenHelp') || 'Token 仅保存在本地。'}
-              </p>
-              <p className="text-[11px] text-gray-500">
-                {tokenFormatState === 'invalid' &&
-                  (t('common.githubTokenFormatInvalid') || 'Token 格式看起来不合法。')}
-                {tokenFormatState === 'valid' &&
-                  (t('common.githubTokenFormatValid') || 'Token 格式校验通过。')}
-              </p>
-              <p className="text-[11px] text-gray-500">
-                {tokenApiState === 'checking' &&
-                  (t('common.githubTokenApiChecking') || '正在向 GitHub 验证 Token...')}
-                {tokenApiState === 'valid' &&
-                  (t('common.githubTokenApiValid') || 'GitHub Token 验证通过。')}
-                {tokenApiState === 'invalid' &&
-                  (t('common.githubTokenApiInvalid') || 'GitHub Token 验证失败。')}
-              </p>
-            </div>
-
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={handleDownloadClick}
-                disabled={tokenApiState !== 'valid' || syncBusy}
-                className="rounded-lg px-3 py-2 text-sm text-white bg-blue-600 disabled:opacity-50"
-              >
-                {t('common.gistSyncDownload') || '从 Gist 下载'}
-              </button>
-              <button
-                type="button"
-                onClick={handleUploadClick}
-                disabled={tokenApiState !== 'valid' || syncBusy}
-                className="rounded-lg px-3 py-2 text-sm text-white bg-blue-600 disabled:opacity-50"
-              >
-                {t('common.gistSyncUpload') || '上传到 Gist'}
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setGistChooserMode('download');
-                  setGistChooserOpen(true);
-                }}
-                disabled={tokenApiState !== 'valid'}
-                className="rounded-lg px-3 py-2 text-sm text-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-white/5 disabled:opacity-50"
-              >
-                {t('common.gistChooserSelect') || '选择目标'}
-              </button>
-            </div>
-
-            <p className="text-[11px] text-gray-500">
-              {defaultGistTarget
-                ? `${t('common.gistDefaultTarget') || '默认目标 Gist'}: ${defaultGistTarget.description || defaultGistTarget.id}`
-                : t('common.gistDefaultTargetNone') || '未设置默认目标'}
-            </p>
-            {tokenApiState === 'valid' && syncGists.length === 0 && (
-              <p className="text-[11px] text-amber-600">
-                {t('common.gistChooserEmpty') || '没有可用 gist，请先新建。'}
-              </p>
-            )}
-          </div>
-        </div>
-
-        <GistSyncChooserCard
-          isOpen={gistChooserOpen}
-          defaultMode={gistChooserMode}
-          gists={syncGists}
-          onRefreshList={
-            tokenApiState === 'valid'
-              ? () => {
-                  void triggerGistListRefresh(true);
-                }
-              : undefined
-          }
-          isRefreshingList={gistListRefreshing}
-          refreshCooldownSec={gistListCooldownSec}
-          onClose={() => setGistChooserOpen(false)}
-          onRequestDownload={(gistId) => {
-            void handleDownloadFromGist(gistId);
-          }}
-          onRequestUpload={(payload) => {
-            void handleUploadToGist(payload);
-          }}
-        />
+    <div className="min-h-[60vh] pb-44 md:pb-28">
+      <div className="flex items-center gap-3 px-4 py-3">
+        <button
+          onClick={() => setActiveView('main')}
+          className="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
+        >
+          <Icons.ArrowUp size={20} className="text-gray-600 dark:text-gray-300 -rotate-90" />
+        </button>
+        <h2 className="text-base font-bold text-gray-800 dark:text-gray-100">
+          {t('common.gistSync') || 'GitHub Gist 同步'}
+        </h2>
       </div>
+
+      <div className="px-4 mt-2">
+        <div className="bg-white dark:bg-card-dark rounded-xl overflow-hidden shadow-sm p-4 space-y-3">
+          <div className="space-y-1">
+            <label className="block text-xs font-bold text-gray-500">
+              {t('common.githubToken') || 'GitHub Token'}
+            </label>
+            <input
+              type="password"
+              value={githubToken}
+              onChange={(e) => setGithubToken(e.target.value)}
+              placeholder={t('common.githubTokenPlaceholder') || 'ghp_xxx / github_pat_xxx'}
+              className="w-full p-3 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-white/5 focus:outline-none focus:border-blue-500 text-gray-900 dark:text-gray-100 text-sm"
+            />
+            <p className="text-[11px] text-gray-400">
+              {t('common.githubTokenHelp') || 'Token 仅保存在本地。'}
+            </p>
+            <p className="text-[11px] text-gray-500">
+              {tokenFormatState === 'invalid' &&
+                (t('common.githubTokenFormatInvalid') || 'Token 格式看起来不合法。')}
+              {tokenFormatState === 'valid' &&
+                (t('common.githubTokenFormatValid') || 'Token 格式校验通过。')}
+            </p>
+            <p className="text-[11px] text-gray-500">
+              {tokenApiState === 'checking' &&
+                (t('common.githubTokenApiChecking') || '正在向 GitHub 验证 Token...')}
+              {tokenApiState === 'valid' &&
+                (t('common.githubTokenApiValid') || 'GitHub Token 验证通过。')}
+              {tokenApiState === 'invalid' &&
+                (t('common.githubTokenApiInvalid') || 'GitHub Token 验证失败。')}
+            </p>
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={handleDownloadClick}
+              disabled={tokenApiState !== 'valid' || syncBusy}
+              className="rounded-lg px-3 py-2 text-sm text-white bg-blue-600 disabled:opacity-50"
+            >
+              {t('common.gistSyncDownload') || '从 Gist 下载'}
+            </button>
+            <button
+              type="button"
+              onClick={handleUploadClick}
+              disabled={tokenApiState !== 'valid' || syncBusy}
+              className="rounded-lg px-3 py-2 text-sm text-white bg-blue-600 disabled:opacity-50"
+            >
+              {t('common.gistSyncUpload') || '上传到 Gist'}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setGistChooserMode('download');
+                setGistChooserOpen(true);
+              }}
+              disabled={tokenApiState !== 'valid'}
+              className="rounded-lg px-3 py-2 text-sm text-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-white/5 disabled:opacity-50"
+            >
+              {t('common.gistChooserSelect') || '选择目标'}
+            </button>
+          </div>
+
+          <p className="text-[11px] text-gray-500">
+            {defaultGistTarget
+              ? `${t('common.gistDefaultTarget') || '默认目标 Gist'}: ${defaultGistTarget.description || defaultGistTarget.id}`
+              : t('common.gistDefaultTargetNone') || '未设置默认目标'}
+          </p>
+          {tokenApiState === 'valid' && syncGists.length === 0 && (
+            <p className="text-[11px] text-amber-600">
+              {t('common.gistChooserEmpty') || '没有可用 gist，请先新建。'}
+            </p>
+          )}
+        </div>
+      </div>
+
+      <GistSyncChooserCard
+        isOpen={gistChooserOpen}
+        defaultMode={gistChooserMode}
+        gists={syncGists}
+        onRefreshList={
+          tokenApiState === 'valid'
+            ? () => {
+                void triggerGistListRefresh(true);
+              }
+            : undefined
+        }
+        isRefreshingList={gistListRefreshing}
+        refreshCooldownSec={gistListCooldownSec}
+        onClose={() => setGistChooserOpen(false)}
+        onRequestDownload={(gistId) => {
+          void handleDownloadFromGist(gistId);
+        }}
+        onRequestUpload={(payload) => {
+          void handleUploadToGist(payload);
+        }}
+      />
+    </div>
   );
 
   const mainSettingsView = (

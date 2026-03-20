@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import type { Fund } from '../types';
+import type { Fund, WatchlistItem } from '../types';
 import {
   buildFundBackupPayload,
   buildFundBackupKey,
   findDuplicateFundBackupKeys,
   parseAndNormalizeFundBackup,
+  parseAndNormalizeFundBackupPayload,
 } from './fundBackup';
 
 const buildFund = (overrides?: Partial<Fund>): Fund => ({
@@ -17,6 +18,18 @@ const buildFund = (overrides?: Partial<Fund>): Fund => ({
   lastUpdate: '2026-03-19',
   dayChangePct: 0.5,
   dayChangeVal: 2,
+  ...overrides,
+});
+
+const buildWatchlist = (overrides?: Partial<WatchlistItem>): WatchlistItem => ({
+  code: '000300',
+  name: '沪深300',
+  type: 'index',
+  anchorPrice: 1000,
+  anchorDate: '2026-03-19',
+  currentPrice: 1005,
+  dayChangePct: 0.5,
+  lastUpdate: '2026-03-19',
   ...overrides,
 });
 
@@ -71,5 +84,27 @@ describe('fundBackup', () => {
     });
 
     expect('id' in normalized[0]).toBe(false);
+  });
+
+  it('支持在备份中携带自选基金并保持向后兼容', () => {
+    const payload = buildFundBackupPayload([buildFund()], '2026-03-19T00:00:00.000Z', [
+      buildWatchlist({ id: 9, platform: '天天基金', type: 'fund', code: '110011' }),
+    ]);
+
+    const normalized = parseAndNormalizeFundBackupPayload(payload);
+
+    expect(normalized.watchlists).toHaveLength(1);
+    expect(normalized.watchlists[0]?.code).toBe('110011');
+    expect(normalized.watchlists[0]?.platform).toBe('天天基金');
+    expect('id' in normalized.watchlists[0]).toBe(false);
+
+    const legacyPayload = {
+      version: 1,
+      exportDate: '2026-03-19T00:00:00.000Z',
+      funds: [buildFund()],
+    };
+
+    expect(parseAndNormalizeFundBackup(legacyPayload)).toHaveLength(1);
+    expect(parseAndNormalizeFundBackupPayload(legacyPayload).watchlists).toEqual([]);
   });
 });

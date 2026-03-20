@@ -14,7 +14,7 @@ import { getEffectiveOperationDate, roundMoney, roundShares } from './rebalanceU
 import {
   buildFundBackupKey,
   buildFundBackupPayload,
-  parseAndNormalizeFundBackup,
+  parseAndNormalizeFundBackupPayload,
 } from './fundBackup';
 
 class XiaoHuYangJiDB extends Dexie {
@@ -84,6 +84,26 @@ const getLocalDateString = () => {
 const normalizeTicker = (ticker?: string) => (ticker ? ticker.replace(/\D/g, '') : '');
 
 const isNearlyEqual = (a: number, b: number, eps = 1e-6) => Math.abs(a - b) < eps;
+
+export const deriveWatchlistFundEffectivePrice = (params: {
+  nav: number;
+  navDate: string;
+  todayStr: string;
+  shouldEstimate: boolean;
+  estimatedChangePct?: number;
+  fallbackChangePct?: number;
+}) => {
+  const { nav, navDate, todayStr, shouldEstimate, estimatedChangePct, fallbackChangePct } = params;
+  const projectedPct = estimatedChangePct ?? fallbackChangePct;
+  const hasEstimate = shouldEstimate && projectedPct !== undefined;
+  const isOfficialTodayNav = navDate === todayStr;
+
+  if (hasEstimate && !isOfficialTodayNav) {
+    return nav * (1 + (projectedPct as number) / 100);
+  }
+
+  return nav;
+};
 
 type HoldingTicker = { ticker: string };
 type HoldingWithWeight = HoldingTicker & { weight: number };
@@ -680,24 +700,31 @@ export const refreshWatchlistData = (options?: RefreshOptions) => {
           candidates.map(async (candidate) => {
             const { item, nav, navDate, navChangePercent } = candidate;
             const estimatedChangePct = estimateMap.get(item.code);
-            const hasEstimate = candidate.shouldEstimate && estimatedChangePct !== undefined;
-            const effectivePctDate = hasEstimate ? todayStr : navDate;
+            const projectedPct = estimatedChangePct ?? navChangePercent;
+            const shouldProjectToday =
+              candidate.shouldEstimate && navDate !== todayStr && projectedPct !== undefined;
+            const effectivePctDate = shouldProjectToday ? todayStr : navDate;
+            const effectiveCurrentPrice = deriveWatchlistFundEffectivePrice({
+              nav,
+              navDate,
+              todayStr,
+              shouldEstimate: candidate.shouldEstimate,
+              estimatedChangePct,
+              fallbackChangePct: navChangePercent,
+            });
 
-            const nextDayChangePct =
-              hasEstimate && estimatedChangePct !== undefined
-                ? estimatedChangePct
-                : navChangePercent;
+            const nextDayChangePct = shouldProjectToday ? projectedPct : navChangePercent;
             const nextLastUpdate = effectivePctDate || todayStr;
 
             const shouldSkipUpdate =
-              isNearlyEqual(item.currentPrice, nav) &&
+              isNearlyEqual(item.currentPrice, effectiveCurrentPrice) &&
               isNearlyEqual(item.dayChangePct, nextDayChangePct) &&
               item.lastUpdate === nextLastUpdate;
 
             if (shouldSkipUpdate) return;
 
             await db.watchlists.update(item.id!, {
-              currentPrice: nav,
+              currentPrice: effectiveCurrentPrice,
               dayChangePct: nextDayChangePct,
               lastUpdate: nextLastUpdate,
             });
@@ -781,7 +808,8 @@ export const calculateSummary = (funds: Fund[]): AssetSummary => {
  */
 export const exportFunds = async (): Promise<void> => {
   const allFunds = await db.funds.toArray();
-  const data = buildFundBackupPayload(allFunds);
+  const allWatchlists = await db.watchlists.toArray();
+  const data = buildFundBackupPayload(allFunds, undefined, allWatchlists);
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -806,13 +834,15 @@ export const importFunds = async (file: File): Promise<{ added: number; skipped:
 
 export const exportFundsToJsonString = async (): Promise<string> => {
   const allFunds = await db.funds.toArray();
-  return JSON.stringify(buildFundBackupPayload(allFunds), null, 2);
+  const allWatchlists = await db.watchlists.toArray();
+  return JSON.stringify(buildFundBackupPayload(allFunds, undefined, allWatchlists), null, 2);
 };
 
 export const importFundsFromBackupContent = async (
   content: string | unknown,
 ): Promise<{ added: number; skipped: number }> => {
-  const importedFunds = parseAndNormalizeFundBackup(content);
+  const { funds: importedFunds, watchlists: importedWatchlists } =
+    parseAndNormalizeFundBackupPayload(content);
 
   const existingFunds = await db.funds.toArray();
   const existingCodes = new Set(existingFunds.map((f) => buildFundBackupKey(f)));
@@ -829,6 +859,23 @@ export const importFundsFromBackupContent = async (
     await db.funds.add(fund);
     added++;
     existingCodes.add(key);
+  }
+
+  const existingWatchlists = await db.watchlists.toArray();
+  const existingWatchlistKeys = new Set(
+    existingWatchlists.map((item) => `${item.type}:${item.code}:${item.platform || ''}`),
+  );
+
+  for (const watchlist of importedWatchlists) {
+    const key = `${watchlist.type}:${watchlist.code}:${watchlist.platform || ''}`;
+    if (existingWatchlistKeys.has(key)) {
+      skipped++;
+      continue;
+    }
+
+    await db.watchlists.add(watchlist);
+    added++;
+    existingWatchlistKeys.add(key);
   }
 
   return { added, skipped };
