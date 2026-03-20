@@ -17,10 +17,12 @@ export const AccountManagerModal: React.FC<AccountManagerModalProps> = ({ isOpen
   // Add State
   const [newAccountName, setNewAccountName] = useState('');
   const [isAdding, setIsAdding] = useState(false);
+  const [isComposingNewName, setIsComposingNewName] = useState(false);
 
   // Edit State
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editName, setEditName] = useState('');
+  const [isComposingEditName, setIsComposingEditName] = useState(false);
 
   if (!isOpen) return null;
 
@@ -98,8 +100,18 @@ export const AccountManagerModal: React.FC<AccountManagerModalProps> = ({ isOpen
                     <input
                       autoFocus
                       value={editName}
-                      maxLength={4}
-                      onChange={(e) => setEditName(normalizeAccountName(e.target.value))}
+                      onCompositionStart={() => setIsComposingEditName(true)}
+                      onCompositionEnd={(e) => {
+                        setIsComposingEditName(false);
+                        setEditName(normalizeAccountName(e.currentTarget.value));
+                      }}
+                      onChange={(e) => {
+                        if (isComposingEditName) {
+                          setEditName(stripLineBreaks(e.target.value));
+                          return;
+                        }
+                        setEditName(normalizeAccountName(e.target.value));
+                      }}
                       className="flex-1 px-2 py-1 border border-blue-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 whitespace-nowrap"
                     />
                     <button
@@ -157,8 +169,18 @@ export const AccountManagerModal: React.FC<AccountManagerModalProps> = ({ isOpen
                 autoFocus
                 type="text"
                 value={newAccountName}
-                maxLength={4}
-                onChange={(e) => setNewAccountName(normalizeAccountName(e.target.value))}
+                onCompositionStart={() => setIsComposingNewName(true)}
+                onCompositionEnd={(e) => {
+                  setIsComposingNewName(false);
+                  setNewAccountName(normalizeAccountName(e.currentTarget.value));
+                }}
+                onChange={(e) => {
+                  if (isComposingNewName) {
+                    setNewAccountName(stripLineBreaks(e.target.value));
+                    return;
+                  }
+                  setNewAccountName(normalizeAccountName(e.target.value));
+                }}
                 placeholder={t('common.accountName')}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-blue-500 whitespace-nowrap"
               />
@@ -192,6 +214,8 @@ export const AccountManagerModal: React.FC<AccountManagerModalProps> = ({ isOpen
   );
 };
 const normalizeAccountName = (value: string) => {
-  const noLineBreak = value.replace(/[\r\n]/g, '').trim();
+  const noLineBreak = stripLineBreaks(value).trim();
   return Array.from(noLineBreak).slice(0, 4).join('');
 };
+
+const stripLineBreaks = (value: string) => value.replace(/[\r\n]/g, '');
