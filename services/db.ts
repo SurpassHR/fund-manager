@@ -819,8 +819,9 @@ export const calculateSummary = (funds: Fund[]): AssetSummary => {
  */
 export const exportFunds = async (): Promise<void> => {
   const allFunds = await db.funds.toArray();
+  const allAccounts = await db.accounts.toArray();
   const allWatchlists = await db.watchlists.toArray();
-  const data = buildFundBackupPayload(allFunds, undefined, allWatchlists);
+  const data = buildFundBackupPayload(allFunds, undefined, allAccounts, allWatchlists);
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -845,21 +846,52 @@ export const importFunds = async (file: File): Promise<{ added: number; skipped:
 
 export const exportFundsToJsonString = async (): Promise<string> => {
   const allFunds = await db.funds.toArray();
+  const allAccounts = await db.accounts.toArray();
   const allWatchlists = await db.watchlists.toArray();
-  return JSON.stringify(buildFundBackupPayload(allFunds, undefined, allWatchlists), null, 2);
+  return JSON.stringify(
+    buildFundBackupPayload(allFunds, undefined, allAccounts, allWatchlists),
+    null,
+    2,
+  );
 };
 
 export const importFundsFromBackupContent = async (
   content: string | unknown,
 ): Promise<{ added: number; skipped: number }> => {
-  const { funds: importedFunds, watchlists: importedWatchlists } =
-    parseAndNormalizeFundBackupPayload(content);
-
-  const existingFunds = await db.funds.toArray();
-  const existingCodes = new Set(existingFunds.map((f) => buildFundBackupKey(f)));
+  const {
+    funds: importedFunds,
+    accounts: importedAccounts,
+    watchlists: importedWatchlists,
+  } = parseAndNormalizeFundBackupPayload(content);
 
   let added = 0;
   let skipped = 0;
+
+  const existingAccounts = await db.accounts.toArray();
+  const existingAccountNames = new Set(existingAccounts.map((account) => account.name));
+
+  const accountCandidates = new Map<string, { name: string }>();
+  importedAccounts.forEach((account) => {
+    accountCandidates.set(account.name, { name: account.name });
+  });
+  importedFunds.forEach((fund) => {
+    if (!accountCandidates.has(fund.platform)) {
+      accountCandidates.set(fund.platform, { name: fund.platform });
+    }
+  });
+
+  for (const account of accountCandidates.values()) {
+    if (existingAccountNames.has(account.name)) {
+      continue;
+    }
+
+    await db.accounts.add({ name: account.name, isDefault: false });
+    added++;
+    existingAccountNames.add(account.name);
+  }
+
+  const existingFunds = await db.funds.toArray();
+  const existingCodes = new Set(existingFunds.map((f) => buildFundBackupKey(f)));
 
   for (const fund of importedFunds) {
     const key = buildFundBackupKey(fund);

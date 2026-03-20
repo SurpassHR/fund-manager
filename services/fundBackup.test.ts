@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { Fund, WatchlistItem } from '../types';
+import type { Account, Fund, WatchlistItem } from '../types';
 import {
   buildFundBackupPayload,
   buildFundBackupKey,
@@ -30,6 +30,12 @@ const buildWatchlist = (overrides?: Partial<WatchlistItem>): WatchlistItem => ({
   currentPrice: 1005,
   dayChangePct: 0.5,
   lastUpdate: '2026-03-19',
+  ...overrides,
+});
+
+const buildAccount = (overrides?: Partial<Account>): Account => ({
+  name: 'Default',
+  isDefault: true,
   ...overrides,
 });
 
@@ -87,12 +93,18 @@ describe('fundBackup', () => {
   });
 
   it('支持在备份中携带自选基金并保持向后兼容', () => {
-    const payload = buildFundBackupPayload([buildFund()], '2026-03-19T00:00:00.000Z', [
-      buildWatchlist({ id: 9, platform: '天天基金', type: 'fund', code: '110011' }),
-    ]);
+    const payload = buildFundBackupPayload(
+      [buildFund()],
+      '2026-03-19T00:00:00.000Z',
+      [buildAccount({ id: 7 })],
+      [buildWatchlist({ id: 9, platform: '天天基金', type: 'fund', code: '110011' })],
+    );
 
     const normalized = parseAndNormalizeFundBackupPayload(payload);
 
+    expect(normalized.accounts).toHaveLength(1);
+    expect(normalized.accounts[0]?.name).toBe('Default');
+    expect('id' in normalized.accounts[0]).toBe(false);
     expect(normalized.watchlists).toHaveLength(1);
     expect(normalized.watchlists[0]?.code).toBe('110011');
     expect(normalized.watchlists[0]?.platform).toBe('天天基金');

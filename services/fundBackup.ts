@@ -1,9 +1,10 @@
-import type { Fund, WatchlistItem } from '../types';
+import type { Account, Fund, WatchlistItem } from '../types';
 
 export interface FundBackupPayload {
   version: number;
   exportDate: string;
   funds: Fund[];
+  accounts?: Account[];
   watchlists?: WatchlistItem[];
 }
 
@@ -19,6 +20,12 @@ const stripWatchlistId = (item: WatchlistItem): WatchlistItem => {
   const cleanItem = { ...item } as WatchlistItem & { id?: number };
   delete cleanItem.id;
   return cleanItem as WatchlistItem;
+};
+
+const stripAccountId = (account: Account): Account => {
+  const cleanAccount = { ...account } as Account & { id?: number };
+  delete cleanAccount.id;
+  return cleanAccount as Account;
 };
 
 const isValidFund = (fund: Partial<Fund>): fund is Fund => {
@@ -49,6 +56,14 @@ const isValidWatchlistItem = (item: Partial<WatchlistItem>): item is WatchlistIt
   );
 };
 
+const isValidAccount = (account: Partial<Account>): account is Account => {
+  return (
+    typeof account.name === 'string' &&
+    account.name.trim().length > 0 &&
+    (account.isDefault === undefined || typeof account.isDefault === 'boolean')
+  );
+};
+
 export const buildFundBackupKey = (fund: Pick<Fund, 'code' | 'platform'>): string => {
   return `${fund.code}_${fund.platform}`;
 };
@@ -72,12 +87,14 @@ export const findDuplicateFundBackupKeys = (funds: Array<Pick<Fund, 'code' | 'pl
 export const buildFundBackupPayload = (
   funds: Fund[],
   exportDate = new Date().toISOString(),
+  accounts: Account[] = [],
   watchlists: WatchlistItem[] = [],
 ): FundBackupPayload => {
   return {
     version: BACKUP_VERSION,
     exportDate,
     funds: funds.map(stripFundId),
+    accounts: accounts.map(stripAccountId),
     watchlists: watchlists.map(stripWatchlistId),
   };
 };
@@ -86,6 +103,7 @@ export const parseAndNormalizeFundBackupPayload = (
   content: unknown,
 ): {
   funds: Fund[];
+  accounts: Account[];
   watchlists: WatchlistItem[];
 } => {
   const parsed =
@@ -107,6 +125,18 @@ export const parseAndNormalizeFundBackupPayload = (
     return stripFundId(fund as Fund);
   });
 
+  const rawAccounts = payload.accounts ?? [];
+  if (!Array.isArray(rawAccounts)) {
+    throw new Error('无效的备份文件格式');
+  }
+
+  const normalizedAccounts = rawAccounts.map((account) => {
+    if (!account || typeof account !== 'object' || !isValidAccount(account as Partial<Account>)) {
+      throw new Error('无效的备份文件格式');
+    }
+    return stripAccountId(account as Account);
+  });
+
   const rawWatchlists = payload.watchlists ?? [];
   if (!Array.isArray(rawWatchlists)) {
     throw new Error('无效的备份文件格式');
@@ -125,6 +155,7 @@ export const parseAndNormalizeFundBackupPayload = (
 
   return {
     funds: normalizedFunds,
+    accounts: normalizedAccounts,
     watchlists: normalizedWatchlists,
   };
 };

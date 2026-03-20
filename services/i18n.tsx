@@ -255,6 +255,9 @@ const dictionary = {
       indexNamePlaceholder: 'SSE Composite',
       fundNamePlaceholder: 'E Fund Blue Chip',
     },
+    filters: {
+      Default: 'Default',
+    },
   },
   zh: {
     common: {
@@ -503,6 +506,9 @@ const dictionary = {
       fundCodePlaceholder: '110011',
       indexNamePlaceholder: '上证指数',
       fundNamePlaceholder: '易方达蓝筹',
+    },
+    filters: {
+      Default: '默认',
     },
   },
 };
