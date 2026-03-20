@@ -3,12 +3,14 @@ import type { Fund, Account, AssetSummary, WatchlistItem, EquityHolding } from '
 import {
   fetchFundCommonData,
   fetchEastMoneyLatestNav,
+  fetchHistoricalFundNavWithDate,
   fetchFundHoldings,
   fetchTencentStockQuotes,
   checkIsMarketTrading,
   fetchGeneralTencentQuotes,
   buildTencentQuoteCodes,
 } from './api';
+import { getEffectiveOperationDate, roundMoney, roundShares } from './rebalanceUtils';
 import {
   buildFundBackupKey,
   buildFundBackupPayload,
@@ -206,6 +208,16 @@ export const getSettlementDate = (
   return `${year}-${month}-${day}`;
 };
 
+const getUnsettledOutShares = (fund: Fund) => {
+  const txs = fund.pendingTransactions || [];
+  return txs.reduce((sum, tx) => {
+    if (tx.settled) return sum;
+    if (tx.type === 'sell') return sum + tx.amount;
+    if (tx.type === 'transferOut') return sum + (tx.outShares ?? tx.amount ?? 0);
+    return sum;
+  }, 0);
+};
+
 /**
  * Refreshes the latest NAV and change metrics for all held funds.
  * Fetches data from APIs and calculates projected gains if the market hasn't officially updated.
@@ -401,6 +413,10 @@ export const refreshFundData = (options?: RefreshOptions) => {
           if (tx.settled) return tx;
           if (tx.settlementDate > todayForSettlement) return tx; // 还没到期
 
+          if (tx.type === 'transferOut' || tx.type === 'transferIn') {
+            return tx;
+          }
+
           changed = true;
 
           if (tx.type === 'buy') {
@@ -425,6 +441,120 @@ export const refreshFundData = (options?: RefreshOptions) => {
             pendingTransactions: updatedPending,
           });
         }
+      }
+
+      // === 自动结算调仓（A transferOut + B transferIn） ===
+      const fundsAfterBasicSettlement = await db.funds.toArray();
+      const transferMap = new Map<
+        string,
+        {
+          out?: { fundId: number; txId: string };
+          in?: { fundId: number; txId: string };
+        }
+      >();
+
+      fundsAfterBasicSettlement.forEach((fund) => {
+        (fund.pendingTransactions || []).forEach((tx) => {
+          if (tx.settled || !tx.transferId) return;
+          if (tx.type !== 'transferOut' && tx.type !== 'transferIn') return;
+          if (!fund.id) return;
+          const pair = transferMap.get(tx.transferId) || {};
+          if (tx.type === 'transferOut') {
+            pair.out = { fundId: fund.id, txId: tx.id };
+          } else {
+            pair.in = { fundId: fund.id, txId: tx.id };
+          }
+          transferMap.set(tx.transferId, pair);
+        });
+      });
+
+      for (const pair of transferMap.values()) {
+        if (!pair.out || !pair.in) continue;
+
+        await db.transaction('rw', db.funds, async () => {
+          const sourceFund = await db.funds.get(pair.out!.fundId);
+          const targetFund = await db.funds.get(pair.in!.fundId);
+          if (!sourceFund || !targetFund) return;
+
+          const sourcePending = sourceFund.pendingTransactions || [];
+          const targetPending = targetFund.pendingTransactions || [];
+          const sourceTx = sourcePending.find((tx) => tx.id === pair.out!.txId);
+          const targetTx = targetPending.find((tx) => tx.id === pair.in!.txId);
+
+          if (!sourceTx || !targetTx || sourceTx.settled || targetTx.settled) return;
+
+          const outShares = sourceTx.outShares ?? sourceTx.amount;
+          if (outShares <= 0) return;
+
+          const effectiveOpDate = getEffectiveOperationDate(sourceTx.date, sourceTx.time);
+          const [sourceNavRes, targetNavRes] = await Promise.all([
+            fetchHistoricalFundNavWithDate(sourceFund.code, effectiveOpDate),
+            fetchHistoricalFundNavWithDate(targetFund.code, effectiveOpDate),
+          ]);
+
+          if (!sourceNavRes || !targetNavRes) return;
+          if (
+            sourceNavRes.navDate !== effectiveOpDate ||
+            targetNavRes.navDate !== effectiveOpDate
+          ) {
+            return;
+          }
+
+          const unsettledTotal = getUnsettledOutShares(sourceFund);
+          const availableForCurrent = Math.max(
+            0,
+            sourceFund.holdingShares - (unsettledTotal - outShares),
+          );
+          if (outShares > availableForCurrent) return;
+
+          const sellFeeRate = sourceTx.sellFeeRate ?? 0;
+          const buyFeeRate = sourceTx.buyFeeRate ?? 0;
+          const grossAmount = roundMoney(outShares * sourceNavRes.nav);
+          const netOutAmount = roundMoney(grossAmount * (1 - sellFeeRate));
+          const netInAmount = roundMoney(netOutAmount * (1 - buyFeeRate));
+          const inShares = roundShares(netInAmount / targetNavRes.nav);
+
+          const nextSourceShares = roundShares(Math.max(0, sourceFund.holdingShares - outShares));
+          const nextTargetShares = roundShares(targetFund.holdingShares + inShares);
+          const oldTargetCostValue = targetFund.costPrice * targetFund.holdingShares;
+          const nextTargetCostPrice =
+            nextTargetShares > 0
+              ? roundShares((oldTargetCostValue + netInAmount) / nextTargetShares)
+              : 0;
+
+          const nextSourcePending = sourcePending.map((tx) => {
+            if (tx.id !== sourceTx.id) return tx;
+            return {
+              ...tx,
+              settled: true,
+              outShares,
+              grossAmount,
+              netOutAmount,
+              netInAmount,
+              settledNavDateUsed: effectiveOpDate,
+            };
+          });
+          const nextTargetPending = targetPending.map((tx) => {
+            if (tx.id !== targetTx.id) return tx;
+            return {
+              ...tx,
+              settled: true,
+              inShares,
+              netInAmount,
+              settledNavDateUsed: effectiveOpDate,
+            };
+          });
+
+          await db.funds.update(sourceFund.id!, {
+            holdingShares: nextSourceShares,
+            pendingTransactions: nextSourcePending,
+          });
+          await db.funds.update(targetFund.id!, {
+            holdingShares: nextTargetShares,
+            costPrice: nextTargetCostPrice,
+            pendingTransactions: nextTargetPending,
+          });
+        });
       }
     } catch (err) {
       console.error('刷新基金数据失败', err);

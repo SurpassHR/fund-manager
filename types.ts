@@ -20,12 +20,22 @@ export interface Fund {
 
 export interface PendingTransaction {
   id: string; // uuid
-  type: 'buy' | 'sell'; // 加仓/减仓
+  type: 'buy' | 'sell' | 'transferOut' | 'transferIn'; // 加仓/减仓/调仓转出/调仓转入
   date: string; // 操作日期 YYYY-MM-DD
   time: 'before15' | 'after15'; // 15:00 前后
   amount: number; // 加仓金额(元) / 减仓份额
   settlementDate: string; // 份额确认日 YYYY-MM-DD
   settled: boolean; // 是否已结算
+  transferId?: string; // 调仓关联 ID（A/B 双边一致）
+  counterpartyFundCode?: string; // 对手基金代码
+  sellFeeRate?: number; // 卖出手续费率，0~1
+  buyFeeRate?: number; // 买入手续费率，0~1
+  outShares?: number; // 调仓转出份额
+  inShares?: number; // 调仓转入份额（结算后写入）
+  grossAmount?: number; // 卖出毛金额
+  netOutAmount?: number; // 卖出净金额
+  netInAmount?: number; // 买入前金额
+  settledNavDateUsed?: string; // 结算实际使用净值日期
 }
 
 export interface WatchlistItem {
