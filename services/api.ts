@@ -310,8 +310,16 @@ export const fetchHistoricalFundNav = async (
   fundCode: string,
   date: string,
 ): Promise<number | null> => {
+  const result = await fetchHistoricalFundNavWithDate(fundCode, date);
+  return result?.nav ?? null;
+};
+
+export const fetchHistoricalFundNavWithDate = async (
+  fundCode: string,
+  date: string,
+): Promise<{ nav: number; navDate: string } | null> => {
   return withCache({
-    key: `em-hist-nav:${fundCode}:${date}`,
+    key: `em-hist-nav-with-date:${fundCode}:${date}`,
     ttlMs: 24 * 60 * 60 * 1000,
     fetcher: () =>
       new Promise((resolve) => {
@@ -332,10 +340,13 @@ export const fetchHistoricalFundNav = async (
               try {
                 const data = (window as EastMoneyWindow).apidata;
                 if (data && data.content) {
-                  const regex = /<tr>\s*<td>\d{4}-\d{2}-\d{2}<\/td>\s*<td[^>]*>([\d.]+)<\/td>/;
+                  const regex = /<tr>\s*<td>(\d{4}-\d{2}-\d{2})<\/td>\s*<td[^>]*>([\d.]+)<\/td>/;
                   const match = data.content.match(regex);
-                  if (match && match[1]) {
-                    result = parseFloat(match[1]);
+                  if (match && match[1] && match[2]) {
+                    result = {
+                      navDate: match[1],
+                      nav: parseFloat(match[2]),
+                    };
                   }
                 }
               } catch (e) {

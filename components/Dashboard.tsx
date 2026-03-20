@@ -13,6 +13,7 @@ import type { HoldingsSnapshot } from '../services/aiAnalysis';
 import { AccountManagerModal } from './AccountManagerModal';
 import { AddFundModal } from './AddFundModal';
 import { AdjustPositionModal } from './AdjustPositionModal';
+import { RebalanceModal } from './RebalanceModal';
 import { TransactionHistoryModal } from './TransactionHistoryModal';
 import { FundDetail } from './FundDetail';
 import type { Fund } from '../types';
@@ -52,6 +53,7 @@ export const Dashboard: React.FC = () => {
   const [isAddFundOpen, setIsAddFundOpen] = useState(false);
   const [editingFund, setEditingFund] = useState<Fund | undefined>(undefined);
   const [adjustFund, setAdjustFund] = useState<Fund | null>(null);
+  const [rebalanceFund, setRebalanceFund] = useState<Fund | null>(null);
   const [historyFund, setHistoryFund] = useState<Fund | null>(null);
 
   // Context Menu State
@@ -360,6 +362,18 @@ export const Dashboard: React.FC = () => {
             className="w-full text-left px-4 py-3 hover:bg-blue-50 dark:hover:bg-blue-900/20 text-gray-700 dark:text-gray-200 text-sm flex items-center gap-2 border-b border-gray-50 dark:border-border-dark"
           >
             <Icons.Settings size={16} className="text-blue-500" /> {t('common.edit')}
+          </button>
+          <button
+            onClick={() => {
+              const f = funds.find((i) => i.id === contextMenu.fundId);
+              if (f) {
+                setRebalanceFund(f);
+                setContextMenu(null);
+              }
+            }}
+            className="w-full text-left px-4 py-3 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 text-gray-700 dark:text-gray-200 text-sm flex items-center gap-2 border-b border-gray-50 dark:border-border-dark"
+          >
+            <Icons.ArrowDown size={16} className="text-indigo-500" /> {t('common.rebalance')}
           </button>
           <button
             onClick={() => {
@@ -824,6 +838,14 @@ export const Dashboard: React.FC = () => {
           isOpen={!!adjustFund}
           onClose={() => setAdjustFund(null)}
           fund={adjustFund}
+        />
+      )}
+      {rebalanceFund && (
+        <RebalanceModal
+          isOpen={!!rebalanceFund}
+          onClose={() => setRebalanceFund(null)}
+          sourceFund={rebalanceFund}
+          funds={safeFunds}
         />
       )}
       {historyFund && (
