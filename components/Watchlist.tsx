@@ -6,15 +6,21 @@ import { Icons } from './Icon';
 import { useTranslation } from '../services/i18n';
 import type { WatchlistItem, Fund } from '../types';
 import { AddWatchlistModal } from './AddWatchlistModal';
+import { AddFundModal } from './AddFundModal';
 import { FundDetail } from './FundDetail';
 import { AnimatePresence } from 'framer-motion';
 
 export const Watchlist: React.FC = () => {
   const watchlists = useLiveQuery(() => db.watchlists.toArray());
+  const funds = useLiveQuery(() => db.funds.toArray());
   const { t } = useTranslation();
 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<WatchlistItem | undefined>(undefined);
+  const [isAddFundOpen, setIsAddFundOpen] = useState(false);
+  const [prefillWatchlistItem, setPrefillWatchlistItem] = useState<WatchlistItem | undefined>(
+    undefined,
+  );
   const [selectedItemForDetail, setSelectedItemForDetail] = useState<{
     fund: Fund;
     anchorDate: string;
@@ -104,6 +110,24 @@ export const Watchlist: React.FC = () => {
       await db.watchlists.delete(itemId);
     }
     setContextMenu(null);
+  };
+
+  const handleAddHolding = (item: WatchlistItem) => {
+    if (isAddFundOpen) return;
+
+    if (!item.id || !item.code || !item.name || item.currentPrice <= 0) {
+      alert(t('common.addHoldingFromWatchlistInvalid'));
+      return;
+    }
+
+    setPrefillWatchlistItem(item);
+    setIsAddFundOpen(true);
+    setContextMenu(null);
+  };
+
+  const handleAddFundModalClose = () => {
+    setIsAddFundOpen(false);
+    setPrefillWatchlistItem(undefined);
   };
 
   const handleManualRefresh = async () => {
@@ -198,6 +222,22 @@ export const Watchlist: React.FC = () => {
           >
             <Icons.Settings size={16} className="text-blue-500" /> {t('common.edit')}
           </button>
+          {(() => {
+            const item = watchlists.find((i) => i.id === contextMenu.itemId);
+            const isFund = item?.type === 'fund';
+            const isHeld =
+              !!item && (funds ?? []).some((f) => f.code === item.code && f.holdingShares > 0);
+            if (!item || !isFund || isHeld) return null;
+
+            return (
+              <button
+                onClick={() => handleAddHolding(item)}
+                className="w-full text-left px-4 py-3 hover:bg-green-50 dark:hover:bg-green-900/20 text-green-600 dark:text-green-400 text-sm flex items-center gap-2 border-b border-gray-50 dark:border-border-dark"
+              >
+                <Icons.Plus size={16} /> {t('common.addHoldingFromWatchlist')}
+              </button>
+            );
+          })()}
           <button
             onClick={() => handleDelete(contextMenu.itemId)}
             className="w-full text-left px-4 py-3 hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400 text-sm flex items-center gap-2"
@@ -441,6 +481,11 @@ export const Watchlist: React.FC = () => {
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
         editItem={editingItem}
+      />
+      <AddFundModal
+        isOpen={isAddFundOpen}
+        onClose={handleAddFundModalClose}
+        prefillWatchlistItem={prefillWatchlistItem}
       />
 
       <AnimatePresence>
