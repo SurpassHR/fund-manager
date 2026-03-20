@@ -7,6 +7,7 @@ import { Ticker } from './components/Ticker';
 import { ScannerModal } from './components/ScannerModal';
 import { SettingsPage } from './components/SettingsPage';
 import { WelcomeModal } from './components/WelcomeModal';
+import { AnimatedSwitcher } from './components/transitions/AnimatedSwitcher';
 import type { TabType } from './types';
 import { Icons } from './components/Icon';
 import { LanguageProvider, useTranslation } from './services/i18n';
@@ -380,7 +381,9 @@ const AppContent: React.FC = () => {
       <Header title={t('common.appTitle') || 'XiaoHuYangJi'} />
 
       <main className="flex-grow w-full max-w-7xl mx-auto md:px-4 lg:px-8 relative">
-        {renderTabContent()}
+        <AnimatedSwitcher viewKey={activeTab} preset="pageFadeLift" mode="wait" className="h-full">
+          {renderTabContent()}
+        </AnimatedSwitcher>
       </main>
 
       <Ticker />
