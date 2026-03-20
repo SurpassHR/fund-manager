@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatedSwitcher } from './transitions/AnimatedSwitcher';
 
 export type GistChooserItem = {
   id: string;
@@ -96,6 +97,46 @@ export const GistSyncChooserCard: React.FC<GistSyncChooserCardProps> = ({
     onRequestUpload({ mode: 'overwrite', gistId: selectedGistId, description: description.trim() });
   };
 
+  const gistListSection = (
+    <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+      {sortedGists.map((item) => {
+        const selected = selectedGistId === item.id;
+        const disabledForDownload = cardMode === 'download' && item.isBackupValid === false;
+        return (
+          <button
+            key={item.id}
+            type="button"
+            onClick={() => {
+              if (disabledForDownload) return;
+              setSelectedGistId(item.id);
+            }}
+            disabled={disabledForDownload}
+            className={`w-full text-left rounded-xl border px-3 py-3 transition-colors ${
+              selected
+                ? 'border-blue-500 bg-blue-50 dark:bg-blue-500/10'
+                : 'border-gray-100 dark:border-border-dark hover:bg-gray-50 dark:hover:bg-white/5'
+            } ${disabledForDownload ? 'opacity-60 cursor-not-allowed' : ''}`}
+            aria-label={`选择 ${item.description || '无描述'} ${formatGistUpdatedAt(item.updated_at)}`}
+          >
+            <div className="text-sm font-medium text-gray-800 dark:text-gray-100">
+              {item.description || '无描述'}
+            </div>
+            <div className="mt-1 text-xs text-gray-500">最后修改：{formatGistUpdatedAt(item.updated_at)}</div>
+            {item.hasSyncFile === false && (
+              <div className="mt-1 text-[11px] text-amber-600">未命中同步文件</div>
+            )}
+            {item.isBackupValid === false && (
+              <div className="mt-1 text-[11px] text-red-500">备份格式无效（仅可覆盖修复）</div>
+            )}
+            {item.isBackupValid === true && (
+              <div className="mt-1 text-[11px] text-emerald-600">备份格式有效</div>
+            )}
+          </button>
+        );
+      })}
+    </div>
+  );
+
   return (
     <AnimatePresence>
       {isOpen && (
@@ -168,99 +209,64 @@ export const GistSyncChooserCard: React.FC<GistSyncChooserCardProps> = ({
                 </button>
               </div>
 
-              {cardMode === 'upload' && (
-                <div className="space-y-3 rounded-xl border border-gray-100 dark:border-border-dark p-3">
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      type="button"
-                      className={`rounded-lg py-2 text-sm transition-colors ${
-                        uploadMode === 'create'
-                          ? 'bg-blue-600 text-white'
-                          : 'bg-gray-100 dark:bg-white/5 text-gray-700 dark:text-gray-200'
-                      }`}
-                      onClick={() => {
-                        setUploadMode('create');
-                        setSelectedGistId('');
-                      }}
-                    >
-                      新建 Gist
-                    </button>
-                    <button
-                      type="button"
-                      className={`rounded-lg py-2 text-sm transition-colors ${
-                        uploadMode === 'overwrite'
-                          ? 'bg-blue-600 text-white'
-                          : 'bg-gray-100 dark:bg-white/5 text-gray-700 dark:text-gray-200'
-                      }`}
-                      onClick={() => setUploadMode('overwrite')}
-                    >
-                      覆盖已有 Gist
-                    </button>
-                  </div>
+              <AnimatedSwitcher
+                viewKey={cardMode === 'download' ? 'download' : `upload-${uploadMode}`}
+                preset="sectionFadeLift"
+                enableExit={false}
+              >
+                <div className="space-y-3">
+                  {cardMode === 'upload' && (
+                    <div className="space-y-3 rounded-xl border border-gray-100 dark:border-border-dark p-3">
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          type="button"
+                          className={`rounded-lg py-2 text-sm transition-colors ${
+                            uploadMode === 'create'
+                              ? 'bg-blue-600 text-white'
+                              : 'bg-gray-100 dark:bg-white/5 text-gray-700 dark:text-gray-200'
+                          }`}
+                          onClick={() => {
+                            setUploadMode('create');
+                            setSelectedGistId('');
+                          }}
+                        >
+                          新建 Gist
+                        </button>
+                        <button
+                          type="button"
+                          className={`rounded-lg py-2 text-sm transition-colors ${
+                            uploadMode === 'overwrite'
+                              ? 'bg-blue-600 text-white'
+                              : 'bg-gray-100 dark:bg-white/5 text-gray-700 dark:text-gray-200'
+                          }`}
+                          onClick={() => setUploadMode('overwrite')}
+                        >
+                          覆盖已有 Gist
+                        </button>
+                      </div>
 
-                  <div className="space-y-1">
-                    <label
-                      htmlFor="gist-description"
-                      className="block text-xs font-medium text-gray-500"
-                    >
-                      Gist 描述
-                    </label>
-                    <input
-                      id="gist-description"
-                      value={description}
-                      onChange={(e) => handleDescriptionChange(e.target.value)}
-                      className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-white/5 px-3 py-2 text-sm"
-                      placeholder="例如：fund-manager 自动备份"
-                    />
-                    <p className="text-[11px] text-gray-400">{descriptionLen} / 25</p>
-                  </div>
-                </div>
-              )}
+                      <div className="space-y-1">
+                        <label
+                          htmlFor="gist-description"
+                          className="block text-xs font-medium text-gray-500"
+                        >
+                          Gist 描述
+                        </label>
+                        <input
+                          id="gist-description"
+                          value={description}
+                          onChange={(e) => handleDescriptionChange(e.target.value)}
+                          className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-white/5 px-3 py-2 text-sm"
+                          placeholder="例如：fund-manager 自动备份"
+                        />
+                        <p className="text-[11px] text-gray-400">{descriptionLen} / 25</p>
+                      </div>
+                    </div>
+                  )}
 
-              {(cardMode === 'download' || uploadMode === 'overwrite') && (
-                <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
-                  {sortedGists.map((item) => {
-                    const selected = selectedGistId === item.id;
-                    const disabledForDownload =
-                      cardMode === 'download' && item.isBackupValid === false;
-                    return (
-                      <button
-                        key={item.id}
-                        type="button"
-                        onClick={() => {
-                          if (disabledForDownload) return;
-                          setSelectedGistId(item.id);
-                        }}
-                        disabled={disabledForDownload}
-                        className={`w-full text-left rounded-xl border px-3 py-3 transition-colors ${
-                          selected
-                            ? 'border-blue-500 bg-blue-50 dark:bg-blue-500/10'
-                            : 'border-gray-100 dark:border-border-dark hover:bg-gray-50 dark:hover:bg-white/5'
-                        } ${disabledForDownload ? 'opacity-60 cursor-not-allowed' : ''}`}
-                        aria-label={`选择 ${item.description || '无描述'} ${formatGistUpdatedAt(item.updated_at)}`}
-                      >
-                        <div className="text-sm font-medium text-gray-800 dark:text-gray-100">
-                          {item.description || '无描述'}
-                        </div>
-                        <div className="mt-1 text-xs text-gray-500">
-                          最后修改：{formatGistUpdatedAt(item.updated_at)}
-                        </div>
-                        {item.hasSyncFile === false && (
-                          <div className="mt-1 text-[11px] text-amber-600">未命中同步文件</div>
-                        )}
-                        {item.isBackupValid === false && (
-                          <div className="mt-1 text-[11px] text-red-500">
-                            备份格式无效（仅可覆盖修复）
-                          </div>
-                        )}
-                        {item.isBackupValid === true && (
-                          <div className="mt-1 text-[11px] text-emerald-600">备份格式有效</div>
-                        )}
-                      </button>
-                    );
-                  })}
+                  {(cardMode === 'download' || uploadMode === 'overwrite') && gistListSection}
                 </div>
-              )}
+              </AnimatedSwitcher>
 
               <div className="flex items-center justify-end gap-2 pt-2">
                 <button

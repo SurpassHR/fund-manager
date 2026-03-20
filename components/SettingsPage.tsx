@@ -22,6 +22,7 @@ import {
   type GistListItem,
 } from '../services/gistSync/index';
 import { GistSyncChooserCard } from './GistSyncChooserCard';
+import { AnimatedSwitcher } from './transitions/AnimatedSwitcher';
 
 interface SettingsPageProps {
   onBack?: () => void;
@@ -29,6 +30,7 @@ interface SettingsPageProps {
 }
 
 type ThemeOption = 'system' | 'light' | 'dark';
+type SettingsView = 'main' | 'ai' | 'gist';
 
 export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack, initialShowAiSettings }) => {
   const { t } = useTranslation();
@@ -52,8 +54,9 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack, initialShowA
     setDefaultGistTarget,
   } = useSettings();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [showAiSettings, setShowAiSettings] = useState(Boolean(initialShowAiSettings));
-  const [showGistSyncSettings, setShowGistSyncSettings] = useState(false);
+  const [activeView, setActiveView] = useState<SettingsView>(
+    initialShowAiSettings ? 'ai' : 'main',
+  );
   const [openaiModels, setOpenaiModels] = useState<string[]>([]);
   const [geminiModels, setGeminiModels] = useState<string[]>([]);
   const [openaiLoading, setOpenaiLoading] = useState(false);
@@ -301,7 +304,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack, initialShowA
 
   useEffect(() => {
     if (initialShowAiSettings) {
-      setShowAiSettings(true);
+      setActiveView('ai');
     }
   }, [initialShowAiSettings]);
 
@@ -405,12 +408,11 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack, initialShowA
     return () => clearTimeout(timer);
   }, [gistListCooldownSec]);
 
-  if (showAiSettings) {
-    return (
+  const aiSettingsView = (
       <div className="min-h-[60vh] pb-44 md:pb-28">
         <div className="flex items-center gap-3 px-4 py-3">
           <button
-            onClick={() => setShowAiSettings(false)}
+            onClick={() => setActiveView('main')}
             className="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
           >
             <Icons.ArrowUp size={20} className="text-gray-600 dark:text-gray-300 -rotate-90" />
@@ -520,15 +522,13 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack, initialShowA
           </div>
         </div>
       </div>
-    );
-  }
+  );
 
-  if (showGistSyncSettings) {
-    return (
+  const gistSyncSettingsView = (
       <div className="min-h-[60vh] pb-44 md:pb-28">
         <div className="flex items-center gap-3 px-4 py-3">
           <button
-            onClick={() => setShowGistSyncSettings(false)}
+            onClick={() => setActiveView('main')}
             className="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
           >
             <Icons.ArrowUp size={20} className="text-gray-600 dark:text-gray-300 -rotate-90" />
@@ -635,10 +635,9 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack, initialShowA
           }}
         />
       </div>
-    );
-  }
+  );
 
-  return (
+  const mainSettingsView = (
     <div className="min-h-[60vh] pb-44 md:pb-28">
       {/* 标题栏 */}
       <div className="flex items-center gap-3 px-4 py-3">
@@ -728,7 +727,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack, initialShowA
         </div>
         <div className="bg-white dark:bg-card-dark rounded-xl overflow-hidden shadow-sm">
           <button
-            onClick={() => setShowAiSettings(true)}
+            onClick={() => setActiveView('ai')}
             className="w-full flex items-center justify-between px-4 py-3.5 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors"
           >
             <div className="flex items-center gap-3">
@@ -795,7 +794,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack, initialShowA
         </div>
         <div className="bg-white dark:bg-card-dark rounded-xl overflow-hidden shadow-sm">
           <button
-            onClick={() => setShowGistSyncSettings(true)}
+            onClick={() => setActiveView('gist')}
             className="w-full flex items-center justify-between px-4 py-3.5 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors"
           >
             <div className="flex items-center gap-3">
@@ -811,5 +810,15 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack, initialShowA
         </div>
       </div>
     </div>
+  );
+
+  return (
+    <AnimatedSwitcher viewKey={activeView} preset="pageFadeLift" mode="wait">
+      {activeView === 'ai'
+        ? aiSettingsView
+        : activeView === 'gist'
+          ? gistSyncSettingsView
+          : mainSettingsView}
+    </AnimatedSwitcher>
   );
 };
