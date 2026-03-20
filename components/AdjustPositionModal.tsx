@@ -61,7 +61,7 @@ export const AdjustPositionModal: React.FC<AdjustPositionModalProps> = ({
 
   const requestClose = useCallback(
     (payload?: { source?: 'edge-swipe' | 'programmatic'; targetX?: number }) => {
-      if (payload?.source === 'edge-swipe' && payload.targetX !== undefined) {
+      if (payload?.targetX !== undefined) {
         setCloseTargetX(payload.targetX);
         return;
       }
@@ -136,10 +136,14 @@ export const AdjustPositionModal: React.FC<AdjustPositionModalProps> = ({
   const pendingCount = (fund.pendingTransactions || []).filter((tx) => !tx.settled).length;
 
   return (
-    <div className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+    <div
+      className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
+      onClick={() => requestClose({ source: 'programmatic', targetX: window.innerWidth })}
+    >
       <div
         className="bg-white dark:bg-card-dark rounded-xl w-full max-w-md overflow-hidden shadow-2xl flex flex-col max-h-[90vh]"
         style={{ transform: `translateX(${transformX})`, transition }}
+        onClick={(e) => e.stopPropagation()}
         onTransitionEnd={() => {
           if (closeTargetX !== null) {
             setCloseTargetX(null);

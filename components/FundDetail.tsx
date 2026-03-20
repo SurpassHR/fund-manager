@@ -208,7 +208,7 @@ export const FundDetail: React.FC<FundDetailProps> = ({
 
   const requestClose = useCallback(
     (payload?: { source?: 'edge-swipe' | 'programmatic'; targetX?: number }) => {
-      if (payload?.source === 'edge-swipe' && payload.targetX !== undefined) {
+      if (payload?.targetX !== undefined) {
         setCloseTargetX(payload.targetX);
         setIsEdgeClosing(true);
         return;

@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { AnimatedSwitcher } from './transitions/AnimatedSwitcher';
 
@@ -62,6 +62,17 @@ export const GistSyncChooserCard: React.FC<GistSyncChooserCardProps> = ({
   const descriptionLen = description.length;
   const isDownloadConfirmDisabled = !selectedGistId;
   const isOverwriteConfirmDisabled = uploadMode === 'overwrite' && !selectedGistId;
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [isOpen, onClose]);
 
   const title = cardMode === 'download' ? '选择要下载的 Gist' : '选择上传方式';
 

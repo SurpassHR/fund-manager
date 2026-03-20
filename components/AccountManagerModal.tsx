@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../services/db';
 import { useTranslation } from '../services/i18n';
@@ -13,6 +13,17 @@ interface AccountManagerModalProps {
 export const AccountManagerModal: React.FC<AccountManagerModalProps> = ({ isOpen, onClose }) => {
   const accounts = useLiveQuery(() => db.accounts.toArray());
   const { t } = useTranslation();
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [isOpen, onClose]);
 
   // Add State
   const [newAccountName, setNewAccountName] = useState('');
@@ -74,8 +85,14 @@ export const AccountManagerModal: React.FC<AccountManagerModalProps> = ({ isOpen
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-white dark:bg-card-dark rounded-lg w-full max-w-sm overflow-hidden shadow-xl animate-in fade-in zoom-in duration-200 flex flex-col max-h-[90vh]">
+    <div
+      className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white dark:bg-card-dark rounded-lg w-full max-w-sm overflow-hidden shadow-xl animate-in fade-in zoom-in duration-200 flex flex-col max-h-[90vh]"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="p-4 border-b border-gray-100 dark:border-border-dark flex justify-between items-center bg-gray-50 dark:bg-white/5 shrink-0">
           <h2 className="font-bold text-gray-800 dark:text-gray-100">
             {t('common.manageAccounts')}

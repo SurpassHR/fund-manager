@@ -108,7 +108,7 @@ export const AddWatchlistModal: React.FC<AddWatchlistModalProps> = ({
 
   const requestClose = useCallback(
     (payload?: { source?: 'edge-swipe' | 'programmatic'; targetX?: number }) => {
-      if (payload?.source === 'edge-swipe' && payload.targetX !== undefined) {
+      if (payload?.targetX !== undefined) {
         setCloseTargetX(payload.targetX);
         return;
       }
@@ -193,36 +193,37 @@ export const AddWatchlistModal: React.FC<AddWatchlistModalProps> = ({
     }
   };
 
-  if (!isOpen) return null;
-
   return (
     <AnimatePresence>
-      <motion.div
-        className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-      >
-        <div
-          style={{ transform: `translateX(${transformX})`, transition }}
-          onTransitionEnd={() => {
-            if (closeTargetX !== null) {
-              setCloseTargetX(null);
-              resetDragState(setDragState);
-              handleClose();
-              return;
-            }
-            if (snapX !== null) {
-              resetDragState(setDragState);
-            }
-          }}
+      {isOpen && (
+        <motion.div
+          className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
+          onClick={() => requestClose({ source: 'programmatic', targetX: window.innerWidth })}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
         >
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: 20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            className="bg-white dark:bg-card-dark rounded-xl shadow-xl w-full max-w-md overflow-hidden flex flex-col max-h-[90vh]"
+          <div
+            style={{ transform: `translateX(${transformX})`, transition }}
+            onTransitionEnd={() => {
+              if (closeTargetX !== null) {
+                setCloseTargetX(null);
+                resetDragState(setDragState);
+                handleClose();
+                return;
+              }
+              if (snapX !== null) {
+                resetDragState(setDragState);
+              }
+            }}
           >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="bg-white dark:bg-card-dark rounded-xl shadow-xl w-full max-w-md overflow-hidden flex flex-col max-h-[90vh]"
+              onClick={(e) => e.stopPropagation()}
+            >
             {/* Header */}
             <div className="flex justify-between items-center p-4 border-b border-gray-100 dark:border-border-dark bg-gray-50/50 dark:bg-white/5 shrink-0">
               <h2 className="text-lg font-bold text-gray-800 dark:text-gray-100">
@@ -401,9 +402,10 @@ export const AddWatchlistModal: React.FC<AddWatchlistModalProps> = ({
                 {t('common.save')}
               </button>
             </div>
-          </motion.div>
-        </div>
-      </motion.div>
+            </motion.div>
+          </div>
+        </motion.div>
+      )}
     </AnimatePresence>
   );
 };
