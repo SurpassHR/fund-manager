@@ -92,13 +92,23 @@ export const deriveWatchlistFundEffectivePrice = (params: {
   shouldEstimate: boolean;
   estimatedChangePct?: number;
   fallbackChangePct?: number;
+  anchorDate?: string;
 }) => {
-  const { nav, navDate, todayStr, shouldEstimate, estimatedChangePct, fallbackChangePct } = params;
+  const {
+    nav,
+    navDate,
+    todayStr,
+    shouldEstimate,
+    estimatedChangePct,
+    fallbackChangePct,
+    anchorDate,
+  } = params;
   const projectedPct = estimatedChangePct ?? fallbackChangePct;
   const hasEstimate = shouldEstimate && projectedPct !== undefined;
   const isOfficialTodayNav = navDate === todayStr;
+  const isAnchorToday = anchorDate === todayStr;
 
-  if (hasEstimate && !isOfficialTodayNav) {
+  if (hasEstimate && !isOfficialTodayNav && !isAnchorToday) {
     return nav * (1 + (projectedPct as number) / 100);
   }
 
@@ -711,6 +721,7 @@ export const refreshWatchlistData = (options?: RefreshOptions) => {
               shouldEstimate: candidate.shouldEstimate,
               estimatedChangePct,
               fallbackChangePct: navChangePercent,
+              anchorDate: item.anchorDate,
             });
 
             const nextDayChangePct = shouldProjectToday ? projectedPct : navChangePercent;
