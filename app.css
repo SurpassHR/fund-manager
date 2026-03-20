@@ -10,10 +10,181 @@
   --color-border-dark: #2a2d37;
   --color-primary: #1677ff;
   --font-family-sans: 'Roboto', sans-serif;
+
+  --color-terminal-ink: #111318;
+  --color-terminal-paper: #f3eee5;
+  --color-terminal-muted: #6c6f78;
+  --color-terminal-line: rgba(17, 19, 24, 0.12);
+  --color-terminal-line-strong: rgba(17, 19, 24, 0.22);
+  --color-terminal-accent: #c28b2c;
+  --color-terminal-accent-soft: rgba(194, 139, 44, 0.18);
+  --color-terminal-panel: rgba(255, 252, 245, 0.76);
+  --color-terminal-panel-strong: rgba(255, 251, 242, 0.9);
+  --color-terminal-shadow: 0 28px 90px rgba(33, 26, 14, 0.16);
+
+  --color-terminal-ink-dark: #f4efe5;
+  --color-terminal-paper-dark: #0d1016;
+  --color-terminal-muted-dark: #8f938f;
+  --color-terminal-line-dark: rgba(244, 239, 229, 0.1);
+  --color-terminal-line-strong-dark: rgba(244, 239, 229, 0.2);
+  --color-terminal-accent-dark: #d8a64f;
+  --color-terminal-accent-soft-dark: rgba(216, 166, 79, 0.2);
+  --color-terminal-panel-dark: rgba(17, 20, 28, 0.8);
+  --color-terminal-panel-strong-dark: rgba(20, 24, 34, 0.92);
+  --color-terminal-shadow-dark: 0 32px 100px rgba(0, 0, 0, 0.42);
 }
 
 /* 暗色模式全局样式 */
 @variant dark (&:where(.dark, .dark *));
+
+:root {
+  color-scheme: light;
+  --app-shell-ink: var(--color-terminal-ink);
+  --app-shell-paper: var(--color-terminal-paper);
+  --app-shell-muted: var(--color-terminal-muted);
+  --app-shell-line: var(--color-terminal-line);
+  --app-shell-line-strong: var(--color-terminal-line-strong);
+  --app-shell-accent: var(--color-terminal-accent);
+  --app-shell-accent-soft: var(--color-terminal-accent-soft);
+  --app-shell-panel: var(--color-terminal-panel);
+  --app-shell-panel-strong: var(--color-terminal-panel-strong);
+  --app-shell-shadow: var(--color-terminal-shadow);
+}
+
+.dark {
+  color-scheme: dark;
+  --app-shell-ink: var(--color-terminal-ink-dark);
+  --app-shell-paper: var(--color-terminal-paper-dark);
+  --app-shell-muted: var(--color-terminal-muted-dark);
+  --app-shell-line: var(--color-terminal-line-dark);
+  --app-shell-line-strong: var(--color-terminal-line-strong-dark);
+  --app-shell-accent: var(--color-terminal-accent-dark);
+  --app-shell-accent-soft: var(--color-terminal-accent-soft-dark);
+  --app-shell-panel: var(--color-terminal-panel-dark);
+  --app-shell-panel-strong: var(--color-terminal-panel-strong-dark);
+  --app-shell-shadow: var(--color-terminal-shadow-dark);
+}
+
+body {
+  background:
+    radial-gradient(circle at top left, rgba(194, 139, 44, 0.14), transparent 24%),
+    radial-gradient(circle at top right, rgba(17, 19, 24, 0.08), transparent 22%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.72), rgba(243, 238, 229, 0.96));
+  color: var(--app-shell-ink);
+}
+
+.dark body {
+  background:
+    radial-gradient(circle at top left, rgba(216, 166, 79, 0.12), transparent 24%),
+    radial-gradient(circle at top right, rgba(255, 255, 255, 0.06), transparent 20%),
+    linear-gradient(180deg, rgba(8, 10, 15, 0.96), rgba(13, 16, 22, 1));
+}
+
+.app-shell {
+  position: relative;
+  min-height: 100vh;
+  overflow: hidden;
+  background: transparent;
+  color: var(--app-shell-ink);
+}
+
+.app-shell__backdrop {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.app-shell__backdrop::before,
+.app-shell__backdrop::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+}
+
+.app-shell__backdrop::before {
+  background:
+    linear-gradient(130deg, rgba(194, 139, 44, 0.14), transparent 30%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.52) 0%, rgba(243, 238, 229, 0.12) 100%);
+  opacity: 0.95;
+}
+
+.dark .app-shell__backdrop::before {
+  background:
+    linear-gradient(130deg, rgba(216, 166, 79, 0.12), transparent 30%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.03) 0%, rgba(13, 16, 22, 0.08) 100%);
+}
+
+.app-shell__backdrop::after {
+  background-image:
+    linear-gradient(var(--app-shell-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--app-shell-line) 1px, transparent 1px);
+  background-size: 100% 44px, 44px 100%;
+  opacity: 0.32;
+  mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.8), transparent 95%);
+}
+
+.app-shell__noise {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.16;
+  background-image:
+    radial-gradient(circle at 20% 20%, rgba(0, 0, 0, 0.12) 0.8px, transparent 0.9px),
+    radial-gradient(circle at 80% 30%, rgba(0, 0, 0, 0.08) 0.7px, transparent 0.8px),
+    radial-gradient(circle at 60% 80%, rgba(0, 0, 0, 0.1) 0.8px, transparent 0.9px);
+  background-size: 18px 18px, 24px 24px, 22px 22px;
+  mix-blend-mode: multiply;
+}
+
+.dark .app-shell__noise {
+  opacity: 0.14;
+  background-image:
+    radial-gradient(circle at 20% 20%, rgba(255, 255, 255, 0.12) 0.8px, transparent 0.9px),
+    radial-gradient(circle at 80% 30%, rgba(255, 255, 255, 0.08) 0.7px, transparent 0.8px),
+    radial-gradient(circle at 60% 80%, rgba(255, 255, 255, 0.1) 0.8px, transparent 0.9px);
+  mix-blend-mode: screen;
+}
+
+.app-shell__content {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  min-height: 100vh;
+  flex-direction: column;
+}
+
+.app-stage {
+  position: relative;
+  flex: 1;
+  width: 100%;
+  max-width: 88rem;
+  margin: 0 auto;
+  padding: 0.5rem 0.625rem 0;
+}
+
+@media (min-width: 768px) {
+  .app-stage {
+    padding: 0.875rem 1.125rem 0;
+  }
+}
+
+@media (min-width: 1280px) {
+  .app-stage {
+    padding: 1rem 1.5rem 0;
+  }
+}
+
+.app-stage__main {
+  position: relative;
+  min-height: calc(100vh - 11rem);
+  padding: 0.25rem 0 4.5rem;
+}
+
+@media (min-width: 768px) {
+  .app-stage__main {
+    padding: 0.5rem 0 5rem;
+  }
+}
 
 .markdown-body {
   font-size: 0.875rem;
@@ -78,3 +249,4 @@
 .dark .markdown-body pre {
   background: rgba(255, 255, 255, 0.08);
 }
+

@@ -39,16 +39,13 @@ export const Dashboard: React.FC = () => {
   const [isAiAnalysisOpen, setIsAiAnalysisOpen] = useState(false);
   const { autoRefresh } = useSettings();
 
-  // Refresh mechanism state
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [cooldown, setCooldown] = useState(0); // Cooldown percentage 0-100
-  const cooldownMaxTime = 5000; // 5 seconds cooldown
+  const [cooldown, setCooldown] = useState(0);
+  const cooldownMaxTime = 5000;
   const cooldownRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // State for Detail View
   const [selectedFund, setSelectedFund] = useState<Fund | null>(null);
 
-  // Modals
   const [isAccountManagerOpen, setIsAccountManagerOpen] = useState(false);
   const [isAddFundOpen, setIsAddFundOpen] = useState(false);
   const [editingFund, setEditingFund] = useState<Fund | undefined>(undefined);
@@ -56,7 +53,6 @@ export const Dashboard: React.FC = () => {
   const [rebalanceFund, setRebalanceFund] = useState<Fund | null>(null);
   const [historyFund, setHistoryFund] = useState<Fund | null>(null);
 
-  // Context Menu State
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; fundId: number } | null>(
     null,
   );
@@ -173,36 +169,37 @@ export const Dashboard: React.FC = () => {
     };
   }, [autoRefresh]);
 
-  // Close context menu on global click
   useEffect(() => {
     const handleClick = () => setContextMenu(null);
     window.addEventListener('click', handleClick);
     return () => window.removeEventListener('click', handleClick);
   }, []);
 
-  // 移除这里提前 return FundDetail 的逻辑，改为在下方主渲染中使用 AnimatePresence
-  // if (selectedFund) {
-  //     return <FundDetail fund={selectedFund} onBack={() => setSelectedFund(null)} />;
-  // }
-
   const safeFunds = funds || [];
   const safeAccounts = accounts || [];
 
   const filteredFunds =
-    activeFilter === 'All' ? safeFunds : safeFunds.filter((f) => f.platform === activeFilter);
+    activeFilter === 'All' ? safeFunds : safeFunds.filter((fund) => fund.platform === activeFilter);
 
   const summary = calculateSummary(filteredFunds);
   const filterList =
     safeAccounts.length > 1
-      ? ['All', ...safeAccounts.map((a) => a.name)]
-      : safeAccounts.map((a) => a.name);
+      ? ['All', ...safeAccounts.map((account) => account.name)]
+      : safeAccounts.map((account) => account.name);
 
-  const latestDateStr = filteredFunds.reduce((max, f) => {
-    if (!f.lastUpdate) return max;
-    return f.lastUpdate > max ? f.lastUpdate : max;
+  const latestDateStr = filteredFunds.reduce((max, fund) => {
+    if (!fund.lastUpdate) return max;
+    return fund.lastUpdate > max ? fund.lastUpdate : max;
   }, '');
-  const displayDate = latestDateStr ? latestDateStr.substring(5) : 'Today';
+  const displayDate = latestDateStr ? latestDateStr.substring(5) : '今天';
   const todayStr = getLocalDateString();
+
+  const activeFilterLabel =
+    activeFilter === 'All'
+      ? t('common.all') || '全部'
+      : t(`filters.${activeFilter}`) !== `filters.${activeFilter}`
+        ? t(`filters.${activeFilter}`)
+        : activeFilter;
 
   const handleSort = (
     key:
@@ -243,28 +240,25 @@ export const Dashboard: React.FC = () => {
     });
   }, [filteredFunds, sortState.direction, sortState.key]);
 
-  if (!funds || !accounts)
+  if (!funds || !accounts) {
     return <div className="p-8 text-center text-gray-500">{t('common.loading')}</div>;
-
-  // --- Handlers ---
+  }
 
   const handleContextMenu = (e: React.MouseEvent, fundId: number) => {
     e.preventDefault();
-    e.stopPropagation(); // Prevent triggering row click
+    e.stopPropagation();
     setContextMenu({ x: e.clientX, y: e.clientY, fundId });
   };
 
   const handleTouchStart = (fundId: number, e: React.TouchEvent) => {
-    // e.persist(); // Not strictly needed in modern React but good for safety if accessing event in timer
     const touch = e.touches[0];
     const x = touch.clientX;
     const y = touch.clientY;
 
     longPressTimerRef.current = setTimeout(() => {
       setContextMenu({ x, y, fundId });
-      // Vibrate if supported
       if (navigator.vibrate) navigator.vibrate(50);
-    }, 600); // 600ms long press
+    }, 600);
   };
 
   const handleTouchEnd = () => {
@@ -288,7 +282,6 @@ export const Dashboard: React.FC = () => {
   };
 
   const handleRowClick = (fund: Fund) => {
-    // If context menu is open, don't select fund
     if (contextMenu) return;
     setSelectedFund(fund);
   };
@@ -302,14 +295,12 @@ export const Dashboard: React.FC = () => {
     try {
       await refreshFundData({ force: true });
     } finally {
-      // Ensure minimum rotation visibly
       const elapsed = Date.now() - startTime;
       if (elapsed < 1000) {
         await new Promise((res) => setTimeout(res, 1000 - elapsed));
       }
       setIsRefreshing(false);
 
-      // Start cooldown
       setCooldown(100);
       const cooldownStartTime = Date.now();
 
@@ -326,7 +317,7 @@ export const Dashboard: React.FC = () => {
         } else {
           setCooldown(percent);
         }
-      }, 16); // High frequency update for smoother animation
+      }, 16);
     }
   };
 
@@ -353,497 +344,612 @@ export const Dashboard: React.FC = () => {
   };
 
   return (
-    <div
-      className="pb-36 md:pb-24 bg-app-bg dark:bg-app-bg-dark min-h-full"
-      onContextMenu={(e) => e.preventDefault()}
-    >
+    <div className="min-h-full pb-36 md:pb-24" onContextMenu={(e) => e.preventDefault()}>
       <AnimatePresence>
         {selectedFund && (
           <FundDetail key="fund-detail" fund={selectedFund} onBack={() => setSelectedFund(null)} />
         )}
       </AnimatePresence>
 
-      {/* Context Menu Overlay */}
       {contextMenu && (
         <div
-          className="fixed z-[100] bg-white dark:bg-card-dark rounded-lg shadow-xl border border-gray-100 dark:border-border-dark py-2 w-48 overflow-hidden animate-in fade-in zoom-in-95 duration-100 origin-top-left"
+          className="fixed z-[100] w-48 origin-top-left overflow-hidden rounded-lg border border-gray-100 bg-white py-2 shadow-xl animate-in fade-in zoom-in-95 duration-100 dark:border-border-dark dark:bg-card-dark"
           style={{
             top: Math.min(contextMenu.y, window.innerHeight - 150),
             left: Math.min(contextMenu.x, window.innerWidth - 200),
           }}
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="px-4 py-2 text-xs font-bold text-gray-400 bg-gray-50 dark:bg-white/5 border-b border-gray-100 dark:border-border-dark mb-1">
+          <div className="mb-1 border-b border-gray-100 bg-gray-50 px-4 py-2 text-xs font-bold text-gray-400 dark:border-border-dark dark:bg-white/5">
             {t('common.menu')}
           </div>
           <button
             onClick={() => {
-              const f = funds.find((i) => i.id === contextMenu.fundId);
-              if (f) handleEdit(f);
+              const fund = funds.find((item) => item.id === contextMenu.fundId);
+              if (fund) handleEdit(fund);
             }}
-            className="w-full text-left px-4 py-3 hover:bg-blue-50 dark:hover:bg-blue-900/20 text-gray-700 dark:text-gray-200 text-sm flex items-center gap-2 border-b border-gray-50 dark:border-border-dark"
+            className="flex w-full items-center gap-2 border-b border-[var(--app-shell-line)] px-4 py-3 text-left text-sm text-slate-700 hover:bg-[var(--app-shell-panel-strong)] dark:border-border-dark dark:text-gray-200 dark:hover:bg-blue-900/20"
           >
-            <Icons.Settings size={16} className="text-blue-500" /> {t('common.edit')}
+            <Icons.Settings size={16} className="text-slate-500" /> {t('common.edit')}
           </button>
           <button
             onClick={() => {
-              const f = funds.find((i) => i.id === contextMenu.fundId);
-              if (f) {
-                setRebalanceFund(f);
+              const fund = funds.find((item) => item.id === contextMenu.fundId);
+              if (fund) {
+                setRebalanceFund(fund);
                 setContextMenu(null);
               }
             }}
-            className="w-full text-left px-4 py-3 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 text-gray-700 dark:text-gray-200 text-sm flex items-center gap-2 border-b border-gray-50 dark:border-border-dark"
+            className="flex w-full items-center gap-2 border-b border-gray-50 px-4 py-3 text-left text-sm text-gray-700 hover:bg-indigo-50 dark:border-border-dark dark:text-gray-200 dark:hover:bg-indigo-900/20"
           >
             <Icons.ArrowDown size={16} className="text-indigo-500" /> {t('common.rebalance')}
           </button>
           <button
             onClick={() => {
-              const f = funds.find((i) => i.id === contextMenu.fundId);
-              if (f) {
-                setAdjustFund(f);
+              const fund = funds.find((item) => item.id === contextMenu.fundId);
+              if (fund) {
+                setAdjustFund(fund);
                 setContextMenu(null);
               }
             }}
-            className="w-full text-left px-4 py-3 hover:bg-amber-50 dark:hover:bg-amber-900/20 text-gray-700 dark:text-gray-200 text-sm flex items-center gap-2 border-b border-gray-50 dark:border-border-dark"
+            className="flex w-full items-center gap-2 border-b border-gray-50 px-4 py-3 text-left text-sm text-gray-700 hover:bg-amber-50 dark:border-border-dark dark:text-gray-200 dark:hover:bg-amber-900/20"
           >
             <Icons.TrendingUp size={16} className="text-amber-500" /> {t('common.adjustPosition')}
           </button>
           <button
             onClick={() => {
-              const f = funds.find((i) => i.id === contextMenu.fundId);
-              if (f) {
-                setHistoryFund(f);
+              const fund = funds.find((item) => item.id === contextMenu.fundId);
+              if (fund) {
+                setHistoryFund(fund);
                 setContextMenu(null);
               }
             }}
-            className="w-full text-left px-4 py-3 hover:bg-purple-50 dark:hover:bg-purple-900/20 text-gray-700 dark:text-gray-200 text-sm flex items-center gap-2 border-b border-gray-50 dark:border-border-dark"
+            className="flex w-full items-center gap-2 border-b border-[var(--app-shell-line)] px-4 py-3 text-left text-sm text-slate-700 hover:bg-[var(--app-shell-panel-strong)] dark:border-border-dark dark:text-gray-200 dark:hover:bg-purple-900/20"
           >
-            <Icons.Grid size={16} className="text-purple-500" />{' '}
+            <Icons.Grid size={16} className="text-slate-500" />{' '}
             {t('common.transactionHistory') || '交易记录'}
           </button>
           <button
             onClick={() => handleDelete(contextMenu.fundId)}
-            className="w-full text-left px-4 py-3 hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400 text-sm flex items-center gap-2"
+            className="flex w-full items-center gap-2 px-4 py-3 text-left text-sm text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
           >
-            <Icons.Plus size={16} className="transform rotate-45" /> {t('common.delete')}
+            <Icons.Plus size={16} className="rotate-45 transform" /> {t('common.delete')}
           </button>
         </div>
       )}
 
-      {/* Top Filter Bar */}
-      <div className="bg-white dark:bg-card-dark px-2 pt-1 pb-2 md:rounded-b-lg md:shadow-sm md:mb-4 flex items-center gap-4 overflow-x-auto no-scrollbar border-b border-gray-100 dark:border-border-dark md:border-none sticky top-14 z-20">
-        <div className="flex-shrink-0 text-gray-500 dark:text-gray-400 font-medium text-sm px-2">
-          {t('common.account')}
-        </div>
-        {filterList.map((filterKey) => {
-          let label = filterKey;
-          if (filterKey === 'All') label = t('common.all') || 'All';
-          else if (t(`filters.${filterKey}`) !== `filters.${filterKey}`)
-            label = t(`filters.${filterKey}`);
+      <div className="mx-auto w-full max-w-7xl px-0 md:px-4 lg:px-6">
+        <div className="sticky top-14 z-20 border-b border-[var(--app-shell-line)] bg-[var(--app-shell-panel)]/95 backdrop-blur-xl dark:border-border-dark dark:bg-card-dark/85 md:top-14 md:mt-2 md:rounded-[1.75rem] md:border md:shadow-[0_10px_30px_rgba(15,23,42,0.05)]">
+          <div className="relative flex items-center gap-3 overflow-x-auto px-3 py-3 no-scrollbar md:flex-wrap md:gap-4 md:px-5 md:py-3.5">
+            <div className="mr-1 hidden min-w-[10rem] shrink-0 md:block">
+              <div className="text-[10px] font-semibold tracking-[0.24em] text-slate-400 dark:text-gray-500">
+                {t('common.account')}
+              </div>
+              <div className="mt-1 text-sm font-semibold text-slate-700 dark:text-gray-200">
+                {activeFilterLabel}
+              </div>
+            </div>
 
-          return (
-            <button
-              key={filterKey}
-              onClick={() => setActiveFilter(filterKey)}
-              className={`flex-shrink-0 px-1 py-2 text-sm font-medium relative whitespace-nowrap transition-colors ${
-                activeFilter === filterKey
-                  ? 'text-blue-600 dark:text-blue-400'
-                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
-              }`}
-            >
-              {label}
-              {activeFilter === filterKey && (
-                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600 rounded-full" />
-              )}
-            </button>
-          );
-        })}
-        <div className="flex-grow" />
-        <button
-          onClick={() => setIsAccountManagerOpen(true)}
-          className="p-2 text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:hover:bg-white/10 hover:text-gray-700 dark:hover:text-gray-200 rounded-full transition-colors"
-        >
-          <Icons.Menu size={20} />
-        </button>
-      </div>
+            <div className="flex items-center gap-2 md:flex-1 md:flex-wrap">
+              {filterList.map((filterKey) => {
+                let label = filterKey;
+                if (filterKey === 'All') label = t('common.all') || '全部';
+                else if (t(`filters.${filterKey}`) !== `filters.${filterKey}`) {
+                  label = t(`filters.${filterKey}`);
+                }
 
-      {/* Asset Summary Card */}
-      <div className="bg-white dark:bg-card-dark md:rounded-lg md:shadow-sm px-4 py-4 mb-2 md:mb-6 mx-0 md:mx-0">
-        <div className="flex justify-between items-start mb-2">
-          <div className="flex items-center gap-2 text-gray-500 text-sm font-sans">
-            <div className="flex items-center gap-2">
-              <span>{t('common.totalAssets')}</span>
+                const isActive = activeFilter === filterKey;
+
+                return (
+                  <button
+                    key={filterKey}
+                    onClick={() => setActiveFilter(filterKey)}
+                    className={`relative flex-shrink-0 overflow-hidden rounded-full border px-3 py-2 text-sm font-medium transition-all md:px-4 ${
+                      isActive
+                        ? 'border-[var(--app-shell-line-strong)] bg-[var(--app-shell-panel-strong)] text-slate-800 shadow-[0_8px_24px_rgba(82,61,37,0.10)] dark:border-blue-400 dark:bg-blue-500/15 dark:text-blue-100 dark:shadow-none'
+                        : 'border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] text-slate-600 hover:border-[var(--app-shell-line-strong)] hover:text-slate-900 dark:border-white/10 dark:bg-white/5 dark:text-gray-400 dark:hover:border-white/20 dark:hover:text-gray-100'
+                    }`}
+                  >
+                    <span className="relative z-10">{label}</span>
+                    {isActive && (
+                      <span className="absolute inset-x-3 bottom-1 h-px bg-white/60 dark:bg-blue-200/60" />
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="ml-auto flex shrink-0 items-center gap-2">
+              <div className="hidden rounded-full border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] px-3 py-1.5 text-[11px] font-medium tracking-[0.18em] text-slate-500 dark:border-white/10 dark:bg-white/5 dark:text-gray-400 md:flex">
+                {sortedFunds.length} {t('common.fund')}
+              </div>
               <button
-                onClick={() => setShowValues(!showValues)}
-                className="p-1 hover:bg-gray-100 dark:hover:bg-white/10 rounded transition-colors text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
+                onClick={() => setIsAccountManagerOpen(true)}
+                className="rounded-full border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] p-2.5 text-slate-500 transition-colors hover:border-[var(--app-shell-line-strong)] hover:text-slate-800 dark:border-white/10 dark:bg-white/5 dark:text-gray-400 dark:hover:border-white/20 dark:hover:text-gray-100"
               >
-                {showValues ? <Icons.Eye size={20} /> : <Icons.EyeOff size={20} />}
+                <Icons.Menu size={20} />
               </button>
             </div>
           </div>
-          <div className="flex gap-2 relative">
-            <button
-              onClick={handleManualRefresh}
-              disabled={cooldown > 0 || isRefreshing}
-              className={`relative flex items-center justify-center p-1 rounded-full bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-gray-300 overflow-hidden active:scale-95 transition-transform ${cooldown > 0 || isRefreshing ? 'cursor-not-allowed' : 'cursor-pointer'}`}
-              style={{ width: '28px', height: '28px' }}
-            >
-              <Icons.Refresh size={14} className={`${isRefreshing ? 'animate-spin' : ''}`} />
-
-              {/* Cooldown overlay (Light mode) */}
-              {cooldown > 0 && !isRefreshing && (
-                <div
-                  className="absolute inset-0 dark:hidden"
-                  style={{
-                    background: `conic-gradient(transparent ${100 - cooldown}%, rgba(0,0,0,0.2) ${100 - cooldown}%, rgba(0,0,0,0.2) 100%)`,
-                  }}
-                />
-              )}
-              {/* Cooldown overlay (Dark mode) */}
-              {cooldown > 0 && !isRefreshing && (
-                <div
-                  className="absolute inset-0 hidden dark:block"
-                  style={{
-                    background: `conic-gradient(transparent ${100 - cooldown}%, rgba(0,0,0,0.7) ${100 - cooldown}%, rgba(0,0,0,0.7) 100%)`,
-                  }}
-                />
-              )}
-            </button>
-            <div className="flex items-center gap-1 text-gray-500 dark:text-gray-400 text-xs bg-gray-50 dark:bg-white/10 px-2 py-1 rounded-full hover:bg-gray-100 dark:hover:bg-white/15 font-sans transition-colors">
-              <span>{t('common.dayGain')}</span>
-              <Icons.ArrowUp className="transform rotate-90" size={12} />
-            </div>
-          </div>
         </div>
 
-        <div className="flex justify-between items-start gap-2">
-          <div className="flex flex-col gap-1">
-            <div className="text-3xl font-bold text-gray-800 dark:text-gray-100 tracking-tight font-sans">
-              {showValues ? formatCurrency(summary.totalAssets) : '****'}
-            </div>
-            <div className={`text-sm font-medium font-sans ${getSignColor(summary.holdingGain)}`}>
-              {t('common.totalGain')}:{' '}
-              {showValues ? formatSignedCurrency(summary.holdingGain) : '****'}
-              <span className="ml-1 text-xs">
-                ({showValues ? formatPct(summary.holdingGainPct) : '****'})
-              </span>
-            </div>
+        <section className="relative overflow-hidden border-b border-[var(--app-shell-line)] bg-[var(--app-shell-panel)]/92 px-4 pb-4 pt-4 dark:border-border-dark dark:bg-card-dark md:mt-3 md:rounded-[1.75rem] md:border md:px-6 md:pb-5 md:pt-5 md:shadow-[0_12px_32px_rgba(15,23,42,0.05)]">
+          <div className="pointer-events-none absolute inset-0">
+            <div className="absolute inset-y-0 left-0 w-full bg-[radial-gradient(circle_at_top_left,_rgba(148,163,184,0.12),_transparent_34%),radial-gradient(circle_at_bottom_right,_rgba(226,232,240,0.8),_transparent_28%)] dark:bg-[radial-gradient(circle_at_top_left,_rgba(96,165,250,0.12),_transparent_35%),radial-gradient(circle_at_bottom_right,_rgba(59,130,246,0.10),_transparent_28%)]" />
           </div>
 
-          <div className="flex flex-col items-end gap-1 mt-1">
-            <div
-              className={`text-xl font-bold font-sans ${getSignColor(summary.totalDayGain)} flex items-baseline gap-1`}
-            >
-              {showValues ? formatSignedCurrency(summary.totalDayGain) : '****'}
-              <span className="text-sm font-normal text-gray-400 font-sans">{displayDate}</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* List Headers - Responsive */}
-      <div className="bg-white dark:bg-card-dark md:rounded-t-lg px-4 py-3 flex items-center text-xs text-gray-400 border-b border-gray-100 dark:border-border-dark sticky top-[calc(3.5rem+40px)] md:top-14 z-10 shadow-sm font-sans">
-        <div className="hidden md:flex md:flex-[1.5] gap-4 pr-2 items-center">
-          <button className="hover:text-gray-600">
-            <Icons.Settings size={16} />
-          </button>
-          <button className="hover:text-gray-600">
-            <Icons.Bell size={16} />
-          </button>
-          <button className="hover:text-gray-600">
-            <Icons.Grid size={16} />
-          </button>
-          <button className="hover:text-gray-600">
-            <Icons.Holdings size={16} />
-          </button>
-        </div>
-
-        <div className="hidden md:grid md:flex-[5] w-full grid-cols-6 gap-4 text-right font-medium">
-          <div className="text-left">
-            {t('common.cost')} / {t('common.nav')}
-          </div>
-          <button
-            onClick={() => handleSort('officialDayChangePct')}
-            className="text-right cursor-pointer hover:text-gray-600 flex items-center justify-end gap-1"
-            type="button"
-          >
-            {t('common.yesterdayChangePct') || '昨日涨幅'}
-            {sortState.key === 'officialDayChangePct' && (
-              <Icons.ArrowUp
-                size={12}
-                className={sortState.direction === 'asc' ? '' : 'rotate-180'}
-              />
-            )}
-          </button>
-          <button
-            onClick={() => handleSort('estimatedDayChangePct')}
-            className="text-right cursor-pointer hover:text-gray-600 flex items-center justify-end gap-1"
-            type="button"
-          >
-            {t('common.todayChangePct') || '今日涨幅'}
-            {sortState.key === 'estimatedDayChangePct' && (
-              <Icons.ArrowUp
-                size={12}
-                className={sortState.direction === 'asc' ? '' : 'rotate-180'}
-              />
-            )}
-          </button>
-          <button
-            onClick={() => handleSort('todayGain')}
-            className="text-right cursor-pointer hover:text-gray-600 flex items-center justify-end gap-1"
-            type="button"
-          >
-            {t('common.dayGain')}
-            {sortState.key === 'todayGain' && (
-              <Icons.ArrowUp
-                size={12}
-                className={sortState.direction === 'asc' ? '' : 'rotate-180'}
-              />
-            )}
-          </button>
-          <button
-            onClick={() => handleSort('totalGain')}
-            className="text-right cursor-pointer hover:text-gray-600 flex items-center justify-end gap-1"
-            type="button"
-          >
-            {t('common.totalGain')}
-            {sortState.key === 'totalGain' && (
-              <Icons.ArrowUp
-                size={12}
-                className={sortState.direction === 'asc' ? '' : 'rotate-180'}
-              />
-            )}
-          </button>
-          <button
-            onClick={() => handleSort('marketValue')}
-            className="text-right cursor-pointer hover:text-gray-600 flex items-center justify-end gap-1"
-            type="button"
-          >
-            {t('common.mktVal')}
-            {sortState.key === 'marketValue' && (
-              <Icons.ArrowUp
-                size={12}
-                className={sortState.direction === 'asc' ? '' : 'rotate-180'}
-              />
-            )}
-          </button>
-        </div>
-
-        {/* Mobile Headers */}
-        <div className="md:hidden w-full flex items-center justify-between">
-          <div className="flex-1 text-left">{t('common.fund')}</div>
-          <div className="flex gap-2 text-right">
-            <button
-              onClick={() => handleSort('officialDayChangePct')}
-              className="w-[6.25rem] cursor-pointer flex items-center justify-end gap-0.5"
-              type="button"
-            >
-              {t('common.yesterdayChangePct') || '昨日涨幅'}
-              {sortState.key === 'officialDayChangePct' && (
-                <Icons.ArrowUp
-                  size={12}
-                  className={sortState.direction === 'asc' ? '' : 'rotate-180'}
-                />
-              )}
-            </button>
-            <button
-              onClick={() => handleSort('estimatedDayChangePct')}
-              className="w-[6.25rem] cursor-pointer flex items-center justify-end gap-0.5"
-              type="button"
-            >
-              {t('common.todayChangePct') || '今日涨幅'}
-              {sortState.key === 'estimatedDayChangePct' && (
-                <Icons.ArrowUp
-                  size={12}
-                  className={sortState.direction === 'asc' ? '' : 'rotate-180'}
-                />
-              )}
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Fund List */}
-      <div className="bg-white dark:bg-card-dark md:rounded-b-lg flex flex-col md:divide-y md:divide-gray-50 dark:md:divide-border-dark">
-        {sortedFunds.map((fund) => {
-          const holdingValue = fund.holdingShares * fund.currentNav;
-          const totalCost = fund.holdingShares * fund.costPrice;
-          const totalReturn = holdingValue - totalCost;
-          const officialDayChangePct = fund.officialDayChangePct ?? fund.dayChangePct;
-          const todayChangePct = fund.dayChangePct;
-          const estimatedGainVal = (holdingValue * (fund.estimatedDayChangePct ?? 0)) / 100;
-          const adjustedHoldingGain = totalReturn + estimatedGainVal;
-          const adjustedHoldingGainPct =
-            totalCost !== 0 ? (adjustedHoldingGain / totalCost) * 100 : 0;
-          const todayChangeTag = fund.todayChangeIsEstimated
-            ? t('common.estimated') || '估值'
-            : fund.lastUpdate === todayStr
-              ? t('common.updated') || '已更新'
-              : '';
-          const displayPlatform =
-            t(`filters.${fund.platform}`) === `filters.${fund.platform}`
-              ? fund.platform
-              : t(`filters.${fund.platform}`);
-
-          return (
-            <div
-              key={fund.id}
-              onClick={() => handleRowClick(fund)}
-              onContextMenu={(e) => fund.id && handleContextMenu(e, fund.id)}
-              onTouchStart={(e) => fund.id && handleTouchStart(fund.id, e)}
-              onTouchEnd={handleTouchEnd}
-              onTouchCancel={handleTouchEnd}
-              className={`group flex md:flex-row py-4 px-4 border-b border-gray-50 dark:border-border-dark md:border-none active:bg-gray-50 dark:active:bg-white/5 md:hover:bg-gray-50 dark:md:hover:bg-white/5 transition-colors cursor-pointer items-start select-none ${
-                contextMenu?.fundId === fund.id ? 'bg-gray-100 dark:bg-white/10' : ''
-              }`}
-            >
-              {/* Common: Name Section */}
-              <div className="flex-1 min-w-0 pr-2 md:flex-[1.5] md:self-center">
-                <div className="hidden md:flex items-center gap-2">
-                  <span className="text-[10px] px-1 py-0.5 rounded bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 font-sans">
-                    {fund.code}
-                  </span>
-                  <span className="text-[10px] px-1 py-0.5 rounded bg-gray-100 dark:bg-white/10 text-gray-500 dark:text-gray-400 font-sans whitespace-nowrap min-w-[4.5em] max-w-[7.5em] truncate text-center">
-                    {displayPlatform}
-                  </span>
-                  <h3 className="text-sm font-medium text-gray-800 dark:text-gray-100 truncate font-sans">
-                    {fund.name}
-                  </h3>
+          <div className="relative flex flex-col gap-5 lg:flex-row lg:items-stretch lg:justify-between">
+            <div className="flex-1">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <div className="text-[11px] font-semibold tracking-[0.24em] text-slate-400 dark:text-gray-500">
+                    资产概览
+                  </div>
+                  <div className="mt-2 flex items-center gap-2 text-sm text-slate-500 dark:text-gray-400">
+                    <span>{t('common.totalAssets')}</span>
+                    <button
+                      onClick={() => setShowValues(!showValues)}
+                      className="rounded-full border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)]/90 p-1.5 text-slate-500 transition-colors hover:text-slate-800 dark:border-white/10 dark:bg-white/5 dark:text-gray-400 dark:hover:text-gray-100"
+                    >
+                      {showValues ? <Icons.Eye size={18} /> : <Icons.EyeOff size={18} />}
+                    </button>
+                  </div>
                 </div>
 
-                {/* Mobile Name View */}
-                <div className="md:hidden flex flex-col gap-1">
-                  <div className="flex items-center gap-1.5">
-                    <h3 className="text-sm font-medium text-gray-800 dark:text-gray-100 truncate leading-tight font-sans">
-                      {fund.name}
-                    </h3>
-                    {(fund.pendingTransactions || []).filter((tx) => !tx.settled).length > 0 && (
-                      <span className="text-[9px] px-1 py-0.5 rounded bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400 font-bold whitespace-nowrap">
-                        {(fund.pendingTransactions || []).filter((tx) => !tx.settled).length}{' '}
-                        {t('common.inTransit')}
-                      </span>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={handleManualRefresh}
+                    disabled={cooldown > 0 || isRefreshing}
+                    className={`relative flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border transition-transform active:scale-95 ${
+                      cooldown > 0 || isRefreshing
+                        ? 'cursor-not-allowed border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] text-slate-500 dark:border-white/10 dark:bg-white/10 dark:text-gray-400'
+                        : 'cursor-pointer border-[var(--app-shell-line-strong)] bg-[var(--app-shell-panel-strong)] text-slate-800 dark:border-blue-400/30 dark:bg-blue-500/15 dark:text-blue-100'
+                    }`}
+                  >
+                    <Icons.Refresh size={16} className={isRefreshing ? 'animate-spin' : ''} />
+                    {cooldown > 0 && !isRefreshing && (
+                      <div
+                        className="absolute inset-0 dark:hidden"
+                        style={{
+                          background: `conic-gradient(transparent ${100 - cooldown}%, rgba(0,0,0,0.18) ${100 - cooldown}%, rgba(0,0,0,0.18) 100%)`,
+                        }}
+                      />
                     )}
+                    {cooldown > 0 && !isRefreshing && (
+                      <div
+                        className="absolute inset-0 hidden dark:block"
+                        style={{
+                          background: `conic-gradient(transparent ${100 - cooldown}%, rgba(15,23,42,0.75) ${100 - cooldown}%, rgba(15,23,42,0.75) 100%)`,
+                        }}
+                      />
+                    )}
+                  </button>
+                  <div className="rounded-full border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)]/90 px-3 py-1.5 text-[11px] font-semibold tracking-[0.18em] text-slate-500 dark:border-white/10 dark:bg-white/5 dark:text-gray-400">
+                    {displayDate}
                   </div>
-                  <div className="flex justify-between items-center pr-2">
-                    <span className="text-xs text-gray-400 font-sans">{fund.code}</span>
-                    <span className="text-xs text-gray-400 font-sans">
-                      ¥{formatCurrency(holdingValue)}
+                </div>
+              </div>
+
+              <div className="mt-4 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+                <div>
+                  <div className="text-4xl font-black tracking-[-0.04em] text-slate-900 dark:text-gray-50 md:text-5xl">
+                    {showValues ? formatCurrency(summary.totalAssets) : '****'}
+                  </div>
+                  <div className={`mt-2 text-sm font-semibold ${getSignColor(summary.holdingGain)}`}>
+                    {t('common.totalGain')} ·{' '}
+                    {showValues ? formatSignedCurrency(summary.holdingGain) : '****'}
+                    <span className="ml-1 text-xs font-medium">
+                      ({showValues ? formatPct(summary.holdingGainPct) : '****'})
+                    </span>
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)]/80 px-4 py-3 backdrop-blur-sm dark:border-white/10 dark:bg-white/5 md:min-w-[14rem]">
+                  <div className="text-[11px] font-semibold tracking-[0.18em] text-slate-400 dark:text-gray-500">
+                    {t('common.dayGain')}
+                  </div>
+                  <div
+                    className={`mt-2 flex items-end gap-2 text-2xl font-black tracking-[-0.03em] ${getSignColor(summary.totalDayGain)}`}
+                  >
+                    <span>{showValues ? formatSignedCurrency(summary.totalDayGain) : '****'}</span>
+                    <span className="pb-1 text-xs font-semibold tracking-[0.16em] text-slate-400 dark:text-gray-500">
+                      {showValues ? formatPct(summary.totalDayGainPct) : '****'}
                     </span>
                   </div>
                 </div>
               </div>
+            </div>
 
-              {/* Desktop Grid Layout */}
-              <div className="hidden md:grid flex-[5] w-full grid-cols-6 gap-4 text-right items-start text-sm">
-                <div className="text-left text-gray-500 text-xs">
-                  <div className="font-sans">{formatCurrency(fund.costPrice, 4)}</div>
-                  <div className="font-sans text-gray-400">{fund.currentNav.toFixed(4)}</div>
+            <div className="grid gap-3 sm:grid-cols-3 lg:w-[20rem] lg:grid-cols-1 xl:w-[24rem] xl:grid-cols-3">
+              <div className="rounded-2xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)]/90 px-4 py-3 dark:border-white/10 dark:bg-white/5">
+                <div className="text-[11px] font-semibold tracking-[0.18em] text-slate-400 dark:text-gray-500">
+                  当前账户
                 </div>
-                <div className={`font-medium font-sans ${getSignColor(officialDayChangePct)}`}>
-                  {formatPct(officialDayChangePct)}
-                </div>
-                <div className={`font-medium font-sans ${getSignColor(todayChangePct)}`}>
-                  {formatPct(todayChangePct)}
-                  {todayChangeTag && (
-                    <span className="ml-1 text-[10px] text-gray-500 dark:text-gray-400">
-                      {todayChangeTag}
-                    </span>
-                  )}
-                </div>
-                <div className="flex flex-col items-end gap-1">
-                  <div className={`font-medium font-sans ${getSignColor(fund.dayChangeVal)}`}>
-                    {formatSignedCurrency(fund.dayChangeVal)}
-                  </div>
-                </div>
-                <div className="flex flex-col items-end">
-                  <div className={`font-medium font-sans ${getSignColor(adjustedHoldingGain)}`}>
-                    {formatSignedCurrency(adjustedHoldingGain)}
-                  </div>
-                  <div className={`text-[10px] font-sans ${getSignColor(adjustedHoldingGainPct)}`}>
-                    {formatPct(adjustedHoldingGainPct)}
-                  </div>
-                </div>
-                <div className="font-bold text-gray-800 dark:text-gray-100 font-sans">
-                  {formatCurrency(holdingValue)}
+                <div className="mt-2 text-base font-semibold text-slate-800 dark:text-gray-100">
+                  {activeFilterLabel}
                 </div>
               </div>
-
-              {/* Mobile Flex Layout */}
-              <div className="md:hidden flex flex-none gap-3 text-right items-start">
-                <div className="w-[6.25rem] flex flex-col items-end">
-                  <div
-                    className={`text-base font-bold font-sans leading-none ${getSignColor(officialDayChangePct)}`}
-                  >
-                    {formatPct(officialDayChangePct)}
-                  </div>
-                  <div className="text-[10px] text-gray-400 font-sans">
-                    {t('common.yesterdayChangePct') || '昨日涨幅'}
-                  </div>
+              <div className="rounded-2xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)]/90 px-4 py-3 dark:border-white/10 dark:bg-white/5">
+                <div className="text-[11px] font-semibold tracking-[0.18em] text-slate-400 dark:text-gray-500">
+                  持仓数量
                 </div>
-
-                <div className="w-[6.25rem] flex flex-col items-end">
-                  <div
-                    className={`text-base font-bold font-sans leading-none ${getSignColor(todayChangePct)}`}
-                  >
-                    {formatPct(todayChangePct)}
-                  </div>
-                  <div className="text-[10px] text-gray-400 font-sans">
-                    {todayChangeTag || t('common.todayChangePct') || '今日涨幅'}
-                  </div>
+                <div className="mt-2 text-base font-semibold text-slate-800 dark:text-gray-100">
+                  {sortedFunds.length}
                 </div>
               </div>
-            </div>
-          );
-        })}
-      </div>
-
-      <div className="mt-2 flex bg-white dark:bg-card-dark md:bg-transparent md:dark:bg-transparent md:mt-4 py-3 px-4 md:px-0 text-gray-500 dark:text-gray-400 text-sm items-center justify-between md:justify-start md:gap-4 font-sans">
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            setEditingFund(undefined);
-            setIsAddFundOpen(true);
-          }}
-          className="flex items-center gap-1 md:bg-white md:dark:bg-card-dark md:px-4 md:py-2 md:rounded-lg md:shadow-sm md:hover:bg-gray-50 md:dark:hover:bg-white/5 transition-colors"
-        >
-          <Icons.Plus size={16} /> {t('common.addFund')}
-        </button>
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            const event = new CustomEvent('open-scanner');
-            window.dispatchEvent(event);
-          }}
-          className="flex items-center gap-1 md:bg-white md:dark:bg-card-dark md:px-4 md:py-2 md:rounded-lg md:shadow-sm md:hover:bg-gray-50 md:dark:hover:bg-white/5 transition-colors"
-        >
-          <Icons.Refresh size={14} /> {t('common.sync')}
-        </button>
-        <button className="flex items-center gap-1 md:bg-white md:dark:bg-card-dark md:px-4 md:py-2 md:rounded-lg md:shadow-sm md:hover:bg-gray-50 md:dark:hover:bg-white/5 transition-colors">
-          {t('common.batch')} <Icons.Copy size={14} />
-        </button>
-      </div>
-
-      <div className="px-4 pt-4">
-        <button
-          onClick={() => setIsAiAnalysisOpen(true)}
-          className="w-full flex items-center justify-between px-4 py-4 bg-white dark:bg-card-dark rounded-xl shadow-sm hover:bg-gray-50 dark:hover:bg-white/5 transition-colors"
-        >
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center">
-              <Icons.Chat size={18} className="text-blue-600 dark:text-blue-300" />
-            </div>
-            <div className="flex flex-col items-start">
-              <span className="text-sm font-medium text-gray-800 dark:text-gray-100">
-                {t('common.aiHoldingAnalysis') || 'AI 持仓分析'}
-              </span>
-              <span className="text-xs text-gray-400">
-                {t('common.aiHoldingAnalysisDesc') || '一键分析持仓表现与风险'}
-              </span>
+              <div className="rounded-2xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)]/90 px-4 py-3 dark:border-white/10 dark:bg-white/5">
+                <div className="text-[11px] font-semibold tracking-[0.18em] text-slate-400 dark:text-gray-500">
+                  自动刷新
+                </div>
+                <div className="mt-2 text-base font-semibold text-slate-800 dark:text-gray-100">
+                  {autoRefresh ? '已开启' : '已关闭'}
+                </div>
+              </div>
             </div>
           </div>
-          <Icons.ArrowUp size={16} className="text-gray-400 rotate-90" />
-        </button>
+        </section>
+
+        <section className="mt-3 md:mt-5">
+          <div className="sticky top-[calc(3.5rem+48px)] z-10 border-b border-[var(--app-shell-line)] bg-[var(--app-shell-panel)]/95 px-4 py-3 backdrop-blur-xl dark:border-border-dark dark:bg-card-dark/90 md:top-[6.8rem] md:rounded-t-[1.75rem] md:border md:border-b md:px-5 md:shadow-[0_10px_24px_rgba(15,23,42,0.05)]">
+            <div className="hidden items-center gap-4 md:flex">
+              <div className="flex min-w-[15rem] flex-[1.6] items-center gap-2 text-slate-400">
+                <div className="rounded-full border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] p-1.5 dark:border-white/10 dark:bg-white/5">
+                  <Icons.Holdings size={14} />
+                </div>
+                <span className="text-[11px] font-semibold tracking-[0.18em]">持仓列表</span>
+              </div>
+
+              <div className="grid flex-[5] grid-cols-6 gap-4 text-right text-[11px] font-semibold tracking-[0.16em] text-slate-400 dark:text-gray-500">
+                <div className="text-left normal-case tracking-normal text-slate-500 dark:text-gray-400">
+                  {t('common.cost')} / {t('common.nav')}
+                </div>
+                <button
+                  onClick={() => handleSort('officialDayChangePct')}
+                  className="flex items-center justify-end gap-1 transition-colors hover:text-slate-700 dark:hover:text-gray-200"
+                  type="button"
+                >
+                  {t('common.yesterdayChangePct') || '昨日涨幅'}
+                  {sortState.key === 'officialDayChangePct' && (
+                    <Icons.ArrowUp
+                      size={12}
+                      className={sortState.direction === 'asc' ? '' : 'rotate-180'}
+                    />
+                  )}
+                </button>
+                <button
+                  onClick={() => handleSort('estimatedDayChangePct')}
+                  className="flex items-center justify-end gap-1 transition-colors hover:text-slate-700 dark:hover:text-gray-200"
+                  type="button"
+                >
+                  {t('common.todayChangePct') || '今日涨幅'}
+                  {sortState.key === 'estimatedDayChangePct' && (
+                    <Icons.ArrowUp
+                      size={12}
+                      className={sortState.direction === 'asc' ? '' : 'rotate-180'}
+                    />
+                  )}
+                </button>
+                <button
+                  onClick={() => handleSort('todayGain')}
+                  className="flex items-center justify-end gap-1 transition-colors hover:text-slate-700 dark:hover:text-gray-200"
+                  type="button"
+                >
+                  {t('common.dayGain')}
+                  {sortState.key === 'todayGain' && (
+                    <Icons.ArrowUp
+                      size={12}
+                      className={sortState.direction === 'asc' ? '' : 'rotate-180'}
+                    />
+                  )}
+                </button>
+                <button
+                  onClick={() => handleSort('totalGain')}
+                  className="flex items-center justify-end gap-1 transition-colors hover:text-slate-700 dark:hover:text-gray-200"
+                  type="button"
+                >
+                  {t('common.totalGain')}
+                  {sortState.key === 'totalGain' && (
+                    <Icons.ArrowUp
+                      size={12}
+                      className={sortState.direction === 'asc' ? '' : 'rotate-180'}
+                    />
+                  )}
+                </button>
+                <button
+                  onClick={() => handleSort('marketValue')}
+                  className="flex items-center justify-end gap-1 transition-colors hover:text-slate-700 dark:hover:text-gray-200"
+                  type="button"
+                >
+                  {t('common.mktVal')}
+                  {sortState.key === 'marketValue' && (
+                    <Icons.ArrowUp
+                      size={12}
+                      className={sortState.direction === 'asc' ? '' : 'rotate-180'}
+                    />
+                  )}
+                </button>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between md:hidden">
+              <div>
+                <div className="text-[10px] font-semibold tracking-[0.2em] text-slate-400 dark:text-gray-500">
+                  持仓列表
+                </div>
+                <div className="mt-1 text-sm font-semibold text-slate-700 dark:text-gray-200">
+                  {t('common.fund')}
+                </div>
+              </div>
+              <div className="flex gap-2 text-right text-[11px] font-semibold tracking-[0.14em] text-slate-400 dark:text-gray-500">
+                <button
+                  onClick={() => handleSort('officialDayChangePct')}
+                  className="flex w-[6.5rem] items-center justify-end gap-0.5"
+                  type="button"
+                >
+                  {t('common.yesterdayChangePct') || '昨日涨幅'}
+                  {sortState.key === 'officialDayChangePct' && (
+                    <Icons.ArrowUp
+                      size={12}
+                      className={sortState.direction === 'asc' ? '' : 'rotate-180'}
+                    />
+                  )}
+                </button>
+                <button
+                  onClick={() => handleSort('estimatedDayChangePct')}
+                  className="flex w-[6.5rem] items-center justify-end gap-0.5"
+                  type="button"
+                >
+                  {t('common.todayChangePct') || '今日涨幅'}
+                  {sortState.key === 'estimatedDayChangePct' && (
+                    <Icons.ArrowUp
+                      size={12}
+                      className={sortState.direction === 'asc' ? '' : 'rotate-180'}
+                    />
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="overflow-hidden bg-[var(--app-shell-panel)]/92 dark:bg-card-dark md:rounded-b-[1.75rem] md:border md:border-t-0 md:border-[var(--app-shell-line)] md:shadow-[0_14px_32px_rgba(15,23,42,0.05)] dark:md:border-border-dark">
+            {sortedFunds.map((fund) => {
+              const holdingValue = fund.holdingShares * fund.currentNav;
+              const totalCost = fund.holdingShares * fund.costPrice;
+              const totalReturn = holdingValue - totalCost;
+              const officialDayChangePct = fund.officialDayChangePct ?? fund.dayChangePct;
+              const todayChangePct = fund.dayChangePct;
+              const estimatedGainVal = (holdingValue * (fund.estimatedDayChangePct ?? 0)) / 100;
+              const adjustedHoldingGain = totalReturn + estimatedGainVal;
+              const adjustedHoldingGainPct =
+                totalCost !== 0 ? (adjustedHoldingGain / totalCost) * 100 : 0;
+              const todayChangeTag = fund.todayChangeIsEstimated
+                ? t('common.estimated') || '估值'
+                : fund.lastUpdate === todayStr
+                  ? t('common.updated') || '已更新'
+                  : '';
+              const displayPlatform =
+                t(`filters.${fund.platform}`) === `filters.${fund.platform}`
+                  ? fund.platform
+                  : t(`filters.${fund.platform}`);
+              const pendingCount = (fund.pendingTransactions || []).filter((tx) => !tx.settled).length;
+
+              return (
+                <div
+                  key={fund.id}
+                  onClick={() => handleRowClick(fund)}
+                  onContextMenu={(e) => fund.id && handleContextMenu(e, fund.id)}
+                  onTouchStart={(e) => fund.id && handleTouchStart(fund.id, e)}
+                  onTouchEnd={handleTouchEnd}
+                  onTouchCancel={handleTouchEnd}
+                  className={`group relative cursor-pointer select-none border-b border-[var(--app-shell-line)]/80 px-4 py-3 transition-colors last:border-b-0 active:bg-[var(--app-shell-panel-strong)] dark:border-border-dark dark:active:bg-white/5 md:px-5 md:py-3.5 md:hover:bg-[var(--app-shell-panel-strong)]/72 dark:md:hover:bg-white/5 ${
+                    contextMenu?.fundId === fund.id ? 'bg-[var(--app-shell-panel-strong)] dark:bg-white/10' : ''
+                  }`}
+                >
+
+                    <div className="flex flex-col gap-3 md:flex-row md:items-center">
+                      <div className="min-w-0 flex-1 md:flex-[1.6] md:pr-4">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="rounded-full border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)]/92 px-2 py-1 text-[10px] font-semibold tracking-[0.14em] text-slate-700 dark:border-blue-400/20 dark:bg-blue-500/10 dark:text-blue-200">
+                          {fund.code}
+                        </span>
+                        <span className="max-w-[10rem] truncate rounded-full border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] px-2 py-1 text-[10px] font-semibold tracking-[0.14em] text-slate-500 dark:border-white/10 dark:bg-white/5 dark:text-gray-400">
+                          {displayPlatform}
+                        </span>
+                        {pendingCount > 0 && (
+                          <span className="rounded-full border border-amber-200 bg-amber-50/85 px-2 py-1 text-[10px] font-semibold tracking-[0.14em] text-amber-700 dark:border-amber-400/20 dark:bg-amber-500/10 dark:text-amber-300">
+                            {pendingCount} {t('common.inTransit')}
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="mt-2 flex items-start justify-between gap-3 md:block">
+                        <div>
+                          <h3 className="text-[15px] font-semibold tracking-tight text-slate-900 dark:text-gray-50 md:text-base">
+                            {fund.name}
+                          </h3>
+                          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500 dark:text-gray-400 md:hidden">
+                            <span>
+                              {t('common.cost')}: {formatCurrency(fund.costPrice, 4)}
+                            </span>
+                            <span>
+                              {t('common.nav')}: {fund.currentNav.toFixed(4)}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="text-right md:hidden">
+                          <div className="text-lg font-black tracking-[-0.03em] text-slate-900 dark:text-gray-50">
+                            {formatCurrency(holdingValue)}
+                          </div>
+                          <div className="mt-1 text-[10px] font-semibold tracking-[0.14em] text-slate-400 dark:text-gray-500">
+                            {t('common.mktVal')}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                      <div className="hidden md:grid md:flex-[5] md:grid-cols-6 md:gap-4 md:text-right">
+                      <div className="text-left text-xs text-slate-500 dark:text-gray-400">
+                        <div className="font-semibold text-slate-700 dark:text-gray-200">
+                          {formatCurrency(fund.costPrice, 4)}
+                        </div>
+                        <div className="mt-1 text-slate-400 dark:text-gray-500">
+                          {fund.currentNav.toFixed(4)}
+                        </div>
+                      </div>
+                      <div className={`text-sm font-semibold ${getSignColor(officialDayChangePct)}`}>
+                        {formatPct(officialDayChangePct)}
+                      </div>
+                      <div className={`text-sm font-semibold ${getSignColor(todayChangePct)}`}>
+                        {formatPct(todayChangePct)}
+                        {todayChangeTag && (
+                          <div className="mt-1 text-[10px] font-medium tracking-[0.14em] text-slate-400 dark:text-gray-500">
+                            {todayChangeTag}
+                          </div>
+                        )}
+                      </div>
+                      <div className={`text-sm font-semibold ${getSignColor(fund.dayChangeVal)}`}>
+                        {formatSignedCurrency(fund.dayChangeVal)}
+                      </div>
+                      <div className="flex flex-col items-end">
+                        <div className={`text-sm font-semibold ${getSignColor(adjustedHoldingGain)}`}>
+                          {formatSignedCurrency(adjustedHoldingGain)}
+                        </div>
+                        <div className={`mt-1 text-[10px] font-medium ${getSignColor(adjustedHoldingGainPct)}`}>
+                          {formatPct(adjustedHoldingGainPct)}
+                        </div>
+                      </div>
+                      <div className="text-base font-black tracking-[-0.03em] text-slate-900 dark:text-gray-50">
+                        {formatCurrency(holdingValue)}
+                      </div>
+                    </div>
+
+                      <div className="grid grid-cols-2 gap-2.5 md:hidden">
+                        <div className="rounded-2xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)]/90 px-3 py-2.5 text-right dark:border-white/10 dark:bg-white/5">
+                        <div
+                          className={`text-lg font-black leading-none tracking-[-0.03em] ${getSignColor(officialDayChangePct)}`}
+                        >
+                          {formatPct(officialDayChangePct)}
+                        </div>
+                        <div className="mt-2 text-[10px] font-semibold tracking-[0.14em] text-slate-400 dark:text-gray-500">
+                          {t('common.yesterdayChangePct') || '昨日涨幅'}
+                        </div>
+                      </div>
+                      <div className="rounded-2xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)]/90 px-3 py-2.5 text-right dark:border-white/10 dark:bg-white/5">
+                        <div
+                          className={`text-lg font-black leading-none tracking-[-0.03em] ${getSignColor(todayChangePct)}`}
+                        >
+                          {formatPct(todayChangePct)}
+                        </div>
+                        <div className="mt-2 text-[10px] font-semibold tracking-[0.14em] text-slate-400 dark:text-gray-500">
+                          {todayChangeTag || t('common.todayChangePct') || '今日涨幅'}
+                        </div>
+                      </div>
+                      <div className="rounded-2xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)]/80 px-3 py-2.5 text-right dark:border-white/10 dark:bg-white/5">
+                        <div className={`text-base font-bold ${getSignColor(fund.dayChangeVal)}`}>
+                          {formatSignedCurrency(fund.dayChangeVal)}
+                        </div>
+                        <div className="mt-2 text-[10px] font-semibold tracking-[0.14em] text-slate-400 dark:text-gray-500">
+                          {t('common.dayGain')}
+                        </div>
+                      </div>
+                      <div className="rounded-2xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)]/80 px-3 py-2.5 text-right dark:border-white/10 dark:bg-white/5">
+                        <div className={`text-base font-bold ${getSignColor(adjustedHoldingGain)}`}>
+                          {formatSignedCurrency(adjustedHoldingGain)}
+                        </div>
+                        <div
+                          className={`mt-1 text-[10px] font-medium ${getSignColor(adjustedHoldingGainPct)}`}
+                        >
+                          {formatPct(adjustedHoldingGainPct)}
+                        </div>
+                        <div className="mt-1 text-[10px] font-semibold tracking-[0.14em] text-slate-400 dark:text-gray-500">
+                          {t('common.totalGain')}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+
+        <section className="mt-3 px-4 pb-8 md:mt-5 md:px-0 md:pb-10">
+          <div className="grid gap-3 md:grid-cols-[1.3fr_1fr]">
+            <div className="rounded-[1.75rem] border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)]/92 p-3 shadow-[0_12px_28px_rgba(15,23,42,0.05)] dark:border-white/10 dark:bg-card-dark md:p-4">
+              <div className="mb-3 flex items-center justify-between">
+                <div>
+                  <div className="text-[10px] font-semibold tracking-[0.2em] text-slate-400 dark:text-gray-500">
+                    快捷操作
+                  </div>
+                  <div className="mt-1 text-sm font-semibold text-slate-700 dark:text-gray-200">
+                    {t('common.batch')} / {t('common.sync')}
+                  </div>
+                </div>
+                <div className="rounded-full border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] px-3 py-1 text-[10px] font-semibold tracking-[0.16em] text-slate-400 dark:border-white/10 dark:bg-white/5 dark:text-gray-500">
+                  常用
+                </div>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-3">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setEditingFund(undefined);
+                    setIsAddFundOpen(true);
+                  }}
+                  className="flex min-h-[4.75rem] flex-col items-start justify-between rounded-2xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)]/80 px-4 py-3 text-left text-slate-700 transition-colors hover:border-[var(--app-shell-line-strong)] hover:bg-[var(--app-shell-panel-strong)] dark:border-white/10 dark:bg-white/5 dark:text-gray-200 dark:hover:border-white/20 dark:hover:bg-white/10"
+                >
+                  <Icons.Plus size={18} />
+                  <span className="text-sm font-semibold">{t('common.addFund')}</span>
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const event = new CustomEvent('open-scanner');
+                    window.dispatchEvent(event);
+                  }}
+                  className="flex min-h-[4.75rem] flex-col items-start justify-between rounded-2xl border border-[var(--app-shell-line-strong)] bg-[var(--app-shell-panel-strong)] px-4 py-3 text-left text-slate-800 transition-colors hover:border-[var(--app-shell-line-strong)] hover:bg-[var(--app-shell-panel-strong)]/88 dark:border-blue-400/20 dark:bg-blue-500/15 dark:text-blue-100 dark:hover:bg-blue-500/20"
+                >
+                  <Icons.Refresh size={18} />
+                  <span className="text-sm font-semibold">{t('common.sync')}</span>
+                </button>
+                <button className="flex min-h-[4.75rem] flex-col items-start justify-between rounded-2xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)]/80 px-4 py-3 text-left text-slate-700 transition-colors hover:border-[var(--app-shell-line-strong)] hover:bg-[var(--app-shell-panel-strong)] dark:border-white/10 dark:bg-white/5 dark:text-gray-200 dark:hover:border-white/20 dark:hover:bg-white/10">
+                  <Icons.Copy size={18} />
+                  <span className="text-sm font-semibold">{t('common.batch')}</span>
+                </button>
+              </div>
+            </div>
+
+            <button
+              onClick={() => setIsAiAnalysisOpen(true)}
+              className="group rounded-[1.75rem] border border-slate-200/80 bg-[linear-gradient(135deg,rgba(248,250,252,0.98),rgba(255,255,255,0.92))] p-4 text-left shadow-[0_12px_28px_rgba(15,23,42,0.05)] transition-transform hover:-translate-y-0.5 dark:border-blue-400/20 dark:bg-[linear-gradient(135deg,rgba(30,41,59,1),rgba(15,23,42,1))]"
+            >
+              <div className="flex h-full items-center justify-between gap-4">
+                <div className="flex items-center gap-4">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--app-shell-panel-strong)] text-slate-700 shadow-none dark:bg-blue-500/20 dark:text-blue-200 dark:shadow-none">
+                    <Icons.Chat size={22} />
+                  </div>
+                  <div>
+                    <div className="text-[10px] font-semibold tracking-[0.2em] text-slate-400 dark:text-blue-300/70">
+                      智能分析
+                    </div>
+                    <div className="mt-1 text-base font-semibold text-slate-900 dark:text-gray-50">
+                      {t('common.aiHoldingAnalysis') || 'AI 持仓分析'}
+                    </div>
+                    <div className="mt-1 text-sm text-slate-500 dark:text-gray-400">
+                      {t('common.aiHoldingAnalysisDesc') || '一键分析持仓表现与风险'}
+                    </div>
+                  </div>
+                </div>
+                  <Icons.ArrowUp
+                    size={18}
+                    className="rotate-90 text-slate-500 transition-transform group-hover:translate-x-1 dark:text-blue-300"
+                  />
+
+              </div>
+            </button>
+          </div>
+        </section>
       </div>
 
       <AccountManagerModal

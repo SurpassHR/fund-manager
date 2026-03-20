@@ -32,7 +32,6 @@ export const Watchlist: React.FC = () => {
   }>({ key: null, direction: 'desc' });
 
   const handleRowClick = (item: WatchlistItem) => {
-    // Mock a Fund object for the detail view
     const fundData: Fund = {
       code: item.code,
       name: item.name,
@@ -51,24 +50,20 @@ export const Watchlist: React.FC = () => {
     });
   };
 
-  // Refresh state
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [cooldown, setCooldown] = useState(0);
   const cooldownMaxTime = 5000;
   const cooldownRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Context Menu State
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; itemId: number } | null>(
     null,
   );
   const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    // Initial load refresh
     refreshWatchlistData();
   }, []);
 
-  // Close context menu on global click
   useEffect(() => {
     const handleClick = () => setContextMenu(null);
     window.addEventListener('click', handleClick);
@@ -192,47 +187,44 @@ export const Watchlist: React.FC = () => {
     });
   }, [sortState.direction, sortState.key, watchlists]);
 
-  if (!watchlists)
+  if (!watchlists) {
     return <div className="p-8 text-center text-gray-500">{t('common.loading')}</div>;
+  }
 
   return (
-    <div
-      className="pb-36 md:pb-24 bg-app-bg dark:bg-app-bg-dark min-h-full"
-      onContextMenu={(e) => e.preventDefault()}
-    >
-      {/* Context Menu Overlay */}
+    <div className="min-h-full pb-36 md:pb-24" onContextMenu={(e) => e.preventDefault()}>
       {contextMenu && (
         <div
-          className="fixed z-[100] bg-white dark:bg-card-dark rounded-lg shadow-xl border border-gray-100 dark:border-border-dark py-2 w-48 overflow-hidden animate-in fade-in zoom-in-95 duration-100 origin-top-left"
+          className="fixed z-[100] w-48 origin-top-left overflow-hidden rounded-lg border border-gray-100 bg-white py-2 shadow-xl animate-in fade-in zoom-in-95 duration-100 dark:border-border-dark dark:bg-card-dark"
           style={{
             top: Math.min(contextMenu.y, window.innerHeight - 150),
             left: Math.min(contextMenu.x, window.innerWidth - 200),
           }}
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="px-4 py-2 text-xs font-bold text-gray-400 bg-gray-50 dark:bg-white/5 border-b border-gray-100 dark:border-border-dark mb-1">
+          <div className="mb-1 border-b border-gray-100 bg-gray-50 px-4 py-2 text-xs font-bold text-gray-400 dark:border-border-dark dark:bg-white/5">
             {t('common.menu')}
           </div>
           <button
             onClick={() => {
-              const i = watchlists.find((i) => i.id === contextMenu.itemId);
-              if (i) handleEdit(i);
+              const item = watchlists.find((entry) => entry.id === contextMenu.itemId);
+              if (item) handleEdit(item);
             }}
-            className="w-full text-left px-4 py-3 hover:bg-blue-50 dark:hover:bg-blue-900/20 text-gray-700 dark:text-gray-200 text-sm flex items-center gap-2 border-b border-gray-50 dark:border-border-dark"
+            className="flex w-full items-center gap-2 border-b border-[var(--app-shell-line)] px-4 py-3 text-left text-sm text-slate-700 hover:bg-[var(--app-shell-panel-strong)] dark:border-border-dark dark:text-gray-200 dark:hover:bg-blue-900/20"
           >
-            <Icons.Settings size={16} className="text-blue-500" /> {t('common.edit')}
+            <Icons.Settings size={16} className="text-slate-500" /> {t('common.edit')}
           </button>
           {(() => {
-            const item = watchlists.find((i) => i.id === contextMenu.itemId);
+            const item = watchlists.find((entry) => entry.id === contextMenu.itemId);
             const isFund = item?.type === 'fund';
             const isHeld =
-              !!item && (funds ?? []).some((f) => f.code === item.code && f.holdingShares > 0);
+              !!item && (funds ?? []).some((fund) => fund.code === item.code && fund.holdingShares > 0);
             if (!item || !isFund || isHeld) return null;
 
             return (
               <button
                 onClick={() => handleAddHolding(item)}
-                className="w-full text-left px-4 py-3 hover:bg-green-50 dark:hover:bg-green-900/20 text-green-600 dark:text-green-400 text-sm flex items-center gap-2 border-b border-gray-50 dark:border-border-dark"
+                className="flex w-full items-center gap-2 border-b border-gray-50 px-4 py-3 text-left text-sm text-green-600 hover:bg-green-50 dark:border-border-dark dark:text-green-400 dark:hover:bg-green-900/20"
               >
                 <Icons.Plus size={16} /> {t('common.addHoldingFromWatchlist')}
               </button>
@@ -240,241 +232,268 @@ export const Watchlist: React.FC = () => {
           })()}
           <button
             onClick={() => handleDelete(contextMenu.itemId)}
-            className="w-full text-left px-4 py-3 hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400 text-sm flex items-center gap-2"
+            className="flex w-full items-center gap-2 px-4 py-3 text-left text-sm text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
           >
-            <Icons.Plus size={16} className="transform rotate-45" /> {t('common.delete')}
+            <Icons.Plus size={16} className="rotate-45 transform" /> {t('common.delete')}
           </button>
         </div>
       )}
 
-      {/* Header controls (similar to summary card style but smaller) */}
-      <div className="bg-white dark:bg-card-dark md:rounded-lg md:shadow-sm px-4 py-3 mb-2 md:mb-6 mt-2 md:mt-4 mx-0 md:mx-0 flex justify-between items-center">
-        <div className="text-gray-800 dark:text-gray-100 font-bold text-lg">
-          {t('common.watchlist')}
-        </div>
-        <button
-          onClick={handleManualRefresh}
-          disabled={cooldown > 0 || isRefreshing}
-          className={`relative flex items-center justify-center p-2 rounded-full bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-gray-300 overflow-hidden active:scale-95 transition-transform ${cooldown > 0 || isRefreshing ? 'cursor-not-allowed' : 'cursor-pointer'}`}
-        >
-          <Icons.Refresh size={16} className={`${isRefreshing ? 'animate-spin' : ''}`} />
-
-          {/* Cooldown overlay (Light mode) */}
-          {cooldown > 0 && !isRefreshing && (
-            <div
-              className="absolute inset-0 dark:hidden"
-              style={{
-                background: `conic-gradient(transparent ${100 - cooldown}%, rgba(0,0,0,0.2) ${100 - cooldown}%, rgba(0,0,0,0.2) 100%)`,
-              }}
-            />
-          )}
-          {/* Cooldown overlay (Dark mode) */}
-          {cooldown > 0 && !isRefreshing && (
-            <div
-              className="absolute inset-0 hidden dark:block"
-              style={{
-                background: `conic-gradient(transparent ${100 - cooldown}%, rgba(0,0,0,0.7) ${100 - cooldown}%, rgba(0,0,0,0.7) 100%)`,
-              }}
-            />
-          )}
-        </button>
-      </div>
-
-      {/* List Headers - Responsive */}
-      <div className="bg-white dark:bg-card-dark md:rounded-t-lg px-4 py-3 flex items-center text-xs text-gray-400 border-b border-gray-100 dark:border-border-dark sticky top-[calc(3.5rem+40px)] md:top-14 z-10 shadow-sm font-sans">
-        <div className="hidden md:flex md:flex-[1.5] gap-4 pr-2 items-center text-left">
-          {t('common.fund')}/{t('common.indexOrSector')}
-        </div>
-        <div className="hidden md:grid md:flex-[4] w-full grid-cols-4 gap-4 text-right font-medium">
-          <div className="text-left">
-            {t('common.anchorPrice')} / {t('common.currentPrice')}
+      <div className="mx-auto w-full max-w-7xl px-0 pb-8 md:px-4 md:pb-10 lg:px-6">
+        <section className="relative overflow-hidden border-b border-[var(--app-shell-line)] bg-[var(--app-shell-panel)]/92 px-4 pb-4 pt-4 dark:border-border-dark dark:bg-card-dark md:mt-3 md:rounded-[1.75rem] md:border md:px-6 md:pb-5 md:pt-5 md:shadow-[0_12px_32px_rgba(15,23,42,0.05)]">
+          <div className="pointer-events-none absolute inset-0">
+            <div className="absolute inset-y-0 left-0 w-full bg-[radial-gradient(circle_at_top_left,_rgba(148,163,184,0.12),_transparent_34%),radial-gradient(circle_at_bottom_right,_rgba(226,232,240,0.8),_transparent_28%)] dark:bg-[radial-gradient(circle_at_top_left,_rgba(96,165,250,0.12),_transparent_35%),radial-gradient(circle_at_bottom_right,_rgba(59,130,246,0.10),_transparent_28%)]" />
           </div>
-          <button
-            onClick={() => handleSort('dayChangePct')}
-            className="text-right cursor-pointer hover:text-gray-600 flex items-center justify-end gap-1"
-            type="button"
-          >
-            {t('common.dayChgPct')}
-            {sortState.key === 'dayChangePct' && (
-              <Icons.ArrowUp
-                size={12}
-                className={sortState.direction === 'asc' ? '' : 'rotate-180'}
-              />
-            )}
-          </button>
-          <div className="text-right"></div>
-          <button
-            onClick={() => handleSort('anchorGain')}
-            className="text-right cursor-pointer hover:text-gray-600 flex items-center justify-end gap-1"
-            type="button"
-          >
-            {t('common.anchorGain')}
-            {sortState.key === 'anchorGain' && (
-              <Icons.ArrowUp
-                size={12}
-                className={sortState.direction === 'asc' ? '' : 'rotate-180'}
-              />
-            )}
-          </button>
-        </div>
 
-        {/* Mobile Headers */}
-        <div className="md:hidden w-full flex items-center justify-between">
-          <div className="flex-1 text-left">
-            {t('common.fund')}/{t('common.indexOrSector')}
-          </div>
-          <div className="flex gap-2 text-right">
-            <button
-              onClick={() => handleSort('dayChangePct')}
-              className="w-[4.5rem] cursor-pointer flex items-center justify-end gap-0.5"
-              type="button"
-            >
-              {t('common.dayChgPct')}
-              {sortState.key === 'dayChangePct' && (
-                <Icons.ArrowUp
-                  size={12}
-                  className={sortState.direction === 'asc' ? '' : 'rotate-180'}
-                />
-              )}
-            </button>
-            <button
-              onClick={() => handleSort('anchorGain')}
-              className="w-[4.5rem] cursor-pointer flex items-center justify-end gap-0.5"
-              type="button"
-            >
-              {t('common.anchorGain')}
-              {sortState.key === 'anchorGain' && (
-                <Icons.ArrowUp
-                  size={12}
-                  className={sortState.direction === 'asc' ? '' : 'rotate-180'}
-                />
-              )}
-            </button>
-          </div>
-        </div>
-      </div>
+          <div className="relative flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+            <div>
+              <div className="text-[11px] font-semibold tracking-[0.24em] text-slate-400 dark:text-gray-500">
+                自选概览
+              </div>
+              <div className="mt-2 text-3xl font-black tracking-[-0.04em] text-slate-900 dark:text-gray-50 md:text-4xl">
+                {watchlists.length}
+              </div>
+              <div className="mt-2 text-sm text-slate-500 dark:text-gray-400">
+                {t('common.watchlist')}
+              </div>
+            </div>
 
-      {/* List */}
-      <div className="bg-white dark:bg-card-dark md:rounded-b-lg flex flex-col md:divide-y md:divide-gray-50 dark:md:divide-border-dark">
-        {watchlists.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 text-gray-400 gap-4">
-            <Icons.User size={48} strokeWidth={1} className="opacity-50" />
-            <p className="text-sm">{t('common.noWatchlistMsg')}</p>
-          </div>
-        ) : (
-          sortedWatchlists.map((item) => {
-            const anchorGainPct =
-              item.anchorPrice > 0
-                ? ((item.currentPrice - item.anchorPrice) / item.anchorPrice) * 100
-                : 0;
-
-            return (
-              <div
-                key={item.id}
-                onContextMenu={(e) => item.id && handleContextMenu(e, item.id)}
-                onTouchStart={(e) => item.id && handleTouchStart(item.id, e)}
-                onTouchEnd={handleTouchEnd}
-                onTouchCancel={handleTouchEnd}
-                onClick={() => handleRowClick(item)}
-                className={`group flex md:flex-row py-4 px-4 border-b border-gray-50 dark:border-border-dark md:border-none md:hover:bg-gray-50 dark:md:hover:bg-white/5 transition-colors items-start select-none cursor-pointer ${contextMenu?.itemId === item.id ? 'bg-gray-100 dark:bg-white/10' : ''}`}
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleManualRefresh}
+                disabled={cooldown > 0 || isRefreshing}
+                className={`relative flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border transition-transform active:scale-95 ${
+                  cooldown > 0 || isRefreshing
+                    ? 'cursor-not-allowed border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] text-slate-500 dark:border-white/10 dark:bg-white/10 dark:text-gray-400'
+                    : 'cursor-pointer border-[var(--app-shell-line-strong)] bg-[var(--app-shell-panel-strong)] text-slate-800 dark:border-blue-400/30 dark:bg-blue-500/15 dark:text-blue-100'
+                }`}
               >
-                {/* Common: Name Section */}
-                <div className="flex-1 min-w-0 pr-2 md:flex-[1.5] md:self-center">
-                  <div className="hidden md:flex items-center gap-2">
-                    <span className="text-[10px] px-1 py-0.5 rounded bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 font-sans">
-                      {item.code}
-                    </span>
-                    <span
-                      className={`text-[10px] px-1 py-0.5 rounded font-sans whitespace-nowrap ${item.type === 'index' ? 'bg-purple-100 dark:bg-purple-900/40 text-purple-600 dark:text-purple-400' : 'bg-gray-100 dark:bg-white/10 text-gray-500 dark:text-gray-400'}`}
-                    >
-                      {item.type === 'index' ? t('common.indexBadge') : t('common.fundBadge')}
-                    </span>
-                    <h3 className="text-sm font-medium text-gray-800 dark:text-gray-100 truncate font-sans">
-                      {item.name}
-                    </h3>
-                  </div>
+                <Icons.Refresh size={16} className={isRefreshing ? 'animate-spin' : ''} />
+                {cooldown > 0 && !isRefreshing && (
+                  <div
+                    className="absolute inset-0 dark:hidden"
+                    style={{
+                      background: `conic-gradient(transparent ${100 - cooldown}%, rgba(0,0,0,0.18) ${100 - cooldown}%, rgba(0,0,0,0.18) 100%)`,
+                    }}
+                  />
+                )}
+                {cooldown > 0 && !isRefreshing && (
+                  <div
+                    className="absolute inset-0 hidden dark:block"
+                    style={{
+                      background: `conic-gradient(transparent ${100 - cooldown}%, rgba(15,23,42,0.75) ${100 - cooldown}%, rgba(15,23,42,0.75) 100%)`,
+                    }}
+                  />
+                )}
+              </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setEditingItem(undefined);
+                  setIsAddModalOpen(true);
+                }}
+                className="flex min-h-10 items-center gap-2 rounded-full border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)]/90 px-4 py-2 text-sm font-semibold text-slate-700 transition-colors hover:border-[var(--app-shell-line-strong)] hover:bg-[var(--app-shell-panel-strong)] dark:border-white/10 dark:bg-white/5 dark:text-gray-200 dark:hover:border-white/20 dark:hover:bg-white/10"
+              >
+                <Icons.Plus size={16} />
+                {t('common.addWatchlist')}
+              </button>
+            </div>
+          </div>
+        </section>
 
-                  {/* Mobile Name View */}
-                  <div className="md:hidden flex flex-col gap-1">
-                    <div className="flex items-center gap-1.5">
-                      <h3 className="text-sm font-medium text-gray-800 dark:text-gray-100 truncate leading-tight font-sans">
-                        {item.name}
-                      </h3>
-                      <span
-                        className={`text-[9px] px-1 py-0.5 rounded font-bold whitespace-nowrap ${item.type === 'index' ? 'bg-purple-100 dark:bg-purple-900/40 text-purple-600 dark:text-purple-400' : 'bg-gray-100 dark:bg-white/10 text-gray-500 dark:text-gray-400'}`}
-                      >
-                        {item.type === 'index'
-                          ? t('common.indexBadgeShort')
-                          : t('common.fundBadgeShort')}
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center pr-2">
-                      <span className="text-xs text-gray-400 font-sans">{item.code}</span>
-                    </div>
-                  </div>
+        <section className="mt-3 md:mt-5">
+          <div className="sticky top-[calc(3.5rem+48px)] z-10 border-b border-[var(--app-shell-line)] bg-[var(--app-shell-panel)]/95 px-4 py-3 backdrop-blur-xl dark:border-border-dark dark:bg-card-dark/90 md:top-[6.8rem] md:rounded-t-[1.75rem] md:border md:border-b md:px-5 md:shadow-[0_10px_24px_rgba(15,23,42,0.05)]">
+            <div className="hidden items-center gap-4 md:flex">
+              <div className="flex min-w-[15rem] flex-[1.5] items-center gap-2 text-slate-400">
+                <div className="rounded-full border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] p-1.5 dark:border-white/10 dark:bg-white/5">
+                  <Icons.Holdings size={14} />
                 </div>
-
-                {/* Desktop Grid Layout */}
-                <div className="hidden md:grid flex-[4] w-full grid-cols-4 gap-4 text-right items-start text-sm">
-                  <div className="text-left text-gray-500 text-xs">
-                    <div className="font-sans flex items-center gap-1">
-                      {item.anchorPrice.toFixed(4)}
-                      <span className="text-[10px] text-gray-400 bg-gray-50 dark:bg-white/5 px-1 rounded">
-                        {item.anchorDate}
-                      </span>
-                    </div>
-                    <div className="font-sans text-gray-400">{item.currentPrice.toFixed(4)}</div>
-                  </div>
-                  <div className={`font-medium font-sans ${getSignColor(item.dayChangePct)}`}>
-                    {formatPct(item.dayChangePct)}
-                  </div>
-                  <div className="text-right"></div>
-                  <div className={`font-bold font-sans ${getSignColor(anchorGainPct)}`}>
-                    {formatPct(anchorGainPct)}
-                  </div>
+                <span className="text-[11px] font-semibold tracking-[0.18em]">自选列表</span>
+              </div>
+              <div className="grid w-full flex-[4] grid-cols-4 gap-4 text-right text-[11px] font-semibold tracking-[0.16em] text-slate-400 dark:text-gray-500">
+                <div className="text-left normal-case tracking-normal text-slate-500 dark:text-gray-400">
+                  锚点 / 现价
                 </div>
+                <button
+                  onClick={() => handleSort('dayChangePct')}
+                  className="flex items-center justify-end gap-1 transition-colors hover:text-slate-700 dark:hover:text-gray-200"
+                  type="button"
+                >
+                  当日涨跌幅
+                  {sortState.key === 'dayChangePct' && (
+                    <Icons.ArrowUp
+                      size={12}
+                      className={sortState.direction === 'asc' ? '' : 'rotate-180'}
+                    />
+                  )}
+                </button>
+                <div />
+                <button
+                  onClick={() => handleSort('anchorGain')}
+                  className="flex items-center justify-end gap-1 transition-colors hover:text-slate-700 dark:hover:text-gray-200"
+                  type="button"
+                >
+                  锚点收益
+                  {sortState.key === 'anchorGain' && (
+                    <Icons.ArrowUp
+                      size={12}
+                      className={sortState.direction === 'asc' ? '' : 'rotate-180'}
+                    />
+                  )}
+                </button>
+              </div>
+            </div>
 
-                {/* Mobile Flex Layout */}
-                <div className="md:hidden flex flex-none gap-2 text-right items-start">
-                  <div className="w-[4.5rem] flex flex-col items-end">
-                    <div
-                      className={`text-base font-bold font-sans ${getSignColor(item.dayChangePct)}`}
-                    >
-                      {formatPct(item.dayChangePct)}
-                    </div>
-                    <div className="text-[10px] text-gray-400 font-sans">
-                      {t('common.currentLabel')} {item.currentPrice.toFixed(4)}
-                    </div>
-                  </div>
-
-                  <div className="w-[5rem] flex flex-col items-end">
-                    <div className={`text-base font-bold font-sans ${getSignColor(anchorGainPct)}`}>
-                      {formatPct(anchorGainPct)}
-                    </div>
-                    <div className="text-[10px] text-gray-400 font-sans flex flex-col items-end">
-                      {t('common.anchorLabel')} {item.anchorPrice.toFixed(4)}
-                      <span className="scale-90 origin-right opacity-70">({item.anchorDate})</span>
-                    </div>
-                  </div>
+            <div className="flex items-center justify-between md:hidden">
+              <div>
+                <div className="text-[10px] font-semibold tracking-[0.2em] text-slate-400 dark:text-gray-500">
+                  自选列表
+                </div>
+                <div className="mt-1 text-sm font-semibold text-slate-700 dark:text-gray-200">
+                  {t('common.watchlist')}
                 </div>
               </div>
-            );
-          })
-        )}
-      </div>
+              <div className="flex gap-2 text-right text-[11px] font-semibold tracking-[0.14em] text-slate-400 dark:text-gray-500">
+                <button
+                  onClick={() => handleSort('dayChangePct')}
+                  className="flex w-[5.25rem] items-center justify-end gap-0.5"
+                  type="button"
+                >
+                  当日涨跌幅
+                  {sortState.key === 'dayChangePct' && (
+                    <Icons.ArrowUp
+                      size={12}
+                      className={sortState.direction === 'asc' ? '' : 'rotate-180'}
+                    />
+                  )}
+                </button>
+                <button
+                  onClick={() => handleSort('anchorGain')}
+                  className="flex w-[5.25rem] items-center justify-end gap-0.5"
+                  type="button"
+                >
+                  锚点收益
+                  {sortState.key === 'anchorGain' && (
+                    <Icons.ArrowUp
+                      size={12}
+                      className={sortState.direction === 'asc' ? '' : 'rotate-180'}
+                    />
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
 
-      {/* Bottom Add Action */}
-      <div className="mt-2 flex bg-white dark:bg-card-dark md:bg-transparent md:dark:bg-transparent md:mt-4 py-3 px-4 md:px-0 text-gray-500 dark:text-gray-400 text-sm items-center justify-between md:justify-start md:gap-4 font-sans">
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            setEditingItem(undefined);
-            setIsAddModalOpen(true);
-          }}
-          className="flex items-center gap-1 md:bg-white md:dark:bg-card-dark md:px-4 md:py-2 md:rounded-lg md:shadow-sm md:hover:bg-gray-50 md:dark:hover:bg-white/5 transition-colors"
-        >
-          <Icons.Plus size={16} /> {t('common.addWatchlist')}
-        </button>
+          <div className="overflow-hidden bg-[var(--app-shell-panel)]/92 dark:bg-card-dark md:rounded-b-[1.75rem] md:border md:border-t-0 md:border-[var(--app-shell-line)] md:shadow-[0_14px_32px_rgba(15,23,42,0.05)] dark:md:border-border-dark">
+            {watchlists.length === 0 ? (
+              <div className="flex flex-col items-center justify-center gap-4 py-20 text-slate-400">
+                <Icons.User size={48} strokeWidth={1} className="opacity-50" />
+                <p className="text-sm">{t('common.noWatchlistMsg')}</p>
+              </div>
+            ) : (
+              sortedWatchlists.map((item) => {
+                const anchorGainPct =
+                  item.anchorPrice > 0
+                    ? ((item.currentPrice - item.anchorPrice) / item.anchorPrice) * 100
+                    : 0;
+
+                return (
+                  <div
+                    key={item.id}
+                    onContextMenu={(e) => item.id && handleContextMenu(e, item.id)}
+                    onTouchStart={(e) => item.id && handleTouchStart(item.id, e)}
+                    onTouchEnd={handleTouchEnd}
+                    onTouchCancel={handleTouchEnd}
+                    onClick={() => handleRowClick(item)}
+                    className={`group flex cursor-pointer select-none items-start border-b border-[var(--app-shell-line)]/80 px-4 py-4 transition-colors dark:border-border-dark md:flex-row md:border-none md:hover:bg-[var(--app-shell-panel-strong)]/72 dark:md:hover:bg-white/5 ${contextMenu?.itemId === item.id ? 'bg-[var(--app-shell-panel-strong)] dark:bg-white/10' : ''}`}
+                  >
+                    <div className="min-w-0 flex-1 pr-2 md:flex-[1.5] md:self-center">
+                      <div className="hidden items-center gap-2 md:flex">
+                        <span className="rounded-full border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)]/92 px-2 py-1 text-[10px] font-semibold tracking-[0.14em] text-slate-700 dark:border-blue-400/20 dark:bg-blue-500/10 dark:text-blue-200">
+                          {item.code}
+                        </span>
+                        <span
+                          className={`rounded-full border px-2 py-1 text-[10px] font-semibold tracking-[0.14em] ${
+                            item.type === 'index'
+                              ? 'border-[var(--app-shell-line-strong)] bg-[var(--app-shell-panel-strong)] text-slate-700 dark:border-purple-400/20 dark:bg-purple-500/10 dark:text-purple-300'
+                              : 'border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] text-slate-500 dark:border-white/10 dark:bg-white/5 dark:text-gray-400'
+                          }`}
+                        >
+                          {item.type === 'index' ? '指数' : '基金'}
+                        </span>
+                        <h3 className="truncate text-sm font-medium text-slate-800 dark:text-gray-100">
+                          {item.name}
+                        </h3>
+                      </div>
+
+                      <div className="flex flex-col gap-1 md:hidden">
+                        <div className="flex items-center gap-1.5">
+                          <h3 className="truncate text-sm font-medium leading-tight text-slate-800 dark:text-gray-100">
+                            {item.name}
+                          </h3>
+                          <span
+                            className={`rounded-full px-2 py-0.5 text-[9px] font-bold whitespace-nowrap ${
+                              item.type === 'index'
+                                ? 'bg-[var(--app-shell-panel-strong)] text-slate-700 dark:bg-purple-900/40 dark:text-purple-400'
+                                : 'bg-[var(--app-shell-panel-strong)] text-slate-500 dark:bg-white/10 dark:text-gray-400'
+                            }`}
+                          >
+                            {item.type === 'index' ? '指数' : '基金'}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between pr-2">
+                          <span className="text-xs text-slate-400">{item.code}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="hidden w-full flex-[4] grid-cols-4 items-start gap-4 text-right text-sm md:grid">
+                      <div className="text-left text-xs text-slate-500 dark:text-gray-400">
+                        <div className="flex items-center gap-1 text-slate-700 dark:text-gray-200">
+                          {item.anchorPrice.toFixed(4)}
+                          <span className="rounded bg-[var(--app-shell-panel-strong)] px-1 text-[10px] text-slate-400 dark:bg-white/5 dark:text-gray-500">
+                            {item.anchorDate}
+                          </span>
+                        </div>
+                        <div className="mt-1 text-slate-400 dark:text-gray-500">
+                          {item.currentPrice.toFixed(4)}
+                        </div>
+                      </div>
+                      <div className={`font-medium ${getSignColor(item.dayChangePct)}`}>
+                        {formatPct(item.dayChangePct)}
+                      </div>
+                      <div />
+                      <div className={`font-bold ${getSignColor(anchorGainPct)}`}>
+                        {formatPct(anchorGainPct)}
+                      </div>
+                    </div>
+
+                    <div className="flex flex-none gap-2 text-right md:hidden">
+                      <div className="w-[4.9rem] rounded-2xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)]/90 px-3 py-3 dark:border-white/10 dark:bg-white/5">
+                        <div className={`text-base font-bold ${getSignColor(item.dayChangePct)}`}>
+                          {formatPct(item.dayChangePct)}
+                        </div>
+                        <div className="mt-2 text-[10px] text-slate-400 dark:text-gray-500">
+                          现价 {item.currentPrice.toFixed(4)}
+                        </div>
+                      </div>
+
+                      <div className="w-[5.2rem] rounded-2xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)]/80 px-3 py-3 dark:border-white/10 dark:bg-white/5">
+                        <div className={`text-base font-bold ${getSignColor(anchorGainPct)}`}>
+                          {formatPct(anchorGainPct)}
+                        </div>
+                        <div className="mt-2 flex flex-col items-end text-[10px] text-slate-400 dark:text-gray-500">
+                          <span>锚点 {item.anchorPrice.toFixed(4)}</span>
+                          <span className="origin-right scale-90 opacity-70">({item.anchorDate})</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </section>
       </div>
 
       <AddWatchlistModal

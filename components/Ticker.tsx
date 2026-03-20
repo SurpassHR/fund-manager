@@ -37,99 +37,96 @@ export const Ticker: React.FC = () => {
 
   return (
     <>
-      {/* Backdrop overlay */}
       <AnimatePresence>
         {isExpanded && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-30 bg-black/30 backdrop-blur-sm"
+            className="fixed inset-0 z-30 bg-black/25 backdrop-blur-sm"
             onClick={() => setIsExpanded(false)}
           />
         )}
       </AnimatePresence>
 
-      {/* Ticker Container */}
-      <div className="fixed bottom-[calc(3.5rem+env(safe-area-inset-bottom,0px))] left-0 right-0 flex flex-col z-40">
-        {/* Expanded panel */}
-        <AnimatePresence>
-          {isExpanded && (
-            <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: 'auto', opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              className="w-full bg-white dark:bg-card-dark border-t border-gray-100 dark:border-border-dark overflow-hidden origin-bottom shadow-[0_-10px_40px_rgba(0,0,0,0.1)] dark:shadow-none"
-            >
-              <div className="w-full max-w-7xl mx-auto px-4 py-3 pb-4 flex flex-col gap-2">
-                <div className="text-xs font-bold font-sans text-gray-400 dark:text-gray-500 mb-2 uppercase">
-                  全球市场指数 (Global Indices)
-                </div>
-                {indices.map((idx) => (
-                  <div
-                    key={idx.name}
-                    className="flex items-center justify-between py-2 border-b border-gray-50 dark:border-white/5 last:border-0 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors rounded-lg px-2 -mx-2"
-                  >
-                    <span className="font-medium text-gray-700 dark:text-gray-200 text-sm w-32 truncate">
-                      {idx.name}
-                    </span>
-                    <div className="flex gap-4 items-center justify-end text-sm flex-1">
-                      <span
-                        className={`font-sans font-bold w-16 text-right ${getSignColor(idx.change)}`}
-                      >
-                        {idx.value.toFixed(2)}
-                      </span>
-                      <span
-                        className={`font-sans w-16 text-right hidden sm:block ${getSignColor(idx.change)}`}
-                      >
-                        {idx.change.toFixed(2)}
-                      </span>
-                      <span
-                        className={`font-sans font-bold w-16 text-right ${getSignColor(idx.change)}`}
-                      >
-                        {formatPct(idx.changePct)}
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Existing single-line ticker */}
-        <div
-          className="w-full bg-white dark:bg-card-dark border-t border-gray-100 dark:border-border-dark h-10 flex justify-center cursor-pointer hover:bg-gray-50 dark:hover:bg-white/5 transition-colors"
-          onClick={() => setIsExpanded(!isExpanded)}
-        >
-          <div className="w-full max-w-7xl px-4 flex items-center justify-between text-sm">
-            <div className="flex items-center gap-4 w-full overflow-hidden">
-              <span className="font-medium text-gray-700 dark:text-gray-200 whitespace-nowrap">
-                {current.name}
-              </span>
-              <span className={`font-sans font-bold ${getSignColor(current.change)}`}>
-                {current.value.toFixed(2)}
-              </span>
-              <span className={`font-sans ${getSignColor(current.change)} hidden sm:inline`}>
-                {current.change.toFixed(2)}
-              </span>
-              <span className={`font-sans font-bold ${getSignColor(current.change)}`}>
-                {formatPct(current.changePct)}
-              </span>
-            </div>
-            <div className="text-gray-400 pl-4 flex-shrink-0">
+      <div className="fixed bottom-[calc(6.5rem+env(safe-area-inset-bottom,0px))] left-0 right-0 z-40 px-3 sm:px-4">
+        <div className="mx-auto flex w-full max-w-5xl flex-col gap-2.5 sm:gap-3">
+          <AnimatePresence>
+            {isExpanded && (
               <motion.div
-                animate={{ rotate: isExpanded ? 180 : 0 }}
-                transition={{ type: 'spring', stiffness: 200, damping: 15 }}
+                initial={{ height: 0, opacity: 0, y: 12 }}
+                animate={{ height: 'auto', opacity: 1, y: 0 }}
+                exit={{ height: 0, opacity: 0, y: 12 }}
+                transition={{ duration: 0.22 }}
+                className="overflow-hidden rounded-[1.5rem] border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)]/95 shadow-[var(--app-shell-shadow)] backdrop-blur-2xl"
               >
-                <Icons.ArrowUp
-                  size={16}
-                  className={isExpanded ? 'text-blue-500' : 'text-gray-300 dark:text-gray-500'}
-                />
+                <div className="px-4 py-3.5 sm:px-5 sm:py-4">
+                  <div className="mb-2.5 text-[0.62rem] font-semibold tracking-[0.24em] text-[var(--app-shell-muted)]">
+                    全球市场指数
+                  </div>
+                  <div className="space-y-2">
+                    {indices.map((idx) => (
+                      <div
+                        key={idx.name}
+                        className="flex items-center justify-between rounded-2xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] px-3 py-2.5 transition-colors"
+                      >
+                        <span className="w-32 truncate text-sm font-semibold text-[var(--app-shell-ink)]">
+                          {idx.name}
+                        </span>
+                        <div className="flex flex-1 items-center justify-end gap-4 text-sm">
+                          <span className={`w-16 text-right font-bold ${getSignColor(idx.change)}`}>
+                            {idx.value.toFixed(2)}
+                          </span>
+                          <span
+                            className={`hidden w-16 text-right sm:block ${getSignColor(idx.change)}`}
+                          >
+                            {idx.change.toFixed(2)}
+                          </span>
+                          <span className={`w-16 text-right font-bold ${getSignColor(idx.change)}`}>
+                            {formatPct(idx.changePct)}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </motion.div>
+            )}
+          </AnimatePresence>
+
+          <button
+            type="button"
+            className="group flex h-[3.125rem] w-full items-center justify-center rounded-[1.35rem] border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)]/96 shadow-[0_12px_32px_rgba(15,23,42,0.1)] backdrop-blur-2xl transition"
+            onClick={() => setIsExpanded(!isExpanded)}
+          >
+            <div className="flex w-full max-w-5xl items-center justify-between px-4 text-sm sm:px-5">
+
+              <div className="flex min-w-0 items-center gap-4 overflow-hidden">
+                <span className="text-[0.62rem] font-semibold tracking-[0.2em] text-[var(--app-shell-muted)]">
+                  指数
+                </span>
+                <span className="truncate font-semibold text-[var(--app-shell-ink)]">{current.name}</span>
+                <span className={`font-bold ${getSignColor(current.change)}`}>{current.value.toFixed(2)}</span>
+                <span className={`hidden sm:inline ${getSignColor(current.change)}`}>
+                  {current.change.toFixed(2)}
+                </span>
+                <span className={`font-bold ${getSignColor(current.change)}`}>
+                  {formatPct(current.changePct)}
+                </span>
+              </div>
+              <div className="pl-4 text-[var(--app-shell-muted)]">
+                <motion.div
+                  animate={{ rotate: isExpanded ? 180 : 0 }}
+                  transition={{ type: 'spring', stiffness: 200, damping: 15 }}
+                >
+                  <Icons.ArrowUp
+                    size={16}
+                    className={isExpanded ? 'text-[var(--app-shell-accent)]' : 'opacity-70'}
+                  />
+                </motion.div>
+              </div>
             </div>
-          </div>
+          </button>
         </div>
       </div>
     </>

@@ -30,41 +30,47 @@ export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, onTabChange }) 
   ];
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-white dark:bg-card-dark border-t border-gray-200 dark:border-border-dark z-50 shadow-[0_-1px_3px_rgba(0,0,0,0.05)] pb-safe">
-      <div className="w-full max-w-7xl mx-auto px-2 sm:px-6 lg:px-8 h-14 flex items-center justify-around">
-        {tabs.map((tab) => {
-          const isActive = activeTab === tab.id;
-          const Icon = tab.icon;
-          return (
-            <button
-              key={tab.id}
-              onClick={() => onTabChange(tab.id)}
-              className={`group relative flex flex-col items-center justify-center w-full h-full space-y-0.5 transition-colors ${
-                isActive ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400 dark:text-gray-500'
-              }`}
-            >
-              <span className="absolute left-1.5 right-1.5 top-1 bottom-1 rounded-xl bg-gray-100 dark:bg-white/10 opacity-0 transition-opacity duration-150 group-hover:opacity-100" />
-              {isActive && (
-                <motion.span
-                  layoutId="bottom-nav-active-indicator"
-                  data-testid="bottom-nav-active-indicator"
-                  className="absolute left-1.5 right-1.5 top-1 bottom-1 rounded-xl bg-blue-50 dark:bg-blue-900/25"
-                  transition={navAnimation.indicatorTransition}
-                />
-              )}
-              <motion.div
-                animate={{
-                  scale: isActive ? navAnimation.iconScaleActive : navAnimation.iconScaleInactive,
-                }}
-                transition={navAnimation.iconScaleTransition}
-                className="relative z-10 flex flex-col items-center justify-center space-y-0.5"
+    <nav className="fixed inset-x-0 bottom-0 z-50 px-3 pb-[calc(env(safe-area-inset-bottom,0px)+0.75rem)] sm:px-4">
+      <div className="mx-auto w-full max-w-5xl rounded-[1.75rem] border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)]/96 shadow-[0_24px_70px_rgba(15,23,42,0.16)] backdrop-blur-2xl">
+        <div className="grid h-[4.5rem] grid-cols-5 gap-1 px-2 py-2 sm:px-3">
+          {tabs.map((tab) => {
+            const isActive = activeTab === tab.id;
+            const Icon = tab.icon;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => onTabChange(tab.id)}
+                className={`group relative flex h-full w-full flex-col items-center justify-center gap-1 overflow-hidden rounded-2xl transition-colors ${
+                  isActive
+                    ? 'text-[var(--app-shell-ink)]'
+                    : 'text-[var(--app-shell-muted)] hover:text-[var(--app-shell-ink)]'
+                }`}
               >
-                <Icon size={20} strokeWidth={isActive ? 2.5 : 2} />
-                <span className="text-[10px] font-medium">{tab.label}</span>
-              </motion.div>
-            </button>
-          );
-        })}
+                <span className="absolute inset-[2px] rounded-[1rem] bg-[var(--app-shell-panel-strong)]/78 opacity-0 transition-opacity duration-150 group-hover:opacity-100" />
+                {isActive && (
+                  <motion.span
+                    layoutId="bottom-nav-active-indicator"
+                    data-testid="bottom-nav-active-indicator"
+                    className="absolute inset-[2px] rounded-[1rem] border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)]"
+                    transition={navAnimation.indicatorTransition}
+                  />
+                )}
+                <motion.div
+                  animate={{
+                    scale: isActive ? navAnimation.iconScaleActive : navAnimation.iconScaleInactive,
+                  }}
+                  transition={navAnimation.iconScaleTransition}
+                  className="relative z-10 flex flex-col items-center justify-center gap-1"
+                >
+                  <Icon size={19} strokeWidth={isActive ? 2.4 : 2} />
+                  <span className="text-[0.62rem] font-semibold uppercase tracking-[0.18em]">
+                    {tab.label}
+                  </span>
+                </motion.div>
+              </button>
+            );
+          })}
+        </div>
       </div>
     </nav>
   );

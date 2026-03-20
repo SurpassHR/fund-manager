@@ -391,25 +391,37 @@ const AppContent: React.FC = () => {
   }, [setDragState]);
 
   return (
-    <div className="bg-app-bg dark:bg-app-bg-dark min-h-screen font-sans text-gray-900 dark:text-gray-100 relative flex flex-col transition-colors">
-      <Header title={t('common.appTitle') || 'XiaoHuYangJi'} />
+    <div className="app-shell font-sans transition-colors">
+      <div className="app-shell__backdrop" aria-hidden="true" />
+      <div className="app-shell__noise" aria-hidden="true" />
 
-      <main className="flex-grow w-full max-w-7xl mx-auto md:px-4 lg:px-8 relative">
-        <AnimatedSwitcher viewKey={activeTab} preset="pageFadeLift" mode="wait" className="h-full">
-          {renderTabContent()}
-        </AnimatedSwitcher>
-      </main>
+      <div className="app-shell__content">
+        <Header title={t('common.appTitle') || 'XiaoHuYangJi'} />
 
-      <Ticker />
-      <BottomNav
-        activeTab={activeTab}
-        onTabChange={(tab) => {
-          if (tab !== 'settings') {
-            setOpenAiSettingsRequested(false);
-          }
-          setActiveTab(tab);
-        }}
-      />
+        <main className="app-stage">
+          <div className="app-stage__main">
+            <AnimatedSwitcher
+              viewKey={activeTab}
+              preset="pageFadeLift"
+              mode="wait"
+              className="h-full"
+            >
+              {renderTabContent()}
+            </AnimatedSwitcher>
+          </div>
+        </main>
+
+        <Ticker />
+        <BottomNav
+          activeTab={activeTab}
+          onTabChange={(tab) => {
+            if (tab !== 'settings') {
+              setOpenAiSettingsRequested(false);
+            }
+            setActiveTab(tab);
+          }}
+        />
+      </div>
 
       <ScannerModal isOpen={isScannerOpen} onClose={() => setIsScannerOpen(false)} />
       <WelcomeModal />

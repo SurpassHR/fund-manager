@@ -722,7 +722,7 @@ export const FundDetail: React.FC<FundDetailProps> = ({
 
   return (
     <motion.div
-      className="fixed inset-0 z-[60] md:p-4 lg:p-8 md:bg-black/30 md:backdrop-blur-sm md:flex md:items-start md:justify-center overflow-hidden"
+      className="fixed inset-0 z-[90] overflow-hidden bg-[var(--app-shell-paper)]/96 md:bg-black/35 md:p-4 md:backdrop-blur-sm lg:p-8 dark:bg-[var(--app-shell-paper)]/96 dark:md:bg-black/45"
       onClick={onBack}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
@@ -735,7 +735,7 @@ export const FundDetail: React.FC<FundDetailProps> = ({
         请勿随意移除此样式，除非同步验证桌面端详情页宽度与居中行为。
       */}
       <div
-        className="w-full h-full md:flex md:justify-center"
+        className="flex h-full w-full md:items-start md:justify-center"
         style={{ transform: `translateX(${transformX})`, transition }}
         onTransitionEnd={(event) => {
           if (event.propertyName !== 'transform') return;
@@ -750,7 +750,7 @@ export const FundDetail: React.FC<FundDetailProps> = ({
         }}
       >
         <motion.div
-          className="bg-gray-50 dark:bg-app-bg-dark flex flex-col min-h-0 w-full h-full md:h-[calc(100vh-2rem)] lg:h-[calc(100vh-4rem)] md:w-[50vw] md:min-w-[960px] md:rounded-xl md:shadow-2xl md:border md:border-gray-200 dark:md:border-border-dark overflow-hidden relative"
+          className="relative flex h-[100dvh] min-h-0 w-full flex-col overflow-hidden bg-gray-50 dark:bg-app-bg-dark md:h-[calc(100dvh-2rem)] md:w-[min(72rem,calc(100vw-2rem))] md:max-w-[calc(100vw-2rem)] md:rounded-[1.75rem] md:border md:border-[var(--app-shell-line)] md:bg-[var(--app-shell-panel)] md:shadow-[var(--app-shell-shadow)] lg:h-[calc(100dvh-4rem)] lg:w-[min(76rem,calc(100vw-4rem))]"
           onClick={(e) => e.stopPropagation()}
           initial={isDesktop ? { opacity: 0, scale: 0.95, y: 20 } : { opacity: 1, x: '100%' }}
           animate={isDesktop ? { opacity: 1, scale: 1, y: 0 } : { opacity: 1, x: 0 }}

@@ -67,7 +67,7 @@ vi.mock('../services/db', () => ({
   exportFundsToJsonString: mockedDeps.exportFundsToJsonString,
 }));
 
-vi.mock('../services/gistSync', () => ({
+vi.mock('../services/gistSync/index', () => ({
   GIST_SYNC_FILENAME: 'fund-manager-sync.json',
   GistClientError: class extends Error {
     code: string;
@@ -139,7 +139,9 @@ describe('SettingsPage gist sync integration', () => {
     render(<SettingsPage />);
 
     await waitFor(() => expect(mockedDeps.listSyncGists).toHaveBeenCalled());
-    fireEvent.click(screen.getByRole('button', { name: 'common.gistSyncDownload' }));
+    fireEvent.click(screen.getByRole('button', { name: 'common.gistSync' }));
+    const downloadButton = await screen.findByRole('button', { name: 'common.gistSyncDownload' });
+    fireEvent.click(downloadButton);
 
     expect(chooserLastProps?.isOpen).toBe(true);
     await (chooserLastProps?.onRequestDownload as (gistId: string) => Promise<void>)('g1');
@@ -155,7 +157,9 @@ describe('SettingsPage gist sync integration', () => {
     render(<SettingsPage />);
     await waitFor(() => expect(mockedDeps.listSyncGists).toHaveBeenCalled());
 
-    fireEvent.click(screen.getByRole('button', { name: 'common.gistSyncUpload' }));
+    fireEvent.click(screen.getByRole('button', { name: 'common.gistSync' }));
+    const uploadButton = await screen.findByRole('button', { name: 'common.gistSyncUpload' });
+    fireEvent.click(uploadButton);
 
     await (
       chooserLastProps?.onRequestUpload as (payload: {
