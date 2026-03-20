@@ -159,18 +159,18 @@ body {
   width: 100%;
   max-width: 88rem;
   margin: 0 auto;
-  padding: 0.5rem 0.625rem 0;
+  padding: 0 0.625rem 0;
 }
 
 @media (min-width: 768px) {
   .app-stage {
-    padding: 0.875rem 1.125rem 0;
+    padding: 0 1.125rem 0;
   }
 }
 
 @media (min-width: 1280px) {
   .app-stage {
-    padding: 1rem 1.5rem 0;
+    padding: 0 1.5rem 0;
   }
 }
 
