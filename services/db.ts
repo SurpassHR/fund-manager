@@ -1,5 +1,12 @@
 import Dexie, { type Table } from 'dexie';
-import type { Fund, Account, AssetSummary, WatchlistItem, EquityHolding } from '../types';
+import type {
+  Fund,
+  Account,
+  AssetSummary,
+  WatchlistItem,
+  EquityHolding,
+  PendingTransaction,
+} from '../types';
 import {
   fetchFundCommonData,
   fetchEastMoneyLatestNav,
@@ -246,6 +253,139 @@ const getUnsettledOutShares = (fund: Fund) => {
     if (tx.type === 'transferOut') return sum + (tx.outShares ?? tx.amount ?? 0);
     return sum;
   }, 0);
+};
+
+export type DeletePendingTransactionParams = {
+  fundId: number;
+  txId: string;
+  transferId?: string;
+  type: PendingTransaction['type'];
+};
+
+export type DeletePendingTransactionSuccess = {
+  deletedCount: number;
+  affectedFundIds: number[];
+  linkedDelete: boolean;
+};
+
+export type DeletePendingTransactionError = DeletePendingTransactionSuccess & {
+  code: 'LINKED_DELETE_OVER_LIMIT';
+  userMessageKey: 'common.linkedDeleteOverLimit';
+  logFields: {
+    transferId?: string;
+    matchedCount: number;
+    fundId: number;
+  };
+};
+
+export type DeletePendingTransactionResult =
+  | DeletePendingTransactionSuccess
+  | DeletePendingTransactionError;
+
+const TRANSFER_DELETE_TYPES: PendingTransaction['type'][] = ['transferOut', 'transferIn'];
+
+export const deletePendingTransaction = async (
+  params: DeletePendingTransactionParams,
+): Promise<DeletePendingTransactionResult> => {
+  const { fundId, txId, transferId, type } = params;
+  const isLinkedDelete =
+    Boolean(transferId) &&
+    (type === TRANSFER_DELETE_TYPES[0] || type === TRANSFER_DELETE_TYPES[1]);
+
+  if (!isLinkedDelete) {
+    let deletedCount = 0;
+    const affectedFundIds = new Set<number>();
+
+    await db.transaction('rw', db.funds, async () => {
+      const fund = await db.funds.get(fundId);
+      if (!fund) return;
+
+      const originalTxs = fund.pendingTransactions || [];
+      const nextTxs = originalTxs.filter((tx) => tx.id !== txId);
+      if (nextTxs.length === originalTxs.length) return;
+
+      deletedCount = originalTxs.length - nextTxs.length;
+      affectedFundIds.add(fundId);
+      await db.funds.update(fundId, { pendingTransactions: nextTxs });
+    });
+
+    return {
+      deletedCount,
+      affectedFundIds: Array.from(affectedFundIds).sort((a, b) => a - b),
+      linkedDelete: false,
+    };
+  }
+
+  const allFunds = await db.funds.toArray();
+  const anchorFund = allFunds.find((fund) => fund.id === fundId);
+  const anchorTx = (anchorFund?.pendingTransactions || []).find((tx) => tx.id === txId);
+  const isValidAnchor =
+    Boolean(anchorTx) && anchorTx?.transferId === transferId && anchorTx?.type === type;
+
+  if (!isValidAnchor) {
+    return {
+      deletedCount: 0,
+      affectedFundIds: [],
+      linkedDelete: true,
+    };
+  }
+
+  const matchedTxByFund = new Map<number, string[]>();
+
+  allFunds.forEach((fund) => {
+    if (!fund.id) return;
+
+    (fund.pendingTransactions || []).forEach((tx) => {
+      if (tx.transferId !== transferId) return;
+      if (tx.type !== 'transferOut' && tx.type !== 'transferIn') return;
+
+      const existing = matchedTxByFund.get(fund.id) || [];
+      matchedTxByFund.set(fund.id, [...existing, tx.id]);
+    });
+  });
+
+  const matchedCount = Array.from(matchedTxByFund.values()).reduce((sum, txIds) => sum + txIds.length, 0);
+  if (matchedCount > 2) {
+    const logFields = {
+      transferId,
+      matchedCount,
+      fundId,
+    };
+    console.warn('[deletePendingTransaction] linked delete matched over limit', logFields);
+
+    return {
+      code: 'LINKED_DELETE_OVER_LIMIT',
+      userMessageKey: 'common.linkedDeleteOverLimit',
+      logFields,
+      deletedCount: 0,
+      affectedFundIds: [],
+      linkedDelete: true,
+    };
+  }
+
+  let deletedCount = 0;
+  const affectedFundIds = new Set<number>();
+
+  await db.transaction('rw', db.funds, async () => {
+    for (const [linkedFundId, txIds] of matchedTxByFund.entries()) {
+      const fund = allFunds.find((item) => item.id === linkedFundId);
+      if (!fund) continue;
+
+      const originalTxs = fund.pendingTransactions || [];
+      const nextTxs = originalTxs.filter((tx) => !txIds.includes(tx.id));
+      if (nextTxs.length === originalTxs.length) continue;
+
+      deletedCount += originalTxs.length - nextTxs.length;
+      affectedFundIds.add(linkedFundId);
+      await db.funds.update(linkedFundId, { pendingTransactions: nextTxs });
+    }
+  });
+
+  return {
+    deletedCount,
+    affectedFundIds: Array.from(affectedFundIds).sort((a, b) => a - b),
+    linkedDelete: true,
+  };
 };
 
 /**

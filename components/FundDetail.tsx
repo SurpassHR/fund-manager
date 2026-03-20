@@ -9,7 +9,13 @@ import type {
 } from '../types';
 import { Icons } from './Icon';
 import { TradeMarkerLegend } from './TradeMarkerLegend';
-import { buildChartOption, buildLegendViewModel, buildTradeMarkers } from './fundDetailChartUtils';
+import {
+  TRADE_MARKER_COLORS,
+  buildChartOption,
+  buildLegendViewModel,
+  buildTradeMarkersFromTransactions,
+} from './fundDetailChartUtils';
+import type { MarkPointDatum } from './fundDetailChartUtils';
 import { formatPct, getSignColor, formatSignedCurrency } from '../services/financeUtils';
 import { useTranslation } from '../services/i18n';
 import { useTheme } from '../services/ThemeContext';
@@ -573,15 +579,48 @@ export const FundDetail: React.FC<FundDetailProps> = ({
       return html;
     };
 
-    const markers = buildTradeMarkers({
-      dates,
-      fundData,
-      isWatchlist: Boolean(anchorDate),
-      buyDate: fund.buyDate,
-      anchorDate,
-      pendingTransactions: fund.pendingTransactions,
-      holdingShares: fund.holdingShares,
-    });
+    const markers = (() => {
+      if (anchorDate) {
+        const anchorIdx = dates.indexOf(anchorDate);
+        if (anchorIdx === -1) return [];
+        return [
+          {
+            name: 'anchor',
+            coord: [anchorDate, fundData[anchorIdx] ?? null] as [string, number | null],
+            symbol: 'circle',
+            symbolSize: 8,
+            label: { show: false },
+            itemStyle: { color: TRADE_MARKER_COLORS.anchor },
+          },
+        ];
+      }
+
+      const points: MarkPointDatum[] = [];
+
+      if (fund.buyDate) {
+        const buyIdx = dates.indexOf(fund.buyDate);
+        if (buyIdx !== -1) {
+          points.push({
+            name: 'buy',
+            coord: [fund.buyDate, fundData[buyIdx] ?? null],
+            symbol: 'circle',
+            symbolSize: 8,
+            label: { show: false },
+            itemStyle: { color: TRADE_MARKER_COLORS.buy },
+          });
+        }
+      }
+
+      points.push(
+        ...buildTradeMarkersFromTransactions({
+          dates,
+          fundData,
+          transactions: fund.pendingTransactions,
+          holdingShares: fund.holdingShares,
+        }),
+      );
+      return points;
+    })();
 
     const option = buildChartOption({
       fundName: fund.name,

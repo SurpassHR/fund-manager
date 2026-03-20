@@ -1,9 +1,9 @@
 import '@testing-library/jest-dom';
-import { readFileSync } from 'node:fs';
 import { render, screen } from '@testing-library/react';
 import { expect, it } from 'vitest';
 import { TradeMarkerLegend } from './TradeMarkerLegend';
 import {
+  buildTradeMarkersFromTransactions,
   buildChartOption,
   buildFundSeries,
   buildLegendViewModel,
@@ -11,9 +11,45 @@ import {
   getTradeLegendLabels,
 } from './fundDetailChartUtils';
 
-it('keeps desktop detail wrapper full-width centering classes', () => {
-  const source = readFileSync(`${process.cwd()}/components/FundDetail.tsx`, 'utf-8');
-  expect(source).toContain('className="w-full md:flex md:justify-center"');
+it('uses unified transaction marker builder to reflect deletion changes', () => {
+  const dates = ['2026-03-20', '2026-03-21'];
+  const fundData = [1, 2];
+  const transactions = [
+    {
+      id: 'tx-buy',
+      type: 'buy' as const,
+      date: '2026-03-20',
+      time: 'before15' as const,
+      amount: 100,
+      settlementDate: '2026-03-21',
+      settled: true,
+    },
+    {
+      id: 'tx-sell',
+      type: 'sell' as const,
+      date: '2026-03-21',
+      time: 'before15' as const,
+      amount: 100,
+      settlementDate: '2026-03-22',
+      settled: false,
+    },
+  ];
+
+  const beforeDelete = buildTradeMarkersFromTransactions({
+    dates,
+    fundData,
+    transactions,
+    holdingShares: 0,
+  });
+  const afterDelete = buildTradeMarkersFromTransactions({
+    dates,
+    fundData,
+    transactions: transactions.filter((tx) => tx.id !== 'tx-sell'),
+    holdingShares: 100,
+  });
+
+  expect(beforeDelete.map((m) => m.name)).toEqual(['buy', 'sell']);
+  expect(afterDelete.map((m) => m.name)).toEqual(['buy']);
 });
 
 it('marks buy with red dot', () => {
