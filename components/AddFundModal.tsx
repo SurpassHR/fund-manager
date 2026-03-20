@@ -3,7 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../services/db';
 import { useTranslation } from '../services/i18n';
 import { Icons } from './Icon';
-import type { MorningstarFund, Fund } from '../types';
+import type { MorningstarFund, Fund, WatchlistItem } from '../types';
 import { searchFunds, fetchFundCommonData } from '../services/api';
 import { resetDragState, useEdgeSwipe } from '../services/useEdgeSwipe';
 import { useOverlayRegistration } from '../services/overlayRegistration';
@@ -12,9 +12,15 @@ interface AddFundModalProps {
   isOpen: boolean;
   onClose: () => void;
   editFund?: Fund;
+  prefillWatchlistItem?: WatchlistItem;
 }
 
-export const AddFundModal: React.FC<AddFundModalProps> = ({ isOpen, onClose, editFund }) => {
+export const AddFundModal: React.FC<AddFundModalProps> = ({
+  isOpen,
+  onClose,
+  editFund,
+  prefillWatchlistItem,
+}) => {
   const { t } = useTranslation();
   const accounts = useLiveQuery(() => db.accounts.toArray());
   const overlayId = 'add-fund-modal';
@@ -73,6 +79,31 @@ export const AddFundModal: React.FC<AddFundModalProps> = ({ isOpen, onClose, edi
         setBuyDate(editFund.buyDate || new Date().toISOString().split('T')[0]);
         setBuyTime(editFund.buyTime || 'before15');
         setSettlementDays(editFund.settlementDays ?? 1);
+      } else if (prefillWatchlistItem) {
+        setQuery('');
+        setResults([]);
+        setSelectedFund({
+          code: prefillWatchlistItem.code,
+          name: prefillWatchlistItem.name,
+          platform: getFallbackAccountName(),
+          holdingShares: 0,
+          costPrice: prefillWatchlistItem.currentPrice,
+          currentNav: prefillWatchlistItem.currentPrice,
+          lastUpdate: prefillWatchlistItem.lastUpdate,
+          dayChangePct: prefillWatchlistItem.dayChangePct,
+          dayChangeVal: 0,
+        });
+        setCurrentNav(prefillWatchlistItem.currentPrice);
+        setAmount('');
+        setShares('');
+        setCostPrice(prefillWatchlistItem.currentPrice.toFixed(4));
+        setGain('');
+        setNavChangePct(prefillWatchlistItem.dayChangePct);
+        setNavDate(prefillWatchlistItem.lastUpdate || new Date().toISOString().split('T')[0]);
+        setSelectedAccount(getFallbackAccountName());
+        setBuyDate(new Date().toISOString().split('T')[0]);
+        setBuyTime(new Date().getHours() < 15 ? 'before15' : 'after15');
+        setSettlementDays(1);
       } else {
         setQuery('');
         setResults([]);
@@ -89,7 +120,7 @@ export const AddFundModal: React.FC<AddFundModalProps> = ({ isOpen, onClose, edi
       }
       setError('');
     }
-  }, [isOpen, editFund, getFallbackAccountName]);
+  }, [isOpen, editFund, prefillWatchlistItem, getFallbackAccountName]);
 
   useEffect(() => {
     if (!isOpen || !accounts || accounts.length === 0) return;
