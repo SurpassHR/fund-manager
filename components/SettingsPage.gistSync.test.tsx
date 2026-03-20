@@ -93,6 +93,12 @@ vi.mock('./GistSyncChooserCard', () => ({
 }));
 
 describe('SettingsPage gist sync integration', () => {
+  const findViewRoot = (container: HTMLElement): HTMLDivElement | undefined => {
+    return Array.from(container.querySelectorAll('div')).find((node) =>
+      node.className.includes('min-h-[60vh]'),
+    ) as HTMLDivElement | undefined;
+  };
+
   beforeEach(() => {
     vi.clearAllMocks();
     chooserLastProps = null;
@@ -178,5 +184,26 @@ describe('SettingsPage gist sync integration', () => {
       }) => Promise<void>
     )({ mode: 'overwrite', gistId: 'g1', description: '覆盖描述' });
     expect(mockedDeps.overwriteSyncGist).toHaveBeenCalled();
+  });
+
+  it('为主视图与二级视图保留 fixed 头部顶部安全间距', async () => {
+    const { container } = render(<SettingsPage />);
+
+    const mainRoot = findViewRoot(container);
+    expect(mainRoot?.className).toContain('pt-20');
+    expect(mainRoot?.className).toContain('md:pt-24');
+
+    fireEvent.click(screen.getByRole('button', { name: 'common.gistSync' }));
+
+    await waitFor(() => {
+      const gistRoot = findViewRoot(container);
+      expect(gistRoot?.className).toContain('pt-20');
+      expect(gistRoot?.className).toContain('md:pt-24');
+    });
+
+    const { container: aiContainer } = render(<SettingsPage initialShowAiSettings />);
+    const aiRoot = findViewRoot(aiContainer);
+    expect(aiRoot?.className).toContain('pt-20');
+    expect(aiRoot?.className).toContain('md:pt-24');
   });
 });

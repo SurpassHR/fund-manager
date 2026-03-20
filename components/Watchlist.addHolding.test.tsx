@@ -180,4 +180,12 @@ describe('Watchlist add holding from context menu', () => {
     expect(mocked.watchlistsDelete).not.toHaveBeenCalled();
     expect(mocked.watchlistsUpdate).not.toHaveBeenCalled();
   });
+
+  it('为列表页内容保留 fixed 头部顶部安全间距', () => {
+    const { container } = render(<Watchlist />);
+
+    const pageRoot = container.querySelector('div.mx-auto.w-full.max-w-7xl');
+    expect(pageRoot?.className).toContain('pt-20');
+    expect(pageRoot?.className).toContain('md:pt-24');
+  });
 });

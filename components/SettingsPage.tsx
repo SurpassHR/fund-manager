@@ -423,7 +423,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack, initialShowA
   }, [gistListCooldownSec]);
 
   const aiSettingsView = (
-    <div className="min-h-[60vh] pb-44 md:pb-28">
+    <div className="min-h-[60vh] pt-20 pb-44 md:pt-24 md:pb-28">
       <div className="px-4 py-4 md:px-5 md:py-5">
         <div className="rounded-[1.75rem] border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)] p-4 shadow-[var(--app-shell-shadow)] backdrop-blur-xl md:p-5">
           <div className="flex items-center gap-3">
@@ -569,7 +569,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack, initialShowA
   );
 
   const gistSyncSettingsView = (
-    <div className="min-h-[60vh] pb-44 md:pb-28">
+    <div className="min-h-[60vh] pt-20 pb-44 md:pt-24 md:pb-28">
       <div className="px-4 py-4 md:px-5 md:py-5">
         <div className="rounded-[1.75rem] border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)] p-4 shadow-[var(--app-shell-shadow)] backdrop-blur-xl md:p-5">
           <div className="flex items-center gap-3">
@@ -732,7 +732,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack, initialShowA
   );
 
   const mainSettingsView = (
-    <div className="min-h-[60vh] pb-44 md:pb-28">
+    <div className="min-h-[60vh] pt-20 pb-44 md:pt-24 md:pb-28">
       <div className="px-4 py-4 md:px-5 md:py-5">
         <div className="rounded-[1.9rem] border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)] p-4 shadow-[var(--app-shell-shadow)] backdrop-blur-xl md:p-5">
           <div className="flex items-center gap-3">
@@ -779,7 +779,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack, initialShowA
                 onClick={() => setMode(opt.value)}
                 className={`rounded-2xl border px-4 py-4 text-left transition ${
                   mode === opt.value
-                    ? 'border-gray-900 bg-gray-900 text-white dark:border-blue-400/20 dark:bg-blue-500/15 dark:text-blue-100'
+                    ? 'border-[var(--app-shell-line-strong)] bg-[var(--app-shell-panel-strong)] text-[var(--app-shell-ink)] shadow-[0_10px_24px_rgba(15,23,42,0.08)] dark:border-blue-400/20 dark:bg-blue-500/15 dark:text-blue-100 dark:shadow-none'
                     : 'border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] text-[var(--app-shell-ink)]'
                 }`}
               >
