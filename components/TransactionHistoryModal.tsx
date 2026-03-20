@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import type { Fund } from '../types';
+import type { Fund, PendingTransaction } from '../types';
 import { useTranslation } from '../services/i18n';
 import { Icons } from './Icon';
 import { db } from '../services/db';
@@ -59,6 +59,22 @@ export const TransactionHistoryModal: React.FC<TransactionHistoryModalProps> = (
   const transactions = [...(fund.pendingTransactions || [])].sort(
     (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
   );
+
+  const getTypeLabel = (type: PendingTransaction['type']) => {
+    if (type === 'buy') return t('common.addPosition');
+    if (type === 'sell') return t('common.reducePosition');
+    if (type === 'transferOut') return t('common.transferOutLabel');
+    return t('common.transferInLabel');
+  };
+
+  const getAmountText = (tx: PendingTransaction) => {
+    if (tx.type === 'buy') return `${tx.amount.toFixed(2)} 元`;
+    if (tx.type === 'sell') return `${tx.amount.toFixed(2)} 份`;
+    if (tx.type === 'transferOut') return `${(tx.outShares ?? tx.amount ?? 0).toFixed(2)} 份`;
+    if (tx.inShares != null) return `${tx.inShares.toFixed(2)} 份`;
+    if (tx.netInAmount != null) return `${tx.netInAmount.toFixed(2)} 元`;
+    return '--';
+  };
 
   const handleCancel = async (txId: string) => {
     if (!window.confirm(t('common.cancelConfirm') || '确定要撤销这笔在途交易吗？')) {
@@ -129,25 +145,29 @@ export const TransactionHistoryModal: React.FC<TransactionHistoryModalProps> = (
                   <div className="flex items-center gap-3">
                     <div
                       className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${
-                        tx.type === 'buy'
+                        tx.type === 'buy' || tx.type === 'transferIn'
                           ? 'bg-red-50 text-red-500 dark:bg-red-900/30'
                           : 'bg-green-50 text-green-500 dark:bg-green-900/30'
                       }`}
                     >
                       <Icons.TrendingUp
                         size={20}
-                        className={tx.type === 'sell' ? 'rotate-180 scale-x-[-1]' : ''}
+                        className={
+                          tx.type === 'sell' || tx.type === 'transferOut'
+                            ? 'rotate-180 scale-x-[-1]'
+                            : ''
+                        }
                       />
                     </div>
                     <div>
                       <div className="flex items-center gap-2 mb-1">
                         <span
-                          className={`text-sm font-bold ${tx.type === 'buy' ? 'text-red-500' : 'text-green-500'}`}
+                          className={`text-sm font-bold ${tx.type === 'buy' || tx.type === 'transferIn' ? 'text-red-500' : 'text-green-500'}`}
                         >
-                          {tx.type === 'buy' ? t('common.addPosition') : t('common.reducePosition')}
+                          {getTypeLabel(tx.type)}
                         </span>
                         <span className="text-sm font-mono font-bold text-gray-800 dark:text-gray-100">
-                          {tx.amount.toFixed(2)} {tx.type === 'buy' ? '元' : '份'}
+                          {getAmountText(tx)}
                         </span>
                       </div>
                       <div className="text-xs text-gray-400 flex items-center gap-2">
@@ -155,6 +175,12 @@ export const TransactionHistoryModal: React.FC<TransactionHistoryModalProps> = (
                           {tx.date} {t(`common.${tx.time}`)}
                         </span>
                         <span className="w-1 h-1 rounded-full bg-gray-300 dark:bg-gray-600"></span>
+                        {tx.transferId && (
+                          <>
+                            <span>{t('common.linkedTransfer')}</span>
+                            <span className="w-1 h-1 rounded-full bg-gray-300 dark:bg-gray-600"></span>
+                          </>
+                        )}
                         {tx.settled ? (
                           <span className="text-gray-400">{t('common.settled')}</span>
                         ) : (
