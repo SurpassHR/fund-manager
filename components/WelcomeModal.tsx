@@ -177,7 +177,7 @@ export const WelcomeModal: React.FC = () => {
       />
       <div
         data-testid="welcome-modal-card"
-        className={`bg-white dark:bg-card-dark rounded-2xl w-full max-w-sm overflow-hidden shadow-2xl max-h-[90vh] flex flex-col transition-all duration-[260ms] ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform ${isVisible ? 'opacity-100' : 'opacity-0'}`}
+        className={`flex max-h-[90vh] w-full max-w-sm flex-col overflow-hidden rounded-2xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)] shadow-[var(--app-shell-shadow)] transition-all duration-[260ms] ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform ${isVisible ? 'opacity-100' : 'opacity-0'}`}
         style={{
           transform: `translate3d(${transformX}, ${modalOffsetY}px, 0) scale(${modalScale})`,
           transition,
@@ -195,13 +195,13 @@ export const WelcomeModal: React.FC = () => {
         }}
       >
         {/* 顶部插画/背景区 */}
-        <div className="h-32 bg-gradient-to-br from-blue-500 to-blue-700 relative overflow-hidden flex items-center justify-center">
+          <div className="relative flex h-32 items-center justify-center overflow-hidden bg-gradient-to-br from-[var(--app-shell-accent)] to-blue-700">
           <div className="absolute inset-0 opacity-20 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMCIgaGVpZ2h0PSIyMCI+PGNpcmNsZSBjeD0iMSIgY3k9IjEiIHI9IjEiIGZpbGw9IiNmZmYiLz48L3N2Zz4=')] bg-[length:20px_20px]"></div>
           <div className="text-white text-center z-10 px-4">
             <h2 className="text-xl font-bold mb-1 truncate">
               {t('common.welcome') || '欢迎使用小胡养基'}
             </h2>
-            <span className="inline-block px-3 py-1 bg-white/20 rounded-full text-xs font-mono font-bold backdrop-blur-md max-w-full truncate">
+            <span className="inline-block max-w-full truncate rounded-full bg-white/20 px-3 py-1 text-xs font-bold font-mono backdrop-blur-md">
               {CURRENT_VERSION}
             </span>
           </div>
@@ -209,7 +209,7 @@ export const WelcomeModal: React.FC = () => {
 
         {/* 内容区 */}
         <div className="p-6">
-          <h3 className="text-sm font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-4">
+          <h3 className="mb-4 text-sm font-bold uppercase tracking-wider text-[var(--app-shell-muted)]">
             {isZh ? '近期更新' : 'Recent Updates'}
           </h3>
 
@@ -220,23 +220,28 @@ export const WelcomeModal: React.FC = () => {
                 const colorClass = colors[idx % colors.length];
 
                 return (
-                  <li key={commit.hash} className="flex gap-3 items-start">
+                  <li
+                    key={commit.hash}
+                    className="flex items-start gap-3 rounded-xl px-1.5 py-1 transition-colors hover:bg-[var(--app-shell-panel-strong)]/72"
+                  >
                     <div
                       className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${colorClass}`}
                     >
                       <span className="text-[10px] font-bold font-mono">{idx + 1}</span>
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed font-medium">
+                      <p className="text-sm font-medium leading-relaxed text-[var(--app-shell-ink)]">
                         {cleanSubject(subject)}
                       </p>
-                      <span className="text-[10px] text-gray-400 font-mono">{commit.hash}</span>
+                      <span className="font-mono text-[10px] text-[var(--app-shell-muted)]">
+                        {commit.hash}
+                      </span>
                     </div>
                   </li>
                 );
               })
             ) : (
-              <li className="flex gap-3 items-start">
+              <li className="flex items-start gap-3 rounded-xl px-1.5 py-1 transition-colors hover:bg-[var(--app-shell-panel-strong)]/72">
                 <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center text-blue-600 dark:text-blue-400 shrink-0">
                   <svg
                     width="16"
@@ -253,10 +258,10 @@ export const WelcomeModal: React.FC = () => {
                   </svg>
                 </div>
                 <div>
-                  <h4 className="text-sm font-bold text-gray-800 dark:text-gray-100 mb-0.5">
+                  <h4 className="mb-0.5 text-sm font-bold text-[var(--app-shell-ink)]">
                     常规更新
                   </h4>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
+                  <p className="text-xs leading-relaxed text-[var(--app-shell-muted)]">
                     带来了性能改进和问题修复。
                   </p>
                 </div>
@@ -268,7 +273,7 @@ export const WelcomeModal: React.FC = () => {
           <div className="mt-8">
             <button
               onClick={handleClose}
-              className="w-full py-3.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-bold rounded-xl transition-colors shadow-lg shadow-blue-500/30"
+              className="w-full rounded-xl bg-[var(--app-shell-accent)] py-3.5 font-bold text-white shadow-lg shadow-blue-500/30 transition-colors hover:brightness-95 active:brightness-90"
             >
               {t('common.gotIt') || '我知道了'}
             </button>

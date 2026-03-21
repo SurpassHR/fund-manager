@@ -764,10 +764,10 @@ export const FundDetail: React.FC<FundDetailProps> = ({
           transition={{ type: 'spring', damping: 28, stiffness: 280 }}
         >
           {/* Header */}
-          <div className="bg-white dark:bg-card-dark px-4 h-14 flex items-center justify-between shadow-sm dark:border-b dark:border-border-dark flex-shrink-0 z-10 transition-colors">
+          <div className="z-10 flex h-14 shrink-0 items-center justify-between border-b border-[var(--app-shell-line)] bg-[var(--app-shell-panel)]/95 px-4 shadow-[0_8px_20px_rgba(15,23,42,0.06)] backdrop-blur-xl transition-colors">
             <button
               onClick={onBack}
-              className="p-2 -ml-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/10 rounded-full transition-colors"
+              className="-ml-2 rounded-full p-2 text-[var(--app-shell-muted)] transition-colors hover:bg-[var(--app-shell-panel-strong)] hover:text-[var(--app-shell-ink)]"
             >
               <Icons.ArrowUp className="transform -rotate-90" size={24} />
             </button>
@@ -780,9 +780,9 @@ export const FundDetail: React.FC<FundDetailProps> = ({
             <div className="w-10"></div>
           </div>
 
-          <div className="flex-1 min-h-0 overflow-y-auto overscroll-y-contain touch-pan-y flex flex-col no-scrollbar bg-gray-50 dark:bg-app-bg-dark">
+          <div className="bg-[var(--app-shell-paper)] no-scrollbar flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-y-contain touch-pan-y">
             {/* Hero Card */}
-            <div className="bg-white dark:bg-card-dark p-6 mb-2 transition-colors">
+            <div className="mb-2 rounded-[1.5rem] border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)]/92 p-6 shadow-[0_10px_24px_rgba(15,23,42,0.05)] transition-colors">
               <div className="text-gray-500 dark:text-gray-400 text-xs mb-1">
                 {t('common.nav')} ({displayDate})
               </div>
@@ -795,19 +795,19 @@ export const FundDetail: React.FC<FundDetailProps> = ({
                 </span>
               </div>
               <div className="mt-4 grid grid-cols-4 gap-2 text-sm">
-                <div className="bg-gray-50 dark:bg-white/5 p-2 rounded-lg transition-colors flex flex-col justify-between">
-                  <div className="text-gray-400 text-xs mb-1">
+                <div className="flex flex-col justify-between rounded-lg border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)]/78 p-2 transition-colors">
+                  <div className="mb-1 text-xs text-[var(--app-shell-muted)]">
                     {anchorPrice ? t('common.anchorPrice') : t('common.cost')}
                   </div>
-                  <div className="font-sans dark:text-gray-200 text-xs text-ellipsis overflow-hidden">
+                  <div className="overflow-hidden text-ellipsis text-xs font-sans text-[var(--app-shell-ink)]">
                     {anchorPrice ? anchorPrice.toFixed(4) : fund.costPrice.toFixed(4)}
                   </div>
                 </div>
-                <div className="bg-gray-50 dark:bg-white/5 p-2 rounded-lg transition-colors flex flex-col justify-between">
-                  <div className="text-gray-400 text-xs mb-1">
+                <div className="flex flex-col justify-between rounded-lg border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)]/78 p-2 transition-colors">
+                  <div className="mb-1 text-xs text-[var(--app-shell-muted)]">
                     {anchorDate ? '锚定日' : t('common.shares')}
                   </div>
-                  <div className="font-sans dark:text-gray-200 text-xs text-ellipsis overflow-hidden">
+                  <div className="overflow-hidden text-ellipsis text-xs font-sans text-[var(--app-shell-ink)]">
                     {anchorDate ? anchorDate : fund.holdingShares.toLocaleString()}
                   </div>
                 </div>
@@ -820,8 +820,8 @@ export const FundDetail: React.FC<FundDetailProps> = ({
 
                   return (
                     <>
-                      <div className="bg-gray-50 dark:bg-white/5 p-2 rounded-lg transition-colors flex flex-col justify-between">
-                        <div className="text-gray-400 text-xs mb-1">
+                      <div className="flex flex-col justify-between rounded-lg border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)]/78 p-2 transition-colors">
+                        <div className="mb-1 text-xs text-[var(--app-shell-muted)]">
                           {anchorPrice ? t('common.anchorGain') : t('common.totalGain')}
                         </div>
                         {anchorPrice ? (
@@ -836,8 +836,10 @@ export const FundDetail: React.FC<FundDetailProps> = ({
                           </div>
                         )}
                       </div>
-                      <div className="bg-gray-50 dark:bg-white/5 p-2 rounded-lg transition-colors flex flex-col justify-between">
-                        <div className="text-gray-400 text-xs mb-1">{t('common.dayGain')}</div>
+                      <div className="flex flex-col justify-between rounded-lg border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)]/78 p-2 transition-colors">
+                        <div className="mb-1 text-xs text-[var(--app-shell-muted)]">
+                          {t('common.dayGain')}
+                        </div>
                         {anchorPrice ? (
                           <div
                             className={`font-sans font-bold text-xs ${getSignColor(dayChangePct)}`}
@@ -859,12 +861,12 @@ export const FundDetail: React.FC<FundDetailProps> = ({
             </div>
 
             {/* ECharts Section */}
-            <div className="bg-white dark:bg-card-dark p-4 mb-2 transition-colors">
+            <div className="mb-2 rounded-[1.5rem] border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)]/92 p-4 shadow-[0_10px_24px_rgba(15,23,42,0.05)] transition-colors">
               <div className="flex items-center justify-between mb-2">
                 <h3 className="font-bold text-gray-800 dark:text-gray-100 text-sm border-l-4 border-blue-500 pl-2">
                   累计收益走势
                 </h3>
-                <div className="flex bg-gray-100 dark:bg-white/10 rounded-lg p-0.5 transition-colors">
+                <div className="flex rounded-lg bg-[var(--app-shell-panel-strong)] p-0.5 transition-colors">
                   {ranges.map((range) => (
                     <button
                       key={range}
@@ -872,7 +874,7 @@ export const FundDetail: React.FC<FundDetailProps> = ({
                       className={`px-2 py-1 text-[10px] rounded-md font-medium transition-all ${
                         timeRange === range
                           ? 'bg-white dark:bg-card-dark text-blue-600 shadow-sm'
-                          : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
+                          : 'text-[var(--app-shell-muted)] hover:text-[var(--app-shell-ink)]'
                       }`}
                     >
                       {range}
@@ -903,7 +905,7 @@ export const FundDetail: React.FC<FundDetailProps> = ({
 
             {/* Historical Data Grid (Performance Summary) */}
             {data ? (
-              <div className="bg-white dark:bg-card-dark p-4 mb-2 transition-colors">
+              <div className="mb-2 rounded-[1.5rem] border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)]/92 p-4 shadow-[0_10px_24px_rgba(15,23,42,0.05)] transition-colors">
                 <div className="grid grid-cols-4 gap-2 text-center">
                   {[
                     { label: '近6月', val: data.dayEnd?.returns?.YTD },
@@ -925,14 +927,14 @@ export const FundDetail: React.FC<FundDetailProps> = ({
             ) : null}
 
             {/* History NAV Table */}
-            <div className="bg-white dark:bg-card-dark p-4 mb-2 transition-colors">
+            <div className="mb-2 rounded-[1.5rem] border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)]/92 p-4 shadow-[0_10px_24px_rgba(15,23,42,0.05)] transition-colors">
               <div className="flex items-center justify-between mb-4 border-l-4 border-blue-500 pl-2">
                 <h3 className="font-bold text-gray-800 dark:text-gray-100 text-sm">
                   {t('common.historyNav')}
                 </h3>
                 <button
                   onClick={() => setShowAllHistory(!showAllHistory)}
-                  className="text-xs text-gray-400 flex items-center hover:text-blue-500"
+                  className="flex items-center text-xs text-[var(--app-shell-muted)] transition-colors hover:text-[var(--app-shell-accent)]"
                 >
                   {showAllHistory ? '收起' : t('common.more')}
                   <Icons.ArrowUp
@@ -981,7 +983,7 @@ export const FundDetail: React.FC<FundDetailProps> = ({
 
             {/* Holdings Section */}
             {holdings.length > 0 && (
-              <div className="bg-white dark:bg-card-dark p-4 mb-2 transition-colors">
+              <div className="mb-2 rounded-[1.5rem] border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)]/92 p-4 shadow-[0_10px_24px_rgba(15,23,42,0.05)] transition-colors">
                 <h3 className="font-bold text-gray-800 dark:text-gray-100 text-sm mb-4 border-l-4 border-blue-500 pl-2">
                   持仓明细{' '}
                   <span className="text-xs text-gray-400 font-normal ml-1">(实时估算)</span>
@@ -1005,7 +1007,7 @@ export const FundDetail: React.FC<FundDetailProps> = ({
                     return (
                       <div
                         key={idx}
-                        className="grid grid-cols-10 gap-2 py-3 border-b border-gray-50 dark:border-border-dark items-center last:border-0 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors"
+                        className="grid grid-cols-10 items-center gap-2 border-b border-gray-50 py-3 transition-colors last:border-0 hover:bg-[var(--app-shell-panel-strong)]/70 dark:border-border-dark"
                       >
                         <div className="col-span-4 pl-1">
                           <div className="font-medium text-gray-800 dark:text-gray-200 text-sm truncate">
@@ -1044,7 +1046,7 @@ export const FundDetail: React.FC<FundDetailProps> = ({
 
             {/* Annual Returns Table */}
             {data && data.annual && (
-              <div className="bg-white dark:bg-card-dark p-4 transition-colors">
+              <div className="rounded-[1.5rem] border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)]/92 p-4 shadow-[0_10px_24px_rgba(15,23,42,0.05)] transition-colors">
                 <h3 className="font-bold text-gray-800 dark:text-gray-100 text-sm mb-4 border-l-4 border-blue-500 pl-2">
                   年度回报
                 </h3>
@@ -1076,7 +1078,7 @@ export const FundDetail: React.FC<FundDetailProps> = ({
           </div>
 
           {/* Fixed Footer Bar */}
-          <div className="bg-white dark:bg-card-dark px-4 h-14 flex items-center justify-center shadow-[0_-1px_2px_rgba(0,0,0,0.05)] dark:border-t dark:border-border-dark flex-shrink-0 z-10 transition-colors">
+          <div className="z-10 flex h-14 shrink-0 items-center justify-center border-t border-[var(--app-shell-line)] bg-[var(--app-shell-panel)]/95 px-4 shadow-[0_-1px_8px_rgba(15,23,42,0.06)] backdrop-blur-xl transition-colors">
             <span className="text-xs text-gray-400 dark:text-gray-500 font-sans">
               数据仅供参考，不构成投资建议
             </span>

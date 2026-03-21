@@ -421,11 +421,11 @@ export const Dashboard: React.FC = () => {
       <div className="mx-auto w-full max-w-7xl px-0 pt-20 md:px-4 md:pt-24 lg:px-6">
         <div className="sticky top-[4.5rem] z-20 rounded-[1.75rem] border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)]/95 backdrop-blur-xl dark:border-border-dark dark:bg-card-dark/85 md:top-[5rem] md:mt-2 md:shadow-[0_10px_30px_rgba(15,23,42,0.05)]">
           <div className="relative flex items-center gap-3 overflow-x-auto px-3 py-3 no-scrollbar md:flex-wrap md:gap-4 md:px-5 md:py-3.5">
-            <div className="mr-1 hidden min-w-[10rem] shrink-0 md:block">
+            <div className="hidden shrink-0 md:block md:min-w-[4rem]">
               <div className="text-[10px] font-semibold tracking-[0.24em] text-slate-400 dark:text-gray-500">
                 {t('common.account')}
               </div>
-              <div className="mt-1 text-sm font-semibold text-slate-700 dark:text-gray-200">
+              <div className="mt-1 truncate text-sm font-semibold text-slate-700 dark:text-gray-200">
                 {activeFilterLabel}
               </div>
             </div>
