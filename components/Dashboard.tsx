@@ -419,7 +419,7 @@ export const Dashboard: React.FC = () => {
       )}
 
       <div className="mx-auto w-full max-w-7xl px-0 pt-20 md:px-4 md:pt-24 lg:px-6">
-        <div className="sticky top-[4.5rem] z-20 border-b border-[var(--app-shell-line)] bg-[var(--app-shell-panel)]/95 backdrop-blur-xl dark:border-border-dark dark:bg-card-dark/85 md:top-[5rem] md:mt-2 md:rounded-[1.75rem] md:border md:shadow-[0_10px_30px_rgba(15,23,42,0.05)]">
+        <div className="sticky top-[4.5rem] z-20 rounded-[1.75rem] border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)]/95 backdrop-blur-xl dark:border-border-dark dark:bg-card-dark/85 md:top-[5rem] md:mt-2 md:shadow-[0_10px_30px_rgba(15,23,42,0.05)]">
           <div className="relative flex items-center gap-3 overflow-x-auto px-3 py-3 no-scrollbar md:flex-wrap md:gap-4 md:px-5 md:py-3.5">
             <div className="mr-1 hidden min-w-[10rem] shrink-0 md:block">
               <div className="text-[10px] font-semibold tracking-[0.24em] text-slate-400 dark:text-gray-500">
@@ -473,7 +473,7 @@ export const Dashboard: React.FC = () => {
           </div>
         </div>
 
-        <section className="relative mt-3 overflow-hidden border-b border-[var(--app-shell-line)] bg-[var(--app-shell-panel)]/92 px-4 pb-3 pt-3 dark:border-border-dark dark:bg-card-dark md:mt-3 md:rounded-[1.75rem] md:border md:px-6 md:pb-4 md:pt-4 md:shadow-[0_12px_32px_rgba(15,23,42,0.05)]">
+        <section className="relative mt-3 overflow-hidden rounded-[1.75rem] border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)]/92 px-4 pb-3 pt-3 dark:border-border-dark dark:bg-card-dark md:mt-3 md:px-6 md:pb-4 md:pt-4 md:shadow-[0_12px_32px_rgba(15,23,42,0.05)]">
           <div className="pointer-events-none absolute inset-0">
             <div className="absolute inset-y-0 left-0 w-full bg-[radial-gradient(circle_at_top_left,_rgba(148,163,184,0.12),_transparent_34%),radial-gradient(circle_at_bottom_right,_rgba(226,232,240,0.8),_transparent_28%)] dark:bg-[radial-gradient(circle_at_top_left,_rgba(96,165,250,0.12),_transparent_35%),radial-gradient(circle_at_bottom_right,_rgba(59,130,246,0.10),_transparent_28%)]" />
           </div>
@@ -625,8 +625,8 @@ export const Dashboard: React.FC = () => {
           </div>
         </section>
 
-        <section className="mt-3 md:mt-5">
-          <div className="sticky top-[calc(3.5rem+48px)] z-10 border-b border-[var(--app-shell-line)] bg-[var(--app-shell-panel)]/95 px-4 py-3 backdrop-blur-xl dark:border-border-dark dark:bg-card-dark/90 md:top-[6.8rem] md:rounded-t-[1.75rem] md:border md:border-b md:px-5 md:shadow-[0_10px_24px_rgba(15,23,42,0.05)]">
+        <section className="mt-3 overflow-hidden rounded-[1.75rem] border border-[var(--app-shell-line)] md:mt-5 md:shadow-[0_14px_32px_rgba(15,23,42,0.05)] dark:border-border-dark">
+          <div className="z-10 border-b border-[var(--app-shell-line)] bg-[var(--app-shell-panel)]/95 px-4 py-3 backdrop-blur-xl dark:border-border-dark dark:bg-card-dark/90 md:px-5">
             <div className="hidden items-center gap-4 md:flex">
               <div className="flex min-w-[15rem] flex-[1.6] items-center gap-2 text-slate-400">
                 <div className="rounded-full border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] p-1.5 dark:border-white/10 dark:bg-white/5">
@@ -747,7 +747,7 @@ export const Dashboard: React.FC = () => {
             </div>
           </div>
 
-          <div className="overflow-hidden bg-[var(--app-shell-panel)]/92 dark:bg-card-dark md:rounded-b-[1.75rem] md:border md:border-t-0 md:border-[var(--app-shell-line)] md:shadow-[0_14px_32px_rgba(15,23,42,0.05)] dark:md:border-border-dark">
+          <div className="overflow-hidden bg-[var(--app-shell-panel)]/92 dark:bg-card-dark">
             {sortedFunds.map((fund) => {
               const holdingValue = fund.holdingShares * fund.currentNav;
               const totalCost = fund.holdingShares * fund.costPrice;
@@ -859,45 +859,45 @@ export const Dashboard: React.FC = () => {
                       </div>
                     </div>
 
-                      <div className="grid grid-cols-2 gap-2.5 md:hidden">
-                        <div className="rounded-2xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)]/90 px-3 py-2.5 text-right dark:border-white/10 dark:bg-white/5">
+                      <div className="mt-2 flex items-stretch gap-1.5 md:hidden">
+                        <div className="min-w-0 flex-1 rounded-xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)]/90 px-2 py-2 text-right dark:border-white/10 dark:bg-white/5">
                         <div
-                          className={`text-lg font-black leading-none tracking-[-0.03em] ${getSignColor(officialDayChangePct)}`}
+                          className={`truncate text-[13px] font-black leading-none tracking-[-0.02em] ${getSignColor(officialDayChangePct)}`}
                         >
                           {formatPct(officialDayChangePct)}
                         </div>
-                        <div className="mt-2 text-[10px] font-semibold tracking-[0.14em] text-slate-400 dark:text-gray-500">
+                        <div className="mt-1 truncate text-[9px] font-semibold tracking-[0.1em] text-slate-400 dark:text-gray-500">
                           {t('common.yesterdayChangePct') || '昨日涨幅'}
                         </div>
                       </div>
-                      <div className="rounded-2xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)]/90 px-3 py-2.5 text-right dark:border-white/10 dark:bg-white/5">
+                      <div className="min-w-0 flex-1 rounded-xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)]/90 px-2 py-2 text-right dark:border-white/10 dark:bg-white/5">
                         <div
-                          className={`text-lg font-black leading-none tracking-[-0.03em] ${getSignColor(todayChangePct)}`}
+                          className={`truncate text-[13px] font-black leading-none tracking-[-0.02em] ${getSignColor(todayChangePct)}`}
                         >
                           {formatPct(todayChangePct)}
                         </div>
-                        <div className="mt-2 text-[10px] font-semibold tracking-[0.14em] text-slate-400 dark:text-gray-500">
+                        <div className="mt-1 truncate text-[9px] font-semibold tracking-[0.1em] text-slate-400 dark:text-gray-500">
                           {todayChangeTag || t('common.todayChangePct') || '今日涨幅'}
                         </div>
                       </div>
-                      <div className="rounded-2xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)]/80 px-3 py-2.5 text-right dark:border-white/10 dark:bg-white/5">
-                        <div className={`text-base font-bold ${getSignColor(fund.dayChangeVal)}`}>
+                      <div className="min-w-0 flex-1 rounded-xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)]/80 px-2 py-2 text-right dark:border-white/10 dark:bg-white/5">
+                        <div className={`truncate text-[12px] font-bold ${getSignColor(fund.dayChangeVal)}`}>
                           {formatSignedCurrency(fund.dayChangeVal)}
                         </div>
-                        <div className="mt-2 text-[10px] font-semibold tracking-[0.14em] text-slate-400 dark:text-gray-500">
+                        <div className="mt-1 truncate text-[9px] font-semibold tracking-[0.1em] text-slate-400 dark:text-gray-500">
                           {t('common.dayGain')}
                         </div>
                       </div>
-                      <div className="rounded-2xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)]/80 px-3 py-2.5 text-right dark:border-white/10 dark:bg-white/5">
-                        <div className={`text-base font-bold ${getSignColor(adjustedHoldingGain)}`}>
+                      <div className="min-w-0 flex-1 rounded-xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)]/80 px-2 py-2 text-right dark:border-white/10 dark:bg-white/5">
+                        <div className={`truncate text-[12px] font-bold ${getSignColor(adjustedHoldingGain)}`}>
                           {formatSignedCurrency(adjustedHoldingGain)}
                         </div>
                         <div
-                          className={`mt-1 text-[10px] font-medium ${getSignColor(adjustedHoldingGainPct)}`}
+                          className={`mt-0.5 truncate text-[9px] font-medium ${getSignColor(adjustedHoldingGainPct)}`}
                         >
                           {formatPct(adjustedHoldingGainPct)}
                         </div>
-                        <div className="mt-1 text-[10px] font-semibold tracking-[0.14em] text-slate-400 dark:text-gray-500">
+                        <div className="mt-0.5 truncate text-[9px] font-semibold tracking-[0.1em] text-slate-400 dark:text-gray-500">
                           {t('common.totalGain')}
                         </div>
                       </div>

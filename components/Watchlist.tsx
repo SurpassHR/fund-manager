@@ -301,8 +301,8 @@ export const Watchlist: React.FC = () => {
           </div>
         </section>
 
-        <section className="mt-3 md:mt-5">
-          <div className="sticky top-[calc(3.5rem+48px)] z-10 border-b border-[var(--app-shell-line)] bg-[var(--app-shell-panel)]/95 px-4 py-3 backdrop-blur-xl dark:border-border-dark dark:bg-card-dark/90 md:top-[6.8rem] md:rounded-t-[1.75rem] md:border md:border-b md:px-5 md:shadow-[0_10px_24px_rgba(15,23,42,0.05)]">
+        <section className="mt-3 overflow-hidden rounded-[1.75rem] border border-[var(--app-shell-line)] md:mt-5 md:shadow-[0_14px_32px_rgba(15,23,42,0.05)] dark:border-border-dark">
+          <div className="z-10 border-b border-[var(--app-shell-line)] bg-[var(--app-shell-panel)]/95 px-4 py-3 backdrop-blur-xl dark:border-border-dark dark:bg-card-dark/90 md:px-5">
             <div className="hidden items-center gap-4 md:flex">
               <div className="flex min-w-[15rem] flex-[1.5] items-center gap-2 text-slate-400">
                 <div className="rounded-full border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] p-1.5 dark:border-white/10 dark:bg-white/5">
@@ -384,7 +384,7 @@ export const Watchlist: React.FC = () => {
             </div>
           </div>
 
-          <div className="overflow-hidden bg-[var(--app-shell-panel)]/92 dark:bg-card-dark md:rounded-b-[1.75rem] md:border md:border-t-0 md:border-[var(--app-shell-line)] md:shadow-[0_14px_32px_rgba(15,23,42,0.05)] dark:md:border-border-dark">
+          <div className="overflow-hidden bg-[var(--app-shell-panel)]/92 dark:bg-card-dark">
             {watchlists.length === 0 ? (
               <div className="flex flex-col items-center justify-center gap-4 py-20 text-slate-400">
                 <Icons.User size={48} strokeWidth={1} className="opacity-50" />
@@ -405,9 +405,9 @@ export const Watchlist: React.FC = () => {
                     onTouchEnd={handleTouchEnd}
                     onTouchCancel={handleTouchEnd}
                     onClick={() => handleRowClick(item)}
-                    className={`group flex cursor-pointer select-none items-start border-b border-[var(--app-shell-line)]/80 px-4 py-4 transition-colors dark:border-border-dark md:flex-row md:border-none md:hover:bg-[var(--app-shell-panel-strong)]/72 dark:md:hover:bg-white/5 ${contextMenu?.itemId === item.id ? 'bg-[var(--app-shell-panel-strong)] dark:bg-white/10' : ''}`}
+                    className={`group flex items-start justify-between gap-2 cursor-pointer select-none border-b border-[var(--app-shell-line)]/80 px-4 py-4 transition-colors dark:border-border-dark md:flex-row md:border-none md:hover:bg-[var(--app-shell-panel-strong)]/72 dark:md:hover:bg-white/5 ${contextMenu?.itemId === item.id ? 'bg-[var(--app-shell-panel-strong)] dark:bg-white/10' : ''}`}
                   >
-                    <div className="min-w-0 flex-1 pr-2 md:flex-[1.5] md:self-center">
+                    <div className="min-w-0 flex-1 md:flex-[1.5] md:self-center">
                       <div className="hidden items-center gap-2 md:flex">
                         <span className="rounded-full border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)]/92 px-2 py-1 text-[10px] font-semibold tracking-[0.14em] text-slate-700 dark:border-blue-400/20 dark:bg-blue-500/10 dark:text-blue-200">
                           {item.code}
