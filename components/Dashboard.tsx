@@ -175,8 +175,8 @@ export const Dashboard: React.FC = () => {
     return () => window.removeEventListener('click', handleClick);
   }, []);
 
-  const safeFunds = funds || [];
-  const safeAccounts = accounts || [];
+  const safeFunds = useMemo(() => funds ?? [], [funds]);
+  const safeAccounts = useMemo(() => accounts ?? [], [accounts]);
 
   const filteredFunds =
     activeFilter === 'All' ? safeFunds : safeFunds.filter((fund) => fund.platform === activeFilter);
@@ -186,6 +186,23 @@ export const Dashboard: React.FC = () => {
     safeAccounts.length > 1
       ? ['All', ...safeAccounts.map((account) => account.name)]
       : safeAccounts.map((account) => account.name);
+
+  useEffect(() => {
+    if (safeAccounts.length === 1) {
+      const onlyAccount = safeAccounts[0]?.name;
+      if (onlyAccount && activeFilter !== onlyAccount) {
+        setActiveFilter(onlyAccount);
+      }
+      return;
+    }
+
+    if (safeAccounts.length > 1 && activeFilter !== 'All') {
+      const accountExists = safeAccounts.some((account) => account.name === activeFilter);
+      if (!accountExists) {
+        setActiveFilter('All');
+      }
+    }
+  }, [activeFilter, safeAccounts]);
 
   const latestDateStr = filteredFunds.reduce((max, fund) => {
     if (!fund.lastUpdate) return max;
@@ -479,7 +496,6 @@ export const Dashboard: React.FC = () => {
           </div>
 
           <div className="relative flex flex-col gap-5">
-
             <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_24rem] xl:grid-cols-[minmax(0,1fr)_26rem]">
               <div className="min-w-0">
                 <div className="flex items-start justify-between gap-4">
@@ -534,8 +550,11 @@ export const Dashboard: React.FC = () => {
                     <div className="text-4xl font-black tracking-[-0.04em] text-slate-900 dark:text-gray-50 md:text-5xl">
                       {showValues ? formatCurrency(summary.totalAssets) : '****'}
                     </div>
-                    <div className={`mt-2 text-sm font-semibold ${getSignColor(summary.holdingGain)}`}>
-                      {t('common.totalGain')} · {showValues ? formatSignedCurrency(summary.holdingGain) : '****'}
+                    <div
+                      className={`mt-2 text-sm font-semibold ${getSignColor(summary.holdingGain)}`}
+                    >
+                      {t('common.totalGain')} ·{' '}
+                      {showValues ? formatSignedCurrency(summary.holdingGain) : '****'}
                       <span className="ml-1 text-xs font-medium">
                         ({showValues ? formatPct(summary.holdingGainPct) : '****'})
                       </span>
@@ -547,36 +566,36 @@ export const Dashboard: React.FC = () => {
               <div className="mt-2 flex flex-col gap-2 lg:mt-0">
                 <div className="flex flex-col gap-2 lg:flex-row lg:items-start">
                   <div className="hidden items-center gap-2 lg:flex lg:shrink-0">
-                  <button
-                    onClick={handleManualRefresh}
-                    disabled={cooldown > 0 || isRefreshing}
-                    className={`relative flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border transition-transform active:scale-95 ${
-                      cooldown > 0 || isRefreshing
-                        ? 'cursor-not-allowed border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] text-slate-500 dark:border-white/10 dark:bg-white/10 dark:text-gray-400'
-                        : 'cursor-pointer border-[var(--app-shell-line-strong)] bg-[var(--app-shell-panel-strong)] text-slate-800 dark:border-blue-400/30 dark:bg-blue-500/15 dark:text-blue-100'
-                    }`}
-                  >
-                    <Icons.Refresh size={16} className={isRefreshing ? 'animate-spin' : ''} />
-                    {cooldown > 0 && !isRefreshing && (
-                      <div
-                        className="absolute inset-0 dark:hidden"
-                        style={{
-                          background: `conic-gradient(transparent ${100 - cooldown}%, rgba(0,0,0,0.18) ${100 - cooldown}%, rgba(0,0,0,0.18) 100%)`,
-                        }}
-                      />
-                    )}
-                    {cooldown > 0 && !isRefreshing && (
-                      <div
-                        className="absolute inset-0 hidden dark:block"
-                        style={{
-                          background: `conic-gradient(transparent ${100 - cooldown}%, rgba(15,23,42,0.75) ${100 - cooldown}%, rgba(15,23,42,0.75) 100%)`,
-                        }}
-                      />
-                    )}
-                  </button>
-                  <div className="rounded-full border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)]/90 px-3 py-1.5 text-[11px] font-semibold tracking-[0.18em] text-slate-500 dark:border-white/10 dark:bg-white/5 dark:text-gray-400">
-                    {displayDate}
-                  </div>
+                    <button
+                      onClick={handleManualRefresh}
+                      disabled={cooldown > 0 || isRefreshing}
+                      className={`relative flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border transition-transform active:scale-95 ${
+                        cooldown > 0 || isRefreshing
+                          ? 'cursor-not-allowed border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] text-slate-500 dark:border-white/10 dark:bg-white/10 dark:text-gray-400'
+                          : 'cursor-pointer border-[var(--app-shell-line-strong)] bg-[var(--app-shell-panel-strong)] text-slate-800 dark:border-blue-400/30 dark:bg-blue-500/15 dark:text-blue-100'
+                      }`}
+                    >
+                      <Icons.Refresh size={16} className={isRefreshing ? 'animate-spin' : ''} />
+                      {cooldown > 0 && !isRefreshing && (
+                        <div
+                          className="absolute inset-0 dark:hidden"
+                          style={{
+                            background: `conic-gradient(transparent ${100 - cooldown}%, rgba(0,0,0,0.18) ${100 - cooldown}%, rgba(0,0,0,0.18) 100%)`,
+                          }}
+                        />
+                      )}
+                      {cooldown > 0 && !isRefreshing && (
+                        <div
+                          className="absolute inset-0 hidden dark:block"
+                          style={{
+                            background: `conic-gradient(transparent ${100 - cooldown}%, rgba(15,23,42,0.75) ${100 - cooldown}%, rgba(15,23,42,0.75) 100%)`,
+                          }}
+                        />
+                      )}
+                    </button>
+                    <div className="rounded-full border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)]/90 px-3 py-1.5 text-[11px] font-semibold tracking-[0.18em] text-slate-500 dark:border-white/10 dark:bg-white/5 dark:text-gray-400">
+                      {displayDate}
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-3 gap-2 lg:flex lg:min-w-0 lg:flex-1 lg:gap-2">
@@ -767,7 +786,9 @@ export const Dashboard: React.FC = () => {
                 t(`filters.${fund.platform}`) === `filters.${fund.platform}`
                   ? fund.platform
                   : t(`filters.${fund.platform}`);
-              const pendingCount = (fund.pendingTransactions || []).filter((tx) => !tx.settled).length;
+              const pendingCount = (fund.pendingTransactions || []).filter(
+                (tx) => !tx.settled,
+              ).length;
 
               return (
                 <div
@@ -778,12 +799,13 @@ export const Dashboard: React.FC = () => {
                   onTouchEnd={handleTouchEnd}
                   onTouchCancel={handleTouchEnd}
                   className={`group relative cursor-pointer select-none border-b border-[var(--app-shell-line)]/80 px-4 py-3 transition-colors last:border-b-0 active:bg-[var(--app-shell-panel-strong)] dark:border-border-dark dark:active:bg-white/5 md:px-5 md:py-3.5 md:hover:bg-[var(--app-shell-panel-strong)]/72 dark:md:hover:bg-white/5 ${
-                    contextMenu?.fundId === fund.id ? 'bg-[var(--app-shell-panel-strong)] dark:bg-white/10' : ''
+                    contextMenu?.fundId === fund.id
+                      ? 'bg-[var(--app-shell-panel-strong)] dark:bg-white/10'
+                      : ''
                   }`}
                 >
-
-                    <div className="flex flex-col gap-3 md:flex-row md:items-center">
-                      <div className="min-w-0 flex-1 md:flex-[1.6] md:pr-4">
+                  <div className="flex flex-col gap-3 md:flex-row md:items-center">
+                    <div className="min-w-0 flex-1 md:flex-[1.6] md:pr-4">
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="rounded-full border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)]/92 px-2 py-1 text-[10px] font-semibold tracking-[0.14em] text-slate-700 dark:border-blue-400/20 dark:bg-blue-500/10 dark:text-blue-200">
                           {fund.code}
@@ -823,7 +845,7 @@ export const Dashboard: React.FC = () => {
                       </div>
                     </div>
 
-                      <div className="hidden md:grid md:flex-[5] md:grid-cols-6 md:gap-4 md:text-right">
+                    <div className="hidden md:grid md:flex-[5] md:grid-cols-6 md:gap-4 md:text-right">
                       <div className="text-left text-xs text-slate-500 dark:text-gray-400">
                         <div className="font-semibold text-slate-700 dark:text-gray-200">
                           {formatCurrency(fund.costPrice, 4)}
@@ -832,7 +854,9 @@ export const Dashboard: React.FC = () => {
                           {fund.currentNav.toFixed(4)}
                         </div>
                       </div>
-                      <div className={`text-sm font-semibold ${getSignColor(officialDayChangePct)}`}>
+                      <div
+                        className={`text-sm font-semibold ${getSignColor(officialDayChangePct)}`}
+                      >
                         {formatPct(officialDayChangePct)}
                       </div>
                       <div className={`text-sm font-semibold ${getSignColor(todayChangePct)}`}>
@@ -847,10 +871,14 @@ export const Dashboard: React.FC = () => {
                         {formatSignedCurrency(fund.dayChangeVal)}
                       </div>
                       <div className="flex flex-col items-end">
-                        <div className={`text-sm font-semibold ${getSignColor(adjustedHoldingGain)}`}>
+                        <div
+                          className={`text-sm font-semibold ${getSignColor(adjustedHoldingGain)}`}
+                        >
                           {formatSignedCurrency(adjustedHoldingGain)}
                         </div>
-                        <div className={`mt-1 text-[10px] font-medium ${getSignColor(adjustedHoldingGainPct)}`}>
+                        <div
+                          className={`mt-1 text-[10px] font-medium ${getSignColor(adjustedHoldingGainPct)}`}
+                        >
                           {formatPct(adjustedHoldingGainPct)}
                         </div>
                       </div>
@@ -859,8 +887,8 @@ export const Dashboard: React.FC = () => {
                       </div>
                     </div>
 
-                      <div className="mt-2 flex items-stretch gap-1.5 md:hidden">
-                        <div className="min-w-0 flex-1 rounded-xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)]/90 px-2 py-2 text-right dark:border-white/10 dark:bg-white/5">
+                    <div className="mt-2 flex items-stretch gap-1.5 md:hidden">
+                      <div className="min-w-0 flex-1 rounded-xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)]/90 px-2 py-2 text-right dark:border-white/10 dark:bg-white/5">
                         <div
                           className={`truncate text-[13px] font-black leading-none tracking-[-0.02em] ${getSignColor(officialDayChangePct)}`}
                         >
@@ -881,7 +909,9 @@ export const Dashboard: React.FC = () => {
                         </div>
                       </div>
                       <div className="min-w-0 flex-1 rounded-xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)]/80 px-2 py-2 text-right dark:border-white/10 dark:bg-white/5">
-                        <div className={`truncate text-[12px] font-bold ${getSignColor(fund.dayChangeVal)}`}>
+                        <div
+                          className={`truncate text-[12px] font-bold ${getSignColor(fund.dayChangeVal)}`}
+                        >
                           {formatSignedCurrency(fund.dayChangeVal)}
                         </div>
                         <div className="mt-1 truncate text-[9px] font-semibold tracking-[0.1em] text-slate-400 dark:text-gray-500">
@@ -889,7 +919,9 @@ export const Dashboard: React.FC = () => {
                         </div>
                       </div>
                       <div className="min-w-0 flex-1 rounded-xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)]/80 px-2 py-2 text-right dark:border-white/10 dark:bg-white/5">
-                        <div className={`truncate text-[12px] font-bold ${getSignColor(adjustedHoldingGain)}`}>
+                        <div
+                          className={`truncate text-[12px] font-bold ${getSignColor(adjustedHoldingGain)}`}
+                        >
                           {formatSignedCurrency(adjustedHoldingGain)}
                         </div>
                         <div
@@ -977,11 +1009,10 @@ export const Dashboard: React.FC = () => {
                     </div>
                   </div>
                 </div>
-                  <Icons.ArrowUp
-                    size={18}
-                    className="rotate-90 text-slate-500 transition-transform group-hover:translate-x-1 dark:text-blue-300"
-                  />
-
+                <Icons.ArrowUp
+                  size={18}
+                  className="rotate-90 text-slate-500 transition-transform group-hover:translate-x-1 dark:text-blue-300"
+                />
               </div>
             </button>
           </div>
@@ -996,6 +1027,7 @@ export const Dashboard: React.FC = () => {
         isOpen={isAddFundOpen}
         onClose={() => setIsAddFundOpen(false)}
         editFund={editingFund}
+        onFundAdded={() => refreshFundData({ force: true })}
       />
       {adjustFund && (
         <AdjustPositionModal

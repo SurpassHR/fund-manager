@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db, refreshWatchlistData } from '../services/db';
+import { db, refreshFundData, refreshWatchlistData } from '../services/db';
 import { getSignColor, formatPct } from '../services/financeUtils';
 import { Icons } from './Icon';
 import { useTranslation } from '../services/i18n';
@@ -218,7 +218,8 @@ export const Watchlist: React.FC = () => {
             const item = watchlists.find((entry) => entry.id === contextMenu.itemId);
             const isFund = item?.type === 'fund';
             const isHeld =
-              !!item && (funds ?? []).some((fund) => fund.code === item.code && fund.holdingShares > 0);
+              !!item &&
+              (funds ?? []).some((fund) => fund.code === item.code && fund.holdingShares > 0);
             if (!item || !isFund || isHeld) return null;
 
             return (
@@ -484,7 +485,9 @@ export const Watchlist: React.FC = () => {
                         </div>
                         <div className="mt-2 flex flex-col items-end text-[10px] text-slate-400 dark:text-gray-500">
                           <span>锚点 {item.anchorPrice.toFixed(4)}</span>
-                          <span className="origin-right scale-90 opacity-70">({item.anchorDate})</span>
+                          <span className="origin-right scale-90 opacity-70">
+                            ({item.anchorDate})
+                          </span>
                         </div>
                       </div>
                     </div>
@@ -505,6 +508,12 @@ export const Watchlist: React.FC = () => {
         isOpen={isAddFundOpen}
         onClose={handleAddFundModalClose}
         prefillWatchlistItem={prefillWatchlistItem}
+        onFundAdded={async () => {
+          await Promise.all([
+            refreshFundData({ force: true }),
+            refreshWatchlistData({ force: true }),
+          ]);
+        }}
       />
 
       <AnimatePresence>

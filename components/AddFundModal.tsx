@@ -13,6 +13,7 @@ interface AddFundModalProps {
   onClose: () => void;
   editFund?: Fund;
   prefillWatchlistItem?: WatchlistItem;
+  onFundAdded?: () => void | Promise<void>;
 }
 
 export const AddFundModal: React.FC<AddFundModalProps> = ({
@@ -20,6 +21,7 @@ export const AddFundModal: React.FC<AddFundModalProps> = ({
   onClose,
   editFund,
   prefillWatchlistItem,
+  onFundAdded,
 }) => {
   const { t } = useTranslation();
   const accounts = useLiveQuery(() => db.accounts.toArray());
@@ -321,6 +323,8 @@ export const AddFundModal: React.FC<AddFundModalProps> = ({
         buyTime,
         settlementDays,
       });
+
+      await onFundAdded?.();
     }
 
     handleClose();
