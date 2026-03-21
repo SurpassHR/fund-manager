@@ -35,4 +35,16 @@ describe('BottomNav', () => {
     const settingsButton = screen.getByRole('button', { name: /设置/i });
     expect(within(settingsButton).getByTestId('bottom-nav-active-indicator')).toBeInTheDocument();
   });
+
+  it('applies mobile hidden classes when hiddenOnMobile is true', () => {
+    const { container } = render(
+      <LanguageProvider>
+        <BottomNav activeTab="holding" onTabChange={() => undefined} hiddenOnMobile />
+      </LanguageProvider>,
+    );
+
+    const nav = container.querySelector('nav');
+    expect(nav?.className).toContain('max-md:translate-y-[120%]');
+    expect(nav?.className).toContain('max-md:opacity-0');
+  });
 });

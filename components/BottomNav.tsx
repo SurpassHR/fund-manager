@@ -8,6 +8,7 @@ import { getBottomNavAnimation } from '../services/animations/presets';
 interface BottomNavProps {
   activeTab: TabType;
   onTabChange: (tab: TabType) => void;
+  hiddenOnMobile?: boolean;
 }
 
 type IconComponent = React.ComponentType<{
@@ -16,7 +17,11 @@ type IconComponent = React.ComponentType<{
   className?: string;
 }>;
 
-export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, onTabChange }) => {
+export const BottomNav: React.FC<BottomNavProps> = ({
+  activeTab,
+  onTabChange,
+  hiddenOnMobile = false,
+}) => {
   const { t } = useTranslation();
   const reduceMotion = useReducedMotion();
   const navAnimation = getBottomNavAnimation(reduceMotion);
@@ -30,7 +35,13 @@ export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, onTabChange }) 
   ];
 
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-50 px-3 pb-[calc(env(safe-area-inset-bottom,0px)+0.75rem)] sm:px-4">
+    <nav
+      className={`fixed inset-x-0 bottom-0 z-50 px-3 pb-[calc(env(safe-area-inset-bottom,0px)+0.75rem)] transition-all duration-200 sm:px-4 ${
+        hiddenOnMobile
+          ? 'max-md:pointer-events-none max-md:translate-y-[120%] max-md:opacity-0'
+          : 'max-md:translate-y-0 max-md:opacity-100'
+      }`}
+    >
       <div className="mx-auto w-full max-w-5xl rounded-[1.75rem] border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)]/96 shadow-[0_24px_70px_rgba(15,23,42,0.16)] backdrop-blur-2xl">
         <div className="grid h-[4.5rem] grid-cols-5 gap-1 px-2 py-2 sm:px-3">
           {tabs.map((tab) => {

@@ -4,9 +4,10 @@ import { useTranslation } from '../services/i18n';
 
 interface HeaderProps {
   title: string;
+  hiddenOnMobile?: boolean;
 }
 
-export const Header: React.FC<HeaderProps> = ({ title }) => {
+export const Header: React.FC<HeaderProps> = ({ title, hiddenOnMobile = false }) => {
   const { language, setLanguage, t } = useTranslation();
 
   const toggleLanguage = () => {
@@ -18,7 +19,13 @@ export const Header: React.FC<HeaderProps> = ({ title }) => {
   };
 
   return (
-    <header className="fixed inset-x-0 top-0 z-50 px-3 pt-2 sm:px-4 sm:pt-2.5 lg:px-6">
+    <header
+      className={`fixed inset-x-0 top-0 z-50 px-3 pt-2 transition-all duration-200 sm:px-4 sm:pt-2.5 lg:px-6 ${
+        hiddenOnMobile
+          ? 'max-md:pointer-events-none max-md:-translate-y-full max-md:opacity-0'
+          : 'max-md:translate-y-0 max-md:opacity-100'
+      }`}
+    >
       <div className="mx-auto w-full max-w-7xl rounded-[1.75rem] border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)]/95 shadow-[var(--app-shell-shadow)] backdrop-blur-xl">
         <div className="flex items-center justify-between gap-3 px-4 py-2.5 sm:px-5 sm:py-3">
           <div className="min-w-0">

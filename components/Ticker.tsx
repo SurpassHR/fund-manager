@@ -5,7 +5,11 @@ import { getSignColor, formatPct } from '../services/financeUtils';
 import { Icons } from './Icon';
 import { motion, AnimatePresence } from 'framer-motion';
 
-export const Ticker: React.FC = () => {
+interface TickerProps {
+  hiddenOnMobile?: boolean;
+}
+
+export const Ticker: React.FC<TickerProps> = ({ hiddenOnMobile = false }) => {
   const [indices, setIndices] = useState<MarketIndex[]>([]);
   const [index, setIndex] = useState(0);
   const [isExpanded, setIsExpanded] = useState(false);
@@ -49,7 +53,13 @@ export const Ticker: React.FC = () => {
         )}
       </AnimatePresence>
 
-      <div className="fixed bottom-[calc(6.5rem+env(safe-area-inset-bottom,0px))] left-0 right-0 z-40 px-3 sm:px-4">
+      <div
+        className={`fixed bottom-[calc(6.5rem+env(safe-area-inset-bottom,0px))] left-0 right-0 z-40 px-3 transition-all duration-200 sm:px-4 ${
+          hiddenOnMobile
+            ? 'max-md:pointer-events-none max-md:translate-y-[6rem] max-md:opacity-0'
+            : 'max-md:translate-y-0 max-md:opacity-100'
+        }`}
+      >
         <div className="mx-auto flex w-full max-w-5xl flex-col gap-2.5 sm:gap-3">
           <AnimatePresence>
             {isExpanded && (

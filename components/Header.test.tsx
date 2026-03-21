@@ -49,4 +49,16 @@ describe('Header', () => {
 
     dispatchSpy.mockRestore();
   });
+
+  it('applies mobile hidden classes when hiddenOnMobile is true', () => {
+    const { container } = render(
+      <LanguageProvider>
+        <Header title="Title" hiddenOnMobile />
+      </LanguageProvider>,
+    );
+
+    const header = container.querySelector('header');
+    expect(header?.className).toContain('max-md:-translate-y-full');
+    expect(header?.className).toContain('max-md:opacity-0');
+  });
 });

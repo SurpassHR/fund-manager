@@ -23,13 +23,19 @@ const AppContent: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TabType>('holding');
   const [isScannerOpen, setIsScannerOpen] = useState(false);
   const [openAiSettingsRequested, setOpenAiSettingsRequested] = useState(false);
+  const [isMobileChromeHidden, setIsMobileChromeHidden] = useState(false);
   const { t } = useTranslation();
   const { setDragState, isDragging } = useEdgeSwipe();
   const isDraggingRef = useRef(isDragging);
+  const isMobileChromeHiddenRef = useRef(false);
 
   useEffect(() => {
     isDraggingRef.current = isDragging;
   }, [isDragging]);
+
+  useEffect(() => {
+    isMobileChromeHiddenRef.current = isMobileChromeHidden;
+  }, [isMobileChromeHidden]);
 
   const renderTabContent = () => {
     switch (activeTab) {
@@ -85,6 +91,89 @@ const AppContent: React.FC = () => {
       window.removeEventListener('keydown', onKeyDown);
     };
   }, []);
+
+  useEffect(() => {
+    const HIDE_THRESHOLD = 12;
+    const TOP_SHOW_THRESHOLD = 8;
+    let lastY = window.scrollY;
+    let accumulatedDelta = 0;
+    let ticking = false;
+
+    const isMobileViewport = () =>
+      window.matchMedia('(max-width: 767px)').matches || window.innerWidth < 768;
+
+    const setChromeHidden = (next: boolean) => {
+      if (isMobileChromeHiddenRef.current === next) return;
+      isMobileChromeHiddenRef.current = next;
+      setIsMobileChromeHidden(next);
+    };
+
+    const evaluateScrollDirection = () => {
+      const currentY = window.scrollY;
+
+      if (!isMobileViewport()) {
+        accumulatedDelta = 0;
+        setChromeHidden(false);
+        lastY = currentY;
+        return;
+      }
+
+      if (currentY <= TOP_SHOW_THRESHOLD) {
+        accumulatedDelta = 0;
+        setChromeHidden(false);
+        lastY = currentY;
+        return;
+      }
+
+      const delta = currentY - lastY;
+      lastY = currentY;
+
+      if (Math.abs(delta) < 2) return;
+
+      const sameDirection = Math.sign(delta) === Math.sign(accumulatedDelta);
+      accumulatedDelta = sameDirection ? accumulatedDelta + delta : delta;
+
+      if (accumulatedDelta > HIDE_THRESHOLD) {
+        setChromeHidden(true);
+        accumulatedDelta = 0;
+      }
+
+      if (accumulatedDelta < -HIDE_THRESHOLD) {
+        setChromeHidden(false);
+        accumulatedDelta = 0;
+      }
+    };
+
+    const onScroll = () => {
+      if (ticking) return;
+      ticking = true;
+      window.requestAnimationFrame(() => {
+        evaluateScrollDirection();
+        ticking = false;
+      });
+    };
+
+    const onResize = () => {
+      lastY = window.scrollY;
+      accumulatedDelta = 0;
+      if (!isMobileViewport()) {
+        setChromeHidden(false);
+      }
+    };
+
+    window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', onResize);
+    evaluateScrollDirection();
+
+    return () => {
+      window.removeEventListener('scroll', onScroll);
+      window.removeEventListener('resize', onResize);
+    };
+  }, []);
+
+  useEffect(() => {
+    setIsMobileChromeHidden(false);
+  }, [activeTab]);
 
   useEffect(() => {
     let startX = 0;
@@ -396,7 +485,7 @@ const AppContent: React.FC = () => {
       <div className="app-shell__noise" aria-hidden="true" />
 
       <div className="app-shell__content">
-        <Header title={t('common.appTitle') || 'XiaoHuYangJi'} />
+        <Header title={t('common.appTitle') || 'XiaoHuYangJi'} hiddenOnMobile={isMobileChromeHidden} />
 
         <main className="app-stage">
           <div className="app-stage__main">
@@ -411,9 +500,10 @@ const AppContent: React.FC = () => {
           </div>
         </main>
 
-        <Ticker />
+        <Ticker hiddenOnMobile={isMobileChromeHidden} />
         <BottomNav
           activeTab={activeTab}
+          hiddenOnMobile={isMobileChromeHidden}
           onTabChange={(tab) => {
             if (tab !== 'settings') {
               setOpenAiSettingsRequested(false);
