@@ -344,7 +344,7 @@ export const AiHoldingsAnalysisModal: React.FC<AiHoldingsAnalysisModalProps> = (
           transition={{ duration: 0.2 }}
         >
           <motion.div
-            className="bg-white dark:bg-card-dark w-full sm:w-[640px] sm:rounded-2xl rounded-t-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
+            className="flex max-h-[90vh] w-full flex-col overflow-hidden rounded-t-2xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)] shadow-[var(--app-shell-shadow)] sm:w-[640px] sm:rounded-2xl"
             onClick={(e) => e.stopPropagation()}
             initial={isDesktop ? { opacity: 0, scale: 0.96, y: 20 } : { opacity: 1, y: 40 }}
             animate={isDesktop ? { opacity: 1, scale: 1, y: 0 } : { opacity: 1, y: 0 }}

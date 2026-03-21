@@ -195,14 +195,14 @@ export const Watchlist: React.FC = () => {
     <div className="min-h-full pb-36 md:pb-24" onContextMenu={(e) => e.preventDefault()}>
       {contextMenu && (
         <div
-          className="fixed z-[100] w-48 origin-top-left overflow-hidden rounded-lg border border-gray-100 bg-white py-2 shadow-xl animate-in fade-in zoom-in-95 duration-100 dark:border-border-dark dark:bg-card-dark"
+          className="fixed z-[100] w-48 origin-top-left overflow-hidden rounded-xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)]/98 py-2 shadow-[var(--app-shell-shadow)] backdrop-blur-xl animate-in fade-in zoom-in-95 duration-100"
           style={{
             top: Math.min(contextMenu.y, window.innerHeight - 150),
             left: Math.min(contextMenu.x, window.innerWidth - 200),
           }}
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="mb-1 border-b border-gray-100 bg-gray-50 px-4 py-2 text-xs font-bold text-gray-400 dark:border-border-dark dark:bg-white/5">
+          <div className="mb-1 border-b border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)]/88 px-4 py-2 text-xs font-bold text-[var(--app-shell-muted)]">
             {t('common.menu')}
           </div>
           <button
@@ -240,7 +240,7 @@ export const Watchlist: React.FC = () => {
       )}
 
       <div className="mx-auto w-full max-w-7xl px-0 pt-20 pb-8 md:px-4 md:pt-24 md:pb-10 lg:px-6">
-        <section className="relative overflow-hidden border-b border-[var(--app-shell-line)] bg-[var(--app-shell-panel)]/92 px-4 pb-3 pt-3 dark:border-border-dark dark:bg-card-dark md:mt-3 md:rounded-[1.75rem] md:border md:px-6 md:pb-4 md:pt-4 md:shadow-[0_12px_32px_rgba(15,23,42,0.05)]">
+        <section className="relative mt-3 overflow-hidden rounded-[1.75rem] border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)]/92 px-4 pb-3 pt-3 dark:border-border-dark dark:bg-card-dark md:px-6 md:pb-4 md:pt-4 md:shadow-[0_12px_32px_rgba(15,23,42,0.05)]">
           <div className="pointer-events-none absolute inset-0">
             <div className="absolute inset-y-0 left-0 w-full bg-[radial-gradient(circle_at_top_left,_rgba(148,163,184,0.12),_transparent_34%),radial-gradient(circle_at_bottom_right,_rgba(226,232,240,0.8),_transparent_28%)] dark:bg-[radial-gradient(circle_at_top_left,_rgba(96,165,250,0.12),_transparent_35%),radial-gradient(circle_at_bottom_right,_rgba(59,130,246,0.10),_transparent_28%)]" />
           </div>

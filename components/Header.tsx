@@ -37,7 +37,7 @@ export const Header: React.FC<HeaderProps> = ({ title, hiddenOnMobile = false })
           <div className="flex items-center gap-2 text-[var(--app-shell-muted)] sm:gap-2.5">
             <button
               onClick={openChangelog}
-              className="hidden rounded-full border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] px-3 py-2 text-[0.62rem] font-semibold uppercase tracking-[0.24em] text-[var(--app-shell-ink)] transition hover:border-[var(--app-shell-line-strong)] hover:text-[var(--app-shell-accent)] sm:inline-flex"
+              className="inline-flex rounded-full border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] px-2.5 py-2 text-[0.58rem] font-semibold uppercase tracking-[0.2em] text-[var(--app-shell-ink)] transition hover:border-[var(--app-shell-line-strong)] hover:text-[var(--app-shell-accent)] sm:px-3 sm:text-[0.62rem] sm:tracking-[0.24em]"
             >
               {t('common.changelog')}
             </button>

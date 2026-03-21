@@ -353,14 +353,14 @@ export const Dashboard: React.FC = () => {
 
       {contextMenu && (
         <div
-          className="fixed z-[100] w-48 origin-top-left overflow-hidden rounded-lg border border-gray-100 bg-white py-2 shadow-xl animate-in fade-in zoom-in-95 duration-100 dark:border-border-dark dark:bg-card-dark"
+          className="fixed z-[100] w-48 origin-top-left overflow-hidden rounded-xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)]/98 py-2 shadow-[var(--app-shell-shadow)] backdrop-blur-xl animate-in fade-in zoom-in-95 duration-100"
           style={{
             top: Math.min(contextMenu.y, window.innerHeight - 150),
             left: Math.min(contextMenu.x, window.innerWidth - 200),
           }}
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="mb-1 border-b border-gray-100 bg-gray-50 px-4 py-2 text-xs font-bold text-gray-400 dark:border-border-dark dark:bg-white/5">
+          <div className="mb-1 border-b border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)]/88 px-4 py-2 text-xs font-bold text-[var(--app-shell-muted)]">
             {t('common.menu')}
           </div>
           <button
