@@ -777,11 +777,13 @@ export const Dashboard: React.FC = () => {
               const adjustedHoldingGain = totalReturn + estimatedGainVal;
               const adjustedHoldingGainPct =
                 totalCost !== 0 ? (adjustedHoldingGain / totalCost) * 100 : 0;
-              const todayChangeTag = fund.todayChangeIsEstimated
-                ? t('common.estimated') || '估值'
-                : fund.lastUpdate === todayStr
-                  ? t('common.updated') || '已更新'
-                  : '';
+              const todayChangeTag = fund.todayChangeUnavailable
+                ? t('common.noEstimate') || '无估值'
+                : fund.todayChangeIsEstimated
+                  ? t('common.estimated') || '估值'
+                  : fund.lastUpdate === todayStr
+                    ? t('common.updated') || '已更新'
+                    : '';
               const displayPlatform =
                 t(`filters.${fund.platform}`) === `filters.${fund.platform}`
                   ? fund.platform

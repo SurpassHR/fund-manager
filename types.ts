@@ -12,6 +12,7 @@ export interface Fund {
   officialDayChangePct?: number; // 上一个交易日收盘涨跌幅
   estimatedDayChangePct?: number; // 今日盘中估值涨跌幅（不可用时为 0）
   todayChangeIsEstimated?: boolean; // 今日涨幅是否为盘中估值
+  todayChangeUnavailable?: boolean; // 盘中应估值但不可用（如持仓数据缺失）
   buyDate?: string; // YYYY-MM-DD
   buyTime?: 'before15' | 'after15';
   settlementDays?: number; // T+N 中的 N，默认 1
