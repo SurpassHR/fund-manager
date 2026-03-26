@@ -289,8 +289,7 @@ export const deletePendingTransaction = async (
 ): Promise<DeletePendingTransactionResult> => {
   const { fundId, txId, transferId, type } = params;
   const isLinkedDelete =
-    Boolean(transferId) &&
-    (type === TRANSFER_DELETE_TYPES[0] || type === TRANSFER_DELETE_TYPES[1]);
+    Boolean(transferId) && (type === TRANSFER_DELETE_TYPES[0] || type === TRANSFER_DELETE_TYPES[1]);
 
   if (!isLinkedDelete) {
     let deletedCount = 0;
@@ -344,7 +343,10 @@ export const deletePendingTransaction = async (
     });
   });
 
-  const matchedCount = Array.from(matchedTxByFund.values()).reduce((sum, txIds) => sum + txIds.length, 0);
+  const matchedCount = Array.from(matchedTxByFund.values()).reduce(
+    (sum, txIds) => sum + txIds.length,
+    0,
+  );
   if (matchedCount > 2) {
     const logFields = {
       transferId,
@@ -997,6 +999,9 @@ export const exportFundsToJsonString = async (): Promise<string> => {
 
 export const importFundsFromBackupContent = async (
   content: string | unknown,
+  options?: {
+    duplicateFundStrategy?: 'skip' | 'overwriteIfDifferent';
+  },
 ): Promise<{ added: number; skipped: number }> => {
   const {
     funds: importedFunds,
@@ -1031,17 +1036,61 @@ export const importFundsFromBackupContent = async (
   }
 
   const existingFunds = await db.funds.toArray();
-  const existingCodes = new Set(existingFunds.map((f) => buildFundBackupKey(f)));
+  const existingFundsByKey = new Map(existingFunds.map((fund) => [buildFundBackupKey(fund), fund]));
+
+  const normalizeValue = (value: unknown): unknown => {
+    if (Array.isArray(value)) {
+      return value.map(normalizeValue);
+    }
+
+    if (value && typeof value === 'object') {
+      return Object.entries(value as Record<string, unknown>)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .reduce<Record<string, unknown>>((acc, [key, nested]) => {
+          if (nested !== undefined) {
+            acc[key] = normalizeValue(nested);
+          }
+          return acc;
+        }, {});
+    }
+
+    return value;
+  };
+
+  const toComparableFund = (fund: Fund): unknown => {
+    const withId = fund as Fund & { id?: number };
+    const { id, ...rest } = withId;
+    void id;
+    return normalizeValue(rest);
+  };
+
+  const isFundFullySame = (left: Fund, right: Fund) => {
+    return JSON.stringify(toComparableFund(left)) === JSON.stringify(toComparableFund(right));
+  };
 
   for (const fund of importedFunds) {
     const key = buildFundBackupKey(fund);
-    if (existingCodes.has(key)) {
+    const existing = existingFundsByKey.get(key);
+
+    if (!existing) {
+      await db.funds.add(fund);
+      added++;
+      continue;
+    }
+
+    if (
+      options?.duplicateFundStrategy === 'overwriteIfDifferent' &&
+      !isFundFullySame(existing, fund) &&
+      existing.id !== undefined
+    ) {
+      await db.funds.update(existing.id, { ...fund });
+      continue;
+    }
+
+    if (existing) {
       skipped++;
       continue;
     }
-    await db.funds.add(fund);
-    added++;
-    existingCodes.add(key);
   }
 
   const existingWatchlists = await db.watchlists.toArray();

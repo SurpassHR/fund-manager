@@ -156,7 +156,12 @@ describe('SettingsPage gist sync integration', () => {
       token: expect.any(String),
       gistId: 'g1',
     });
-    expect(mockedDeps.importFundsFromBackupContent).toHaveBeenCalled();
+    expect(mockedDeps.importFundsFromBackupContent).toHaveBeenCalledWith(
+      '{"version":1,"funds":[]}',
+      {
+        duplicateFundStrategy: 'overwriteIfDifferent',
+      },
+    );
   });
 
   it('handles upload create and overwrite branches', async () => {

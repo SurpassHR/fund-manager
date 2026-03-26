@@ -221,7 +221,9 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack, initialShowA
     setSyncBusy(true);
     try {
       const content = await downloadSyncGistContent({ token: githubToken, gistId });
-      const importResult = await importFundsFromBackupContent(content);
+      const importResult = await importFundsFromBackupContent(content, {
+        duplicateFundStrategy: 'overwriteIfDifferent',
+      });
       const selected = target ?? syncGists.find((item) => item.id === gistId);
       if (selected) {
         saveDefaultTarget(selected);
@@ -498,7 +500,9 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack, initialShowA
                 className="w-full rounded-2xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] px-4 py-3 text-sm text-[var(--app-shell-ink)] outline-none transition focus:border-[var(--app-shell-line-strong)]"
               >
                 {!openaiApiKey && (
-                  <option value="">{t('common.modelSelectPlaceholder') || '请先填写 API Key'}</option>
+                  <option value="">
+                    {t('common.modelSelectPlaceholder') || '请先填写 API Key'}
+                  </option>
                 )}
                 {openaiLoading && (
                   <option value="">{t('common.modelLoading') || '模型加载中...'}</option>
@@ -542,7 +546,9 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack, initialShowA
                 className="w-full rounded-2xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] px-4 py-3 text-sm text-[var(--app-shell-ink)] outline-none transition focus:border-[var(--app-shell-line-strong)]"
               >
                 {!geminiApiKey && (
-                  <option value="">{t('common.modelSelectPlaceholder') || '请先填写 API Key'}</option>
+                  <option value="">
+                    {t('common.modelSelectPlaceholder') || '请先填写 API Key'}
+                  </option>
                 )}
                 {geminiLoading && (
                   <option value="">{t('common.modelLoading') || '模型加载中...'}</option>

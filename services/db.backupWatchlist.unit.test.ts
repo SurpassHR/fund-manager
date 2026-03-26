@@ -121,4 +121,64 @@ describe('db backup watchlist sync data flow', () => {
     expect(addFundSpy).toHaveBeenCalledTimes(1);
     expect(result).toEqual({ added: 2, skipped: 0 });
   });
+
+  it('overwrites existing fund when gist strategy is overwriteIfDifferent', async () => {
+    vi.spyOn(db.accounts, 'toArray').mockResolvedValue([
+      { id: 1, name: '券商A', isDefault: false },
+    ]);
+    vi.spyOn(db.watchlists, 'toArray').mockResolvedValue([]);
+    vi.spyOn(db.funds, 'toArray').mockResolvedValue([
+      {
+        id: 1,
+        code: '000001',
+        name: '测试基金',
+        platform: '券商A',
+        holdingShares: 100,
+        costPrice: 1,
+        currentNav: 1,
+        lastUpdate: '2026-03-20',
+        dayChangePct: 0,
+        dayChangeVal: 0,
+      },
+    ]);
+
+    const addFundSpy = vi.spyOn(db.funds, 'add').mockResolvedValue(2);
+    const updateFundSpy = vi.spyOn(db.funds, 'update').mockResolvedValue(1);
+
+    const incoming = {
+      version: 1,
+      exportDate: '2026-03-21T00:00:00.000Z',
+      funds: [
+        {
+          code: '000001',
+          name: '测试基金',
+          platform: '券商A',
+          holdingShares: 200,
+          costPrice: 1.2,
+          currentNav: 1.3,
+          lastUpdate: '2026-03-21',
+          dayChangePct: 1,
+          dayChangeVal: 2,
+        },
+      ],
+      accounts: [],
+      watchlists: [],
+    };
+
+    const result = await importFundsFromBackupContent(JSON.stringify(incoming), {
+      duplicateFundStrategy: 'overwriteIfDifferent',
+    });
+
+    expect(addFundSpy).not.toHaveBeenCalled();
+    expect(updateFundSpy).toHaveBeenCalledTimes(1);
+    expect(updateFundSpy).toHaveBeenCalledWith(
+      1,
+      expect.objectContaining({
+        code: '000001',
+        platform: '券商A',
+        holdingShares: 200,
+      }),
+    );
+    expect(result).toEqual({ added: 0, skipped: 0 });
+  });
 });
