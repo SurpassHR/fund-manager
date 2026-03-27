@@ -1,11 +1,5 @@
 import Dexie, { type Table } from 'dexie';
-import type {
-  Fund,
-  Account,
-  AssetSummary,
-  WatchlistItem,
-  PendingTransaction,
-} from '../types';
+import type { Fund, Account, AssetSummary, WatchlistItem, PendingTransaction } from '../types';
 import {
   fetchHistoricalFundNavWithDate,
   checkIsMarketTrading,
@@ -233,8 +227,7 @@ export const deletePendingTransaction = async (
 ): Promise<DeletePendingTransactionResult> => {
   const { fundId, txId, transferId, type } = params;
   const isLinkedDelete =
-    Boolean(transferId) &&
-    (type === TRANSFER_DELETE_TYPES[0] || type === TRANSFER_DELETE_TYPES[1]);
+    Boolean(transferId) && (type === TRANSFER_DELETE_TYPES[0] || type === TRANSFER_DELETE_TYPES[1]);
 
   if (!isLinkedDelete) {
     let deletedCount = 0;
@@ -288,7 +281,10 @@ export const deletePendingTransaction = async (
     });
   });
 
-  const matchedCount = Array.from(matchedTxByFund.values()).reduce((sum, txIds) => sum + txIds.length, 0);
+  const matchedCount = Array.from(matchedTxByFund.values()).reduce(
+    (sum, txIds) => sum + txIds.length,
+    0,
+  );
   if (matchedCount > 2) {
     const logFields = {
       transferId,
@@ -458,7 +454,10 @@ export const runSettlementPipeline = (options?: RefreshOptions) => {
           }
 
           const unsettledTotal = getUnsettledOutShares(sourceFund);
-          const availableForCurrent = Math.max(0, sourceFund.holdingShares - (unsettledTotal - outShares));
+          const availableForCurrent = Math.max(
+            0,
+            sourceFund.holdingShares - (unsettledTotal - outShares),
+          );
           if (outShares > availableForCurrent) return;
 
           const sellFeeRate = sourceTx.sellFeeRate ?? 0;
@@ -520,10 +519,7 @@ export const runSettlementPipeline = (options?: RefreshOptions) => {
   return settlementPromise;
 };
 
-const buildRefreshExecutionStatus = (
-  attempted: number,
-  failed: number,
-): RefreshExecutionStatus => {
+const buildRefreshExecutionStatus = (attempted: number, failed: number): RefreshExecutionStatus => {
   if (attempted <= 0) return 'skipped';
   if (failed <= 0) return 'success';
   if (failed >= attempted) return 'failed';
@@ -880,6 +876,7 @@ export const exportFundsToJsonString = async (): Promise<string> => {
 
 export const importFundsFromBackupContent = async (
   content: string | unknown,
+  options?: { duplicateFundStrategy?: 'skip' | 'overwriteIfDifferent' },
 ): Promise<{ added: number; skipped: number }> => {
   const {
     funds: importedFunds,
@@ -914,17 +911,52 @@ export const importFundsFromBackupContent = async (
   }
 
   const existingFunds = await db.funds.toArray();
-  const existingCodes = new Set(existingFunds.map((f) => buildFundBackupKey(f)));
+  const existingFundMap = new Map(existingFunds.map((f) => [buildFundBackupKey(f), f]));
+  const duplicateFundStrategy = options?.duplicateFundStrategy ?? 'skip';
+
+  const hasFundChanged = (current: Fund, incoming: Fund) => {
+    const fields: Array<keyof Fund> = [
+      'code',
+      'name',
+      'platform',
+      'holdingShares',
+      'costPrice',
+      'currentNav',
+      'lastUpdate',
+      'dayChangePct',
+      'dayChangeVal',
+      'officialDayChangePct',
+      'estimatedDayChangePct',
+      'todayChangeIsEstimated',
+      'todayChangeUnavailable',
+      'buyDate',
+      'buyTime',
+      'settlementDays',
+    ];
+
+    return fields.some((field) => current[field] !== incoming[field]);
+  };
 
   for (const fund of importedFunds) {
     const key = buildFundBackupKey(fund);
-    if (existingCodes.has(key)) {
-      skipped++;
+    const existing = existingFundMap.get(key);
+
+    if (existing) {
+      if (
+        duplicateFundStrategy === 'overwriteIfDifferent' &&
+        existing.id != null &&
+        hasFundChanged(existing, fund)
+      ) {
+        await db.funds.update(existing.id, fund as Partial<Fund>);
+      } else {
+        skipped++;
+      }
       continue;
     }
+
     await db.funds.add(fund);
     added++;
-    existingCodes.add(key);
+    existingFundMap.set(key, fund);
   }
 
   const existingWatchlists = await db.watchlists.toArray();

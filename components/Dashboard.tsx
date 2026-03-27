@@ -1029,7 +1029,9 @@ export const Dashboard: React.FC = () => {
         isOpen={isAddFundOpen}
         onClose={() => setIsAddFundOpen(false)}
         editFund={editingFund}
-        onFundAdded={() => refreshFundData({ force: true })}
+        onFundAdded={async () => {
+          await refreshFundData({ force: true });
+        }}
       />
       {adjustFund && (
         <AdjustPositionModal
