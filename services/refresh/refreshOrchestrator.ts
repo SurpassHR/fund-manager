@@ -65,6 +65,7 @@ export class RefreshOrchestrator<TTask extends string = string> {
     const runningItem = this.runningByTask.get(task);
     if (runningItem) {
       if (normalized.force && !runningItem.force) {
+        this.stateStore.markTaskStale(task, true);
         const queued = this.getOrCreateQueueItem(task, normalized);
         queued.waiters.push(deferred);
         this.ensureDrain();

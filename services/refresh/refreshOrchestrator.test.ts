@@ -69,6 +69,8 @@ describe('RefreshOrchestrator', () => {
 
     const forceUpgradeRun = orchestrator.request('funds', { force: true });
 
+    expect(orchestrator.getStateStore().getSnapshot().stale.funds).toBe(true);
+
     expect(releaseFirstRun).toBeTypeOf('function');
     releaseFirstRun?.();
 
