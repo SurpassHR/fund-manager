@@ -47,7 +47,7 @@ const recordMetric = (stage: RefreshStage, durationMs: number, error?: unknown) 
   metrics.lastErrorMessage = error instanceof Error ? error.message : String(error);
 };
 
-const runWithMetrics = async (stage: RefreshStage, runner: () => Promise<void>) => {
+const runWithMetrics = async (stage: RefreshStage, runner: () => Promise<unknown>) => {
   const start = performance.now();
   try {
     await runner();
