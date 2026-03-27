@@ -410,11 +410,11 @@ export const Watchlist: React.FC = () => {
                   >
                     <div className="min-w-0 flex-1 md:flex-[1.5] md:self-center">
                       <div className="hidden items-center gap-2 md:flex">
-                        <span className="rounded-full border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)]/92 px-2 py-1 text-[10px] font-semibold tracking-[0.14em] text-slate-700 dark:border-blue-400/20 dark:bg-blue-500/10 dark:text-blue-200">
+                        <span className="rounded-full border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)]/92 px-2 py-1 text-[10px] font-semibold tracking-[0.14em] whitespace-nowrap shrink-0 text-slate-700 dark:border-blue-400/20 dark:bg-blue-500/10 dark:text-blue-200">
                           {item.code}
                         </span>
                         <span
-                          className={`rounded-full border px-2 py-1 text-[10px] font-semibold tracking-[0.14em] ${
+                          className={`rounded-full border px-2 py-1 text-[10px] font-semibold tracking-[0.14em] whitespace-nowrap shrink-0 ${
                             item.type === 'index'
                               ? 'border-[var(--app-shell-line-strong)] bg-[var(--app-shell-panel-strong)] text-slate-700 dark:border-purple-400/20 dark:bg-purple-500/10 dark:text-purple-300'
                               : 'border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] text-slate-500 dark:border-white/10 dark:bg-white/5 dark:text-gray-400'

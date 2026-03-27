@@ -188,4 +188,24 @@ describe('Watchlist add holding from context menu', () => {
     expect(pageRoot?.className).toContain('pt-20');
     expect(pageRoot?.className).toContain('md:pt-24');
   });
+
+  it('基金标签在桌面布局不换行且不截断', () => {
+    const { container } = render(<Watchlist />);
+
+    const desktopFundBadges = Array.from(container.querySelectorAll('span')).filter((el) => {
+      const classes = el.className;
+      return (
+        el.textContent === '基金' &&
+        typeof classes === 'string' &&
+        classes.includes('tracking-[0.14em]')
+      );
+    });
+
+    expect(desktopFundBadges.length).toBeGreaterThan(0);
+    desktopFundBadges.forEach((badge) => {
+      expect(badge).toHaveClass('whitespace-nowrap');
+      expect(badge).toHaveClass('shrink-0');
+      expect(badge.className).not.toContain('truncate');
+    });
+  });
 });
