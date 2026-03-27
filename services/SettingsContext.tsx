@@ -14,6 +14,8 @@ export interface DefaultGistTargetSnapshot {
 interface SettingsContextValue {
   autoRefresh: boolean;
   setAutoRefresh: (val: boolean) => void;
+  useUnifiedRefresh: boolean;
+  setUseUnifiedRefresh: (val: boolean) => void;
   aiProvider: AiProvider;
   setAiProvider: (val: AiProvider) => void;
   openaiApiKey: string;
@@ -34,6 +36,7 @@ const STORAGE_KEY = 'app-settings-preference';
 
 const defaultSettings = {
   autoRefresh: false,
+  useUnifiedRefresh: false,
   aiProvider: 'openai' as AiProvider,
   openaiApiKey: '',
   openaiModel: 'gpt-4o-mini',
@@ -71,6 +74,10 @@ const parseSavedSettings = (saved: string): typeof defaultSettings => {
   return {
     autoRefresh:
       typeof parsed.autoRefresh === 'boolean' ? parsed.autoRefresh : defaultSettings.autoRefresh,
+    useUnifiedRefresh:
+      typeof parsed.useUnifiedRefresh === 'boolean'
+        ? parsed.useUnifiedRefresh
+        : defaultSettings.useUnifiedRefresh,
     aiProvider:
       parsed.aiProvider === 'openai' || parsed.aiProvider === 'gemini'
         ? parsed.aiProvider
@@ -92,6 +99,8 @@ const parseSavedSettings = (saved: string): typeof defaultSettings => {
 const SettingsContext = createContext<SettingsContextValue>({
   autoRefresh: defaultSettings.autoRefresh,
   setAutoRefresh: () => {},
+  useUnifiedRefresh: defaultSettings.useUnifiedRefresh,
+  setUseUnifiedRefresh: () => {},
   aiProvider: defaultSettings.aiProvider,
   setAiProvider: () => {},
   openaiApiKey: defaultSettings.openaiApiKey,
@@ -130,6 +139,7 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   };
 
   const setAutoRefresh = (val: boolean) => updateSettings({ autoRefresh: val });
+  const setUseUnifiedRefresh = (val: boolean) => updateSettings({ useUnifiedRefresh: val });
   const setAiProvider = (val: AiProvider) => updateSettings({ aiProvider: val });
   const setOpenaiApiKey = (val: string) => updateSettings({ openaiApiKey: val });
   const setOpenaiModel = (val: string) => updateSettings({ openaiModel: val });
@@ -144,6 +154,8 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       value={{
         autoRefresh: settings.autoRefresh,
         setAutoRefresh,
+        useUnifiedRefresh: settings.useUnifiedRefresh,
+        setUseUnifiedRefresh,
         aiProvider: settings.aiProvider,
         setAiProvider,
         openaiApiKey: settings.openaiApiKey,

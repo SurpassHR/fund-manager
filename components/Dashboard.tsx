@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db, initDB, calculateSummary, refreshFundData } from '../services/db';
+import { db, initDB, calculateSummary } from '../services/db';
 import {
   formatCurrency,
   formatSignedCurrency,
@@ -20,6 +20,7 @@ import type { Fund } from '../types';
 import { AnimatePresence } from 'framer-motion';
 import { useSettings } from '../services/SettingsContext';
 import { AiHoldingsAnalysisModal } from './AiHoldingsAnalysisModal';
+import { refreshHoldingsWithStrategy } from '../services/refreshOrchestrator';
 
 export const Dashboard: React.FC = () => {
   const funds = useLiveQuery(() => db.funds.toArray());
@@ -37,7 +38,7 @@ export const Dashboard: React.FC = () => {
     direction: 'asc' | 'desc';
   }>({ key: null, direction: 'desc' });
   const [isAiAnalysisOpen, setIsAiAnalysisOpen] = useState(false);
-  const { autoRefresh } = useSettings();
+  const { autoRefresh, useUnifiedRefresh } = useSettings();
 
   // Refresh mechanism state
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -120,7 +121,7 @@ export const Dashboard: React.FC = () => {
     initDB();
 
     const doRefresh = (force?: boolean) =>
-      refreshFundData({ force }).then(() => {
+      refreshHoldingsWithStrategy({ force, useUnifiedRefresh }).then(() => {
         sessionStorage.setItem('lastAutoUpdate_timestamp', Date.now().toString());
       });
 
@@ -171,7 +172,7 @@ export const Dashboard: React.FC = () => {
       stopAutoRefresh();
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [autoRefresh]);
+  }, [autoRefresh, useUnifiedRefresh]);
 
   // Close context menu on global click
   useEffect(() => {
@@ -300,7 +301,7 @@ export const Dashboard: React.FC = () => {
     const startTime = Date.now();
 
     try {
-      await refreshFundData({ force: true });
+      await refreshHoldingsWithStrategy({ force: true, useUnifiedRefresh });
     } finally {
       // Ensure minimum rotation visibly
       const elapsed = Date.now() - startTime;

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db, refreshWatchlistData } from '../services/db';
+import { db } from '../services/db';
 import { getSignColor, formatPct } from '../services/financeUtils';
 import { Icons } from './Icon';
 import { useTranslation } from '../services/i18n';
@@ -9,11 +9,14 @@ import { AddWatchlistModal } from './AddWatchlistModal';
 import { AddFundModal } from './AddFundModal';
 import { FundDetail } from './FundDetail';
 import { AnimatePresence } from 'framer-motion';
+import { refreshWatchlistWithMetrics } from '../services/refreshOrchestrator';
+import { useSettings } from '../services/SettingsContext';
 
 export const Watchlist: React.FC = () => {
   const watchlists = useLiveQuery(() => db.watchlists.toArray());
   const funds = useLiveQuery(() => db.funds.toArray());
   const { t } = useTranslation();
+  const { useUnifiedRefresh } = useSettings();
 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<WatchlistItem | undefined>(undefined);
@@ -65,8 +68,8 @@ export const Watchlist: React.FC = () => {
 
   useEffect(() => {
     // Initial load refresh
-    refreshWatchlistData();
-  }, []);
+    refreshWatchlistWithMetrics();
+  }, [useUnifiedRefresh]);
 
   // Close context menu on global click
   useEffect(() => {
@@ -137,7 +140,7 @@ export const Watchlist: React.FC = () => {
     const startTime = Date.now();
 
     try {
-      await refreshWatchlistData({ force: true });
+      await refreshWatchlistWithMetrics({ force: true });
     } finally {
       const elapsed = Date.now() - startTime;
       if (elapsed < 1000) {
