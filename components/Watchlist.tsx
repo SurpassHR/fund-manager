@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db, refreshWatchlistData } from '../services/db';
+import { db } from '../services/db';
 import { getSignColor, formatPct } from '../services/financeUtils';
 import { Icons } from './Icon';
 import { useTranslation } from '../services/i18n';
@@ -11,6 +11,7 @@ import { FundDetail } from './FundDetail';
 import { AnimatePresence } from 'framer-motion';
 import { useSettings } from '../services/SettingsContext';
 import { useUnifiedAutoRefresh } from '../services/refreshPolicy';
+import { refreshWatchlistWithMetrics } from '../services/refreshOrchestrator';
 
 export const Watchlist: React.FC = () => {
   const watchlists = useLiveQuery(() => db.watchlists.toArray());
@@ -62,7 +63,7 @@ export const Watchlist: React.FC = () => {
   const { refreshStatus, isStale, lastSuccessAt, triggerRefresh } = useUnifiedAutoRefresh({
     scope: 'watchlist',
     enabled: autoRefresh,
-    refresh: refreshWatchlistData,
+    refresh: (options) => refreshWatchlistWithMetrics({ force: options?.force }),
   });
 
   const isRefreshing = refreshStatus === 'running';

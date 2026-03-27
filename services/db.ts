@@ -340,124 +340,20 @@ export const deletePendingTransaction = async (
  */
 let refreshPromise: Promise<RefreshExecutionResult> | null = null;
 
-type RefreshOptions = { force?: boolean };
-
-const buildRefreshExecutionStatus = (
-  attempted: number,
-  failed: number,
-): RefreshExecutionStatus => {
-  if (attempted <= 0) return 'skipped';
-  if (failed <= 0) return 'success';
-  if (failed >= attempted) return 'failed';
-  return 'partial_failed';
+export type RefreshOptions = {
+  force?: boolean;
+  includeSettlement?: boolean;
 };
 
-export const refreshFundData = (options?: RefreshOptions) => {
-  if (refreshPromise) return refreshPromise;
-  const forceRefresh = options?.force ?? false;
+let settlementPromise: Promise<void> | null = null;
 
-  refreshPromise = (async () => {
-    let attempted = 0;
+export const runSettlementPipeline = (options?: RefreshOptions) => {
+  if (settlementPromise) return settlementPromise;
+
+  void options;
+
+  settlementPromise = (async () => {
     try {
-      const allFunds = await db.funds.toArray();
-      attempted = allFunds.length;
-      if (allFunds.length === 0) {
-        return {
-          status: 'skipped',
-          attempted,
-          failed: 0,
-          completedAt: Date.now(),
-        };
-      }
-
-      // 检查当前大盘是否已更新(真正处于开盘且在 9:20 以后)
-      const shouldUseEstimatedValue = await checkIsMarketTrading({ force: forceRefresh });
-      const todayStr = getLocalDateString();
-
-      const { candidates, estimateMap, failedBase } = await runFundQuotePipeline(
-        allFunds.map((fund) => ({
-          item: fund,
-          code: fund.code,
-          fallbackNav: 0,
-          fallbackChangePct: 0,
-          dropOnMissingNav: true,
-        })),
-        {
-          force: forceRefresh,
-          todayStr,
-          shouldUseEstimatedValue,
-        },
-      );
-
-      if (failedBase > 0) console.warn(`刷新基金数据：${failedBase}/${allFunds.length} 个失败`);
-
-      const updateResults = await Promise.allSettled(
-        candidates.map(async (candidate) => {
-          const { item: fund, nav, navDate, navChangePercent } = candidate;
-          const estimatedChangePct = estimateMap.get(candidate.code);
-          const hasEstimate = candidate.shouldEstimate && estimatedChangePct !== undefined;
-
-          const effectivePctDate = hasEstimate ? todayStr : navDate;
-
-          let isGainActive = true;
-          if (fund.buyDate) {
-            const costDateStr = getCostDateStr(fund.buyDate, fund.buyTime || 'before15');
-            if (effectivePctDate <= costDateStr) {
-              isGainActive = false;
-            }
-          }
-
-          let dayChangeVal = 0;
-          if (isGainActive) {
-            const mktVal = fund.holdingShares * nav;
-            if (hasEstimate && estimatedChangePct !== undefined) {
-              dayChangeVal = mktVal * (estimatedChangePct / 100);
-            } else {
-              dayChangeVal = (mktVal * (navChangePercent / 100)) / (1 + navChangePercent / 100);
-            }
-          }
-
-          const nextDayChangePct = isGainActive
-            ? hasEstimate && estimatedChangePct !== undefined
-              ? estimatedChangePct
-              : navChangePercent
-            : 0;
-
-          const officialDayChangePct = navChangePercent;
-          const estimatedDayChangePct =
-            isGainActive && hasEstimate && estimatedChangePct !== undefined
-              ? estimatedChangePct
-              : 0;
-          const todayChangeIsEstimated =
-            isGainActive && hasEstimate && estimatedChangePct !== undefined;
-
-          const shouldSkipUpdate =
-            isNearlyEqual(fund.currentNav, nav) &&
-            fund.lastUpdate === effectivePctDate &&
-            isNearlyEqual(fund.dayChangePct, nextDayChangePct) &&
-            isNearlyEqual(fund.dayChangeVal, dayChangeVal) &&
-            isNearlyEqual(fund.officialDayChangePct ?? 0, officialDayChangePct) &&
-            isNearlyEqual(fund.estimatedDayChangePct ?? 0, estimatedDayChangePct) &&
-            Boolean(fund.todayChangeIsEstimated) === todayChangeIsEstimated;
-
-          if (shouldSkipUpdate) return;
-
-          await db.funds.update(fund.id!, {
-            currentNav: nav,
-            lastUpdate: effectivePctDate,
-            dayChangePct: nextDayChangePct,
-            dayChangeVal: dayChangeVal,
-            officialDayChangePct,
-            estimatedDayChangePct,
-            todayChangeIsEstimated,
-          });
-        }),
-      );
-
-      const failedUpdates = updateResults.filter((r) => r.status === 'rejected').length;
-      if (failedUpdates > 0)
-        console.warn(`刷新基金数据：${failedUpdates}/${allFunds.length} 个更新失败`);
-
       // === 自动结算在途交易 ===
       const todayForSettlement = getLocalDateString();
       const fundsToSettle = await db.funds.toArray();
@@ -562,10 +458,7 @@ export const refreshFundData = (options?: RefreshOptions) => {
           }
 
           const unsettledTotal = getUnsettledOutShares(sourceFund);
-          const availableForCurrent = Math.max(
-            0,
-            sourceFund.holdingShares - (unsettledTotal - outShares),
-          );
+          const availableForCurrent = Math.max(0, sourceFund.holdingShares - (unsettledTotal - outShares));
           if (outShares > availableForCurrent) return;
 
           const sellFeeRate = sourceTx.sellFeeRate ?? 0;
@@ -616,6 +509,136 @@ export const refreshFundData = (options?: RefreshOptions) => {
             pendingTransactions: nextTargetPending,
           });
         });
+      }
+    } catch (err) {
+      console.error('执行结算流水线失败', err);
+    } finally {
+      settlementPromise = null;
+    }
+  })();
+
+  return settlementPromise;
+};
+
+const buildRefreshExecutionStatus = (
+  attempted: number,
+  failed: number,
+): RefreshExecutionStatus => {
+  if (attempted <= 0) return 'skipped';
+  if (failed <= 0) return 'success';
+  if (failed >= attempted) return 'failed';
+  return 'partial_failed';
+};
+
+export const refreshFundData = (options?: RefreshOptions) => {
+  if (refreshPromise) return refreshPromise;
+  const forceRefresh = options?.force ?? false;
+  const includeSettlement = options?.includeSettlement ?? true;
+
+  refreshPromise = (async () => {
+    let attempted = 0;
+    try {
+      const allFunds = await db.funds.toArray();
+      attempted = allFunds.length;
+      if (allFunds.length === 0) {
+        return {
+          status: 'skipped',
+          attempted,
+          failed: 0,
+          completedAt: Date.now(),
+        };
+      }
+
+      // 检查当前大盘是否已更新(真正处于开盘且在 9:20 以后)
+      const shouldUseEstimatedValue = await checkIsMarketTrading({ force: forceRefresh });
+      const todayStr = getLocalDateString();
+
+      const { candidates, estimateMap, failedBase } = await runFundQuotePipeline(
+        allFunds.map((fund) => ({
+          item: fund,
+          code: fund.code,
+          fallbackNav: 0,
+          fallbackChangePct: 0,
+          dropOnMissingNav: true,
+        })),
+        {
+          force: forceRefresh,
+          todayStr,
+          shouldUseEstimatedValue,
+        },
+      );
+
+      if (failedBase > 0) console.warn(`刷新基金数据：${failedBase}/${allFunds.length} 个失败`);
+
+      const updateResults = await Promise.allSettled(
+        candidates.map(async (candidate) => {
+          const { item: fund, nav, navDate, navChangePercent } = candidate;
+          const estimatedChangePct = estimateMap.get(candidate.code);
+          const hasEstimate = candidate.shouldEstimate && estimatedChangePct !== undefined;
+
+          const effectivePctDate = hasEstimate ? todayStr : navDate;
+
+          let isGainActive = true;
+          if (fund.buyDate) {
+            const costDateStr = getCostDateStr(fund.buyDate, fund.buyTime || 'before15');
+            if (effectivePctDate <= costDateStr) {
+              isGainActive = false;
+            }
+          }
+
+          let dayChangeVal = 0;
+          if (isGainActive) {
+            const mktVal = fund.holdingShares * nav;
+            if (hasEstimate && estimatedChangePct !== undefined) {
+              dayChangeVal = mktVal * (estimatedChangePct / 100);
+            } else {
+              dayChangeVal = (mktVal * (navChangePercent / 100)) / (1 + navChangePercent / 100);
+            }
+          }
+
+          const nextDayChangePct = isGainActive
+            ? hasEstimate && estimatedChangePct !== undefined
+              ? estimatedChangePct
+              : navChangePercent
+            : 0;
+
+          const officialDayChangePct = navChangePercent;
+          const estimatedDayChangePct =
+            isGainActive && hasEstimate && estimatedChangePct !== undefined
+              ? estimatedChangePct
+              : 0;
+          const todayChangeIsEstimated =
+            isGainActive && hasEstimate && estimatedChangePct !== undefined;
+
+          const shouldSkipUpdate =
+            isNearlyEqual(fund.currentNav, nav) &&
+            fund.lastUpdate === effectivePctDate &&
+            isNearlyEqual(fund.dayChangePct, nextDayChangePct) &&
+            isNearlyEqual(fund.dayChangeVal, dayChangeVal) &&
+            isNearlyEqual(fund.officialDayChangePct ?? 0, officialDayChangePct) &&
+            isNearlyEqual(fund.estimatedDayChangePct ?? 0, estimatedDayChangePct) &&
+            Boolean(fund.todayChangeIsEstimated) === todayChangeIsEstimated;
+
+          if (shouldSkipUpdate) return;
+
+          await db.funds.update(fund.id!, {
+            currentNav: nav,
+            lastUpdate: effectivePctDate,
+            dayChangePct: nextDayChangePct,
+            dayChangeVal: dayChangeVal,
+            officialDayChangePct,
+            estimatedDayChangePct,
+            todayChangeIsEstimated,
+          });
+        }),
+      );
+
+      const failedUpdates = updateResults.filter((r) => r.status === 'rejected').length;
+      if (failedUpdates > 0)
+        console.warn(`刷新基金数据：${failedUpdates}/${allFunds.length} 个更新失败`);
+
+      if (includeSettlement) {
+        await runSettlementPipeline({ force: forceRefresh });
       }
 
       const failed = failedBase + failedUpdates;

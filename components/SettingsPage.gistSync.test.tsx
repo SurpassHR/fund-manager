@@ -19,6 +19,8 @@ const mockedDeps = vi.hoisted(() => ({
   settings: {
     autoRefresh: false,
     setAutoRefresh: vi.fn(),
+    useUnifiedRefresh: false,
+    setUseUnifiedRefresh: vi.fn(),
     aiProvider: 'openai' as const,
     setAiProvider: vi.fn(),
     openaiApiKey: '',
@@ -67,7 +69,7 @@ vi.mock('../services/db', () => ({
   exportFundsToJsonString: mockedDeps.exportFundsToJsonString,
 }));
 
-vi.mock('../services/gistSync', () => ({
+vi.mock('../services/gistSync/index', () => ({
   GIST_SYNC_FILENAME: 'fund-manager-sync.json',
   GistClientError: class extends Error {
     code: string;
@@ -139,7 +141,8 @@ describe('SettingsPage gist sync integration', () => {
     render(<SettingsPage />);
 
     await waitFor(() => expect(mockedDeps.listSyncGists).toHaveBeenCalled());
-    fireEvent.click(screen.getByRole('button', { name: 'common.gistSyncDownload' }));
+    fireEvent.click(screen.getByRole('button', { name: 'common.gistSync' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'common.gistSyncDownload' }));
 
     expect(chooserLastProps?.isOpen).toBe(true);
     await (chooserLastProps?.onRequestDownload as (gistId: string) => Promise<void>)('g1');
@@ -154,8 +157,8 @@ describe('SettingsPage gist sync integration', () => {
   it('handles upload create and overwrite branches', async () => {
     render(<SettingsPage />);
     await waitFor(() => expect(mockedDeps.listSyncGists).toHaveBeenCalled());
-
-    fireEvent.click(screen.getByRole('button', { name: 'common.gistSyncUpload' }));
+    fireEvent.click(screen.getByRole('button', { name: 'common.gistSync' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'common.gistSyncUpload' }));
 
     await (
       chooserLastProps?.onRequestUpload as (payload: {

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db, initDB, calculateSummary, refreshFundData } from '../services/db';
+import { db, initDB, calculateSummary } from '../services/db';
 import {
   formatCurrency,
   formatSignedCurrency,
@@ -21,6 +21,7 @@ import { AnimatePresence } from 'framer-motion';
 import { useSettings } from '../services/SettingsContext';
 import { AiHoldingsAnalysisModal } from './AiHoldingsAnalysisModal';
 import { useUnifiedAutoRefresh } from '../services/refreshPolicy';
+import { refreshHoldingsWithStrategy } from '../services/refreshOrchestrator';
 
 export const Dashboard: React.FC = () => {
   const funds = useLiveQuery(() => db.funds.toArray());
@@ -38,7 +39,7 @@ export const Dashboard: React.FC = () => {
     direction: 'asc' | 'desc';
   }>({ key: null, direction: 'desc' });
   const [isAiAnalysisOpen, setIsAiAnalysisOpen] = useState(false);
-  const { autoRefresh } = useSettings();
+  const { autoRefresh, useUnifiedRefresh } = useSettings();
 
   // Refresh mechanism state
   const [cooldown, setCooldown] = useState(0); // Cooldown percentage 0-100
@@ -67,7 +68,8 @@ export const Dashboard: React.FC = () => {
   const { refreshStatus, isStale, lastSuccessAt, triggerRefresh } = useUnifiedAutoRefresh({
     scope: 'fund',
     enabled: autoRefresh,
-    refresh: refreshFundData,
+    refresh: (options) =>
+      refreshHoldingsWithStrategy({ force: options?.force, useUnifiedRefresh }),
   });
 
   const isRefreshing = refreshStatus === 'running';

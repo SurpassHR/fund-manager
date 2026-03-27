@@ -23,6 +23,7 @@ import {
 } from '../services/gistSync/index';
 import { GistSyncChooserCard } from './GistSyncChooserCard';
 import { AnimatedSwitcher } from './transitions/AnimatedSwitcher';
+import { getRefreshMetricsSnapshot } from '../services/refreshOrchestrator';
 
 interface SettingsPageProps {
   onBack?: () => void;
@@ -38,6 +39,8 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack, initialShowA
   const {
     autoRefresh,
     setAutoRefresh,
+    useUnifiedRefresh,
+    setUseUnifiedRefresh,
     aiProvider,
     setAiProvider,
     openaiApiKey,
@@ -71,6 +74,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack, initialShowA
   const [syncBusy, setSyncBusy] = useState(false);
   const [gistListRefreshing, setGistListRefreshing] = useState(false);
   const [gistListCooldownSec, setGistListCooldownSec] = useState(0);
+  const [refreshMetrics, setRefreshMetrics] = useState(getRefreshMetricsSnapshot);
 
   const themeOptions: { value: ThemeOption; label: string; icon: React.ReactNode }[] = [
     {
@@ -315,6 +319,14 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack, initialShowA
     setGistChooserMode('upload');
     setGistChooserOpen(true);
   };
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setRefreshMetrics(getRefreshMetricsSnapshot());
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     if (initialShowAiSettings) {
@@ -726,6 +738,52 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack, initialShowA
                 className={`w-4 h-4 rounded-full bg-white absolute top-1 transition-transform ${autoRefresh ? 'translate-x-5' : 'translate-x-1'}`}
               />
             </button>
+          </div>
+
+          <div className="w-full flex items-center justify-between px-4 py-3.5 border-t border-gray-100 dark:border-border-dark">
+            <div className="flex items-center gap-3">
+              <div className="w-6 flex justify-center text-gray-500 dark:text-gray-400">
+                <Icons.Refresh size={18} />
+              </div>
+              <div className="flex flex-col">
+                <span className="text-sm font-sans text-gray-800 dark:text-gray-100">
+                  {t('common.useUnifiedRefresh') || '启用统一刷新流水线'}
+                </span>
+                <span className="text-[11px] text-gray-400">
+                  {useUnifiedRefresh
+                    ? t('common.useUnifiedRefreshOnDesc') || '灰度开启：行情与结算解耦'
+                    : t('common.useUnifiedRefreshOffDesc') || '回滚模式：沿用旧刷新路径'}
+                </span>
+              </div>
+            </div>
+            <button
+              onClick={() => setUseUnifiedRefresh(!useUnifiedRefresh)}
+              className={`w-10 h-6 rounded-full transition-colors relative ${useUnifiedRefresh ? 'bg-blue-600' : 'bg-gray-200 dark:bg-gray-700'}`}
+            >
+              <div
+                className={`w-4 h-4 rounded-full bg-white absolute top-1 transition-transform ${useUnifiedRefresh ? 'translate-x-5' : 'translate-x-1'}`}
+              />
+            </button>
+          </div>
+
+          <div className="w-full px-4 py-3.5 border-t border-gray-100 dark:border-border-dark">
+            <div className="text-xs text-gray-500 dark:text-gray-400 font-medium mb-2">
+              {t('common.refreshMetrics') || '刷新指标'}
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-[11px] text-gray-500 dark:text-gray-400">
+              <div>
+                {t('common.refreshMetricsFunds') || '持仓'}: {refreshMetrics.funds.success}/
+                {refreshMetrics.funds.total}
+              </div>
+              <div>
+                {t('common.refreshMetricsWatchlist') || '自选'}:{' '}
+                {refreshMetrics.watchlist.success}/{refreshMetrics.watchlist.total}
+              </div>
+              <div>
+                {t('common.refreshMetricsSettlement') || '结算'}:{' '}
+                {refreshMetrics.settlement.success}/{refreshMetrics.settlement.total}
+              </div>
+            </div>
           </div>
         </div>
       </div>
