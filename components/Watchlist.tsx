@@ -9,11 +9,14 @@ import { AddWatchlistModal } from './AddWatchlistModal';
 import { AddFundModal } from './AddFundModal';
 import { FundDetail } from './FundDetail';
 import { AnimatePresence } from 'framer-motion';
+import { useSettings } from '../services/SettingsContext';
+import { useUnifiedAutoRefresh } from '../services/refreshPolicy';
 
 export const Watchlist: React.FC = () => {
   const watchlists = useLiveQuery(() => db.watchlists.toArray());
   const funds = useLiveQuery(() => db.funds.toArray());
   const { t } = useTranslation();
+  const { autoRefresh } = useSettings();
 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<WatchlistItem | undefined>(undefined);
@@ -52,21 +55,23 @@ export const Watchlist: React.FC = () => {
   };
 
   // Refresh state
-  const [isRefreshing, setIsRefreshing] = useState(false);
   const [cooldown, setCooldown] = useState(0);
   const cooldownMaxTime = 5000;
   const cooldownRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const { refreshStatus, isStale, lastSuccessAt, triggerRefresh } = useUnifiedAutoRefresh({
+    scope: 'watchlist',
+    enabled: autoRefresh,
+    refresh: refreshWatchlistData,
+  });
+
+  const isRefreshing = refreshStatus === 'running';
 
   // Context Menu State
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; itemId: number } | null>(
     null,
   );
   const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    // Initial load refresh
-    refreshWatchlistData();
-  }, []);
 
   // Close context menu on global click
   useEffect(() => {
@@ -133,17 +138,15 @@ export const Watchlist: React.FC = () => {
   const handleManualRefresh = async () => {
     if (cooldown > 0 || isRefreshing) return;
 
-    setIsRefreshing(true);
     const startTime = Date.now();
 
     try {
-      await refreshWatchlistData({ force: true });
+      await triggerRefresh(true);
     } finally {
       const elapsed = Date.now() - startTime;
       if (elapsed < 1000) {
         await new Promise((res) => setTimeout(res, 1000 - elapsed));
       }
-      setIsRefreshing(false);
 
       setCooldown(100);
       const cooldownStartTime = Date.now();
@@ -164,6 +167,23 @@ export const Watchlist: React.FC = () => {
       }, 16);
     }
   };
+
+  const refreshStatusText =
+    refreshStatus === 'running'
+      ? t('common.refreshStatusRunning') || '刷新中'
+      : refreshStatus === 'partial_failed'
+        ? t('common.refreshStatusPartialFailed') || '部分失败'
+        : refreshStatus === 'failed'
+          ? t('common.refreshStatusFailed') || '刷新失败'
+          : t('common.refreshStatusSuccess') || '已同步';
+
+  const refreshFreshnessText = isStale
+    ? t('common.refreshStatusStale') || '陈旧'
+    : t('common.refreshStatusFresh') || '新鲜';
+
+  const refreshLastSuccessText = lastSuccessAt
+    ? new Date(lastSuccessAt).toLocaleTimeString()
+    : t('common.refreshStatusNever') || '--';
 
   const handleSort = (key: 'dayChangePct' | 'anchorGain') => {
     setSortState((prev) => {
@@ -248,9 +268,22 @@ export const Watchlist: React.FC = () => {
       )}
 
       {/* Header controls (similar to summary card style but smaller) */}
-      <div className="bg-white dark:bg-card-dark md:rounded-lg md:shadow-sm px-4 py-3 mb-2 md:mb-6 mt-2 md:mt-4 mx-0 md:mx-0 flex justify-between items-center">
-        <div className="text-gray-800 dark:text-gray-100 font-bold text-lg">
-          {t('common.watchlist')}
+      <div className="bg-white dark:bg-card-dark md:rounded-lg md:shadow-sm px-4 py-3 mb-2 md:mb-6 mt-2 md:mt-4 mx-0 md:mx-0 flex justify-between items-start">
+        <div>
+          <div className="text-gray-800 dark:text-gray-100 font-bold text-lg">{t('common.watchlist')}</div>
+          <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] font-sans">
+            <span className="rounded-full bg-gray-100 px-2 py-1 text-gray-600 dark:bg-white/10 dark:text-gray-300">
+              {refreshStatusText}
+            </span>
+            <span
+              className={`rounded-full px-2 py-1 ${isStale ? 'bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300' : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300'}`}
+            >
+              {refreshFreshnessText}
+            </span>
+            <span className="text-gray-500 dark:text-gray-400">
+              {(t('common.refreshLastSuccess') || '上次成功')}：{refreshLastSuccessText}
+            </span>
+          </div>
         </div>
         <button
           onClick={handleManualRefresh}

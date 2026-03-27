@@ -20,6 +20,7 @@ import type { Fund } from '../types';
 import { AnimatePresence } from 'framer-motion';
 import { useSettings } from '../services/SettingsContext';
 import { AiHoldingsAnalysisModal } from './AiHoldingsAnalysisModal';
+import { useUnifiedAutoRefresh } from '../services/refreshPolicy';
 
 export const Dashboard: React.FC = () => {
   const funds = useLiveQuery(() => db.funds.toArray());
@@ -40,7 +41,6 @@ export const Dashboard: React.FC = () => {
   const { autoRefresh } = useSettings();
 
   // Refresh mechanism state
-  const [isRefreshing, setIsRefreshing] = useState(false);
   const [cooldown, setCooldown] = useState(0); // Cooldown percentage 0-100
   const cooldownMaxTime = 5000; // 5 seconds cooldown
   const cooldownRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -63,6 +63,14 @@ export const Dashboard: React.FC = () => {
   const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const { t } = useTranslation();
+
+  const { refreshStatus, isStale, lastSuccessAt, triggerRefresh } = useUnifiedAutoRefresh({
+    scope: 'fund',
+    enabled: autoRefresh,
+    refresh: refreshFundData,
+  });
+
+  const isRefreshing = refreshStatus === 'running';
 
   const getLocalDateString = () => {
     const d = new Date();
@@ -118,60 +126,7 @@ export const Dashboard: React.FC = () => {
 
   useEffect(() => {
     initDB();
-
-    const doRefresh = (force?: boolean) =>
-      refreshFundData({ force }).then(() => {
-        sessionStorage.setItem('lastAutoUpdate_timestamp', Date.now().toString());
-      });
-
-    const shouldAutoRefresh = () => {
-      const lastAutoUpdateStr = sessionStorage.getItem('lastAutoUpdate_timestamp');
-      const now = Date.now();
-      const lastAutoUpdate = lastAutoUpdateStr ? parseInt(lastAutoUpdateStr) : 0;
-      return !lastAutoUpdateStr || Number.isNaN(lastAutoUpdate) || now - lastAutoUpdate > 60000;
-    };
-
-    if (document.visibilityState === 'visible' && shouldAutoRefresh()) {
-      doRefresh();
-    }
-
-    let autoUpdateTimer: ReturnType<typeof setInterval> | null = null;
-
-    const startAutoRefresh = () => {
-      if (!autoRefresh) return;
-      if (autoUpdateTimer) clearInterval(autoUpdateTimer);
-      autoUpdateTimer = setInterval(() => {
-        if (document.visibilityState !== 'visible') return;
-        doRefresh();
-      }, 15000);
-    };
-
-    const stopAutoRefresh = () => {
-      if (autoUpdateTimer) {
-        clearInterval(autoUpdateTimer);
-        autoUpdateTimer = null;
-      }
-    };
-
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        if (shouldAutoRefresh()) {
-          doRefresh();
-        }
-        startAutoRefresh();
-      } else {
-        stopAutoRefresh();
-      }
-    };
-
-    startAutoRefresh();
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-
-    return () => {
-      stopAutoRefresh();
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
-  }, [autoRefresh]);
+  }, []);
 
   // Close context menu on global click
   useEffect(() => {
@@ -296,18 +251,16 @@ export const Dashboard: React.FC = () => {
   const handleManualRefresh = async () => {
     if (cooldown > 0 || isRefreshing) return;
 
-    setIsRefreshing(true);
     const startTime = Date.now();
 
     try {
-      await refreshFundData({ force: true });
+      await triggerRefresh(true);
     } finally {
       // Ensure minimum rotation visibly
       const elapsed = Date.now() - startTime;
       if (elapsed < 1000) {
         await new Promise((res) => setTimeout(res, 1000 - elapsed));
       }
-      setIsRefreshing(false);
 
       // Start cooldown
       setCooldown(100);
@@ -329,6 +282,23 @@ export const Dashboard: React.FC = () => {
       }, 16); // High frequency update for smoother animation
     }
   };
+
+  const refreshStatusText =
+    refreshStatus === 'running'
+      ? t('common.refreshStatusRunning') || '刷新中'
+      : refreshStatus === 'partial_failed'
+        ? t('common.refreshStatusPartialFailed') || '部分失败'
+        : refreshStatus === 'failed'
+          ? t('common.refreshStatusFailed') || '刷新失败'
+          : t('common.refreshStatusSuccess') || '已同步';
+
+  const refreshFreshnessText = isStale
+    ? t('common.refreshStatusStale') || '陈旧'
+    : t('common.refreshStatusFresh') || '新鲜';
+
+  const refreshLastSuccessText = lastSuccessAt
+    ? new Date(lastSuccessAt).toLocaleTimeString()
+    : t('common.refreshStatusNever') || '--';
 
   const handleTransactionsDeleted = async (affectedFundIds: number[]) => {
     if (affectedFundIds.length === 0) return;
@@ -515,6 +485,20 @@ export const Dashboard: React.FC = () => {
               <Icons.ArrowUp className="transform rotate-90" size={12} />
             </div>
           </div>
+        </div>
+
+        <div className="mb-2 flex flex-wrap items-center gap-2 text-[11px] font-sans">
+          <span className="rounded-full bg-gray-100 px-2 py-1 text-gray-600 dark:bg-white/10 dark:text-gray-300">
+            {refreshStatusText}
+          </span>
+          <span
+            className={`rounded-full px-2 py-1 ${isStale ? 'bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300' : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300'}`}
+          >
+            {refreshFreshnessText}
+          </span>
+          <span className="text-gray-500 dark:text-gray-400">
+            {(t('common.refreshLastSuccess') || '上次成功')}：{refreshLastSuccessText}
+          </span>
         </div>
 
         <div className="flex justify-between items-start gap-2">

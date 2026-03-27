@@ -23,6 +23,7 @@ import {
   buildFundBackupPayload,
   parseAndNormalizeFundBackupPayload,
 } from './fundBackup';
+import type { RefreshExecutionResult, RefreshExecutionStatus } from './refreshPolicy';
 
 class XiaoHuYangJiDB extends Dexie {
   funds!: Table<Fund>;
@@ -394,18 +395,37 @@ export const deletePendingTransaction = async (
  * Also automatically settles any pending transactions that have reached their settlement date.
  * @returns A promise that resolves when the data refresh is complete.
  */
-let refreshPromise: Promise<void> | null = null;
+let refreshPromise: Promise<RefreshExecutionResult> | null = null;
 
 type RefreshOptions = { force?: boolean };
+
+const buildRefreshExecutionStatus = (
+  attempted: number,
+  failed: number,
+): RefreshExecutionStatus => {
+  if (attempted <= 0) return 'skipped';
+  if (failed <= 0) return 'success';
+  if (failed >= attempted) return 'failed';
+  return 'partial_failed';
+};
 
 export const refreshFundData = (options?: RefreshOptions) => {
   if (refreshPromise) return refreshPromise;
   const forceRefresh = options?.force ?? false;
 
   refreshPromise = (async () => {
+    let attempted = 0;
     try {
       const allFunds = await db.funds.toArray();
-      if (allFunds.length === 0) return;
+      attempted = allFunds.length;
+      if (allFunds.length === 0) {
+        return {
+          status: 'skipped',
+          attempted,
+          failed: 0,
+          completedAt: Date.now(),
+        };
+      }
 
       // 检查当前大盘是否已更新(真正处于开盘且在 9:20 以后)
       const shouldUseEstimatedValue = await checkIsMarketTrading({ force: forceRefresh });
@@ -463,7 +483,7 @@ export const refreshFundData = (options?: RefreshOptions) => {
           if (result.value.shouldEstimate) {
             estimateCandidates.push(result.value);
           }
-        } else if (result.status === 'rejected') {
+        } else {
           failedBase += 1;
         }
       });
@@ -726,8 +746,22 @@ export const refreshFundData = (options?: RefreshOptions) => {
           });
         });
       }
+
+      const failed = failedBase + failedUpdates;
+      return {
+        status: buildRefreshExecutionStatus(attempted, failed),
+        attempted,
+        failed,
+        completedAt: Date.now(),
+      };
     } catch (err) {
       console.error('刷新基金数据失败', err);
+      return {
+        status: buildRefreshExecutionStatus(attempted, attempted || 1),
+        attempted,
+        failed: attempted || 1,
+        completedAt: Date.now(),
+      };
     } finally {
       refreshPromise = null;
     }
@@ -736,7 +770,7 @@ export const refreshFundData = (options?: RefreshOptions) => {
   return refreshPromise;
 };
 
-let refreshWatchlistPromise: Promise<void> | null = null;
+let refreshWatchlistPromise: Promise<RefreshExecutionResult> | null = null;
 
 /**
  * Refreshes the latest price and change metrics for all items in the watchlist.
@@ -748,9 +782,19 @@ export const refreshWatchlistData = (options?: RefreshOptions) => {
   const forceRefresh = options?.force ?? false;
 
   refreshWatchlistPromise = (async () => {
+    let attempted = 0;
+    let failed = 0;
     try {
       const allItems = await db.watchlists.toArray();
-      if (allItems.length === 0) return;
+      attempted = allItems.length;
+      if (allItems.length === 0) {
+        return {
+          status: 'skipped',
+          attempted,
+          failed,
+          completedAt: Date.now(),
+        };
+      }
 
       const fundItems = allItems.filter((i) => i.type === 'fund');
       const indexItems = allItems.filter((i) => i.type === 'index');
@@ -811,6 +855,8 @@ export const refreshWatchlistData = (options?: RefreshOptions) => {
             if (result.value.shouldEstimate) {
               estimateCandidates.push(result.value);
             }
+          } else {
+            failed += 1;
           }
         });
 
@@ -846,7 +892,7 @@ export const refreshWatchlistData = (options?: RefreshOptions) => {
           });
         }
 
-        await Promise.allSettled(
+        const fundUpdateResults = await Promise.allSettled(
           candidates.map(async (candidate) => {
             const { item, nav, navDate, navChangePercent } = candidate;
             const estimatedChangePct = estimateMap.get(item.code);
@@ -881,6 +927,7 @@ export const refreshWatchlistData = (options?: RefreshOptions) => {
             });
           }),
         );
+        failed += fundUpdateResults.filter((result) => result.status === 'rejected').length;
       }
 
       // 2. Process Indices / Stocks
@@ -888,7 +935,7 @@ export const refreshWatchlistData = (options?: RefreshOptions) => {
         const codes = indexItems.map((i) => i.code);
         const quotes = await fetchGeneralTencentQuotes(codes, { force: forceRefresh });
 
-        await Promise.allSettled(
+        const indexResults = await Promise.allSettled(
           indexItems.map(async (item) => {
             const data = quotes[item.code];
             if (data) {
@@ -897,12 +944,28 @@ export const refreshWatchlistData = (options?: RefreshOptions) => {
                 dayChangePct: data.changePct,
                 lastUpdate: todayStr,
               });
+            } else {
+              throw new Error(`Missing quote for index item: ${item.code}`);
             }
           }),
         );
+        failed += indexResults.filter((result) => result.status === 'rejected').length;
       }
+
+      return {
+        status: buildRefreshExecutionStatus(attempted, failed),
+        attempted,
+        failed,
+        completedAt: Date.now(),
+      };
     } catch (err) {
       console.error('Failed to refresh watchlist data', err);
+      return {
+        status: buildRefreshExecutionStatus(attempted, attempted || 1),
+        attempted,
+        failed: attempted || 1,
+        completedAt: Date.now(),
+      };
     } finally {
       refreshWatchlistPromise = null;
     }
