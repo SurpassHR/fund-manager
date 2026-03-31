@@ -209,6 +209,33 @@ describe('Watchlist add holding from context menu', () => {
     });
   });
 
+  it('基金名称字号与字重对齐持仓列表样式', () => {
+    render(<Watchlist />);
+
+    const fundName = screen.getAllByRole('heading', { name: '未持有基金' })[0];
+    expect(fundName).toHaveClass('text-[15px]');
+    expect(fundName).toHaveClass('font-semibold');
+    expect(fundName).toHaveClass('md:text-base');
+  });
+
+  it('移动端指标卡采用持仓同款自适应卡片宽度', () => {
+    render(<Watchlist />);
+
+    const currentPriceLabel = screen
+      .getAllByText('现价 1.2345')
+      .find((node) => node.className.includes('text-[9px]'));
+    expect(currentPriceLabel).toBeDefined();
+    if (!currentPriceLabel) {
+      throw new Error('未找到移动端现价标签');
+    }
+    const mobileMetricCard = currentPriceLabel.parentElement;
+    expect(mobileMetricCard).not.toBeNull();
+
+    expect(mobileMetricCard).toHaveClass('min-w-0');
+    expect(mobileMetricCard).toHaveClass('flex-1');
+    expect(mobileMetricCard?.className).not.toContain('w-[4.9rem]');
+  });
+
   it('触摸滚动位移超过阈值时，长按不应弹出菜单', () => {
     vi.useFakeTimers();
     render(<Watchlist />);
