@@ -1,6 +1,6 @@
 /// <reference types="vitest/globals" />
 import React from 'react';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Watchlist } from './Watchlist';
 import type { Fund, WatchlistItem } from '../types';
@@ -207,5 +207,42 @@ describe('Watchlist add holding from context menu', () => {
       expect(badge).toHaveClass('shrink-0');
       expect(badge.className).not.toContain('truncate');
     });
+  });
+
+  it('触摸滚动位移超过阈值时，长按不应弹出菜单', () => {
+    vi.useFakeTimers();
+    render(<Watchlist />);
+
+    const target = screen.getAllByText('未持有基金')[0];
+    fireEvent.touchStart(target, {
+      touches: [{ clientX: 100, clientY: 100 }],
+    });
+    fireEvent.touchMove(target, {
+      touches: [{ clientX: 100, clientY: 125 }],
+    });
+
+    act(() => {
+      vi.advanceTimersByTime(700);
+    });
+
+    expect(screen.queryByText('common.menu')).not.toBeInTheDocument();
+    vi.useRealTimers();
+  });
+
+  it('无滚动位移时，长按仍可弹出菜单', () => {
+    vi.useFakeTimers();
+    render(<Watchlist />);
+
+    const target = screen.getAllByText('未持有基金')[0];
+    fireEvent.touchStart(target, {
+      touches: [{ clientX: 100, clientY: 100 }],
+    });
+
+    act(() => {
+      vi.advanceTimersByTime(700);
+    });
+
+    expect(screen.getByText('common.menu')).toBeInTheDocument();
+    vi.useRealTimers();
   });
 });

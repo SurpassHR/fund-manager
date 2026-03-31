@@ -20,6 +20,10 @@ import type { Fund } from '../types';
 import { AnimatePresence } from 'framer-motion';
 import { useSettings } from '../services/SettingsContext';
 import { AiHoldingsAnalysisModal } from './AiHoldingsAnalysisModal';
+import { hasTouchMovedBeyondThreshold } from '../services/longPressGesture';
+
+const LONG_PRESS_DURATION_MS = 600;
+const TOUCH_MOVE_CANCEL_THRESHOLD_PX = 12;
 
 export const Dashboard: React.FC = () => {
   const funds = useLiveQuery(() => db.funds.toArray());
@@ -57,6 +61,8 @@ export const Dashboard: React.FC = () => {
     null,
   );
   const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const touchStartPointRef = useRef<{ x: number; y: number } | null>(null);
+  const isScrollGestureRef = useRef(false);
 
   const { t } = useTranslation();
 
@@ -268,14 +274,40 @@ export const Dashboard: React.FC = () => {
   };
 
   const handleTouchStart = (fundId: number, e: React.TouchEvent) => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+
     const touch = e.touches[0];
     const x = touch.clientX;
     const y = touch.clientY;
+    touchStartPointRef.current = { x, y };
+    isScrollGestureRef.current = false;
 
     longPressTimerRef.current = setTimeout(() => {
+      if (isScrollGestureRef.current) return;
       setContextMenu({ x, y, fundId });
       if (navigator.vibrate) navigator.vibrate(50);
-    }, 600);
+    }, LONG_PRESS_DURATION_MS);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!touchStartPointRef.current || isScrollGestureRef.current) return;
+    const touch = e.touches[0];
+    const hasMoved = hasTouchMovedBeyondThreshold(
+      touchStartPointRef.current,
+      { x: touch.clientX, y: touch.clientY },
+      TOUCH_MOVE_CANCEL_THRESHOLD_PX,
+    );
+
+    if (!hasMoved) return;
+
+    isScrollGestureRef.current = true;
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
   };
 
   const handleTouchEnd = () => {
@@ -283,6 +315,8 @@ export const Dashboard: React.FC = () => {
       clearTimeout(longPressTimerRef.current);
       longPressTimerRef.current = null;
     }
+    touchStartPointRef.current = null;
+    isScrollGestureRef.current = false;
   };
 
   const handleEdit = (fund: Fund) => {
@@ -798,6 +832,7 @@ export const Dashboard: React.FC = () => {
                   onClick={() => handleRowClick(fund)}
                   onContextMenu={(e) => fund.id && handleContextMenu(e, fund.id)}
                   onTouchStart={(e) => fund.id && handleTouchStart(fund.id, e)}
+                  onTouchMove={handleTouchMove}
                   onTouchEnd={handleTouchEnd}
                   onTouchCancel={handleTouchEnd}
                   className={`group relative cursor-pointer select-none border-b border-[var(--app-shell-line)]/80 px-4 py-3 transition-colors last:border-b-0 active:bg-[var(--app-shell-panel-strong)] dark:border-border-dark dark:active:bg-white/5 md:px-5 md:py-3.5 md:hover:bg-[var(--app-shell-panel-strong)]/72 dark:md:hover:bg-white/5 ${

@@ -9,6 +9,10 @@ import { AddWatchlistModal } from './AddWatchlistModal';
 import { AddFundModal } from './AddFundModal';
 import { FundDetail } from './FundDetail';
 import { AnimatePresence } from 'framer-motion';
+import { hasTouchMovedBeyondThreshold } from '../services/longPressGesture';
+
+const LONG_PRESS_DURATION_MS = 600;
+const TOUCH_MOVE_CANCEL_THRESHOLD_PX = 12;
 
 export const Watchlist: React.FC = () => {
   const watchlists = useLiveQuery(() => db.watchlists.toArray());
@@ -59,6 +63,8 @@ export const Watchlist: React.FC = () => {
     null,
   );
   const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const touchStartPointRef = useRef<{ x: number; y: number } | null>(null);
+  const isScrollGestureRef = useRef(false);
 
   useEffect(() => {
     refreshWatchlistData();
@@ -77,14 +83,40 @@ export const Watchlist: React.FC = () => {
   };
 
   const handleTouchStart = (itemId: number, e: React.TouchEvent) => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+
     const touch = e.touches[0];
     const x = touch.clientX;
     const y = touch.clientY;
+    touchStartPointRef.current = { x, y };
+    isScrollGestureRef.current = false;
 
     longPressTimerRef.current = setTimeout(() => {
+      if (isScrollGestureRef.current) return;
       setContextMenu({ x, y, itemId });
       if (navigator.vibrate) navigator.vibrate(50);
-    }, 600);
+    }, LONG_PRESS_DURATION_MS);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!touchStartPointRef.current || isScrollGestureRef.current) return;
+    const touch = e.touches[0];
+    const hasMoved = hasTouchMovedBeyondThreshold(
+      touchStartPointRef.current,
+      { x: touch.clientX, y: touch.clientY },
+      TOUCH_MOVE_CANCEL_THRESHOLD_PX,
+    );
+
+    if (!hasMoved) return;
+
+    isScrollGestureRef.current = true;
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
   };
 
   const handleTouchEnd = () => {
@@ -92,6 +124,8 @@ export const Watchlist: React.FC = () => {
       clearTimeout(longPressTimerRef.current);
       longPressTimerRef.current = null;
     }
+    touchStartPointRef.current = null;
+    isScrollGestureRef.current = false;
   };
 
   const handleEdit = (item: WatchlistItem) => {
@@ -403,6 +437,7 @@ export const Watchlist: React.FC = () => {
                     key={item.id}
                     onContextMenu={(e) => item.id && handleContextMenu(e, item.id)}
                     onTouchStart={(e) => item.id && handleTouchStart(item.id, e)}
+                    onTouchMove={handleTouchMove}
                     onTouchEnd={handleTouchEnd}
                     onTouchCancel={handleTouchEnd}
                     onClick={() => handleRowClick(item)}
