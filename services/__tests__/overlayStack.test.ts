@@ -5,7 +5,7 @@ import {
   registerOverlay,
   resetOverlayStack,
   unregisterOverlay,
-} from './overlayStack';
+} from '../overlayStack';
 
 describe('overlayStack', () => {
   beforeEach(() => {

@@ -2,8 +2,8 @@
 import React from 'react';
 import '@testing-library/jest-dom';
 import { fireEvent, render, screen } from '@testing-library/react';
-import { Header } from './Header';
-import { LanguageProvider } from '../services/i18n';
+import { Header } from '../Header';
+import { LanguageProvider } from '../../services/i18n';
 
 describe('Header', () => {
   it('renders the provided title without decorative editorial labels', () => {

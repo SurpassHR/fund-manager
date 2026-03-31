@@ -6,10 +6,10 @@ import {
   fetchFundCommonData,
   fetchFundHoldings,
   fetchTencentStockQuotes,
-} from './api';
-import { runFundQuotePipeline } from './fundQuotePipeline';
+} from '../api';
+import { runFundQuotePipeline } from '../fundQuotePipeline';
 
-vi.mock('./api', () => ({
+vi.mock('../api', () => ({
   fetchEastMoneyLatestNav: vi.fn(),
   fetchFundCommonData: vi.fn(),
   fetchFundHoldings: vi.fn(),

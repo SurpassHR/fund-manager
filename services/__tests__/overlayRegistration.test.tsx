@@ -1,8 +1,8 @@
 import type React from 'react';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { render } from '@testing-library/react';
-import { useOverlayRegistration } from './overlayRegistration.tsx';
-import { getActiveOverlayId, resetOverlayStack } from './overlayStack';
+import { useOverlayRegistration } from '../overlayRegistration.tsx';
+import { getActiveOverlayId, resetOverlayStack } from '../overlayStack';
 
 const Demo: React.FC<{ open: boolean }> = ({ open }) => {
   useOverlayRegistration('demo', open, () => undefined);

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getEffectiveOperationDate, roundMoney, roundShares } from './rebalanceUtils';
+import { getEffectiveOperationDate, roundMoney, roundShares } from '../rebalanceUtils';
 
 describe('rebalanceUtils', () => {
   it('keeps weekday date for before15', () => {

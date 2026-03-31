@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { computeSwipeProgress } from './edgeSwipeUtils';
+import { computeSwipeProgress } from '../edgeSwipeUtils';
 
 describe('edgeSwipeUtils', () => {
   it('requires inward swipe by edge', () => {

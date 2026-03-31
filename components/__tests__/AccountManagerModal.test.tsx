@@ -2,7 +2,7 @@
 import React from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import { AccountManagerModal } from './AccountManagerModal';
+import { AccountManagerModal } from '../AccountManagerModal';
 import { useLiveQuery } from 'dexie-react-hooks';
 
 const mockedUseLiveQuery = vi.mocked(useLiveQuery);
@@ -11,11 +11,11 @@ vi.mock('dexie-react-hooks', () => ({
   useLiveQuery: vi.fn(() => []),
 }));
 
-vi.mock('../services/i18n', () => ({
+vi.mock('../../services/i18n', () => ({
   useTranslation: () => ({ t: (key: string) => key }),
 }));
 
-vi.mock('../services/db', () => ({
+vi.mock('../../services/db', () => ({
   db: {
     accounts: {
       add: vi.fn(),

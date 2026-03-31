@@ -2,8 +2,8 @@
 import React from 'react';
 import '@testing-library/jest-dom';
 import { render, screen, within } from '@testing-library/react';
-import { BottomNav } from './BottomNav';
-import { LanguageProvider } from '../services/i18n';
+import { BottomNav } from '../BottomNav';
+import { LanguageProvider } from '../../services/i18n';
 
 describe('BottomNav', () => {
   it('renders exactly one active animation indicator', () => {

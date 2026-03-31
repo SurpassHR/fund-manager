@@ -1,8 +1,8 @@
 /// <reference types="vitest/globals" />
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Fund, PendingTransaction } from '../types';
-import { TransactionHistoryModal } from './TransactionHistoryModal';
+import type { Fund, PendingTransaction } from '../../types';
+import { TransactionHistoryModal } from '../TransactionHistoryModal';
 
 const mockedDeps = vi.hoisted(() => ({
   t: (key: string) => {
@@ -29,15 +29,15 @@ const mockedDeps = vi.hoisted(() => ({
   deletePendingTransaction: vi.fn(),
 }));
 
-vi.mock('../services/i18n', () => ({
+vi.mock('../../services/i18n', () => ({
   useTranslation: () => ({ t: mockedDeps.t }),
 }));
 
-vi.mock('../services/db', () => ({
+vi.mock('../../services/db', () => ({
   deletePendingTransaction: mockedDeps.deletePendingTransaction,
 }));
 
-vi.mock('../services/useEdgeSwipe', () => ({
+vi.mock('../../services/useEdgeSwipe', () => ({
   resetDragState: vi.fn(),
   useEdgeSwipe: () => ({
     isDragging: false,
@@ -47,7 +47,7 @@ vi.mock('../services/useEdgeSwipe', () => ({
   }),
 }));
 
-vi.mock('../services/overlayRegistration', () => ({
+vi.mock('../../services/overlayRegistration', () => ({
   useOverlayRegistration: vi.fn(),
 }));
 
@@ -79,7 +79,10 @@ const buildFund = (txs: PendingTransaction[]): Fund => ({
 describe('TransactionHistoryModal delete flow', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.stubGlobal('confirm', vi.fn(() => true));
+    vi.stubGlobal(
+      'confirm',
+      vi.fn(() => true),
+    );
     mockedDeps.deletePendingTransaction.mockResolvedValue({
       deletedCount: 1,
       affectedFundIds: [1],

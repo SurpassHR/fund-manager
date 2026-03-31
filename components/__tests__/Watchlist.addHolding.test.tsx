@@ -2,8 +2,8 @@
 import React from 'react';
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { Watchlist } from './Watchlist';
-import type { Fund, WatchlistItem } from '../types';
+import { Watchlist } from '../Watchlist';
+import type { Fund, WatchlistItem } from '../../types';
 
 const mocked = vi.hoisted(() => {
   const state: {
@@ -26,7 +26,7 @@ vi.mock('dexie-react-hooks', () => ({
   useLiveQuery: (fn: () => unknown) => fn(),
 }));
 
-vi.mock('../services/db', () => ({
+vi.mock('../../services/db', () => ({
   db: {
     watchlists: {
       toArray: () => mocked.state.watchlists,
@@ -40,17 +40,17 @@ vi.mock('../services/db', () => ({
   refreshWatchlistData: mocked.refreshWatchlistData,
 }));
 
-vi.mock('../services/i18n', () => ({
+vi.mock('../../services/i18n', () => ({
   useTranslation: () => ({
     t: (key: string) => key,
   }),
 }));
 
-vi.mock('./AddWatchlistModal', () => ({
+vi.mock('../AddWatchlistModal', () => ({
   AddWatchlistModal: () => null,
 }));
 
-vi.mock('./FundDetail', () => ({
+vi.mock('../FundDetail', () => ({
   FundDetail: () => null,
 }));
 
@@ -58,7 +58,7 @@ vi.mock('framer-motion', () => ({
   AnimatePresence: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 
-vi.mock('./AddFundModal', () => ({
+vi.mock('../AddFundModal', () => ({
   AddFundModal: (props: {
     isOpen: boolean;
     onClose: () => void;

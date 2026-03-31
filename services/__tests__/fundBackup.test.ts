@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import type { Account, Fund, WatchlistItem } from '../types';
+import type { Account, Fund, WatchlistItem } from '../../types';
 import {
   buildFundBackupPayload,
   buildFundBackupKey,
   findDuplicateFundBackupKeys,
   parseAndNormalizeFundBackup,
   parseAndNormalizeFundBackupPayload,
-} from './fundBackup';
+} from '../fundBackup';
 
 const buildFund = (overrides?: Partial<Fund>): Fund => ({
   code: '000001',

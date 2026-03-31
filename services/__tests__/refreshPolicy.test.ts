@@ -4,7 +4,7 @@ import {
   isRefreshStale,
   readRefreshLastSuccessAt,
   writeRefreshLastSuccessAt,
-} from './refreshPolicy';
+} from '../refreshPolicy';
 
 describe('refreshPolicy', () => {
   it('builds scope-specific storage keys', () => {

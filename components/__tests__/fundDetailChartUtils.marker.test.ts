@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import type { PendingTransaction } from '../types';
-import { buildTradeMarkersFromTransactions } from './fundDetailChartUtils';
+import type { PendingTransaction } from '../../types';
+import { buildTradeMarkersFromTransactions } from '../fundDetailChartUtils';
 
 const buildTx = (overrides: Partial<PendingTransaction>): PendingTransaction => ({
   id: 'tx-1',

@@ -1,7 +1,7 @@
 import '@testing-library/jest-dom';
 import { render, screen } from '@testing-library/react';
 import { expect, it } from 'vitest';
-import { TradeMarkerLegend } from './TradeMarkerLegend';
+import { TradeMarkerLegend } from '../TradeMarkerLegend';
 import {
   buildTradeMarkersFromTransactions,
   buildChartOption,
@@ -9,7 +9,7 @@ import {
   buildLegendViewModel,
   buildTradeMarkers,
   getTradeLegendLabels,
-} from './fundDetailChartUtils';
+} from '../fundDetailChartUtils';
 
 it('uses unified transaction marker builder to reflect deletion changes', () => {
   const dates = ['2026-03-20', '2026-03-21'];

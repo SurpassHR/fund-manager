@@ -2,8 +2,8 @@
 import React from 'react';
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { Dashboard } from './Dashboard';
-import type { Account, Fund } from '../types';
+import { Dashboard } from '../Dashboard';
+import type { Account, Fund } from '../../types';
 
 const mocked = vi.hoisted(() => {
   const state: {
@@ -25,7 +25,7 @@ vi.mock('dexie-react-hooks', () => ({
   useLiveQuery: (fn: () => unknown) => fn(),
 }));
 
-vi.mock('../services/db', () => ({
+vi.mock('../../services/db', () => ({
   db: {
     funds: {
       toArray: () => mocked.state.funds,
@@ -45,13 +45,13 @@ vi.mock('../services/db', () => ({
   }),
 }));
 
-vi.mock('../services/i18n', () => ({
+vi.mock('../../services/i18n', () => ({
   useTranslation: () => ({
     t: (key: string) => key,
   }),
 }));
 
-vi.mock('../services/SettingsContext', () => ({
+vi.mock('../../services/SettingsContext', () => ({
   useSettings: () => ({
     autoRefresh: false,
   }),
@@ -61,31 +61,31 @@ vi.mock('framer-motion', () => ({
   AnimatePresence: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 
-vi.mock('./AccountManagerModal', () => ({
+vi.mock('../AccountManagerModal', () => ({
   AccountManagerModal: () => null,
 }));
 
-vi.mock('./AddFundModal', () => ({
+vi.mock('../AddFundModal', () => ({
   AddFundModal: () => null,
 }));
 
-vi.mock('./AdjustPositionModal', () => ({
+vi.mock('../AdjustPositionModal', () => ({
   AdjustPositionModal: () => null,
 }));
 
-vi.mock('./RebalanceModal', () => ({
+vi.mock('../RebalanceModal', () => ({
   RebalanceModal: () => null,
 }));
 
-vi.mock('./TransactionHistoryModal', () => ({
+vi.mock('../TransactionHistoryModal', () => ({
   TransactionHistoryModal: () => null,
 }));
 
-vi.mock('./FundDetail', () => ({
+vi.mock('../FundDetail', () => ({
   FundDetail: () => null,
 }));
 
-vi.mock('./AiHoldingsAnalysisModal', () => ({
+vi.mock('../AiHoldingsAnalysisModal', () => ({
   AiHoldingsAnalysisModal: () => null,
 }));
 

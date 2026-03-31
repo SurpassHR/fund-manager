@@ -2,7 +2,7 @@
 import React from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { SettingsPage } from './SettingsPage';
+import { SettingsPage } from '../SettingsPage';
 
 const mockedDeps = vi.hoisted(() => ({
   setGithubToken: vi.fn(),
@@ -43,31 +43,31 @@ const mockedDeps = vi.hoisted(() => ({
 
 let chooserLastProps: Record<string, unknown> | null = null;
 
-vi.mock('../services/i18n', () => ({
+vi.mock('../../services/i18n', () => ({
   useTranslation: () => ({ t: mockedDeps.t }),
 }));
 
-vi.mock('../services/ThemeContext', () => ({
+vi.mock('../../services/ThemeContext', () => ({
   useTheme: () => mockedDeps.theme,
 }));
 
-vi.mock('../services/SettingsContext', () => ({
+vi.mock('../../services/SettingsContext', () => ({
   useSettings: () => mockedDeps.settings,
 }));
 
-vi.mock('../services/aiOcr', () => ({
+vi.mock('../../services/aiOcr', () => ({
   listOpenAiModels: vi.fn(async () => []),
   listGeminiModels: vi.fn(async () => []),
 }));
 
-vi.mock('../services/db', () => ({
+vi.mock('../../services/db', () => ({
   exportFunds: vi.fn(async () => {}),
   importFunds: vi.fn(async () => ({ added: 1, skipped: 0 })),
   importFundsFromBackupContent: mockedDeps.importFundsFromBackupContent,
   exportFundsToJsonString: mockedDeps.exportFundsToJsonString,
 }));
 
-vi.mock('../services/gistSync/index', () => ({
+vi.mock('../../services/gistSync/index', () => ({
   GIST_SYNC_FILENAME: 'fund-manager-sync.json',
   GistClientError: class extends Error {
     code: string;
@@ -85,7 +85,7 @@ vi.mock('../services/gistSync/index', () => ({
   overwriteSyncGist: mockedDeps.overwriteSyncGist,
 }));
 
-vi.mock('./GistSyncChooserCard', () => ({
+vi.mock('../GistSyncChooserCard', () => ({
   GistSyncChooserCard: (props: Record<string, unknown>) => {
     chooserLastProps = props;
     return <div data-testid="gist-chooser" />;

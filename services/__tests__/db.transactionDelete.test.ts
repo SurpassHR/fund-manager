@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { Fund, PendingTransaction } from '../types';
-import { db, deletePendingTransaction } from './db';
+import type { Fund, PendingTransaction } from '../../types';
+import { db, deletePendingTransaction } from '../db';
 
 const buildTx = (overrides?: Partial<PendingTransaction>): PendingTransaction => ({
   id: 'tx-1',
@@ -93,14 +93,8 @@ describe('deletePendingTransaction', () => {
     });
     expect(transactionSpy).toHaveBeenCalledTimes(1);
     expect(updateSpy).toHaveBeenCalledTimes(2);
-    expect(updateSpy).toHaveBeenCalledWith(
-      1,
-      expect.objectContaining({ pendingTransactions: [] }),
-    );
-    expect(updateSpy).toHaveBeenCalledWith(
-      2,
-      expect.objectContaining({ pendingTransactions: [] }),
-    );
+    expect(updateSpy).toHaveBeenCalledWith(1, expect.objectContaining({ pendingTransactions: [] }));
+    expect(updateSpy).toHaveBeenCalledWith(2, expect.objectContaining({ pendingTransactions: [] }));
   });
 
   it('rejects linked delete when matched transfer records exceed guardrail', async () => {
@@ -152,7 +146,10 @@ describe('deletePendingTransaction', () => {
     const sourceTx = buildTx({ id: 'tx-out', type: 'transferOut', transferId });
     const targetTx = buildTx({ id: 'tx-in', type: 'transferIn', transferId });
 
-    vi.spyOn(db.funds, 'toArray').mockResolvedValue([buildFund(1, [sourceTx]), buildFund(2, [targetTx])]);
+    vi.spyOn(db.funds, 'toArray').mockResolvedValue([
+      buildFund(1, [sourceTx]),
+      buildFund(2, [targetTx]),
+    ]);
     const updateSpy = vi.spyOn(db.funds, 'update').mockResolvedValue(1);
 
     const result = await deletePendingTransaction({

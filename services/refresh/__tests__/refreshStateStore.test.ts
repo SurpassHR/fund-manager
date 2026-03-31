@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { RefreshStateStore } from './refreshStateStore';
+import { RefreshStateStore } from '../refreshStateStore';
 
 describe('RefreshStateStore', () => {
   it('tracks running and last success for task', () => {
@@ -19,7 +19,7 @@ describe('RefreshStateStore', () => {
   it('tracks partial failure and stale flags', () => {
     const store = new RefreshStateStore();
 
-    store.markTaskFailure('watchlist', new Error('network'));    
+    store.markTaskFailure('watchlist', new Error('network'));
     store.markTaskStale('watchlist', true);
 
     const snapshot = store.getSnapshot();

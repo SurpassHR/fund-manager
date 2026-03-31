@@ -5,8 +5,8 @@ import {
   listSyncGists,
   validateGithubTokenFormat,
   verifyGithubToken,
-} from './client';
-import { GIST_SYNC_FILENAME } from './types';
+} from '../client';
+import { GIST_SYNC_FILENAME } from '../types';
 
 const mockedFetch = vi.fn();
 

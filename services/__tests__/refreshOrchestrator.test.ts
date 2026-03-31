@@ -6,7 +6,7 @@ const mocked = vi.hoisted(() => ({
   runSettlementPipeline: vi.fn(async () => {}),
 }));
 
-vi.mock('./db', () => ({
+vi.mock('../db', () => ({
   refreshFundData: mocked.refreshFundData,
   refreshWatchlistData: mocked.refreshWatchlistData,
   runSettlementPipeline: mocked.runSettlementPipeline,
@@ -19,9 +19,8 @@ describe('refreshOrchestrator', () => {
   });
 
   it('uses legacy path by default and keeps settlement coupled', async () => {
-    const { refreshHoldingsWithStrategy, getRefreshMetricsSnapshot } = await import(
-      './refreshOrchestrator'
-    );
+    const { refreshHoldingsWithStrategy, getRefreshMetricsSnapshot } =
+      await import('../refreshOrchestrator');
 
     await refreshHoldingsWithStrategy();
 
@@ -38,9 +37,8 @@ describe('refreshOrchestrator', () => {
   });
 
   it('uses unified path when gray flag is enabled', async () => {
-    const { refreshHoldingsWithStrategy, getRefreshMetricsSnapshot } = await import(
-      './refreshOrchestrator'
-    );
+    const { refreshHoldingsWithStrategy, getRefreshMetricsSnapshot } =
+      await import('../refreshOrchestrator');
 
     await refreshHoldingsWithStrategy({ force: true, useUnifiedRefresh: true });
 
@@ -57,9 +55,8 @@ describe('refreshOrchestrator', () => {
   });
 
   it('records watchlist refresh metrics', async () => {
-    const { refreshWatchlistWithMetrics, getRefreshMetricsSnapshot } = await import(
-      './refreshOrchestrator'
-    );
+    const { refreshWatchlistWithMetrics, getRefreshMetricsSnapshot } =
+      await import('../refreshOrchestrator');
 
     await refreshWatchlistWithMetrics({ force: true });
 

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { RefreshOrchestrator } from './refreshOrchestrator';
+import { RefreshOrchestrator } from '../refreshOrchestrator';
 
 describe('RefreshOrchestrator', () => {
   it('dedupes repeated requests for the same task', async () => {

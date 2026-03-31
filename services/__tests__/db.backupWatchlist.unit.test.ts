@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { db, exportFundsToJsonString, importFundsFromBackupContent } from './db';
+import { db, exportFundsToJsonString, importFundsFromBackupContent } from '../db';
 
 describe('db backup watchlist sync data flow', () => {
   afterEach(() => {

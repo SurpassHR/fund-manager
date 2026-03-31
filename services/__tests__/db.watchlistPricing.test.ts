@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { deriveFundIntradayDisplayMetrics, deriveWatchlistFundEffectivePrice } from './db';
+import { deriveFundIntradayDisplayMetrics, deriveWatchlistFundEffectivePrice } from '../db';
 
 describe('deriveWatchlistFundEffectivePrice', () => {
   it('uses estimated day pct to project today fund price', () => {

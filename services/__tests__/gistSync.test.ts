@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { validateSyncPayload } from './gistSync';
+import { validateSyncPayload } from '../gistSync';
 
 describe('validateSyncPayload', () => {
   it('accepts valid payload', () => {

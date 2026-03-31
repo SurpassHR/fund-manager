@@ -1,7 +1,7 @@
 /// <reference types="vitest/globals" />
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import { GistSyncChooserCard } from './GistSyncChooserCard';
+import { GistSyncChooserCard } from '../GistSyncChooserCard';
 
 const mockGists = [
   {

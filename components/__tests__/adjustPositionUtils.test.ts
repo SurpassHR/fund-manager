@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseSellInputToShares } from './adjustPositionUtils';
+import { parseSellInputToShares } from '../adjustPositionUtils';
 
 describe('parseSellInputToShares', () => {
   it('parses plain shares input', () => {

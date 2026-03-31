@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { hasTouchMovedBeyondThreshold } from './longPressGesture';
+import { hasTouchMovedBeyondThreshold } from '../longPressGesture';
 
 describe('hasTouchMovedBeyondThreshold', () => {
   it('位移未超过阈值时返回 false', () => {

@@ -2,9 +2,9 @@
 import React from 'react';
 import '@testing-library/jest-dom';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { WelcomeModal } from './WelcomeModal';
-import { LanguageProvider } from '../services/i18n';
-import { EdgeSwipeProvider } from '../services/edgeSwipeState';
+import { WelcomeModal } from '../WelcomeModal';
+import { LanguageProvider } from '../../services/i18n';
+import { EdgeSwipeProvider } from '../../services/edgeSwipeState';
 
 const CURRENT_VERSION = 'v0.2.0';
 
