@@ -362,7 +362,7 @@ export const Watchlist: React.FC = () => {
                     />
                   )}
                 </button>
-                <div />
+                <div>现价</div>
                 <button
                   onClick={() => handleSort('anchorGain')}
                   className="flex items-center justify-end gap-1 transition-colors hover:text-slate-700 dark:hover:text-gray-200"
@@ -441,88 +441,89 @@ export const Watchlist: React.FC = () => {
                     onTouchEnd={handleTouchEnd}
                     onTouchCancel={handleTouchEnd}
                     onClick={() => handleRowClick(item)}
-                    className={`group flex items-start justify-between gap-2 cursor-pointer select-none border-b border-[var(--app-shell-line)]/80 px-4 py-4 transition-colors dark:border-border-dark md:flex-row md:border-none md:hover:bg-[var(--app-shell-panel-strong)]/72 dark:md:hover:bg-white/5 ${contextMenu?.itemId === item.id ? 'bg-[var(--app-shell-panel-strong)] dark:bg-white/10' : ''}`}
+                    className={`group relative cursor-pointer select-none border-b border-[var(--app-shell-line)]/80 px-4 py-3 transition-colors last:border-b-0 active:bg-[var(--app-shell-panel-strong)] dark:border-border-dark dark:active:bg-white/5 md:px-5 md:py-3.5 md:hover:bg-[var(--app-shell-panel-strong)]/72 dark:md:hover:bg-white/5 ${
+                      contextMenu?.itemId === item.id
+                        ? 'bg-[var(--app-shell-panel-strong)] dark:bg-white/10'
+                        : ''
+                    }`}
                   >
-                    <div className="min-w-0 flex-1 md:flex-[1.5] md:self-center">
-                      <div className="hidden items-center gap-2 md:flex">
-                        <span className="rounded-full border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)]/92 px-2 py-1 text-[10px] font-semibold tracking-[0.14em] whitespace-nowrap shrink-0 text-slate-700 dark:border-blue-400/20 dark:bg-blue-500/10 dark:text-blue-200">
-                          {item.code}
-                        </span>
-                        <span
-                          className={`rounded-full border px-2 py-1 text-[10px] font-semibold tracking-[0.14em] whitespace-nowrap shrink-0 ${
-                            item.type === 'index'
-                              ? 'border-[var(--app-shell-line-strong)] bg-[var(--app-shell-panel-strong)] text-slate-700 dark:border-purple-400/20 dark:bg-purple-500/10 dark:text-purple-300'
-                              : 'border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] text-slate-500 dark:border-white/10 dark:bg-white/5 dark:text-gray-400'
-                          }`}
-                        >
-                          {item.type === 'index' ? '指数' : '基金'}
-                        </span>
-                        <h3 className="truncate text-sm font-medium text-slate-800 dark:text-gray-100">
-                          {item.name}
-                        </h3>
-                      </div>
-
-                      <div className="flex flex-col gap-1 md:hidden">
-                        <div className="flex items-center gap-1.5">
-                          <h3 className="truncate text-sm font-medium leading-tight text-slate-800 dark:text-gray-100">
-                            {item.name}
-                          </h3>
+                    <div className="flex flex-col gap-3 md:flex-row md:items-center">
+                      <div className="min-w-0 flex-1 md:flex-[1.6] md:pr-4">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="rounded-full border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)]/92 px-2 py-1 text-[10px] font-semibold tracking-[0.14em] text-slate-700 dark:border-blue-400/20 dark:bg-blue-500/10 dark:text-blue-200">
+                            {item.code}
+                          </span>
                           <span
-                            className={`rounded-full px-2 py-0.5 text-[9px] font-bold whitespace-nowrap ${
+                            className={`rounded-full border px-2 py-1 text-[10px] font-semibold tracking-[0.14em] whitespace-nowrap shrink-0 ${
                               item.type === 'index'
-                                ? 'bg-[var(--app-shell-panel-strong)] text-slate-700 dark:bg-purple-900/40 dark:text-purple-400'
-                                : 'bg-[var(--app-shell-panel-strong)] text-slate-500 dark:bg-white/10 dark:text-gray-400'
+                                ? 'border-[var(--app-shell-line-strong)] bg-[var(--app-shell-panel-strong)] text-slate-700 dark:border-purple-400/20 dark:bg-purple-500/10 dark:text-purple-300'
+                                : 'border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] text-slate-500 dark:border-white/10 dark:bg-white/5 dark:text-gray-400'
                             }`}
                           >
                             {item.type === 'index' ? '指数' : '基金'}
                           </span>
                         </div>
-                        <div className="flex items-center justify-between pr-2">
-                          <span className="text-xs text-slate-400">{item.code}</span>
-                        </div>
-                      </div>
-                    </div>
 
-                    <div className="hidden w-full flex-[4] grid-cols-4 items-start gap-4 text-right text-sm md:grid">
-                      <div className="text-left text-xs text-slate-500 dark:text-gray-400">
-                        <div className="flex items-center gap-1 text-slate-700 dark:text-gray-200">
-                          {item.anchorPrice.toFixed(4)}
-                          <span className="rounded bg-[var(--app-shell-panel-strong)] px-1 text-[10px] text-slate-400 dark:bg-white/5 dark:text-gray-500">
-                            {item.anchorDate}
-                          </span>
-                        </div>
-                        <div className="mt-1 text-slate-400 dark:text-gray-500">
-                          {item.currentPrice.toFixed(4)}
+                        <div className="mt-2">
+                          <h3 className="truncate text-[15px] font-semibold tracking-tight text-slate-900 dark:text-gray-50 md:text-base">
+                            {item.name}
+                          </h3>
+                          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500 dark:text-gray-400 md:hidden">
+                            <span>锚点 {item.anchorPrice.toFixed(4)}</span>
+                            <span>现价 {item.currentPrice.toFixed(4)}</span>
+                          </div>
                         </div>
                       </div>
-                      <div className={`font-medium ${getSignColor(item.dayChangePct)}`}>
-                        {formatPct(item.dayChangePct)}
-                      </div>
-                      <div />
-                      <div className={`font-bold ${getSignColor(anchorGainPct)}`}>
-                        {formatPct(anchorGainPct)}
-                      </div>
-                    </div>
 
-                    <div className="flex flex-none gap-2 text-right md:hidden">
-                      <div className="w-[4.9rem] rounded-2xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)]/90 px-3 py-3 dark:border-white/10 dark:bg-white/5">
-                        <div className={`text-base font-bold ${getSignColor(item.dayChangePct)}`}>
+                      <div className="hidden md:grid md:flex-[4] md:grid-cols-4 md:gap-4 md:text-right">
+                        <div className="text-left text-xs text-slate-500 dark:text-gray-400">
+                          <div className="font-semibold text-slate-700 dark:text-gray-200">
+                            {item.anchorPrice.toFixed(4)}
+                          </div>
+                          <div className="mt-1 text-slate-400 dark:text-gray-500">
+                            {item.currentPrice.toFixed(4)}
+                          </div>
+                        </div>
+                        <div className={`text-sm font-semibold ${getSignColor(item.dayChangePct)}`}>
                           {formatPct(item.dayChangePct)}
                         </div>
-                        <div className="mt-2 text-[10px] text-slate-400 dark:text-gray-500">
-                          现价 {item.currentPrice.toFixed(4)}
+                        <div className="text-sm font-semibold text-slate-700 dark:text-gray-200">
+                          {item.currentPrice.toFixed(4)}
+                        </div>
+                        <div className="flex flex-col items-end">
+                          <div className={`text-sm font-semibold ${getSignColor(anchorGainPct)}`}>
+                            {formatPct(anchorGainPct)}
+                          </div>
+                          <div className="mt-1 text-[10px] font-medium tracking-[0.14em] text-slate-400 dark:text-gray-500">
+                            {item.anchorDate}
+                          </div>
                         </div>
                       </div>
 
-                      <div className="w-[5.2rem] rounded-2xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)]/80 px-3 py-3 dark:border-white/10 dark:bg-white/5">
-                        <div className={`text-base font-bold ${getSignColor(anchorGainPct)}`}>
-                          {formatPct(anchorGainPct)}
+                      <div className="mt-2 flex items-stretch gap-1.5 md:hidden">
+                        <div className="min-w-0 flex-1 rounded-xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)]/90 px-2 py-2 text-right dark:border-white/10 dark:bg-white/5">
+                          <div
+                            className={`truncate text-[13px] font-black leading-none tracking-[-0.02em] ${getSignColor(item.dayChangePct)}`}
+                          >
+                            {formatPct(item.dayChangePct)}
+                          </div>
+                          <div className="mt-1 truncate text-[9px] font-semibold tracking-[0.1em] text-slate-400 dark:text-gray-500">
+                            现价 {item.currentPrice.toFixed(4)}
+                          </div>
                         </div>
-                        <div className="mt-2 flex flex-col items-end text-[10px] text-slate-400 dark:text-gray-500">
-                          <span>锚点 {item.anchorPrice.toFixed(4)}</span>
-                          <span className="origin-right scale-90 opacity-70">
-                            ({item.anchorDate})
-                          </span>
+
+                        <div className="min-w-0 flex-1 rounded-xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)]/80 px-2 py-2 text-right dark:border-white/10 dark:bg-white/5">
+                          <div
+                            className={`truncate text-[13px] font-black leading-none tracking-[-0.02em] ${getSignColor(anchorGainPct)}`}
+                          >
+                            {formatPct(anchorGainPct)}
+                          </div>
+                          <div className="mt-1 truncate text-[9px] font-semibold tracking-[0.1em] text-slate-400 dark:text-gray-500">
+                            锚点 {item.anchorPrice.toFixed(4)}
+                          </div>
+                          <div className="mt-0.5 truncate text-[9px] font-medium text-slate-400 dark:text-gray-500">
+                            {item.anchorDate}
+                          </div>
                         </div>
                       </div>
                     </div>

@@ -11,6 +11,7 @@ import {
   buildFundBackupPayload,
   parseAndNormalizeFundBackupPayload,
 } from './fundBackup';
+import { sanitizeWatchlistName } from './watchlistName';
 import { runFundQuotePipeline } from './fundQuotePipeline';
 import type { RefreshExecutionResult, RefreshExecutionStatus } from './refreshPolicy';
 
@@ -62,9 +63,22 @@ export const initDB = () => {
       if (accountsCount === 0) {
         await db.accounts.bulkAdd([{ name: 'Default', isDefault: true }]);
       }
+
+      await migrateWatchlistNamesInDb();
     })();
   }
   return initPromise;
+};
+
+export const migrateWatchlistNamesInDb = async () => {
+  const allItems = await db.watchlists.toArray();
+
+  for (const item of allItems) {
+    if (!item.id) continue;
+    const normalizedName = sanitizeWatchlistName(item.name, item.code);
+    if (normalizedName === item.name) continue;
+    await db.watchlists.update(item.id, { name: normalizedName });
+  }
 };
 
 /**
