@@ -87,7 +87,8 @@ describe('Watchlist add holding from context menu', () => {
         anchorPrice: 1.2,
         anchorDate: '2026-03-20',
         currentPrice: 1.2345,
-        dayChangePct: 0.5,
+        dayChangePct: 0,
+        todayChangeUnavailable: true,
         lastUpdate: '2026-03-20',
       },
       {
@@ -99,6 +100,7 @@ describe('Watchlist add holding from context menu', () => {
         anchorDate: '2026-03-20',
         currentPrice: 2.1,
         dayChangePct: 0.2,
+        todayChangeIsEstimated: true,
         lastUpdate: '2026-03-20',
       },
       {
@@ -222,7 +224,7 @@ describe('Watchlist add holding from context menu', () => {
     render(<Watchlist />);
 
     const currentPriceLabel = screen
-      .getAllByText('现价 1.2345')
+      .getAllByText('common.noEstimate')
       .find((node) => node.className.includes('text-[9px]'));
     expect(currentPriceLabel).toBeDefined();
     if (!currentPriceLabel) {
@@ -271,5 +273,17 @@ describe('Watchlist add holding from context menu', () => {
 
     expect(screen.getByText('common.menu')).toBeInTheDocument();
     vi.useRealTimers();
+  });
+
+  it('基金条目展示估值状态，指数条目不展示状态 badge', () => {
+    render(<Watchlist />);
+
+    expect(screen.getAllByText('common.noEstimate').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('common.estimated').length).toBeGreaterThan(0);
+
+    const indexRow = screen.getAllByText('上证指数')[0].closest('div.group');
+    expect(indexRow).not.toBeNull();
+    expect(indexRow).not.toHaveTextContent('common.noEstimate');
+    expect(indexRow).not.toHaveTextContent('common.estimated');
   });
 });

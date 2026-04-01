@@ -100,28 +100,74 @@ export const deriveWatchlistFundEffectivePrice = (params: {
   todayStr: string;
   shouldEstimate: boolean;
   estimatedChangePct?: number;
-  fallbackChangePct?: number;
   anchorDate?: string;
 }) => {
-  const {
-    nav,
-    navDate,
-    todayStr,
-    shouldEstimate,
-    estimatedChangePct,
-    fallbackChangePct,
-    anchorDate,
-  } = params;
-  const projectedPct = estimatedChangePct ?? fallbackChangePct;
-  const hasEstimate = shouldEstimate && projectedPct !== undefined;
+  const { nav, navDate, todayStr, shouldEstimate, estimatedChangePct, anchorDate } = params;
+  const hasEstimate = shouldEstimate && estimatedChangePct !== undefined;
   const isOfficialTodayNav = navDate === todayStr;
   const isAnchorToday = anchorDate === todayStr;
 
   if (hasEstimate && !isOfficialTodayNav && !isAnchorToday) {
-    return nav * (1 + (projectedPct as number) / 100);
+    return nav * (1 + (estimatedChangePct as number) / 100);
   }
 
   return nav;
+};
+
+export const deriveFundIntradayDisplayMetrics = (params: {
+  holdingShares: number;
+  nav: number;
+  navDate: string;
+  todayStr: string;
+  navChangePercent: number;
+  shouldEstimate: boolean;
+  estimatedChangePct?: number;
+  isGainActive: boolean;
+}) => {
+  const {
+    holdingShares,
+    nav,
+    navDate,
+    todayStr,
+    navChangePercent,
+    shouldEstimate,
+    estimatedChangePct,
+    isGainActive,
+  } = params;
+
+  const hasOfficialTodayNav = navDate === todayStr;
+  const shouldTryEstimate = shouldEstimate && !hasOfficialTodayNav;
+  const hasEstimate = shouldTryEstimate && estimatedChangePct !== undefined;
+  const todayChangeUnavailable = shouldTryEstimate && !hasEstimate;
+  const effectivePctDate = shouldTryEstimate ? todayStr : navDate;
+
+  const dayChangePct = !isGainActive
+    ? 0
+    : hasEstimate
+      ? (estimatedChangePct as number)
+      : todayChangeUnavailable
+        ? 0
+        : navChangePercent;
+
+  let dayChangeVal = 0;
+  if (isGainActive) {
+    const mktVal = holdingShares * nav;
+    if (hasEstimate) {
+      dayChangeVal = mktVal * ((estimatedChangePct as number) / 100);
+    } else if (!todayChangeUnavailable) {
+      dayChangeVal = (mktVal * (navChangePercent / 100)) / (1 + navChangePercent / 100);
+    }
+  }
+
+  return {
+    effectivePctDate,
+    dayChangePct,
+    dayChangeVal,
+    officialDayChangePct: navChangePercent,
+    estimatedDayChangePct: isGainActive && hasEstimate ? (estimatedChangePct as number) : 0,
+    todayChangeIsEstimated: isGainActive && hasEstimate,
+    todayChangeUnavailable,
+  };
 };
 
 /**
@@ -584,41 +630,37 @@ export const refreshFundData = (options?: RefreshOptions) => {
         candidates.map(async (candidate) => {
           const { item: fund, nav, navDate, navChangePercent } = candidate;
           const estimatedChangePct = estimateMap.get(candidate.code);
-          const hasEstimate = candidate.shouldEstimate && estimatedChangePct !== undefined;
-
-          const effectivePctDate = hasEstimate ? todayStr : navDate;
 
           let isGainActive = true;
           if (fund.buyDate) {
             const costDateStr = getCostDateStr(fund.buyDate, fund.buyTime || 'before15');
+            const effectivePctDate =
+              candidate.shouldEstimate && navDate !== todayStr ? todayStr : navDate;
             if (effectivePctDate <= costDateStr) {
               isGainActive = false;
             }
           }
 
-          let dayChangeVal = 0;
-          if (isGainActive) {
-            const mktVal = fund.holdingShares * nav;
-            if (hasEstimate && estimatedChangePct !== undefined) {
-              dayChangeVal = mktVal * (estimatedChangePct / 100);
-            } else {
-              dayChangeVal = (mktVal * (navChangePercent / 100)) / (1 + navChangePercent / 100);
-            }
-          }
+          const metrics = deriveFundIntradayDisplayMetrics({
+            holdingShares: fund.holdingShares,
+            nav,
+            navDate,
+            todayStr,
+            navChangePercent,
+            shouldEstimate: candidate.shouldEstimate,
+            estimatedChangePct,
+            isGainActive,
+          });
 
-          const nextDayChangePct = isGainActive
-            ? hasEstimate && estimatedChangePct !== undefined
-              ? estimatedChangePct
-              : navChangePercent
-            : 0;
-
-          const officialDayChangePct = navChangePercent;
-          const estimatedDayChangePct =
-            isGainActive && hasEstimate && estimatedChangePct !== undefined
-              ? estimatedChangePct
-              : 0;
-          const todayChangeIsEstimated =
-            isGainActive && hasEstimate && estimatedChangePct !== undefined;
+          const {
+            effectivePctDate,
+            dayChangePct: nextDayChangePct,
+            dayChangeVal,
+            officialDayChangePct,
+            estimatedDayChangePct,
+            todayChangeIsEstimated,
+            todayChangeUnavailable,
+          } = metrics;
 
           const shouldSkipUpdate =
             isNearlyEqual(fund.currentNav, nav) &&
@@ -627,7 +669,8 @@ export const refreshFundData = (options?: RefreshOptions) => {
             isNearlyEqual(fund.dayChangeVal, dayChangeVal) &&
             isNearlyEqual(fund.officialDayChangePct ?? 0, officialDayChangePct) &&
             isNearlyEqual(fund.estimatedDayChangePct ?? 0, estimatedDayChangePct) &&
-            Boolean(fund.todayChangeIsEstimated) === todayChangeIsEstimated;
+            Boolean(fund.todayChangeIsEstimated) === todayChangeIsEstimated &&
+            Boolean(fund.todayChangeUnavailable) === todayChangeUnavailable;
 
           if (shouldSkipUpdate) return;
 
@@ -639,6 +682,7 @@ export const refreshFundData = (options?: RefreshOptions) => {
             officialDayChangePct,
             estimatedDayChangePct,
             todayChangeIsEstimated,
+            todayChangeUnavailable,
           });
         }),
       );
@@ -726,27 +770,33 @@ export const refreshWatchlistData = (options?: RefreshOptions) => {
           candidates.map(async (candidate) => {
             const { item, nav, navDate, navChangePercent } = candidate;
             const estimatedChangePct = estimateMap.get(candidate.code);
-            const projectedPct = estimatedChangePct ?? navChangePercent;
-            const shouldProjectToday =
-              candidate.shouldEstimate && navDate !== todayStr && projectedPct !== undefined;
-            const effectivePctDate = shouldProjectToday ? todayStr : navDate;
+            const hasOfficialTodayNav = navDate === todayStr;
+            const shouldTryEstimate = candidate.shouldEstimate && !hasOfficialTodayNav;
+            const hasEstimate = shouldTryEstimate && estimatedChangePct !== undefined;
+            const todayChangeUnavailable = shouldTryEstimate && !hasEstimate;
+            const effectivePctDate = shouldTryEstimate ? todayStr : navDate;
             const effectiveCurrentPrice = deriveWatchlistFundEffectivePrice({
               nav,
               navDate,
               todayStr,
               shouldEstimate: candidate.shouldEstimate,
               estimatedChangePct,
-              fallbackChangePct: navChangePercent,
               anchorDate: item.anchorDate,
             });
 
-            const nextDayChangePct = shouldProjectToday ? projectedPct : navChangePercent;
+            const nextDayChangePct = hasEstimate
+              ? (estimatedChangePct as number)
+              : todayChangeUnavailable
+                ? 0
+                : navChangePercent;
             const nextLastUpdate = effectivePctDate || todayStr;
 
             const shouldSkipUpdate =
               isNearlyEqual(item.currentPrice, effectiveCurrentPrice) &&
               isNearlyEqual(item.dayChangePct, nextDayChangePct) &&
-              item.lastUpdate === nextLastUpdate;
+              item.lastUpdate === nextLastUpdate &&
+              Boolean(item.todayChangeIsEstimated) === hasEstimate &&
+              Boolean(item.todayChangeUnavailable) === todayChangeUnavailable;
 
             if (shouldSkipUpdate) return;
 
@@ -754,6 +804,8 @@ export const refreshWatchlistData = (options?: RefreshOptions) => {
               currentPrice: effectiveCurrentPrice,
               dayChangePct: nextDayChangePct,
               lastUpdate: nextLastUpdate,
+              todayChangeIsEstimated: hasEstimate,
+              todayChangeUnavailable,
             });
           }),
         );

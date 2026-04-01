@@ -215,7 +215,6 @@ export const Dashboard: React.FC = () => {
     return fund.lastUpdate > max ? fund.lastUpdate : max;
   }, '');
   const displayDate = latestDateStr ? latestDateStr.substring(5) : '今天';
-  const todayStr = getLocalDateString();
 
   const activeFilterLabel =
     activeFilter === 'All'
@@ -806,7 +805,7 @@ export const Dashboard: React.FC = () => {
               const totalCost = fund.holdingShares * fund.costPrice;
               const totalReturn = holdingValue - totalCost;
               const officialDayChangePct = fund.officialDayChangePct ?? fund.dayChangePct;
-              const todayChangePct = fund.dayChangePct;
+              const todayChangePct = fund.todayChangeUnavailable ? 0 : fund.dayChangePct;
               const estimatedGainVal = (holdingValue * (fund.estimatedDayChangePct ?? 0)) / 100;
               const adjustedHoldingGain = totalReturn + estimatedGainVal;
               const adjustedHoldingGainPct =
@@ -815,9 +814,7 @@ export const Dashboard: React.FC = () => {
                 ? t('common.noEstimate') || '无估值'
                 : fund.todayChangeIsEstimated
                   ? t('common.estimated') || '估值'
-                  : fund.lastUpdate === todayStr
-                    ? t('common.updated') || '已更新'
-                    : '';
+                  : t('common.updated') || '已更新';
               const displayPlatform =
                 t(`filters.${fund.platform}`) === `filters.${fund.platform}`
                   ? fund.platform
