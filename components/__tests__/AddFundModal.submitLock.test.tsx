@@ -3,7 +3,7 @@ import React from 'react';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AddFundModal } from '../AddFundModal';
-import type { WatchlistItem } from '../../types';
+import type { Fund, WatchlistItem } from '../../types';
 
 const mocked = vi.hoisted(() => {
   const fundsAdd = vi.fn();
@@ -94,6 +94,31 @@ const createDeferred = <T,>() => {
   return { promise, resolve };
 };
 
+const getBuyDateInput = () => {
+  const label = screen.getByText('common.buyDate');
+  const input = label.parentElement?.querySelector('input');
+  if (!input) {
+    throw new Error('未找到买入日期输入框');
+  }
+  return input as HTMLInputElement;
+};
+
+const editFund: Fund = {
+  id: 1,
+  code: '000001',
+  name: '测试基金',
+  platform: 'Default',
+  holdingShares: 10,
+  costPrice: 1.2,
+  currentNav: 1.3,
+  lastUpdate: '2026-04-01',
+  dayChangePct: 0.3,
+  dayChangeVal: 0.03,
+  buyDate: '2026-04-01',
+  buyTime: 'before15',
+  settlementDays: 1,
+};
+
 describe('AddFundModal submit lock', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -165,5 +190,38 @@ describe('AddFundModal submit lock', () => {
         await refreshDeferred.promise;
       });
     }
+  });
+
+  it('买入日期键盘方向键不应拦截原生行为', async () => {
+    render(<AddFundModal isOpen onClose={vi.fn()} editFund={editFund} />);
+
+    const buyDateInput = getBuyDateInput();
+    const notCancelled = fireEvent.keyDown(buyDateInput, { key: 'ArrowDown' });
+
+    expect(notCancelled).toBe(true);
+  });
+
+  it('买入日期变更为空字符串时应保留当前日期', async () => {
+    render(
+      <AddFundModal isOpen onClose={vi.fn()} editFund={{ ...editFund, buyDate: '2026-04-01' }} />,
+    );
+
+    const buyDateInput = getBuyDateInput();
+    expect(buyDateInput.value).toBe('2026-04-01');
+
+    fireEvent.change(buyDateInput, { target: { value: '' } });
+
+    expect(buyDateInput.value).toBe('2026-04-01');
+  });
+
+  it('买入日期变更为合法日期时应正常更新', async () => {
+    render(<AddFundModal isOpen onClose={vi.fn()} editFund={editFund} />);
+
+    const buyDateInput = getBuyDateInput();
+    expect(buyDateInput.value).toBe('2026-04-01');
+
+    fireEvent.change(buyDateInput, { target: { value: '2026-03-31' } });
+
+    expect(buyDateInput.value).toBe('2026-03-31');
   });
 });

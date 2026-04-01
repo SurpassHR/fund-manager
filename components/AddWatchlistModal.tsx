@@ -4,6 +4,7 @@ import { Icons } from './Icon';
 import { useTranslation } from '../services/i18n';
 import type { WatchlistItem, MorningstarFund } from '../types';
 import { searchFunds, fetchHistoricalFundNav, fetchHistoricalIndexPrice } from '../services/api';
+import { isValidIsoDate } from '../services/dateInput';
 import { pickWatchlistNameFromMorningstar } from '../services/watchlistName';
 import { motion, AnimatePresence } from 'framer-motion';
 import { resetDragState, useEdgeSwipe } from '../services/useEdgeSwipe';
@@ -108,6 +109,12 @@ export const AddWatchlistModal: React.FC<AddWatchlistModalProps> = ({
     setIsSaving(false);
     onClose();
   }, [onClose]);
+
+  const handleAnchorDateChange = (nextValue: string) => {
+    if (isValidIsoDate(nextValue)) {
+      setAnchorDate(nextValue);
+    }
+  };
 
   const requestClose = useCallback(
     (payload?: { source?: 'edge-swipe' | 'programmatic'; targetX?: number }) => {
@@ -384,7 +391,7 @@ export const AddWatchlistModal: React.FC<AddWatchlistModalProps> = ({
                       type="date"
                       className="w-full px-3 py-2 bg-gray-50 dark:bg-black/20 border border-gray-200 dark:border-border-dark rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:text-white"
                       value={anchorDate}
-                      onChange={(e) => setAnchorDate(e.target.value)}
+                      onChange={(e) => handleAnchorDateChange(e.target.value)}
                     />
                   </div>
                 </div>

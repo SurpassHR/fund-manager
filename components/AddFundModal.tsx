@@ -5,6 +5,7 @@ import { useTranslation } from '../services/i18n';
 import { Icons } from './Icon';
 import type { MorningstarFund, Fund, WatchlistItem } from '../types';
 import { searchFunds, fetchFundCommonData } from '../services/api';
+import { isValidIsoDate } from '../services/dateInput';
 import { resetDragState, useEdgeSwipe } from '../services/useEdgeSwipe';
 import { useOverlayRegistration } from '../services/overlayRegistration';
 
@@ -216,6 +217,12 @@ export const AddFundModal: React.FC<AddFundModalProps> = ({
     const a = parseFloat(amount);
     if (isNaN(g) || isNaN(s) || s <= 0 || isNaN(a)) return;
     setCostPrice(((a - g) / s).toFixed(4));
+  };
+
+  const handleBuyDateChange = (nextValue: string) => {
+    if (isValidIsoDate(nextValue)) {
+      setBuyDate(nextValue);
+    }
   };
 
   // --- 搜索 & 选择 ---
@@ -509,7 +516,7 @@ export const AddFundModal: React.FC<AddFundModalProps> = ({
                 <input
                   type="date"
                   value={buyDate}
-                  onChange={(e) => setBuyDate(e.target.value)}
+                  onChange={(e) => handleBuyDateChange(e.target.value)}
                   className="w-full p-2.5 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-white/5 focus:outline-none focus:border-blue-500 text-gray-900 dark:text-gray-100 text-sm font-sans"
                 />
               </div>
