@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Icons } from './Icon';
 import { useTranslation } from '../services/i18n';
 
@@ -9,6 +9,24 @@ interface HeaderProps {
 
 export const Header: React.FC<HeaderProps> = ({ title, hiddenOnMobile = false }) => {
   const { language, setLanguage, t } = useTranslation();
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setNow(Date.now());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const displayNow = useMemo(() => {
+    const d = new Date(now);
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    const hours = String(d.getHours()).padStart(2, '0');
+    const minutes = String(d.getMinutes()).padStart(2, '0');
+    const seconds = String(d.getSeconds()).padStart(2, '0');
+    return `${month}-${day} ${hours}:${minutes}:${seconds}`;
+  }, [now]);
 
   const toggleLanguage = () => {
     setLanguage(language === 'zh' ? 'en' : 'zh');
@@ -27,11 +45,17 @@ export const Header: React.FC<HeaderProps> = ({ title, hiddenOnMobile = false })
       }`}
     >
       <div className="mx-auto w-full max-w-7xl rounded-[1.75rem] border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)]/95 shadow-[var(--app-shell-shadow)] backdrop-blur-xl">
-        <div className="flex items-center justify-between gap-3 px-4 py-2.5 sm:px-5 sm:py-3">
+        <div className="relative flex items-center justify-between gap-3 px-4 py-2.5 sm:px-5 sm:py-3">
           <div className="min-w-0">
             <h1 className="truncate text-lg font-semibold tracking-[-0.04em] text-[var(--app-shell-ink)] sm:text-[1.35rem]">
               {title}
             </h1>
+          </div>
+
+          <div className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
+            <div className="rounded-full border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)]/90 px-3 py-1.5 text-[11px] font-semibold tracking-[0.18em] text-[var(--app-shell-muted)]">
+              {displayNow}
+            </div>
           </div>
 
           <div className="flex items-center gap-2 text-[var(--app-shell-muted)] sm:gap-2.5">

@@ -286,12 +286,6 @@ export const Dashboard: React.FC = () => {
     }
   }, [activeFilter, safeAccounts]);
 
-  const latestDateStr = filteredFunds.reduce((max, fund) => {
-    if (!fund.lastUpdate) return max;
-    return fund.lastUpdate > max ? fund.lastUpdate : max;
-  }, '');
-  const displayDate = latestDateStr ? latestDateStr.substring(5) : '今天';
-
   const activeFilterLabel =
     activeFilter === 'All'
       ? t('common.all') || '全部'
@@ -649,9 +643,6 @@ export const Dashboard: React.FC = () => {
                             />
                           )}
                         </button>
-                        <div className="rounded-full border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)]/90 px-3 py-1.5 text-[11px] font-semibold tracking-[0.18em] text-slate-500 dark:border-white/10 dark:bg-white/5 dark:text-gray-400">
-                          {displayDate}
-                        </div>
                       </div>
                     </div>
                     <div className="mt-2 flex items-center gap-2 text-sm text-slate-500 dark:text-gray-400">
@@ -681,7 +672,7 @@ export const Dashboard: React.FC = () => {
 
               <div className="mt-2 flex flex-col gap-2 lg:mt-0">
                 <div className="flex flex-col gap-2 lg:flex-row lg:items-start">
-                  <div className="hidden items-center gap-2 lg:flex lg:shrink-0">
+                  <div className="hidden items-center justify-center gap-2 lg:flex lg:shrink-0 lg:self-center">
                     <button
                       onClick={handleManualRefresh}
                       disabled={cooldown > 0 || isRefreshing}
@@ -709,9 +700,6 @@ export const Dashboard: React.FC = () => {
                         />
                       )}
                     </button>
-                    <div className="rounded-full border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)]/90 px-3 py-1.5 text-[11px] font-semibold tracking-[0.18em] text-slate-500 dark:border-white/10 dark:bg-white/5 dark:text-gray-400">
-                      {displayDate}
-                    </div>
                   </div>
 
                   <div className="grid grid-cols-3 gap-2 lg:flex lg:min-w-0 lg:flex-1 lg:gap-2">
