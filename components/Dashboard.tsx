@@ -24,22 +24,62 @@ import { hasTouchMovedBeyondThreshold } from '../services/longPressGesture';
 
 const LONG_PRESS_DURATION_MS = 600;
 const TOUCH_MOVE_CANCEL_THRESHOLD_PX = 12;
+const DASHBOARD_SORT_STORAGE_KEY = 'dashboard.sortState.v1';
+
+type DashboardSortKey =
+  | 'officialDayChangePct'
+  | 'estimatedDayChangePct'
+  | 'todayGain'
+  | 'totalGain'
+  | 'marketValue';
+
+type DashboardSortState = {
+  key: DashboardSortKey | null;
+  direction: 'asc' | 'desc';
+};
+
+const DEFAULT_DASHBOARD_SORT_STATE: DashboardSortState = { key: null, direction: 'desc' };
+
+const isValidDashboardSortKey = (key: unknown): key is DashboardSortKey => {
+  return (
+    key === 'officialDayChangePct' ||
+    key === 'estimatedDayChangePct' ||
+    key === 'todayGain' ||
+    key === 'totalGain' ||
+    key === 'marketValue'
+  );
+};
+
+const loadDashboardSortState = (): DashboardSortState => {
+  try {
+    const raw = localStorage.getItem(DASHBOARD_SORT_STORAGE_KEY);
+    if (!raw) return DEFAULT_DASHBOARD_SORT_STATE;
+    const parsed = JSON.parse(raw) as { key?: unknown; direction?: unknown };
+    let nextKey: DashboardSortKey | null = null;
+    if (parsed.key !== undefined && parsed.key !== null) {
+      if (!isValidDashboardSortKey(parsed.key)) {
+        return DEFAULT_DASHBOARD_SORT_STATE;
+      }
+      nextKey = parsed.key;
+    }
+    if (parsed.direction !== 'asc' && parsed.direction !== 'desc') {
+      return DEFAULT_DASHBOARD_SORT_STATE;
+    }
+    return {
+      key: nextKey,
+      direction: parsed.direction,
+    };
+  } catch {
+    return DEFAULT_DASHBOARD_SORT_STATE;
+  }
+};
 
 export const Dashboard: React.FC = () => {
   const funds = useLiveQuery(() => db.funds.toArray());
   const accounts = useLiveQuery(() => db.accounts.toArray());
   const [activeFilter, setActiveFilter] = useState('All');
   const [showValues, setShowValues] = useState(true);
-  const [sortState, setSortState] = useState<{
-    key:
-      | 'officialDayChangePct'
-      | 'estimatedDayChangePct'
-      | 'todayGain'
-      | 'totalGain'
-      | 'marketValue'
-      | null;
-    direction: 'asc' | 'desc';
-  }>({ key: null, direction: 'desc' });
+  const [sortState, setSortState] = useState<DashboardSortState>(() => loadDashboardSortState());
   const [isAiAnalysisOpen, setIsAiAnalysisOpen] = useState(false);
   const { autoRefresh } = useSettings();
 
@@ -181,6 +221,14 @@ export const Dashboard: React.FC = () => {
     return () => window.removeEventListener('click', handleClick);
   }, []);
 
+  useEffect(() => {
+    if (sortState.key === null) {
+      localStorage.removeItem(DASHBOARD_SORT_STORAGE_KEY);
+      return;
+    }
+    localStorage.setItem(DASHBOARD_SORT_STORAGE_KEY, JSON.stringify(sortState));
+  }, [sortState]);
+
   const safeFunds = useMemo(() => funds ?? [], [funds]);
   const safeAccounts = useMemo(() => accounts ?? [], [accounts]);
 
@@ -223,20 +271,17 @@ export const Dashboard: React.FC = () => {
         ? t(`filters.${activeFilter}`)
         : activeFilter;
 
-  const handleSort = (
-    key:
-      | 'officialDayChangePct'
-      | 'estimatedDayChangePct'
-      | 'todayGain'
-      | 'totalGain'
-      | 'marketValue',
-  ) => {
+  const handleSort = (key: DashboardSortKey) => {
     setSortState((prev) => {
       if (prev.key === key) {
         return { key, direction: prev.direction === 'asc' ? 'desc' : 'asc' };
       }
       return { key, direction: 'desc' };
     });
+  };
+
+  const handleResetSort = () => {
+    setSortState(DEFAULT_DASHBOARD_SORT_STATE);
   };
 
   const sortedFunds = useMemo(() => {
@@ -694,7 +739,13 @@ export const Dashboard: React.FC = () => {
                 <div className="rounded-full border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] p-1.5 dark:border-white/10 dark:bg-white/5">
                   <Icons.Holdings size={14} />
                 </div>
-                <span className="text-[11px] font-semibold tracking-[0.18em]">持仓列表</span>
+                <button
+                  type="button"
+                  onClick={handleResetSort}
+                  className="text-[11px] font-semibold tracking-[0.18em] transition-colors hover:text-slate-700 dark:hover:text-gray-200"
+                >
+                  持仓列表
+                </button>
               </div>
 
               <div className="grid flex-[5] grid-cols-6 gap-4 text-right text-[11px] font-semibold tracking-[0.16em] text-slate-400 dark:text-gray-500">
@@ -771,9 +822,13 @@ export const Dashboard: React.FC = () => {
 
             <div className="flex items-center justify-between md:hidden">
               <div>
-                <div className="text-[10px] font-semibold tracking-[0.2em] text-slate-400 dark:text-gray-500">
+                <button
+                  type="button"
+                  onClick={handleResetSort}
+                  className="text-[10px] font-semibold tracking-[0.2em] text-slate-400 transition-colors hover:text-slate-700 dark:text-gray-500 dark:hover:text-gray-200"
+                >
                   持仓列表
-                </div>
+                </button>
                 <div className="mt-1 text-sm font-semibold text-slate-700 dark:text-gray-200">
                   {t('common.fund')}
                 </div>

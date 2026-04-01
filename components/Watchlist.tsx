@@ -13,6 +13,44 @@ import { hasTouchMovedBeyondThreshold } from '../services/longPressGesture';
 
 const LONG_PRESS_DURATION_MS = 600;
 const TOUCH_MOVE_CANCEL_THRESHOLD_PX = 12;
+const WATCHLIST_SORT_STORAGE_KEY = 'watchlist.sortState.v1';
+
+type WatchlistSortKey = 'dayChangePct' | 'anchorGain';
+
+type WatchlistSortState = {
+  key: WatchlistSortKey | null;
+  direction: 'asc' | 'desc';
+};
+
+const DEFAULT_WATCHLIST_SORT_STATE: WatchlistSortState = { key: null, direction: 'desc' };
+
+const isValidWatchlistSortKey = (key: unknown): key is WatchlistSortKey => {
+  return key === 'dayChangePct' || key === 'anchorGain';
+};
+
+const loadWatchlistSortState = (): WatchlistSortState => {
+  try {
+    const raw = localStorage.getItem(WATCHLIST_SORT_STORAGE_KEY);
+    if (!raw) return DEFAULT_WATCHLIST_SORT_STATE;
+    const parsed = JSON.parse(raw) as { key?: unknown; direction?: unknown };
+    let nextKey: WatchlistSortKey | null = null;
+    if (parsed.key !== undefined && parsed.key !== null) {
+      if (!isValidWatchlistSortKey(parsed.key)) {
+        return DEFAULT_WATCHLIST_SORT_STATE;
+      }
+      nextKey = parsed.key;
+    }
+    if (parsed.direction !== 'asc' && parsed.direction !== 'desc') {
+      return DEFAULT_WATCHLIST_SORT_STATE;
+    }
+    return {
+      key: nextKey,
+      direction: parsed.direction,
+    };
+  } catch {
+    return DEFAULT_WATCHLIST_SORT_STATE;
+  }
+};
 
 export const Watchlist: React.FC = () => {
   const watchlists = useLiveQuery(() => db.watchlists.toArray());
@@ -30,10 +68,7 @@ export const Watchlist: React.FC = () => {
     anchorDate: string;
     anchorPrice: number;
   } | null>(null);
-  const [sortState, setSortState] = useState<{
-    key: 'dayChangePct' | 'anchorGain' | null;
-    direction: 'asc' | 'desc';
-  }>({ key: null, direction: 'desc' });
+  const [sortState, setSortState] = useState<WatchlistSortState>(() => loadWatchlistSortState());
 
   const handleRowClick = (item: WatchlistItem) => {
     const fundData: Fund = {
@@ -75,6 +110,14 @@ export const Watchlist: React.FC = () => {
     window.addEventListener('click', handleClick);
     return () => window.removeEventListener('click', handleClick);
   }, []);
+
+  useEffect(() => {
+    if (sortState.key === null) {
+      localStorage.removeItem(WATCHLIST_SORT_STORAGE_KEY);
+      return;
+    }
+    localStorage.setItem(WATCHLIST_SORT_STORAGE_KEY, JSON.stringify(sortState));
+  }, [sortState]);
 
   const handleContextMenu = (e: React.MouseEvent, itemId: number) => {
     e.preventDefault();
@@ -194,13 +237,17 @@ export const Watchlist: React.FC = () => {
     }
   };
 
-  const handleSort = (key: 'dayChangePct' | 'anchorGain') => {
+  const handleSort = (key: WatchlistSortKey) => {
     setSortState((prev) => {
       if (prev.key === key) {
         return { key, direction: prev.direction === 'asc' ? 'desc' : 'asc' };
       }
       return { key, direction: 'desc' };
     });
+  };
+
+  const handleResetSort = () => {
+    setSortState(DEFAULT_WATCHLIST_SORT_STATE);
   };
 
   const sortedWatchlists = useMemo(() => {
@@ -343,7 +390,13 @@ export const Watchlist: React.FC = () => {
                 <div className="rounded-full border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] p-1.5 dark:border-white/10 dark:bg-white/5">
                   <Icons.Holdings size={14} />
                 </div>
-                <span className="text-[11px] font-semibold tracking-[0.18em]">自选列表</span>
+                <button
+                  type="button"
+                  onClick={handleResetSort}
+                  className="text-[11px] font-semibold tracking-[0.18em] transition-colors hover:text-slate-700 dark:hover:text-gray-200"
+                >
+                  自选列表
+                </button>
               </div>
               <div className="grid w-full flex-[4] grid-cols-4 gap-4 text-right text-[11px] font-semibold tracking-[0.16em] text-slate-400 dark:text-gray-500">
                 <div className="text-left normal-case tracking-normal text-slate-500 dark:text-gray-400">
@@ -381,9 +434,13 @@ export const Watchlist: React.FC = () => {
 
             <div className="flex items-center justify-between md:hidden">
               <div>
-                <div className="text-[10px] font-semibold tracking-[0.2em] text-slate-400 dark:text-gray-500">
+                <button
+                  type="button"
+                  onClick={handleResetSort}
+                  className="text-[10px] font-semibold tracking-[0.2em] text-slate-400 transition-colors hover:text-slate-700 dark:text-gray-500 dark:hover:text-gray-200"
+                >
                   自选列表
-                </div>
+                </button>
                 <div className="mt-1 text-sm font-semibold text-slate-700 dark:text-gray-200">
                   {t('common.watchlist')}
                 </div>
