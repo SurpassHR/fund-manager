@@ -122,28 +122,20 @@ describe('db backup watchlist sync data flow', () => {
     expect(result).toEqual({ added: 2, skipped: 0 });
   });
 
-  it('overwrites existing fund when gist strategy is overwriteIfDifferent', async () => {
-    vi.spyOn(db.accounts, 'toArray').mockResolvedValue([
-      { id: 1, name: '券商A', isDefault: false },
-    ]);
-    vi.spyOn(db.watchlists, 'toArray').mockResolvedValue([]);
-    vi.spyOn(db.funds, 'toArray').mockResolvedValue([
-      {
-        id: 1,
-        code: '000001',
-        name: '测试基金',
-        platform: '券商A',
-        holdingShares: 100,
-        costPrice: 1,
-        currentNav: 1,
-        lastUpdate: '2026-03-20',
-        dayChangePct: 0,
-        dayChangeVal: 0,
-      },
-    ]);
-
-    const addFundSpy = vi.spyOn(db.funds, 'add').mockResolvedValue(2);
-    const updateFundSpy = vi.spyOn(db.funds, 'update').mockResolvedValue(1);
+  it('replaces all funds/accounts/watchlists from gist backup in replaceAll mode', async () => {
+    const transactionSpy = vi.spyOn(db, 'transaction').mockImplementation((async (
+      ...args: any[]
+    ) => {
+      const scope = args[args.length - 1] as () => Promise<void>;
+      await scope();
+      return undefined;
+    }) as any);
+    const clearFundsSpy = vi.spyOn(db.funds, 'clear').mockResolvedValue();
+    const clearAccountsSpy = vi.spyOn(db.accounts, 'clear').mockResolvedValue();
+    const clearWatchlistsSpy = vi.spyOn(db.watchlists, 'clear').mockResolvedValue();
+    const bulkAddFundsSpy = vi.spyOn(db.funds, 'bulkAdd').mockResolvedValue([1]);
+    const bulkAddAccountsSpy = vi.spyOn(db.accounts, 'bulkAdd').mockResolvedValue([1]);
+    const bulkAddWatchlistsSpy = vi.spyOn(db.watchlists, 'bulkAdd').mockResolvedValue([1]);
 
     const incoming = {
       version: 1,
@@ -161,24 +153,64 @@ describe('db backup watchlist sync data flow', () => {
           dayChangeVal: 2,
         },
       ],
+      accounts: [{ name: '券商A', isDefault: false }],
+      watchlists: [
+        {
+          code: '110011',
+          name: '易方达中小盘',
+          type: 'fund',
+          platform: '天天基金',
+          anchorPrice: 1.23,
+          anchorDate: '2026-03-20',
+          currentPrice: 1.24,
+          dayChangePct: 0.81,
+          lastUpdate: '2026-03-20',
+        },
+      ],
+    };
+
+    const result = await importFundsFromBackupContent(JSON.stringify(incoming), {
+      importMode: 'replaceAll',
+    });
+
+    expect(transactionSpy).toHaveBeenCalledTimes(1);
+    expect(clearFundsSpy).toHaveBeenCalledTimes(1);
+    expect(clearAccountsSpy).toHaveBeenCalledTimes(1);
+    expect(clearWatchlistsSpy).toHaveBeenCalledTimes(1);
+    expect(bulkAddFundsSpy).toHaveBeenCalledWith(
+      expect.arrayContaining([expect.objectContaining({ code: '000001' })]),
+    );
+    expect(bulkAddAccountsSpy).toHaveBeenCalledWith(
+      expect.arrayContaining([expect.objectContaining({ name: '券商A' })]),
+    );
+    expect(bulkAddWatchlistsSpy).toHaveBeenCalledWith(
+      expect.arrayContaining([expect.objectContaining({ code: '110011' })]),
+    );
+    expect(result).toEqual({ added: 3, skipped: 0 });
+  });
+
+  it('skips replaceAll when gist backup is completely empty', async () => {
+    const transactionSpy = vi.spyOn(db, 'transaction');
+    const clearFundsSpy = vi.spyOn(db.funds, 'clear').mockResolvedValue();
+    const clearAccountsSpy = vi.spyOn(db.accounts, 'clear').mockResolvedValue();
+    const clearWatchlistsSpy = vi.spyOn(db.watchlists, 'clear').mockResolvedValue();
+
+    const emptyBackup = {
+      version: 1,
+      exportDate: '2026-03-21T00:00:00.000Z',
+      funds: [],
       accounts: [],
       watchlists: [],
     };
 
-    const result = await importFundsFromBackupContent(JSON.stringify(incoming), {
-      duplicateFundStrategy: 'overwriteIfDifferent',
+    const result = await importFundsFromBackupContent(JSON.stringify(emptyBackup), {
+      importMode: 'replaceAll',
     });
 
-    expect(addFundSpy).not.toHaveBeenCalled();
-    expect(updateFundSpy).toHaveBeenCalledTimes(1);
-    expect(updateFundSpy).toHaveBeenCalledWith(
-      1,
-      expect.objectContaining({
-        code: '000001',
-        platform: '券商A',
-        holdingShares: 200,
-      }),
-    );
+    expect(transactionSpy).not.toHaveBeenCalled();
+    expect(clearFundsSpy).not.toHaveBeenCalled();
+    expect(clearAccountsSpy).not.toHaveBeenCalled();
+    expect(clearWatchlistsSpy).not.toHaveBeenCalled();
     expect(result).toEqual({ added: 0, skipped: 0 });
   });
 });

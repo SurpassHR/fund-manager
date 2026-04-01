@@ -159,7 +159,7 @@ describe('SettingsPage gist sync integration', () => {
     expect(mockedDeps.importFundsFromBackupContent).toHaveBeenCalledWith(
       '{"version":1,"funds":[]}',
       {
-        duplicateFundStrategy: 'overwriteIfDifferent',
+        importMode: 'replaceAll',
       },
     );
   });

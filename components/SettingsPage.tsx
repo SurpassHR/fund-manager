@@ -222,7 +222,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack, initialShowA
     try {
       const content = await downloadSyncGistContent({ token: githubToken, gistId });
       const importResult = await importFundsFromBackupContent(content, {
-        duplicateFundStrategy: 'overwriteIfDifferent',
+        importMode: 'replaceAll',
       });
       const selected = target ?? syncGists.find((item) => item.id === gistId);
       if (selected) {

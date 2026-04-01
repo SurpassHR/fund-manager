@@ -949,13 +949,50 @@ export const exportFundsToJsonString = async (): Promise<string> => {
 
 export const importFundsFromBackupContent = async (
   content: string | unknown,
-  options?: { duplicateFundStrategy?: 'skip' | 'overwriteIfDifferent' },
+  options?: {
+    duplicateFundStrategy?: 'skip' | 'overwriteIfDifferent';
+    importMode?: 'merge' | 'replaceAll';
+  },
 ): Promise<{ added: number; skipped: number }> => {
   const {
     funds: importedFunds,
     accounts: importedAccounts,
     watchlists: importedWatchlists,
   } = parseAndNormalizeFundBackupPayload(content);
+
+  const importMode = options?.importMode ?? 'merge';
+
+  if (importMode === 'replaceAll') {
+    const isCompletelyEmpty =
+      importedFunds.length === 0 &&
+      importedAccounts.length === 0 &&
+      importedWatchlists.length === 0;
+
+    if (isCompletelyEmpty) {
+      return { added: 0, skipped: 0 };
+    }
+
+    await db.transaction('rw', db.funds, db.accounts, db.watchlists, async () => {
+      await db.funds.clear();
+      await db.accounts.clear();
+      await db.watchlists.clear();
+
+      if (importedFunds.length > 0) {
+        await db.funds.bulkAdd(importedFunds);
+      }
+      if (importedAccounts.length > 0) {
+        await db.accounts.bulkAdd(importedAccounts);
+      }
+      if (importedWatchlists.length > 0) {
+        await db.watchlists.bulkAdd(importedWatchlists);
+      }
+    });
+
+    return {
+      added: importedFunds.length + importedAccounts.length + importedWatchlists.length,
+      skipped: 0,
+    };
+  }
 
   let added = 0;
   let skipped = 0;
