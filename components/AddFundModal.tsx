@@ -38,6 +38,7 @@ export const AddFundModal: React.FC<AddFundModalProps> = ({
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<MorningstarFund[]>([]);
   const [loading, setLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [navLoading, setNavLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -142,6 +143,7 @@ export const AddFundModal: React.FC<AddFundModalProps> = ({
     setCostPrice('');
     setGain('');
     setError('');
+    setIsSaving(false);
     onClose();
   }, [onClose]);
 
@@ -268,6 +270,7 @@ export const AddFundModal: React.FC<AddFundModalProps> = ({
   // --- 保存 ---
 
   const handleSave = async () => {
+    if (isSaving) return;
     if (!selectedFund) return;
     if (currentNav <= 0) {
       alert('净值无效');
@@ -284,22 +287,29 @@ export const AddFundModal: React.FC<AddFundModalProps> = ({
 
     const effectiveCostPrice = isNaN(valCostPrice) ? currentNav : valCostPrice;
 
-    if (editFund && editFund.id) {
-      // 使用 API 返回的真实涨跌幅 (如果没有重新获取 API，则沿用旧值)
-      const mktVal = valShares * currentNav;
-      const dayChangeVal = (mktVal * (navChangePct / 100)) / (1 + navChangePct / 100);
+    setIsSaving(true);
 
-      await db.funds.update(editFund.id, {
-        holdingShares: valShares,
-        costPrice: effectiveCostPrice,
-        platform: selectedAccount,
-        dayChangeVal, // 更新日收益绝对值
-        dayChangePct: navChangePct, // 同时也更新涨跌幅（虽然通常不变，但为了数据一致性）
-        buyDate,
-        buyTime,
-        settlementDays,
-      });
-    } else {
+    try {
+      if (editFund && editFund.id) {
+        // 使用 API 返回的真实涨跌幅 (如果没有重新获取 API，则沿用旧值)
+        const mktVal = valShares * currentNav;
+        const dayChangeVal = (mktVal * (navChangePct / 100)) / (1 + navChangePct / 100);
+
+        await db.funds.update(editFund.id, {
+          holdingShares: valShares,
+          costPrice: effectiveCostPrice,
+          platform: selectedAccount,
+          dayChangeVal, // 更新日收益绝对值
+          dayChangePct: navChangePct, // 同时也更新涨跌幅（虽然通常不变，但为了数据一致性）
+          buyDate,
+          buyTime,
+          settlementDays,
+        });
+
+        handleClose();
+        return;
+      }
+
       const code = 'symbol' in selectedFund ? selectedFund.symbol : selectedFund.code;
       const name =
         'fundNameArr' in selectedFund
@@ -324,10 +334,16 @@ export const AddFundModal: React.FC<AddFundModalProps> = ({
         settlementDays,
       });
 
-      await onFundAdded?.();
-    }
+      handleClose();
 
-    handleClose();
+      void Promise.resolve(onFundAdded?.()).catch((err) => {
+        console.error('onFundAdded callback failed', err);
+      });
+    } catch (err) {
+      console.error('保存基金失败', err);
+      alert('保存失败，请稍后重试');
+      setIsSaving(false);
+    }
   };
 
   const getGainColor = (val: string) => {
@@ -596,16 +612,19 @@ export const AddFundModal: React.FC<AddFundModalProps> = ({
             <div className="flex gap-3 pt-2">
               <button
                 onClick={() => {
+                  if (isSaving) return;
                   if (editFund) onClose();
                   else setSelectedFund(null);
                 }}
-                className="flex-1 py-3 text-sm font-bold text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-white/10 rounded-xl hover:bg-gray-200 dark:hover:bg-white/15"
+                disabled={isSaving}
+                className="flex-1 py-3 text-sm font-bold text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-white/10 rounded-xl hover:bg-gray-200 dark:hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {t('common.cancel')}
               </button>
               <button
                 onClick={handleSave}
-                className="flex-1 py-3 text-sm font-bold text-white bg-blue-600 rounded-xl hover:bg-blue-700"
+                disabled={isSaving}
+                className="flex-1 py-3 text-sm font-bold text-white bg-blue-600 rounded-xl hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {t('common.confirm')}
               </button>

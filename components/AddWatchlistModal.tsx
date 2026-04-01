@@ -41,6 +41,7 @@ export const AddWatchlistModal: React.FC<AddWatchlistModalProps> = ({
   const [searchResults, setSearchResults] = useState<MorningstarFund[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [isFetchingPrice, setIsFetchingPrice] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   // Fetch anchor price automatically when code, type, or date changes
   useEffect(() => {
@@ -104,6 +105,7 @@ export const AddWatchlistModal: React.FC<AddWatchlistModalProps> = ({
   }, [isOpen, editItem]);
 
   const handleClose = useCallback(() => {
+    setIsSaving(false);
     onClose();
   }, [onClose]);
 
@@ -154,6 +156,7 @@ export const AddWatchlistModal: React.FC<AddWatchlistModalProps> = ({
   };
 
   const handleSave = async () => {
+    if (isSaving) return;
     if (!code || !name || !anchorPrice || !anchorDate) {
       alert(t('common.fillDetails') || 'Please fill all details');
       return;
@@ -164,6 +167,8 @@ export const AddWatchlistModal: React.FC<AddWatchlistModalProps> = ({
       alert(t('common.anchorPrice') + ' Error');
       return;
     }
+
+    setIsSaving(true);
 
     try {
       if (editItem && editItem.id) {
@@ -187,10 +192,11 @@ export const AddWatchlistModal: React.FC<AddWatchlistModalProps> = ({
           lastUpdate: anchorDate,
         });
       }
-      onClose();
+      handleClose();
     } catch (e) {
       console.error(e);
       alert('Error saving watchlist item');
+      setIsSaving(false);
     }
   };
 
@@ -392,13 +398,15 @@ export const AddWatchlistModal: React.FC<AddWatchlistModalProps> = ({
               <div className="p-4 border-t border-gray-100 dark:border-border-dark bg-gray-50/50 dark:bg-white/5 flex justify-end gap-3 z-10 relative shrink-0">
                 <button
                   onClick={handleClose}
-                  className="px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-white/10 rounded-lg transition-colors"
+                  disabled={isSaving}
+                  className="px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-white/10 rounded-lg transition-colors disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {t('common.cancel')}
                 </button>
                 <button
                   onClick={handleSave}
-                  className="px-6 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors shadow-sm"
+                  disabled={isSaving}
+                  className="px-6 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors shadow-sm disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {t('common.save')}
                 </button>
