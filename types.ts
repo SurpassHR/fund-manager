@@ -50,6 +50,8 @@ export interface WatchlistItem {
   currentPrice: number; // 当前最新价格 / 点数
   dayChangePct: number; // 最新日涨跌幅(%)
   lastUpdate: string; // 最后更新时间/日期
+  todayChangeIsEstimated?: boolean; // 今日涨幅是否为盘中估值（仅基金）
+  todayChangeUnavailable?: boolean; // 盘中应估值但不可用（仅基金）
 }
 
 export interface Account {

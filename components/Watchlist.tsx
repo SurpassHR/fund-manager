@@ -427,10 +427,20 @@ export const Watchlist: React.FC = () => {
               </div>
             ) : (
               sortedWatchlists.map((item) => {
+                const isFund = item.type === 'fund';
                 const anchorGainPct =
                   item.anchorPrice > 0
                     ? ((item.currentPrice - item.anchorPrice) / item.anchorPrice) * 100
                     : 0;
+                const dayChangeTag = isFund
+                  ? item.todayChangeUnavailable
+                    ? t('common.noEstimate') || '无估值'
+                    : item.todayChangeIsEstimated
+                      ? t('common.estimated') || '估值'
+                      : t('common.updated') || '已更新'
+                  : '';
+                const displayedDayChangePct =
+                  isFund && item.todayChangeUnavailable ? 0 : item.dayChangePct;
 
                 return (
                   <div
@@ -484,8 +494,15 @@ export const Watchlist: React.FC = () => {
                             {item.currentPrice.toFixed(4)}
                           </div>
                         </div>
-                        <div className={`text-sm font-semibold ${getSignColor(item.dayChangePct)}`}>
-                          {formatPct(item.dayChangePct)}
+                        <div
+                          className={`text-sm font-semibold ${getSignColor(displayedDayChangePct)}`}
+                        >
+                          {formatPct(displayedDayChangePct)}
+                          {isFund && (
+                            <div className="mt-1 text-[10px] font-medium tracking-[0.14em] text-slate-400 dark:text-gray-500">
+                              {dayChangeTag}
+                            </div>
+                          )}
                         </div>
                         <div className="text-sm font-semibold text-slate-700 dark:text-gray-200">
                           {item.currentPrice.toFixed(4)}
@@ -503,12 +520,12 @@ export const Watchlist: React.FC = () => {
                       <div className="mt-2 flex items-stretch gap-1.5 md:hidden">
                         <div className="min-w-0 flex-1 rounded-xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)]/90 px-2 py-2 text-right dark:border-white/10 dark:bg-white/5">
                           <div
-                            className={`truncate text-[13px] font-black leading-none tracking-[-0.02em] ${getSignColor(item.dayChangePct)}`}
+                            className={`truncate text-[13px] font-black leading-none tracking-[-0.02em] ${getSignColor(displayedDayChangePct)}`}
                           >
-                            {formatPct(item.dayChangePct)}
+                            {formatPct(displayedDayChangePct)}
                           </div>
                           <div className="mt-1 truncate text-[9px] font-semibold tracking-[0.1em] text-slate-400 dark:text-gray-500">
-                            现价 {item.currentPrice.toFixed(4)}
+                            {isFund ? dayChangeTag : `现价 ${item.currentPrice.toFixed(4)}`}
                           </div>
                         </div>
 

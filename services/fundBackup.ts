@@ -52,7 +52,10 @@ const isValidWatchlistItem = (item: Partial<WatchlistItem>): item is WatchlistIt
     typeof item.currentPrice === 'number' &&
     typeof item.dayChangePct === 'number' &&
     typeof item.lastUpdate === 'string' &&
-    (item.platform === undefined || typeof item.platform === 'string')
+    (item.platform === undefined || typeof item.platform === 'string') &&
+    (item.todayChangeIsEstimated === undefined ||
+      typeof item.todayChangeIsEstimated === 'boolean') &&
+    (item.todayChangeUnavailable === undefined || typeof item.todayChangeUnavailable === 'boolean')
   );
 };
 
