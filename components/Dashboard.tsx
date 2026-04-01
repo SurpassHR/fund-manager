@@ -244,13 +244,23 @@ export const Dashboard: React.FC = () => {
 
     const getSortValue = (fund: Fund) => {
       const holdingValue = fund.holdingShares * fund.currentNav;
+      const displayTodayGainVal = fund.todayChangeUnavailable
+        ? 0
+        : fund.todayChangeIsEstimated
+          ? (holdingValue * (fund.estimatedDayChangePct ?? 0)) / 100
+          : fund.dayChangeVal;
       if (sortState.key === 'marketValue') return holdingValue;
       if (sortState.key === 'totalGain') {
         const estimateGainVal = (holdingValue * (fund.estimatedDayChangePct ?? 0)) / 100;
         return holdingValue - fund.holdingShares * fund.costPrice + estimateGainVal;
       }
-      if (sortState.key === 'todayGain') return fund.dayChangeVal;
-      if (sortState.key === 'estimatedDayChangePct') return fund.dayChangePct;
+      if (sortState.key === 'todayGain') return displayTodayGainVal;
+      if (sortState.key === 'estimatedDayChangePct') {
+        if (fund.todayChangeUnavailable) return 0;
+        return fund.todayChangeIsEstimated
+          ? (fund.estimatedDayChangePct ?? 0)
+          : (fund.officialDayChangePct ?? fund.dayChangePct);
+      }
       return fund.officialDayChangePct ?? fund.dayChangePct;
     };
 
@@ -805,8 +815,17 @@ export const Dashboard: React.FC = () => {
               const totalCost = fund.holdingShares * fund.costPrice;
               const totalReturn = holdingValue - totalCost;
               const officialDayChangePct = fund.officialDayChangePct ?? fund.dayChangePct;
-              const todayChangePct = fund.todayChangeUnavailable ? 0 : fund.dayChangePct;
+              const todayChangePct = fund.todayChangeUnavailable
+                ? 0
+                : fund.todayChangeIsEstimated
+                  ? (fund.estimatedDayChangePct ?? 0)
+                  : (fund.officialDayChangePct ?? fund.dayChangePct);
               const estimatedGainVal = (holdingValue * (fund.estimatedDayChangePct ?? 0)) / 100;
+              const displayTodayGainVal = fund.todayChangeUnavailable
+                ? 0
+                : fund.todayChangeIsEstimated
+                  ? estimatedGainVal
+                  : fund.dayChangeVal;
               const adjustedHoldingGain = totalReturn + estimatedGainVal;
               const adjustedHoldingGainPct =
                 totalCost !== 0 ? (adjustedHoldingGain / totalCost) * 100 : 0;
@@ -901,8 +920,8 @@ export const Dashboard: React.FC = () => {
                           </div>
                         )}
                       </div>
-                      <div className={`text-sm font-semibold ${getSignColor(fund.dayChangeVal)}`}>
-                        {formatSignedCurrency(fund.dayChangeVal)}
+                      <div className={`text-sm font-semibold ${getSignColor(displayTodayGainVal)}`}>
+                        {formatSignedCurrency(displayTodayGainVal)}
                       </div>
                       <div className="flex flex-col items-end">
                         <div
@@ -944,9 +963,9 @@ export const Dashboard: React.FC = () => {
                       </div>
                       <div className="min-w-0 flex-1 rounded-xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)]/80 px-2 py-2 text-right dark:border-white/10 dark:bg-white/5">
                         <div
-                          className={`truncate text-[12px] font-bold ${getSignColor(fund.dayChangeVal)}`}
+                          className={`truncate text-[12px] font-bold ${getSignColor(displayTodayGainVal)}`}
                         >
-                          {formatSignedCurrency(fund.dayChangeVal)}
+                          {formatSignedCurrency(displayTodayGainVal)}
                         </div>
                         <div className="mt-1 truncate text-[9px] font-semibold tracking-[0.1em] text-slate-400 dark:text-gray-500">
                           {t('common.dayGain')}

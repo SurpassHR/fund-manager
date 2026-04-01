@@ -97,7 +97,7 @@ export const runFundQuotePipeline = async <T>(
   inputs: FundQuotePipelineInput<T>[],
   options: FundQuotePipelineOptions,
 ): Promise<FundQuotePipelineResult<T>> => {
-  const { force, todayStr, shouldUseEstimatedValue } = options;
+  const { force, todayStr } = options;
 
   const baseResults = await Promise.allSettled(
     inputs.map(async (input) => {
@@ -129,7 +129,7 @@ export const runFundQuotePipeline = async <T>(
         nav,
         navDate,
         navChangePercent,
-        shouldEstimate: shouldUseEstimatedValue && !isOfficialTodayNav,
+        shouldEstimate: !isOfficialTodayNav,
       } satisfies FundQuoteCandidate<T>;
     }),
   );

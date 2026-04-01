@@ -105,4 +105,42 @@ describe('runFundQuotePipeline', () => {
       force: undefined,
     });
   });
+
+  it('still marks stale nav as estimate candidate after close', async () => {
+    vi.mocked(fetchEastMoneyLatestNav).mockResolvedValue({
+      nav: 1.5,
+      navDate: '2026-03-26',
+      navChangePercent: 0.5,
+    });
+    vi.mocked(fetchFundCommonData).mockResolvedValue(null);
+    vi.mocked(fetchFundHoldings).mockResolvedValue({
+      data: {
+        equityHoldings: [{ ticker: 'sh000001', weight: 100 }],
+      },
+    } as never);
+    vi.mocked(buildTencentQuoteCodes).mockReturnValue(['sh000001']);
+    vi.mocked(fetchTencentStockQuotes).mockResolvedValue({
+      '000001': { pct: 2, price: '1.000' },
+    });
+
+    const result = await runFundQuotePipeline(
+      [
+        {
+          item: { id: 1, code: '000001' },
+          code: '000001',
+          fallbackNav: 0,
+          fallbackChangePct: 0,
+          dropOnMissingNav: true,
+        },
+      ],
+      {
+        todayStr: '2026-03-27',
+        shouldUseEstimatedValue: false,
+      },
+    );
+
+    expect(result.candidates).toHaveLength(1);
+    expect(result.candidates[0]?.shouldEstimate).toBe(true);
+    expect(result.estimateMap.get('000001')).toBeCloseTo(2, 6);
+  });
 });

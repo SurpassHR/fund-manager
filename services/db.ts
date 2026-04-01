@@ -164,8 +164,8 @@ export const deriveFundIntradayDisplayMetrics = (params: {
     dayChangePct,
     dayChangeVal,
     officialDayChangePct: navChangePercent,
-    estimatedDayChangePct: isGainActive && hasEstimate ? (estimatedChangePct as number) : 0,
-    todayChangeIsEstimated: isGainActive && hasEstimate,
+    estimatedDayChangePct: hasEstimate ? (estimatedChangePct as number) : 0,
+    todayChangeIsEstimated: hasEstimate,
     todayChangeUnavailable,
   };
 };
@@ -874,7 +874,14 @@ export const calculateSummary = (funds: Fund[]): AssetSummary => {
 
     // 如果该基金的最后更新日期不是“今天”，说明它的涨跌幅停留在之前的交易日
     // 此时它对“今日总收益”的贡献应当为 0
-    const dayGain = fund.lastUpdate === todayStr ? fund.dayChangeVal : 0;
+    const dayGain =
+      fund.lastUpdate === todayStr
+        ? fund.todayChangeUnavailable
+          ? 0
+          : fund.todayChangeIsEstimated
+            ? (assetValue * (fund.estimatedDayChangePct ?? 0)) / 100
+            : fund.dayChangeVal
+        : 0;
 
     totalAssets += assetValue;
     totalDayGain += dayGain;

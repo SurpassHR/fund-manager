@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { deriveFundIntradayDisplayMetrics, deriveWatchlistFundEffectivePrice } from '../db';
+import {
+  calculateSummary,
+  deriveFundIntradayDisplayMetrics,
+  deriveWatchlistFundEffectivePrice,
+} from '../db';
 
 describe('deriveWatchlistFundEffectivePrice', () => {
   it('uses estimated day pct to project today fund price', () => {
@@ -53,6 +57,26 @@ describe('deriveWatchlistFundEffectivePrice', () => {
 });
 
 describe('deriveFundIntradayDisplayMetrics', () => {
+  it('keeps estimated badge signal even when gain is not active yet', () => {
+    const metrics = deriveFundIntradayDisplayMetrics({
+      holdingShares: 100,
+      nav: 1.2,
+      navDate: '2026-03-19',
+      todayStr: '2026-03-20',
+      navChangePercent: 1.5,
+      shouldEstimate: true,
+      estimatedChangePct: 2,
+      isGainActive: false,
+    });
+
+    expect(metrics.effectivePctDate).toBe('2026-03-20');
+    expect(metrics.dayChangePct).toBe(0);
+    expect(metrics.dayChangeVal).toBe(0);
+    expect(metrics.estimatedDayChangePct).toBe(2);
+    expect(metrics.todayChangeIsEstimated).toBe(true);
+    expect(metrics.todayChangeUnavailable).toBe(false);
+  });
+
   it('returns zero gray metrics with unavailable estimate when shouldEstimate but no holdings estimate', () => {
     const metrics = deriveFundIntradayDisplayMetrics({
       holdingShares: 100,
@@ -68,6 +92,7 @@ describe('deriveFundIntradayDisplayMetrics', () => {
     expect(metrics.effectivePctDate).toBe('2026-03-20');
     expect(metrics.dayChangePct).toBe(0);
     expect(metrics.dayChangeVal).toBe(0);
+    expect(metrics.estimatedDayChangePct).toBe(0);
     expect(metrics.todayChangeIsEstimated).toBe(false);
     expect(metrics.todayChangeUnavailable).toBe(true);
   });
@@ -87,7 +112,38 @@ describe('deriveFundIntradayDisplayMetrics', () => {
     expect(metrics.effectivePctDate).toBe('2026-03-20');
     expect(metrics.dayChangePct).toBe(2);
     expect(metrics.dayChangeVal).toBeCloseTo(2.4, 6);
+    expect(metrics.estimatedDayChangePct).toBe(2);
     expect(metrics.todayChangeIsEstimated).toBe(true);
     expect(metrics.todayChangeUnavailable).toBe(false);
+  });
+});
+
+describe('calculateSummary', () => {
+  it('uses estimated pct to calculate day gain when estimated badge is active', () => {
+    const now = new Date();
+    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(
+      now.getDate(),
+    ).padStart(2, '0')}`;
+
+    const summary = calculateSummary([
+      {
+        id: 1,
+        code: '000001',
+        name: '估值基金',
+        platform: '默认账户',
+        holdingShares: 100,
+        costPrice: 1,
+        currentNav: 1.2,
+        lastUpdate: todayStr,
+        dayChangePct: 0,
+        dayChangeVal: 0,
+        officialDayChangePct: 0.5,
+        estimatedDayChangePct: 2,
+        todayChangeIsEstimated: true,
+        todayChangeUnavailable: false,
+      },
+    ]);
+
+    expect(summary.totalDayGain).toBeCloseTo(2.4, 6);
   });
 });
