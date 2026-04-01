@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, initDB, calculateSummary, refreshFundData } from '../services/db';
 import {
@@ -21,10 +21,18 @@ import { AnimatePresence } from 'framer-motion';
 import { useSettings } from '../services/SettingsContext';
 import { AiHoldingsAnalysisModal } from './AiHoldingsAnalysisModal';
 import { hasTouchMovedBeyondThreshold } from '../services/longPressGesture';
+import {
+  AUTO_REFRESH_INTERVAL_MS,
+  AUTO_REFRESH_STALE_MS,
+  isRefreshStale,
+  readRefreshLastSuccessAt,
+  writeRefreshLastSuccessAt,
+} from '../services/refreshPolicy';
 
 const LONG_PRESS_DURATION_MS = 600;
 const TOUCH_MOVE_CANCEL_THRESHOLD_PX = 12;
 const DASHBOARD_SORT_STORAGE_KEY = 'dashboard.sortState.v1';
+const REFRESH_DEBOUNCE_MS = 300;
 
 type DashboardSortKey =
   | 'officialDayChangePct'
@@ -87,6 +95,8 @@ export const Dashboard: React.FC = () => {
   const [cooldown, setCooldown] = useState(0);
   const cooldownMaxTime = 5000;
   const cooldownRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const refreshInFlightRef = useRef(false);
+  const lastRefreshRequestAtRef = useRef(0);
 
   const [selectedFund, setSelectedFund] = useState<Fund | null>(null);
 
@@ -158,23 +168,30 @@ export const Dashboard: React.FC = () => {
     };
   }, [funds]);
 
+  const requestFundRefresh = useCallback(async (force = false) => {
+    if (refreshInFlightRef.current) return false;
+    const now = Date.now();
+    if (now - lastRefreshRequestAtRef.current < REFRESH_DEBOUNCE_MS) return false;
+
+    lastRefreshRequestAtRef.current = now;
+    refreshInFlightRef.current = true;
+    try {
+      await refreshFundData({ force });
+      writeRefreshLastSuccessAt('fund', Date.now());
+      return true;
+    } finally {
+      refreshInFlightRef.current = false;
+    }
+  }, []);
+
   useEffect(() => {
     initDB();
 
-    const doRefresh = (force?: boolean) =>
-      refreshFundData({ force }).then(() => {
-        sessionStorage.setItem('lastAutoUpdate_timestamp', Date.now().toString());
-      });
+    const shouldRefreshByStale = () =>
+      isRefreshStale(readRefreshLastSuccessAt('fund'), AUTO_REFRESH_STALE_MS);
 
-    const shouldAutoRefresh = () => {
-      const lastAutoUpdateStr = sessionStorage.getItem('lastAutoUpdate_timestamp');
-      const now = Date.now();
-      const lastAutoUpdate = lastAutoUpdateStr ? parseInt(lastAutoUpdateStr) : 0;
-      return !lastAutoUpdateStr || Number.isNaN(lastAutoUpdate) || now - lastAutoUpdate > 60000;
-    };
-
-    if (document.visibilityState === 'visible' && shouldAutoRefresh()) {
-      doRefresh();
+    if (document.visibilityState === 'visible' && shouldRefreshByStale()) {
+      void requestFundRefresh(false);
     }
 
     let autoUpdateTimer: ReturnType<typeof setInterval> | null = null;
@@ -184,8 +201,8 @@ export const Dashboard: React.FC = () => {
       if (autoUpdateTimer) clearInterval(autoUpdateTimer);
       autoUpdateTimer = setInterval(() => {
         if (document.visibilityState !== 'visible') return;
-        doRefresh();
-      }, 15000);
+        void requestFundRefresh(false);
+      }, AUTO_REFRESH_INTERVAL_MS);
     };
 
     const stopAutoRefresh = () => {
@@ -195,25 +212,36 @@ export const Dashboard: React.FC = () => {
       }
     };
 
+    const maybeRefreshWhenVisible = () => {
+      if (document.visibilityState !== 'visible') return;
+      if (shouldRefreshByStale()) {
+        void requestFundRefresh(false);
+      }
+    };
+
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
-        if (shouldAutoRefresh()) {
-          doRefresh();
-        }
+        maybeRefreshWhenVisible();
         startAutoRefresh();
       } else {
         stopAutoRefresh();
       }
     };
 
+    const handleWindowFocus = () => {
+      maybeRefreshWhenVisible();
+    };
+
     startAutoRefresh();
     document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleWindowFocus);
 
     return () => {
       stopAutoRefresh();
       document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleWindowFocus);
     };
-  }, [autoRefresh]);
+  }, [autoRefresh, requestFundRefresh]);
 
   useEffect(() => {
     const handleClick = () => setContextMenu(null);
@@ -392,13 +420,13 @@ export const Dashboard: React.FC = () => {
   };
 
   const handleManualRefresh = async () => {
-    if (cooldown > 0 || isRefreshing) return;
+    if (cooldown > 0 || isRefreshing || refreshInFlightRef.current) return;
 
     setIsRefreshing(true);
     const startTime = Date.now();
 
     try {
-      await refreshFundData({ force: true });
+      await requestFundRefresh(true);
     } finally {
       const elapsed = Date.now() - startTime;
       if (elapsed < 1000) {
@@ -1136,7 +1164,8 @@ export const Dashboard: React.FC = () => {
         onClose={() => setIsAddFundOpen(false)}
         editFund={editingFund}
         onFundAdded={async () => {
-          await refreshFundData({ force: true });
+          if (refreshInFlightRef.current) return;
+          await requestFundRefresh(true);
         }}
       />
       {adjustFund && (

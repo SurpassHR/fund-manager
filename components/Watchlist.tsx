@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, refreshFundData, refreshWatchlistData } from '../services/db';
 import { getSignColor, formatPct } from '../services/financeUtils';
@@ -10,10 +10,19 @@ import { AddFundModal } from './AddFundModal';
 import { FundDetail } from './FundDetail';
 import { AnimatePresence } from 'framer-motion';
 import { hasTouchMovedBeyondThreshold } from '../services/longPressGesture';
+import { useSettings } from '../services/SettingsContext';
+import {
+  AUTO_REFRESH_INTERVAL_MS,
+  AUTO_REFRESH_STALE_MS,
+  isRefreshStale,
+  readRefreshLastSuccessAt,
+  writeRefreshLastSuccessAt,
+} from '../services/refreshPolicy';
 
 const LONG_PRESS_DURATION_MS = 600;
 const TOUCH_MOVE_CANCEL_THRESHOLD_PX = 12;
 const WATCHLIST_SORT_STORAGE_KEY = 'watchlist.sortState.v1';
+const REFRESH_DEBOUNCE_MS = 300;
 
 type WatchlistSortKey = 'dayChangePct' | 'anchorGain';
 
@@ -56,6 +65,7 @@ export const Watchlist: React.FC = () => {
   const watchlists = useLiveQuery(() => db.watchlists.toArray());
   const funds = useLiveQuery(() => db.funds.toArray());
   const { t } = useTranslation();
+  const { autoRefresh } = useSettings();
 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<WatchlistItem | undefined>(undefined);
@@ -93,6 +103,8 @@ export const Watchlist: React.FC = () => {
   const [cooldown, setCooldown] = useState(0);
   const cooldownMaxTime = 5000;
   const cooldownRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const refreshInFlightRef = useRef(false);
+  const lastRefreshRequestAtRef = useRef(0);
 
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; itemId: number } | null>(
     null,
@@ -101,9 +113,93 @@ export const Watchlist: React.FC = () => {
   const touchStartPointRef = useRef<{ x: number; y: number } | null>(null);
   const isScrollGestureRef = useRef(false);
 
-  useEffect(() => {
-    refreshWatchlistData();
+  const runRefreshTask = useCallback(async (runner: () => Promise<unknown>) => {
+    if (refreshInFlightRef.current) return false;
+    const now = Date.now();
+    if (now - lastRefreshRequestAtRef.current < REFRESH_DEBOUNCE_MS) return false;
+
+    lastRefreshRequestAtRef.current = now;
+    refreshInFlightRef.current = true;
+    try {
+      await runner();
+      writeRefreshLastSuccessAt('watchlist', Date.now());
+      return true;
+    } finally {
+      refreshInFlightRef.current = false;
+    }
   }, []);
+
+  const requestWatchlistRefresh = useCallback(
+    async (force = false) => runRefreshTask(() => refreshWatchlistData({ force })),
+    [runRefreshTask],
+  );
+
+  const requestFundAndWatchlistRefresh = useCallback(
+    async (force = false) =>
+      runRefreshTask(() =>
+        Promise.all([refreshFundData({ force }), refreshWatchlistData({ force })]).then(
+          () => undefined,
+        ),
+      ),
+    [runRefreshTask],
+  );
+
+  useEffect(() => {
+    const shouldRefreshByStale = () =>
+      isRefreshStale(readRefreshLastSuccessAt('watchlist'), AUTO_REFRESH_STALE_MS);
+
+    if (document.visibilityState === 'visible' && shouldRefreshByStale()) {
+      void requestWatchlistRefresh(false);
+    }
+
+    let autoUpdateTimer: ReturnType<typeof setInterval> | null = null;
+
+    const startAutoRefresh = () => {
+      if (!autoRefresh) return;
+      if (autoUpdateTimer) clearInterval(autoUpdateTimer);
+      autoUpdateTimer = setInterval(() => {
+        if (document.visibilityState !== 'visible') return;
+        void requestWatchlistRefresh(false);
+      }, AUTO_REFRESH_INTERVAL_MS);
+    };
+
+    const stopAutoRefresh = () => {
+      if (autoUpdateTimer) {
+        clearInterval(autoUpdateTimer);
+        autoUpdateTimer = null;
+      }
+    };
+
+    const maybeRefreshWhenVisible = () => {
+      if (document.visibilityState !== 'visible') return;
+      if (shouldRefreshByStale()) {
+        void requestWatchlistRefresh(false);
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        maybeRefreshWhenVisible();
+        startAutoRefresh();
+      } else {
+        stopAutoRefresh();
+      }
+    };
+
+    const handleWindowFocus = () => {
+      maybeRefreshWhenVisible();
+    };
+
+    startAutoRefresh();
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleWindowFocus);
+
+    return () => {
+      stopAutoRefresh();
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleWindowFocus);
+    };
+  }, [autoRefresh, requestWatchlistRefresh]);
 
   useEffect(() => {
     const handleClick = () => setContextMenu(null);
@@ -203,13 +299,13 @@ export const Watchlist: React.FC = () => {
   };
 
   const handleManualRefresh = async () => {
-    if (cooldown > 0 || isRefreshing) return;
+    if (cooldown > 0 || isRefreshing || refreshInFlightRef.current) return;
 
     setIsRefreshing(true);
     const startTime = Date.now();
 
     try {
-      await refreshWatchlistData({ force: true });
+      await requestWatchlistRefresh(true);
     } finally {
       const elapsed = Date.now() - startTime;
       if (elapsed < 1000) {
@@ -619,10 +715,8 @@ export const Watchlist: React.FC = () => {
         onClose={handleAddFundModalClose}
         prefillWatchlistItem={prefillWatchlistItem}
         onFundAdded={async () => {
-          await Promise.all([
-            refreshFundData({ force: true }),
-            refreshWatchlistData({ force: true }),
-          ]);
+          if (refreshInFlightRef.current) return;
+          await requestFundAndWatchlistRefresh(true);
         }}
       />
 

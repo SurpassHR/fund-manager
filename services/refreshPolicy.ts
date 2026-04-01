@@ -83,7 +83,7 @@ export const useUnifiedAutoRefresh = ({
 
   const runRefresh = useCallback(
     async (force = false) => {
-      if (inFlightRef.current) return inFlightRef.current;
+      if (inFlightRef.current) return undefined;
 
       const task = (async () => {
         setRefreshStatus('running');
@@ -140,10 +140,16 @@ export const useUnifiedAutoRefresh = ({
       }
     };
 
+    const onWindowFocus = () => {
+      maybeRefresh();
+    };
+
     document.addEventListener('visibilitychange', onVisibilityChange);
+    window.addEventListener('focus', onWindowFocus);
     return () => {
       window.clearInterval(timer);
       document.removeEventListener('visibilitychange', onVisibilityChange);
+      window.removeEventListener('focus', onWindowFocus);
     };
   }, [enabled, intervalMs, runRefresh, staleMs]);
 
