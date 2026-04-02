@@ -213,4 +213,48 @@ describe('db backup watchlist sync data flow', () => {
     expect(clearWatchlistsSpy).not.toHaveBeenCalled();
     expect(result).toEqual({ added: 0, skipped: 0 });
   });
+
+  it('normalizes imported estimated fields to avoid cross-device stale intraday state', async () => {
+    vi.spyOn(db.funds, 'toArray').mockResolvedValue([]);
+    vi.spyOn(db.accounts, 'toArray').mockResolvedValue([]);
+    vi.spyOn(db.watchlists, 'toArray').mockResolvedValue([]);
+    const addAccountSpy = vi.spyOn(db.accounts, 'add').mockResolvedValue(1);
+    const addFundSpy = vi.spyOn(db.funds, 'add').mockResolvedValue(1);
+
+    const incoming = {
+      version: 1,
+      exportDate: '2026-03-22T00:00:00.000Z',
+      funds: [
+        {
+          code: '000001',
+          name: '测试基金',
+          platform: '券商A',
+          holdingShares: 100,
+          costPrice: 1,
+          currentNav: 2,
+          lastUpdate: '2026-03-22',
+          dayChangePct: 9.9,
+          dayChangeVal: 9.9,
+          todayChangeIsEstimated: false,
+          todayChangeUnavailable: false,
+          estimatedDayChangePct: 7.7,
+        },
+      ],
+      accounts: [{ name: '券商A', isDefault: false }],
+      watchlists: [],
+    };
+
+    const result = await importFundsFromBackupContent(JSON.stringify(incoming));
+
+    expect(addAccountSpy).toHaveBeenCalledTimes(1);
+    expect(addFundSpy).toHaveBeenCalledTimes(1);
+    expect(addFundSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        todayChangeIsEstimated: false,
+        todayChangeUnavailable: false,
+        estimatedDayChangePct: 0,
+      }),
+    );
+    expect(result).toEqual({ added: 2, skipped: 0 });
+  });
 });

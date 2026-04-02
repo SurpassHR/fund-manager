@@ -160,4 +160,45 @@ describe('Dashboard sort persistence', () => {
     expect(getFundOrder()).toEqual(['基金A', '基金B']);
     expect(localStorage.getItem('dashboard.sortState.v1')).toBeNull();
   });
+
+  it('uses market minus cost for total gain sort without double-counting stale estimated pct', () => {
+    mocked.state.funds = [
+      {
+        id: 1,
+        code: '000001',
+        name: '基金A',
+        platform: '默认账户',
+        holdingShares: 100,
+        costPrice: 1,
+        currentNav: 1.1,
+        dayChangePct: 0.1,
+        dayChangeVal: 1,
+        lastUpdate: '2026-03-31',
+        todayChangeIsEstimated: false,
+        todayChangeUnavailable: false,
+        estimatedDayChangePct: 50,
+      },
+      {
+        id: 2,
+        code: '000002',
+        name: '基金B',
+        platform: '默认账户',
+        holdingShares: 100,
+        costPrice: 1,
+        currentNav: 1.3,
+        dayChangePct: 0.2,
+        dayChangeVal: 2,
+        lastUpdate: '2026-03-31',
+        todayChangeIsEstimated: false,
+        todayChangeUnavailable: false,
+        estimatedDayChangePct: 0,
+      },
+    ];
+
+    render(<Dashboard />);
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'common.totalGain' })[0]);
+
+    expect(getFundOrder()).toEqual(['基金B', '基金A']);
+  });
 });

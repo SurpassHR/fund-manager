@@ -318,8 +318,7 @@ export const Dashboard: React.FC = () => {
           : fund.dayChangeVal;
       if (sortState.key === 'marketValue') return holdingValue;
       if (sortState.key === 'totalGain') {
-        const estimateGainVal = (holdingValue * (fund.estimatedDayChangePct ?? 0)) / 100;
-        return holdingValue - fund.holdingShares * fund.costPrice + estimateGainVal;
+        return holdingValue - fund.holdingShares * fund.costPrice;
       }
       if (sortState.key === 'todayGain') return displayTodayGainVal;
       if (sortState.key === 'estimatedDayChangePct') {
@@ -891,15 +890,12 @@ export const Dashboard: React.FC = () => {
                 : fund.todayChangeIsEstimated
                   ? (fund.estimatedDayChangePct ?? 0)
                   : (fund.officialDayChangePct ?? fund.dayChangePct);
-              const estimatedGainVal = (holdingValue * (fund.estimatedDayChangePct ?? 0)) / 100;
               const displayTodayGainVal = fund.todayChangeUnavailable
                 ? 0
                 : fund.todayChangeIsEstimated
-                  ? estimatedGainVal
+                  ? (holdingValue * (fund.estimatedDayChangePct ?? 0)) / 100
                   : fund.dayChangeVal;
-              const adjustedHoldingGain = totalReturn + estimatedGainVal;
-              const adjustedHoldingGainPct =
-                totalCost !== 0 ? (adjustedHoldingGain / totalCost) * 100 : 0;
+              const holdingGainPct = totalCost !== 0 ? (totalReturn / totalCost) * 100 : 0;
               const todayChangeTag = fund.todayChangeUnavailable
                 ? t('common.noEstimate') || '无估值'
                 : fund.todayChangeIsEstimated
@@ -995,15 +991,13 @@ export const Dashboard: React.FC = () => {
                         {formatSignedCurrency(displayTodayGainVal)}
                       </div>
                       <div className="flex flex-col items-end">
-                        <div
-                          className={`text-sm font-semibold ${getSignColor(adjustedHoldingGain)}`}
-                        >
-                          {formatSignedCurrency(adjustedHoldingGain)}
+                        <div className={`text-sm font-semibold ${getSignColor(totalReturn)}`}>
+                          {formatSignedCurrency(totalReturn)}
                         </div>
                         <div
-                          className={`mt-1 text-[10px] font-medium ${getSignColor(adjustedHoldingGainPct)}`}
+                          className={`mt-1 text-[10px] font-medium ${getSignColor(holdingGainPct)}`}
                         >
-                          {formatPct(adjustedHoldingGainPct)}
+                          {formatPct(holdingGainPct)}
                         </div>
                       </div>
                       <div className="text-base font-black tracking-[-0.03em] text-slate-900 dark:text-gray-50">
@@ -1044,14 +1038,14 @@ export const Dashboard: React.FC = () => {
                       </div>
                       <div className="min-w-0 flex-1 rounded-xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)]/80 px-2 py-2 text-right dark:border-white/10 dark:bg-white/5">
                         <div
-                          className={`truncate text-[12px] font-bold ${getSignColor(adjustedHoldingGain)}`}
+                          className={`truncate text-[12px] font-bold ${getSignColor(totalReturn)}`}
                         >
-                          {formatSignedCurrency(adjustedHoldingGain)}
+                          {formatSignedCurrency(totalReturn)}
                         </div>
                         <div
-                          className={`mt-0.5 truncate text-[9px] font-medium ${getSignColor(adjustedHoldingGainPct)}`}
+                          className={`mt-0.5 truncate text-[9px] font-medium ${getSignColor(holdingGainPct)}`}
                         >
-                          {formatPct(adjustedHoldingGainPct)}
+                          {formatPct(holdingGainPct)}
                         </div>
                         <div className="mt-0.5 truncate text-[9px] font-semibold tracking-[0.1em] text-slate-400 dark:text-gray-500">
                           {t('common.totalGain')}

@@ -962,6 +962,27 @@ export const importFundsFromBackupContent = async (
 
   const importMode = options?.importMode ?? 'merge';
 
+  const normalizeImportedFund = (fund: Fund): Fund => {
+    const normalized: Fund = { ...fund };
+
+    // todayChangeIsEstimated=false 时，estimatedDayChangePct 不应参与任何展示/计算
+    // 导入时做防御性清理，避免跨设备同步残留临时估值字段导致口径不一致。
+    if (normalized.todayChangeIsEstimated !== true) {
+      normalized.estimatedDayChangePct = 0;
+    }
+
+    if (normalized.todayChangeUnavailable === true) {
+      normalized.todayChangeIsEstimated = false;
+      normalized.estimatedDayChangePct = 0;
+      normalized.dayChangeVal = 0;
+      normalized.dayChangePct = 0;
+    }
+
+    return normalized;
+  };
+
+  const normalizedImportedFunds = importedFunds.map(normalizeImportedFund);
+
   if (importMode === 'replaceAll') {
     const isCompletelyEmpty =
       importedFunds.length === 0 &&
@@ -977,8 +998,8 @@ export const importFundsFromBackupContent = async (
       await db.accounts.clear();
       await db.watchlists.clear();
 
-      if (importedFunds.length > 0) {
-        await db.funds.bulkAdd(importedFunds);
+      if (normalizedImportedFunds.length > 0) {
+        await db.funds.bulkAdd(normalizedImportedFunds);
       }
       if (importedAccounts.length > 0) {
         await db.accounts.bulkAdd(importedAccounts);
@@ -989,7 +1010,7 @@ export const importFundsFromBackupContent = async (
     });
 
     return {
-      added: importedFunds.length + importedAccounts.length + importedWatchlists.length,
+      added: normalizedImportedFunds.length + importedAccounts.length + importedWatchlists.length,
       skipped: 0,
     };
   }
@@ -1047,7 +1068,7 @@ export const importFundsFromBackupContent = async (
     return fields.some((field) => current[field] !== incoming[field]);
   };
 
-  for (const fund of importedFunds) {
+  for (const fund of normalizedImportedFunds) {
     const key = buildFundBackupKey(fund);
     const existing = existingFundMap.get(key);
 
