@@ -1,7 +1,7 @@
 import OpenAI from 'openai';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
-export type AiProvider = 'openai' | 'gemini';
+export type AiProvider = 'openai' | 'gemini' | 'customOpenAi';
 
 export interface OcrHoldingItem {
   name: string;
@@ -44,6 +44,14 @@ type GeminiModelItem = {
 
 type GeminiModelsResponse = {
   models?: GeminiModelItem[];
+};
+
+type OpenAiCompatibleModelItem = {
+  id?: string;
+};
+
+type OpenAiCompatibleModelsResponse = {
+  data?: OpenAiCompatibleModelItem[];
 };
 
 const SYSTEM_PROMPT = `你是一个金融基金持仓截图识别器。此截图来自“支付宝-基金-持有”列表。请逐行提取基金条目字段，并返回严格 JSON。\n\n字段语义（按支付宝持有列表）：\n- name: 基金名称（如“前海开源金银珠宝混合C”）\n- amount: 持有金额（列名“金额/昨日收益”的大号数值）\n- dayGain: 昨日收益（列名“金额/昨日收益”的小号红绿数字）\n- holdingGain: 持有收益（列名“持有收益/率”的大号红绿数字）\n- holdingGainPct: 持有收益率（列名“持有收益/率”的百分比）\n\n要求：\n1) 只输出 JSON，不要 markdown，不要解释文字。\n2) JSON 结构如下：\n{\n  "source": "Alipay",\n  "asOfDate": "YYYY-MM-DD | null",\n  "currency": "CNY | null",\n  "items": [\n    {\n      "name": "基金名称",\n      "amount": number|null,\n      "dayGain": number|null,\n      "holdingGain": number|null,\n      "holdingGainPct": number|null,\n      "codeHint": "可能的代码或缩写|null"\n    }\n  ],\n  "warnings": ["..."]\n}\n3) 金额单位以截图为准，百分比输出为数值（例如 -1.72 表示 -1.72%）。\n4) 若字段缺失请填 null，不要猜测。\n5) 如果识别不到任何基金，items 为空数组。\n6) source 固定填 "Alipay"。`;
@@ -102,6 +110,33 @@ export const listOpenAiModels = async (apiKey: string): Promise<string[]> => {
   return models;
 };
 
+const joinBaseUrlPath = (baseURL: string, path: string) => {
+  return `${baseURL.replace(/\/+$/, '')}/${path.replace(/^\/+/, '')}`;
+};
+
+export const listCustomOpenAiModels = async (params: {
+  apiKey: string;
+  baseURL?: string;
+  modelsEndpoint?: string;
+}): Promise<string[]> => {
+  const { apiKey, baseURL, modelsEndpoint } = params;
+  const endpoint = modelsEndpoint?.trim() || (baseURL ? joinBaseUrlPath(baseURL, '/models') : '');
+  if (!endpoint) return [];
+
+  const res = await fetch(endpoint, {
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+    },
+  });
+  if (!res.ok) throw new Error('CUSTOM_OPENAI_MODELS_FAILED');
+  const json = (await res.json()) as OpenAiCompatibleModelsResponse;
+  const models = (json.data || [])
+    .map((item) => String(item.id || '').trim())
+    .filter(Boolean)
+    .sort();
+  return models;
+};
+
 export const listGeminiModels = async (apiKey: string): Promise<string[]> => {
   const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
   if (!res.ok) throw new Error('GEMINI_MODELS_FAILED');
@@ -119,15 +154,20 @@ export const recognizeHoldingsFromImage = async (params: {
   provider: AiProvider;
   apiKey: string;
   model: string;
+  baseURL?: string;
   file: File;
 }): Promise<OcrResult> => {
-  const { provider, apiKey, model, file } = params;
+  const { provider, apiKey, model, baseURL, file } = params;
   if (!apiKey) throw new Error('MISSING_API_KEY');
 
   const dataUrl = await fileToBase64(file);
 
-  if (provider === 'openai') {
-    const client = new OpenAI({ apiKey, dangerouslyAllowBrowser: true });
+  if (provider === 'openai' || provider === 'customOpenAi') {
+    const client = new OpenAI({
+      apiKey,
+      dangerouslyAllowBrowser: true,
+      ...(provider === 'customOpenAi' && baseURL ? { baseURL } : {}),
+    });
     const response = await client.chat.completions.create({
       model,
       messages: [

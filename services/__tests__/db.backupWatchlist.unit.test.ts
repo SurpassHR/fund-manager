@@ -124,12 +124,14 @@ describe('db backup watchlist sync data flow', () => {
 
   it('replaces all funds/accounts/watchlists from gist backup in replaceAll mode', async () => {
     const transactionSpy = vi.spyOn(db, 'transaction').mockImplementation((async (
-      ...args: any[]
+      ...args: unknown[]
     ) => {
-      const scope = args[args.length - 1] as () => Promise<void>;
-      await scope();
+      const scope = args[args.length - 1];
+      if (typeof scope === 'function') {
+        await (scope as () => Promise<void>)();
+      }
       return undefined;
-    }) as any);
+    }) as unknown as typeof db.transaction);
     const clearFundsSpy = vi.spyOn(db.funds, 'clear').mockResolvedValue();
     const clearAccountsSpy = vi.spyOn(db.accounts, 'clear').mockResolvedValue();
     const clearWatchlistsSpy = vi.spyOn(db.watchlists, 'clear').mockResolvedValue();

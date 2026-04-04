@@ -25,6 +25,14 @@ const mockedDeps = vi.hoisted(() => ({
     setOpenaiApiKey: vi.fn(),
     openaiModel: 'gpt-4o-mini',
     setOpenaiModel: vi.fn(),
+    customOpenAiApiKey: '',
+    setCustomOpenAiApiKey: vi.fn(),
+    customOpenAiBaseUrl: '',
+    setCustomOpenAiBaseUrl: vi.fn(),
+    customOpenAiModelsEndpoint: '',
+    setCustomOpenAiModelsEndpoint: vi.fn(),
+    customOpenAiModel: 'gpt-4o-mini',
+    setCustomOpenAiModel: vi.fn(),
     geminiApiKey: '',
     setGeminiApiKey: vi.fn(),
     geminiModel: 'gemini-3.1-flash-lite-preview',
@@ -57,6 +65,7 @@ vi.mock('../../services/SettingsContext', () => ({
 
 vi.mock('../../services/aiOcr', () => ({
   listOpenAiModels: vi.fn(async () => []),
+  listCustomOpenAiModels: vi.fn(async () => []),
   listGeminiModels: vi.fn(async () => []),
 }));
 

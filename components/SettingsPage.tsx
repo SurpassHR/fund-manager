@@ -9,7 +9,7 @@ import {
   importFunds,
   importFundsFromBackupContent,
 } from '../services/db';
-import { listGeminiModels, listOpenAiModels } from '../services/aiOcr';
+import { listCustomOpenAiModels, listGeminiModels, listOpenAiModels } from '../services/aiOcr';
 import {
   createSyncGist,
   downloadSyncGistContent,
@@ -44,6 +44,14 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack, initialShowA
     setOpenaiApiKey,
     openaiModel,
     setOpenaiModel,
+    customOpenAiApiKey,
+    setCustomOpenAiApiKey,
+    customOpenAiBaseUrl,
+    setCustomOpenAiBaseUrl,
+    customOpenAiModelsEndpoint,
+    setCustomOpenAiModelsEndpoint,
+    customOpenAiModel,
+    setCustomOpenAiModel,
     geminiApiKey,
     setGeminiApiKey,
     geminiModel,
@@ -56,10 +64,13 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack, initialShowA
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [activeView, setActiveView] = useState<SettingsView>(initialShowAiSettings ? 'ai' : 'main');
   const [openaiModels, setOpenaiModels] = useState<string[]>([]);
+  const [customOpenAiModels, setCustomOpenAiModels] = useState<string[]>([]);
   const [geminiModels, setGeminiModels] = useState<string[]>([]);
   const [openaiLoading, setOpenaiLoading] = useState(false);
+  const [customOpenAiLoading, setCustomOpenAiLoading] = useState(false);
   const [geminiLoading, setGeminiLoading] = useState(false);
   const [openaiError, setOpenaiError] = useState('');
+  const [customOpenAiError, setCustomOpenAiError] = useState('');
   const [geminiError, setGeminiError] = useState('');
   const [tokenFormatState, setTokenFormatState] = useState<'idle' | 'valid' | 'invalid'>('idle');
   const [tokenApiState, setTokenApiState] = useState<'idle' | 'checking' | 'valid' | 'invalid'>(
@@ -357,6 +368,39 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack, initialShowA
 
   useEffect(() => {
     let active = true;
+    if (!customOpenAiApiKey || (!customOpenAiModelsEndpoint && !customOpenAiBaseUrl)) {
+      setCustomOpenAiModels([]);
+      setCustomOpenAiError('');
+      return;
+    }
+    setCustomOpenAiLoading(true);
+    setCustomOpenAiError('');
+    listCustomOpenAiModels({
+      apiKey: customOpenAiApiKey,
+      baseURL: customOpenAiBaseUrl,
+      modelsEndpoint: customOpenAiModelsEndpoint,
+    })
+      .then((models) => {
+        if (!active) return;
+        setCustomOpenAiModels(models);
+      })
+      .catch(() => {
+        if (!active) return;
+        setCustomOpenAiError(t('common.modelFetchFailed') || '模型列表获取失败');
+        setCustomOpenAiModels([]);
+      })
+      .finally(() => {
+        if (!active) return;
+        setCustomOpenAiLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [customOpenAiApiKey, customOpenAiBaseUrl, customOpenAiModelsEndpoint, t]);
+
+  useEffect(() => {
+    let active = true;
     if (!geminiApiKey) {
       setGeminiModels([]);
       setGeminiError('');
@@ -465,15 +509,16 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack, initialShowA
           </div>
           <select
             value={aiProvider}
-            onChange={(e) => setAiProvider(e.target.value as 'openai' | 'gemini')}
+            onChange={(e) => setAiProvider(e.target.value as 'openai' | 'gemini' | 'customOpenAi')}
             className="w-full rounded-2xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] px-4 py-3 text-sm text-[var(--app-shell-ink)] outline-none transition focus:border-[var(--app-shell-line-strong)]"
           >
             <option value="openai">OpenAI</option>
             <option value="gemini">Gemini</option>
+            <option value="customOpenAi">OpenAI Compatible</option>
           </select>
         </section>
 
-        <div className="grid gap-4 xl:grid-cols-2">
+        <div className="grid gap-4 xl:grid-cols-3">
           <section className="rounded-[1.75rem] border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)] p-4 shadow-[var(--app-shell-shadow)] backdrop-blur-xl md:p-5">
             <div className="mb-4">
               <div className="text-[0.62rem] font-semibold uppercase tracking-[0.28em] text-[var(--app-shell-muted)]">
@@ -517,6 +562,67 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack, initialShowA
                   <option value={openaiModel}>{openaiModel}</option>
                 )}
               </select>
+            </div>
+          </section>
+
+          <section className="rounded-[1.75rem] border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)] p-4 shadow-[var(--app-shell-shadow)] backdrop-blur-xl md:p-5">
+            <div className="mb-4">
+              <div className="text-[0.62rem] font-semibold uppercase tracking-[0.28em] text-[var(--app-shell-muted)]">
+                OpenAI Compatible
+              </div>
+              <div className="mt-1 text-base font-semibold text-[var(--app-shell-ink)]">
+                {t('common.customOpenAiBaseUrl') || '兼容接口 Base URL'}
+              </div>
+            </div>
+            <div className="space-y-3">
+              <input
+                type="text"
+                value={customOpenAiBaseUrl}
+                onChange={(e) => setCustomOpenAiBaseUrl(e.target.value)}
+                placeholder="https://api.example.com/v1"
+                className="w-full rounded-2xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] px-4 py-3 text-sm text-[var(--app-shell-ink)] outline-none transition focus:border-[var(--app-shell-line-strong)]"
+              />
+              <input
+                type="password"
+                value={customOpenAiApiKey}
+                onChange={(e) => setCustomOpenAiApiKey(e.target.value)}
+                placeholder="sk-..."
+                className="w-full rounded-2xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] px-4 py-3 text-sm text-[var(--app-shell-ink)] outline-none transition focus:border-[var(--app-shell-line-strong)]"
+              />
+              <input
+                type="text"
+                value={customOpenAiModelsEndpoint}
+                onChange={(e) => setCustomOpenAiModelsEndpoint(e.target.value)}
+                placeholder={
+                  t('common.customOpenAiModelsEndpointPlaceholder') ||
+                  '可选：自定义模型列表地址（留空则使用 baseURL/models）'
+                }
+                className="w-full rounded-2xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] px-4 py-3 text-sm text-[var(--app-shell-ink)] outline-none transition focus:border-[var(--app-shell-line-strong)]"
+              />
+              <label className="block text-[11px] font-semibold uppercase tracking-[0.2em] text-[var(--app-shell-muted)]">
+                {t('common.customOpenAiModel') || '兼容模型（可手动输入）'}
+              </label>
+              <input
+                list="custom-openai-model-options"
+                value={customOpenAiModel}
+                onChange={(e) => setCustomOpenAiModel(e.target.value)}
+                className="w-full rounded-2xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] px-4 py-3 text-sm text-[var(--app-shell-ink)] outline-none transition focus:border-[var(--app-shell-line-strong)]"
+              />
+              <datalist id="custom-openai-model-options">
+                {customOpenAiModels.map((model) => (
+                  <option key={model} value={model}>
+                    {model}
+                  </option>
+                ))}
+              </datalist>
+              {customOpenAiLoading && (
+                <p className="text-xs text-[var(--app-shell-muted)]">
+                  {t('common.modelLoading') || '模型加载中...'}
+                </p>
+              )}
+              {!customOpenAiLoading && customOpenAiError && (
+                <p className="text-xs text-[var(--app-shell-muted)]">{customOpenAiError}</p>
+              )}
             </div>
           </section>
 

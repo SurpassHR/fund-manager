@@ -5,6 +5,7 @@ import { useTranslation } from '../services/i18n';
 import { useSettings } from '../services/SettingsContext';
 import { recognizeHoldingsFromImage } from '../services/aiOcr';
 import type { OcrHoldingItem } from '../services/aiOcr';
+import { resolveAiRuntimeConfig } from '../services/aiProviderConfig';
 import { searchFunds, fetchFundCommonData } from '../services/api';
 import { db } from '../services/db';
 import type { Fund } from '../types';
@@ -53,10 +54,9 @@ export const ScannerModal: React.FC<ScannerModalProps> = ({ isOpen, onClose }) =
   const transition = closeTargetX !== null || snapX !== null ? 'transform 220ms ease' : 'none';
 
   const { t } = useTranslation();
-  const { aiProvider, openaiApiKey, openaiModel, geminiApiKey, geminiModel } = useSettings();
-
-  const apiKey = aiProvider === 'openai' ? openaiApiKey : geminiApiKey;
-  const model = aiProvider === 'openai' ? openaiModel : geminiModel;
+  const settings = useSettings();
+  const runtime = resolveAiRuntimeConfig(settings);
+  const { provider, apiKey, model, baseURL } = runtime;
 
   const [existingCodes, setExistingCodes] = useState<Set<string>>(new Set());
 
@@ -184,9 +184,10 @@ export const ScannerModal: React.FC<ScannerModalProps> = ({ isOpen, onClose }) =
     setScanning(true);
     try {
       const result = await recognizeHoldingsFromImage({
-        provider: aiProvider,
+        provider,
         apiKey,
         model,
+        baseURL,
         file,
       });
 

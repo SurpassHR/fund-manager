@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useState } from 'react';
 
-export type AiProvider = 'openai' | 'gemini';
+export type AiProvider = 'openai' | 'gemini' | 'customOpenAi';
 
 export interface DefaultGistTargetSnapshot {
   id: string;
@@ -22,6 +22,14 @@ interface SettingsContextValue {
   setOpenaiApiKey: (val: string) => void;
   openaiModel: string;
   setOpenaiModel: (val: string) => void;
+  customOpenAiApiKey: string;
+  setCustomOpenAiApiKey: (val: string) => void;
+  customOpenAiBaseUrl: string;
+  setCustomOpenAiBaseUrl: (val: string) => void;
+  customOpenAiModelsEndpoint: string;
+  setCustomOpenAiModelsEndpoint: (val: string) => void;
+  customOpenAiModel: string;
+  setCustomOpenAiModel: (val: string) => void;
   geminiApiKey: string;
   setGeminiApiKey: (val: string) => void;
   geminiModel: string;
@@ -40,6 +48,10 @@ const defaultSettings = {
   aiProvider: 'openai' as AiProvider,
   openaiApiKey: '',
   openaiModel: 'gpt-4o-mini',
+  customOpenAiApiKey: '',
+  customOpenAiBaseUrl: '',
+  customOpenAiModelsEndpoint: '',
+  customOpenAiModel: 'gpt-4o-mini',
   geminiApiKey: '',
   geminiModel: 'gemini-3.1-flash-lite-preview',
   githubToken: '',
@@ -79,13 +91,31 @@ const parseSavedSettings = (saved: string): typeof defaultSettings => {
         ? parsed.useUnifiedRefresh
         : defaultSettings.useUnifiedRefresh,
     aiProvider:
-      parsed.aiProvider === 'openai' || parsed.aiProvider === 'gemini'
+      parsed.aiProvider === 'openai' ||
+      parsed.aiProvider === 'gemini' ||
+      parsed.aiProvider === 'customOpenAi'
         ? parsed.aiProvider
         : defaultSettings.aiProvider,
     openaiApiKey:
       typeof parsed.openaiApiKey === 'string' ? parsed.openaiApiKey : defaultSettings.openaiApiKey,
     openaiModel:
       typeof parsed.openaiModel === 'string' ? parsed.openaiModel : defaultSettings.openaiModel,
+    customOpenAiApiKey:
+      typeof parsed.customOpenAiApiKey === 'string'
+        ? parsed.customOpenAiApiKey
+        : defaultSettings.customOpenAiApiKey,
+    customOpenAiBaseUrl:
+      typeof parsed.customOpenAiBaseUrl === 'string'
+        ? parsed.customOpenAiBaseUrl
+        : defaultSettings.customOpenAiBaseUrl,
+    customOpenAiModelsEndpoint:
+      typeof parsed.customOpenAiModelsEndpoint === 'string'
+        ? parsed.customOpenAiModelsEndpoint
+        : defaultSettings.customOpenAiModelsEndpoint,
+    customOpenAiModel:
+      typeof parsed.customOpenAiModel === 'string'
+        ? parsed.customOpenAiModel
+        : defaultSettings.customOpenAiModel,
     geminiApiKey:
       typeof parsed.geminiApiKey === 'string' ? parsed.geminiApiKey : defaultSettings.geminiApiKey,
     geminiModel:
@@ -107,6 +137,14 @@ const SettingsContext = createContext<SettingsContextValue>({
   setOpenaiApiKey: () => {},
   openaiModel: defaultSettings.openaiModel,
   setOpenaiModel: () => {},
+  customOpenAiApiKey: defaultSettings.customOpenAiApiKey,
+  setCustomOpenAiApiKey: () => {},
+  customOpenAiBaseUrl: defaultSettings.customOpenAiBaseUrl,
+  setCustomOpenAiBaseUrl: () => {},
+  customOpenAiModelsEndpoint: defaultSettings.customOpenAiModelsEndpoint,
+  setCustomOpenAiModelsEndpoint: () => {},
+  customOpenAiModel: defaultSettings.customOpenAiModel,
+  setCustomOpenAiModel: () => {},
   geminiApiKey: defaultSettings.geminiApiKey,
   setGeminiApiKey: () => {},
   geminiModel: defaultSettings.geminiModel,
@@ -143,6 +181,11 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const setAiProvider = (val: AiProvider) => updateSettings({ aiProvider: val });
   const setOpenaiApiKey = (val: string) => updateSettings({ openaiApiKey: val });
   const setOpenaiModel = (val: string) => updateSettings({ openaiModel: val });
+  const setCustomOpenAiApiKey = (val: string) => updateSettings({ customOpenAiApiKey: val });
+  const setCustomOpenAiBaseUrl = (val: string) => updateSettings({ customOpenAiBaseUrl: val });
+  const setCustomOpenAiModelsEndpoint = (val: string) =>
+    updateSettings({ customOpenAiModelsEndpoint: val });
+  const setCustomOpenAiModel = (val: string) => updateSettings({ customOpenAiModel: val });
   const setGeminiApiKey = (val: string) => updateSettings({ geminiApiKey: val });
   const setGeminiModel = (val: string) => updateSettings({ geminiModel: val });
   const setGithubToken = (val: string) => updateSettings({ githubToken: val });
@@ -162,6 +205,14 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         setOpenaiApiKey,
         openaiModel: settings.openaiModel,
         setOpenaiModel,
+        customOpenAiApiKey: settings.customOpenAiApiKey,
+        setCustomOpenAiApiKey,
+        customOpenAiBaseUrl: settings.customOpenAiBaseUrl,
+        setCustomOpenAiBaseUrl,
+        customOpenAiModelsEndpoint: settings.customOpenAiModelsEndpoint,
+        setCustomOpenAiModelsEndpoint,
+        customOpenAiModel: settings.customOpenAiModel,
+        setCustomOpenAiModel,
         geminiApiKey: settings.geminiApiKey,
         setGeminiApiKey,
         geminiModel: settings.geminiModel,

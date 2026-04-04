@@ -5,6 +5,7 @@ import { useTranslation } from '../services/i18n';
 import { useSettings } from '../services/SettingsContext';
 import { analyzeHoldingsChatStream } from '../services/aiAnalysis';
 import type { AiAnalysisMessage, HoldingsSnapshot } from '../services/aiAnalysis';
+import { resolveAiRuntimeConfig } from '../services/aiProviderConfig';
 import {
   formatCurrency,
   formatPct,
@@ -72,9 +73,9 @@ export const AiHoldingsAnalysisModal: React.FC<AiHoldingsAnalysisModalProps> = (
   const [activeSessionId, setActiveSessionId] = useState('');
 
   const { t } = useTranslation();
-  const { aiProvider, openaiApiKey, openaiModel, geminiApiKey, geminiModel } = useSettings();
-  const apiKey = aiProvider === 'openai' ? openaiApiKey : geminiApiKey;
-  const model = aiProvider === 'openai' ? openaiModel : geminiModel;
+  const settings = useSettings();
+  const runtime = resolveAiRuntimeConfig(settings);
+  const { provider, apiKey, model, baseURL } = runtime;
 
   const handleClose = () => {
     abortControllerRef.current?.abort();
@@ -270,9 +271,10 @@ export const AiHoldingsAnalysisModal: React.FC<AiHoldingsAnalysisModalProps> = (
 
     try {
       const answer = await analyzeHoldingsChatStream({
-        provider: aiProvider,
+        provider,
         apiKey,
         model,
+        baseURL,
         holdings: snapshot,
         messages: activeMessages,
         question: nextQuestion,
