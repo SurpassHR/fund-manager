@@ -887,20 +887,26 @@ export const Dashboard: React.FC = () => {
               const officialDayChangePct = fund.officialDayChangePct ?? fund.dayChangePct;
               const todayChangePct = fund.todayChangeUnavailable
                 ? 0
-                : fund.todayChangeIsEstimated
-                  ? (fund.estimatedDayChangePct ?? 0)
-                  : (fund.officialDayChangePct ?? fund.dayChangePct);
+                : fund.todayChangePreOpen
+                  ? 0
+                  : fund.todayChangeIsEstimated
+                    ? (fund.estimatedDayChangePct ?? 0)
+                    : (fund.officialDayChangePct ?? fund.dayChangePct);
               const displayTodayGainVal = fund.todayChangeUnavailable
                 ? 0
-                : fund.todayChangeIsEstimated
-                  ? (holdingValue * (fund.estimatedDayChangePct ?? 0)) / 100
-                  : fund.dayChangeVal;
+                : fund.todayChangePreOpen
+                  ? 0
+                  : fund.todayChangeIsEstimated
+                    ? (holdingValue * (fund.estimatedDayChangePct ?? 0)) / 100
+                    : fund.dayChangeVal;
               const holdingGainPct = totalCost !== 0 ? (totalReturn / totalCost) * 100 : 0;
-              const todayChangeTag = fund.todayChangeUnavailable
-                ? t('common.noEstimate') || '无估值'
-                : fund.todayChangeIsEstimated
-                  ? t('common.estimated') || '估值'
-                  : t('common.updated') || '已更新';
+              const todayChangeTag = fund.todayChangePreOpen
+                ? t('common.preOpen') || '未开盘'
+                : fund.todayChangeUnavailable
+                  ? t('common.noEstimate') || '无估值'
+                  : fund.todayChangeIsEstimated
+                    ? t('common.estimated') || '估值'
+                    : t('common.updated') || '已更新';
               const displayPlatform =
                 t(`filters.${fund.platform}`) === `filters.${fund.platform}`
                   ? fund.platform

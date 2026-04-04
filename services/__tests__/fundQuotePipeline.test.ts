@@ -106,7 +106,7 @@ describe('runFundQuotePipeline', () => {
     });
   });
 
-  it('still marks stale nav as estimate candidate after close', async () => {
+  it('does not mark stale nav as estimate candidate when market is not trading', async () => {
     vi.mocked(fetchEastMoneyLatestNav).mockResolvedValue({
       nav: 1.5,
       navDate: '2026-03-26',
@@ -140,7 +140,7 @@ describe('runFundQuotePipeline', () => {
     );
 
     expect(result.candidates).toHaveLength(1);
-    expect(result.candidates[0]?.shouldEstimate).toBe(true);
-    expect(result.estimateMap.get('000001')).toBeCloseTo(2, 6);
+    expect(result.candidates[0]?.shouldEstimate).toBe(false);
+    expect(result.estimateMap.size).toBe(0);
   });
 });

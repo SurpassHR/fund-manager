@@ -286,4 +286,27 @@ describe('Watchlist add holding from context menu', () => {
     expect(indexRow).not.toHaveTextContent('common.noEstimate');
     expect(indexRow).not.toHaveTextContent('common.estimated');
   });
+
+  it('基金条目在未开盘时展示未开盘状态 badge', () => {
+    mocked.state.watchlists = [
+      {
+        id: 10,
+        code: '000010',
+        name: '未开盘基金',
+        type: 'fund',
+        anchorPrice: 1,
+        anchorDate: '2026-03-20',
+        currentPrice: 1,
+        dayChangePct: 1.23,
+        todayChangePreOpen: true,
+        lastUpdate: '2026-03-20',
+      },
+    ];
+
+    render(<Watchlist />);
+
+    expect(screen.getAllByText('common.preOpen').length).toBeGreaterThan(0);
+    const preOpenRow = screen.getAllByText('未开盘基金')[0].closest('div.group');
+    expect(preOpenRow).toHaveTextContent('0.00%');
+  });
 });

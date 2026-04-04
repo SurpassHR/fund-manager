@@ -13,6 +13,7 @@ export interface Fund {
   estimatedDayChangePct?: number; // 今日盘中估值涨跌幅（不可用时为 0）
   todayChangeIsEstimated?: boolean; // 今日涨幅是否为盘中估值
   todayChangeUnavailable?: boolean; // 盘中应估值但不可用（如持仓数据缺失）
+  todayChangePreOpen?: boolean; // 今日未开盘（含非交易时段）
   buyDate?: string; // YYYY-MM-DD
   buyTime?: 'before15' | 'after15';
   settlementDays?: number; // T+N 中的 N，默认 1
@@ -52,6 +53,7 @@ export interface WatchlistItem {
   lastUpdate: string; // 最后更新时间/日期
   todayChangeIsEstimated?: boolean; // 今日涨幅是否为盘中估值（仅基金）
   todayChangeUnavailable?: boolean; // 盘中应估值但不可用（仅基金）
+  todayChangePreOpen?: boolean; // 今日未开盘（仅基金）
 }
 
 export interface Account {

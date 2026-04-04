@@ -651,6 +651,7 @@ export const refreshFundData = (options?: RefreshOptions) => {
             estimatedChangePct,
             isGainActive,
           });
+          const todayChangePreOpen = !shouldUseEstimatedValue && navDate !== todayStr;
 
           const {
             effectivePctDate,
@@ -670,7 +671,8 @@ export const refreshFundData = (options?: RefreshOptions) => {
             isNearlyEqual(fund.officialDayChangePct ?? 0, officialDayChangePct) &&
             isNearlyEqual(fund.estimatedDayChangePct ?? 0, estimatedDayChangePct) &&
             Boolean(fund.todayChangeIsEstimated) === todayChangeIsEstimated &&
-            Boolean(fund.todayChangeUnavailable) === todayChangeUnavailable;
+            Boolean(fund.todayChangeUnavailable) === todayChangeUnavailable &&
+            Boolean(fund.todayChangePreOpen) === todayChangePreOpen;
 
           if (shouldSkipUpdate) return;
 
@@ -683,6 +685,7 @@ export const refreshFundData = (options?: RefreshOptions) => {
             estimatedDayChangePct,
             todayChangeIsEstimated,
             todayChangeUnavailable,
+            todayChangePreOpen,
           });
         }),
       );
@@ -774,6 +777,7 @@ export const refreshWatchlistData = (options?: RefreshOptions) => {
             const shouldTryEstimate = candidate.shouldEstimate && !hasOfficialTodayNav;
             const hasEstimate = shouldTryEstimate && estimatedChangePct !== undefined;
             const todayChangeUnavailable = shouldTryEstimate && !hasEstimate;
+            const todayChangePreOpen = !shouldUseEstimatedValue && navDate !== todayStr;
             const effectivePctDate = shouldTryEstimate ? todayStr : navDate;
             const effectiveCurrentPrice = deriveWatchlistFundEffectivePrice({
               nav,
@@ -796,7 +800,8 @@ export const refreshWatchlistData = (options?: RefreshOptions) => {
               isNearlyEqual(item.dayChangePct, nextDayChangePct) &&
               item.lastUpdate === nextLastUpdate &&
               Boolean(item.todayChangeIsEstimated) === hasEstimate &&
-              Boolean(item.todayChangeUnavailable) === todayChangeUnavailable;
+              Boolean(item.todayChangeUnavailable) === todayChangeUnavailable &&
+              Boolean(item.todayChangePreOpen) === todayChangePreOpen;
 
             if (shouldSkipUpdate) return;
 
@@ -806,6 +811,7 @@ export const refreshWatchlistData = (options?: RefreshOptions) => {
               lastUpdate: nextLastUpdate,
               todayChangeIsEstimated: hasEstimate,
               todayChangeUnavailable,
+              todayChangePreOpen,
             });
           }),
         );
@@ -976,6 +982,7 @@ export const importFundsFromBackupContent = async (
       normalized.estimatedDayChangePct = 0;
       normalized.dayChangeVal = 0;
       normalized.dayChangePct = 0;
+      normalized.todayChangePreOpen = false;
     }
 
     return normalized;
@@ -1060,6 +1067,7 @@ export const importFundsFromBackupContent = async (
       'estimatedDayChangePct',
       'todayChangeIsEstimated',
       'todayChangeUnavailable',
+      'todayChangePreOpen',
       'buyDate',
       'buyTime',
       'settlementDays',

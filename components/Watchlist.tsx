@@ -586,14 +586,18 @@ export const Watchlist: React.FC = () => {
                     ? ((item.currentPrice - item.anchorPrice) / item.anchorPrice) * 100
                     : 0;
                 const dayChangeTag = isFund
-                  ? item.todayChangeUnavailable
-                    ? t('common.noEstimate') || '无估值'
-                    : item.todayChangeIsEstimated
-                      ? t('common.estimated') || '估值'
-                      : t('common.updated') || '已更新'
+                  ? item.todayChangePreOpen
+                    ? t('common.preOpen') || '未开盘'
+                    : item.todayChangeUnavailable
+                      ? t('common.noEstimate') || '无估值'
+                      : item.todayChangeIsEstimated
+                        ? t('common.estimated') || '估值'
+                        : t('common.updated') || '已更新'
                   : '';
                 const displayedDayChangePct =
-                  isFund && item.todayChangeUnavailable ? 0 : item.dayChangePct;
+                  isFund && (item.todayChangeUnavailable || item.todayChangePreOpen)
+                    ? 0
+                    : item.dayChangePct;
 
                 return (
                   <div

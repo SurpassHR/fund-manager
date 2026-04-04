@@ -201,4 +201,29 @@ describe('Dashboard sort persistence', () => {
 
     expect(getFundOrder()).toEqual(['基金B', '基金A']);
   });
+
+  it('持仓基金在未开盘时展示未开盘状态 badge', () => {
+    mocked.state.funds = [
+      {
+        id: 1,
+        code: '000001',
+        name: '基金A',
+        platform: '默认账户',
+        holdingShares: 100,
+        costPrice: 1,
+        currentNav: 1,
+        dayChangePct: 1.23,
+        dayChangeVal: 0,
+        lastUpdate: '2026-03-31',
+        officialDayChangePct: 1.23,
+        todayChangePreOpen: true,
+      },
+    ];
+
+    render(<Dashboard />);
+
+    expect(screen.getAllByText('common.preOpen').length).toBeGreaterThan(0);
+    const preOpenRow = screen.getAllByText('基金A')[0].closest('div.group');
+    expect(preOpenRow).toHaveTextContent('0.00%');
+  });
 });
