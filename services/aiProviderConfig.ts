@@ -1,7 +1,13 @@
 import type { AiProvider } from './SettingsContext';
 
+export type AiUsage = 'ocr' | 'analysis';
+
 export interface AiSettingsSnapshot {
   aiProvider: AiProvider;
+  ocrAiProvider: AiProvider;
+  ocrAiModel: string;
+  analysisAiProvider: AiProvider;
+  analysisAiModel: string;
   openaiApiKey: string;
   openaiModel: string;
   geminiApiKey: string;
@@ -25,28 +31,50 @@ const normalizeOptionalUrl = (value: string): string | undefined => {
   return trimmed || undefined;
 };
 
-export const resolveAiRuntimeConfig = (settings: AiSettingsSnapshot): AiRuntimeConfig => {
-  if (settings.aiProvider === 'openai') {
+const resolveProviderModel = (settings: AiSettingsSnapshot, provider: AiProvider) => {
+  if (provider === 'openai') return settings.openaiModel;
+  if (provider === 'gemini') return settings.geminiModel;
+  return settings.customOpenAiModel;
+};
+
+const resolveProviderApiKey = (settings: AiSettingsSnapshot, provider: AiProvider) => {
+  if (provider === 'openai') return settings.openaiApiKey;
+  if (provider === 'gemini') return settings.geminiApiKey;
+  return settings.customOpenAiApiKey;
+};
+
+export const resolveAiRuntimeConfigByUsage = (
+  settings: AiSettingsSnapshot,
+  usage: AiUsage,
+): AiRuntimeConfig => {
+  const provider = usage === 'ocr' ? settings.ocrAiProvider : settings.analysisAiProvider;
+  const selectedModel = usage === 'ocr' ? settings.ocrAiModel : settings.analysisAiModel;
+
+  if (provider === 'openai') {
     return {
       provider: 'openai',
-      apiKey: settings.openaiApiKey,
-      model: settings.openaiModel,
+      apiKey: resolveProviderApiKey(settings, provider),
+      model: selectedModel || resolveProviderModel(settings, provider),
     };
   }
 
-  if (settings.aiProvider === 'gemini') {
+  if (provider === 'gemini') {
     return {
       provider: 'gemini',
-      apiKey: settings.geminiApiKey,
-      model: settings.geminiModel,
+      apiKey: resolveProviderApiKey(settings, provider),
+      model: selectedModel || resolveProviderModel(settings, provider),
     };
   }
 
   return {
     provider: 'customOpenAi',
-    apiKey: settings.customOpenAiApiKey,
-    model: settings.customOpenAiModel,
+    apiKey: resolveProviderApiKey(settings, provider),
+    model: selectedModel || resolveProviderModel(settings, provider),
     baseURL: normalizeOptionalUrl(settings.customOpenAiBaseUrl),
     modelsEndpoint: normalizeOptionalUrl(settings.customOpenAiModelsEndpoint),
   };
+};
+
+export const resolveAiRuntimeConfig = (settings: AiSettingsSnapshot): AiRuntimeConfig => {
+  return resolveAiRuntimeConfigByUsage(settings, 'ocr');
 };
