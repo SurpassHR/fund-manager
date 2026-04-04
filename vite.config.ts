@@ -106,6 +106,7 @@ const createLlmProxyPlugin = () => ({
 export default defineConfig(async ({ mode }) => {
   const env = loadEnv(mode, '.', '');
   const MAX_COMMITS = 5;
+  const resolvedBase = env.VITE_BASE_PATH?.trim() || '/';
 
   // Fetch the latest 5 git commits
   // Format: hash\x1fsubject\x1fbody\x1e (record separator between commits, unit separator between fields)
@@ -267,7 +268,7 @@ ${subjects}`;
   );
 
   return {
-    base: '/fund-manager/',
+    base: resolvedBase,
     server: {
       port: 3000,
       host: '0.0.0.0',
