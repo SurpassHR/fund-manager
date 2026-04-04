@@ -1,6 +1,7 @@
 name = "fund-manager-llm-proxy"
 main = "src/index.ts"
 compatibility_date = "2026-04-04"
+routes = [{ pattern = "gp.hrfuqiang.top/llm-proxy/*", zone_name = "hrfuqiang.top" }]
 
 # 本地调试端口（可选）
 [dev]
