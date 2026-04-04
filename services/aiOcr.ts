@@ -1,5 +1,6 @@
 import OpenAI from 'openai';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { getLlmProxyBaseUrl } from './llmProxy';
 
 export type AiProvider = 'openai' | 'gemini' | 'customOpenAi';
 
@@ -54,6 +55,8 @@ type OpenAiCompatibleModelsResponse = {
   data?: OpenAiCompatibleModelItem[];
 };
 
+const OPENAI_BASE_URL = 'https://api.openai.com/v1';
+
 const SYSTEM_PROMPT = `你是一个金融基金持仓截图识别器。此截图来自“支付宝-基金-持有”列表。请逐行提取基金条目字段，并返回严格 JSON。\n\n字段语义（按支付宝持有列表）：\n- name: 基金名称（如“前海开源金银珠宝混合C”）\n- amount: 持有金额（列名“金额/昨日收益”的大号数值）\n- dayGain: 昨日收益（列名“金额/昨日收益”的小号红绿数字）\n- holdingGain: 持有收益（列名“持有收益/率”的大号红绿数字）\n- holdingGainPct: 持有收益率（列名“持有收益/率”的百分比）\n\n要求：\n1) 只输出 JSON，不要 markdown，不要解释文字。\n2) JSON 结构如下：\n{\n  "source": "Alipay",\n  "asOfDate": "YYYY-MM-DD | null",\n  "currency": "CNY | null",\n  "items": [\n    {\n      "name": "基金名称",\n      "amount": number|null,\n      "dayGain": number|null,\n      "holdingGain": number|null,\n      "holdingGainPct": number|null,\n      "codeHint": "可能的代码或缩写|null"\n    }\n  ],\n  "warnings": ["..."]\n}\n3) 金额单位以截图为准，百分比输出为数值（例如 -1.72 表示 -1.72%）。\n4) 若字段缺失请填 null，不要猜测。\n5) 如果识别不到任何基金，items 为空数组。\n6) source 固定填 "Alipay"。`;
 
 const normalizeNumber = (val: unknown) => {
@@ -64,32 +67,117 @@ const normalizeNumber = (val: unknown) => {
 };
 
 export const parseOcrResult = (raw: string): OcrResult | null => {
-  try {
-    const data = JSON.parse(raw) as OcrRawResponse;
-    if (!data || typeof data !== 'object') return null;
-    const items = Array.isArray(data.items) ? data.items : [];
-    return {
-      source: String(data.source || ''),
-      asOfDate: data.asOfDate ? String(data.asOfDate) : undefined,
-      currency: data.currency ? String(data.currency) : undefined,
-      items: items
-        .map((item) => {
-          const rawItem = item as OcrRawItem;
-          return {
-            name: String(rawItem.name || '').trim(),
-            amount: normalizeNumber(rawItem.amount),
-            dayGain: normalizeNumber(rawItem.dayGain),
-            holdingGain: normalizeNumber(rawItem.holdingGain),
-            holdingGainPct: normalizeNumber(rawItem.holdingGainPct),
-            codeHint: rawItem.codeHint ? String(rawItem.codeHint) : undefined,
-          };
-        })
-        .filter((item: OcrHoldingItem) => item.name),
-      warnings: Array.isArray(data.warnings) ? data.warnings.map((w) => String(w)) : undefined,
-    };
-  } catch {
-    return null;
+  const tryParse = (payload: string): OcrResult | null => {
+    try {
+      const data = JSON.parse(payload) as OcrRawResponse;
+      if (!data || typeof data !== 'object') return null;
+      const items = Array.isArray(data.items) ? data.items : [];
+      return {
+        source: String(data.source || ''),
+        asOfDate: data.asOfDate ? String(data.asOfDate) : undefined,
+        currency: data.currency ? String(data.currency) : undefined,
+        items: items
+          .map((item) => {
+            const rawItem = item as OcrRawItem;
+            return {
+              name: String(rawItem.name || '').trim(),
+              amount: normalizeNumber(rawItem.amount),
+              dayGain: normalizeNumber(rawItem.dayGain),
+              holdingGain: normalizeNumber(rawItem.holdingGain),
+              holdingGainPct: normalizeNumber(rawItem.holdingGainPct),
+              codeHint: rawItem.codeHint ? String(rawItem.codeHint) : undefined,
+            };
+          })
+          .filter((item: OcrHoldingItem) => item.name),
+        warnings: Array.isArray(data.warnings) ? data.warnings.map((w) => String(w)) : undefined,
+      };
+    } catch {
+      return null;
+    }
+  };
+
+  const direct = tryParse(raw);
+  if (direct) return direct;
+
+  const fencedMatch = raw.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  if (fencedMatch?.[1]) {
+    const fencedParsed = tryParse(fencedMatch[1].trim());
+    if (fencedParsed) return fencedParsed;
   }
+
+  const firstBrace = raw.indexOf('{');
+  const lastBrace = raw.lastIndexOf('}');
+  if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+    const slicedParsed = tryParse(raw.slice(firstBrace, lastBrace + 1).trim());
+    if (slicedParsed) return slicedParsed;
+  }
+
+  return null;
+};
+
+const logInvalidJsonPreview = (raw: string, provider: AiProvider) => {
+  if (!import.meta.env.DEV) return;
+  const preview = raw.slice(0, 500);
+  console.warn('[aiOcr] INVALID_JSON', { provider, preview });
+};
+
+const normalizeCompletionResponse = (response: unknown): unknown => {
+  if (typeof response !== 'string') return response;
+
+  let current: unknown = response.trim();
+  for (let i = 0; i < 2; i += 1) {
+    if (typeof current !== 'string') break;
+    try {
+      current = JSON.parse(current);
+    } catch {
+      break;
+    }
+  }
+  return current;
+};
+
+const extractChatCompletionContent = (response: unknown): string => {
+  const normalized = normalizeCompletionResponse(response);
+  const choice =
+    (normalized as { choices?: Array<{ message?: { content?: unknown } }> })?.choices?.[0] ||
+    null;
+  const content = choice?.message?.content;
+
+  if (typeof content === 'string') {
+    return content.trim();
+  }
+
+  if (Array.isArray(content)) {
+    const combined = content
+      .map((part) => {
+        if (typeof part === 'string') return part;
+        if (
+          part &&
+          typeof part === 'object' &&
+          'text' in part &&
+          typeof (part as { text?: unknown }).text === 'string'
+        ) {
+          return (part as { text: string }).text;
+        }
+        return '';
+      })
+      .join('')
+      .trim();
+    return combined;
+  }
+
+  return '';
+};
+
+const logEmptyCompletionPayload = (provider: AiProvider, response: unknown) => {
+  if (!import.meta.env.DEV) return;
+  let snapshot = '';
+  try {
+    snapshot = JSON.stringify(response).slice(0, 500);
+  } catch {
+    snapshot = '[unserializable response]';
+  }
+  console.warn('[aiOcr] EMPTY_COMPLETION_CONTENT', { provider, snapshot });
 };
 
 const fileToBase64 = (file: File) =>
@@ -101,11 +189,17 @@ const fileToBase64 = (file: File) =>
   });
 
 export const listOpenAiModels = async (apiKey: string): Promise<string[]> => {
-  const client = new OpenAI({ apiKey, dangerouslyAllowBrowser: true });
-  const response = await client.models.list();
-  const models = response.data
+  const res = await fetch(`${getLlmProxyBaseUrl()}/models`, {
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'X-LLM-Target-Endpoint': `${OPENAI_BASE_URL}/models`,
+    },
+  });
+  if (!res.ok) throw new Error('OPENAI_MODELS_FAILED');
+  const json = (await res.json()) as OpenAiCompatibleModelsResponse;
+  const models = (json.data || [])
     .map((m) => m.id)
-    .filter((id) => id.includes('gpt'))
+    .filter((id): id is string => Boolean(id) && id.includes('gpt'))
     .sort();
   return models;
 };
@@ -123,9 +217,10 @@ export const listCustomOpenAiModels = async (params: {
   const endpoint = modelsEndpoint?.trim() || (baseURL ? joinBaseUrlPath(baseURL, '/models') : '');
   if (!endpoint) return [];
 
-  const res = await fetch(endpoint, {
+  const res = await fetch(`${getLlmProxyBaseUrl()}/models`, {
     headers: {
       Authorization: `Bearer ${apiKey}`,
+      'X-LLM-Target-Endpoint': endpoint,
     },
   });
   if (!res.ok) throw new Error('CUSTOM_OPENAI_MODELS_FAILED');
@@ -163,10 +258,15 @@ export const recognizeHoldingsFromImage = async (params: {
   const dataUrl = await fileToBase64(file);
 
   if (provider === 'openai' || provider === 'customOpenAi') {
+    const targetBaseUrl = provider === 'openai' ? OPENAI_BASE_URL : baseURL?.trim() || '';
+    if (!targetBaseUrl) throw new Error('MISSING_BASE_URL');
     const client = new OpenAI({
       apiKey,
       dangerouslyAllowBrowser: true,
-      ...(provider === 'customOpenAi' && baseURL ? { baseURL } : {}),
+      baseURL: getLlmProxyBaseUrl(),
+      defaultHeaders: {
+        'X-LLM-Target-Base-URL': targetBaseUrl,
+      },
     });
     const response = await client.chat.completions.create({
       model,
@@ -184,9 +284,16 @@ export const recognizeHoldingsFromImage = async (params: {
       response_format: { type: 'json_object' },
     });
 
-    const content = response.choices?.[0]?.message?.content || '';
+    const content = extractChatCompletionContent(response);
+    if (!content) {
+      logEmptyCompletionPayload(provider, response);
+      throw new Error('EMPTY_LLM_CONTENT');
+    }
     const parsed = parseOcrResult(content);
-    if (!parsed) throw new Error('INVALID_JSON');
+    if (!parsed) {
+      logInvalidJsonPreview(content, provider);
+      throw new Error('INVALID_JSON');
+    }
     return parsed;
   }
 
@@ -202,6 +309,9 @@ export const recognizeHoldingsFromImage = async (params: {
   ]);
   const text = result.response.text();
   const parsed = parseOcrResult(text);
-  if (!parsed) throw new Error('INVALID_JSON');
+  if (!parsed) {
+    logInvalidJsonPreview(text, provider);
+    throw new Error('INVALID_JSON');
+  }
   return parsed;
 };

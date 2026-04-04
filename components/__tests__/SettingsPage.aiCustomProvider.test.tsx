@@ -12,14 +12,6 @@ const mockedDeps = vi.hoisted(() => ({
     setAutoRefresh: vi.fn(),
     aiProvider: 'customOpenAi' as const,
     setAiProvider: vi.fn(),
-    ocrAiProvider: 'customOpenAi' as const,
-    setOcrAiProvider: vi.fn(),
-    ocrAiModel: 'qwen-plus',
-    setOcrAiModel: vi.fn(),
-    analysisAiProvider: 'openai' as const,
-    setAnalysisAiProvider: vi.fn(),
-    analysisAiModel: 'gpt-4o-mini',
-    setAnalysisAiModel: vi.fn(),
     openaiApiKey: '',
     setOpenaiApiKey: vi.fn(),
     openaiModel: 'gpt-4o-mini',
@@ -40,6 +32,40 @@ const mockedDeps = vi.hoisted(() => ({
     setGithubToken: vi.fn(),
     defaultGistTarget: null,
     setDefaultGistTarget: vi.fn(),
+    llmProviders: [
+      {
+        id: 'p-openai',
+        kind: 'openai',
+        name: 'OpenAI',
+        apiKey: '',
+        model: 'gpt-4o-mini',
+        temperature: 0.2,
+        icon: '🧠',
+        baseURL: '',
+        modelsEndpoint: '',
+      },
+      {
+        id: 'p-custom',
+        kind: 'customOpenAi',
+        name: 'OpenAI Compatible',
+        apiKey: 'custom-key',
+        model: 'qwen-plus',
+        temperature: 0.2,
+        icon: '🔌',
+        baseURL: 'https://api.example.com/v1',
+        modelsEndpoint: '',
+      },
+    ],
+    setLlmProviders: vi.fn(),
+    addLlmProvider: vi.fn(() => 'p-custom'),
+    updateLlmProvider: vi.fn(),
+    removeLlmProvider: vi.fn(),
+    businessModelConfig: {
+      aiHoldingsAnalysis: { providerId: 'p-custom', providerKind: 'customOpenAi', model: 'qwen-plus' },
+      syncHoldings: { providerId: 'p-custom', providerKind: 'customOpenAi', model: 'qwen-plus' },
+    },
+    setBusinessModelConfig: vi.fn(),
+    updateBusinessModelConfig: vi.fn(),
   },
   listCustomOpenAiModels: vi.fn(async (_args?: unknown) => [] as string[]),
 }));
@@ -91,16 +117,18 @@ describe('SettingsPage custom openai provider', () => {
     const { container } = render(<SettingsPage initialShowAiSettings />);
 
     expect(screen.getByText('common.llmSettingsManage')).toBeTruthy();
+    fireEvent.click(screen.getAllByText('🔌 兼容接口')[0]);
+
     expect(screen.getByDisplayValue('https://api.example.com/v1')).toBeTruthy();
+    expect(container.querySelector('input[list="provider-model-options"]')).toBeNull();
     expect(
-      container.querySelector('input[list="custom-openai-model-options"]')?.getAttribute('value'),
-    ).toBe('qwen-plus');
-    expect(screen.getByText('用途选择')).toBeTruthy();
-    expect(screen.getByText('图像识别 Provider')).toBeTruthy();
-    expect(screen.getByText('持仓分析 Provider')).toBeTruthy();
+      screen.getByText(
+        '配置层不包含业务用途绑定；业务动作（智能持仓分析/同步持仓）将在执行前选择模型提供方与模型。',
+      ),
+    ).toBeTruthy();
   });
 
-  it('模型拉取失败时保留手动输入能力', async () => {
+  it('模型拉取失败时在业务模型区域保留手动输入能力', async () => {
     mockedDeps.listCustomOpenAiModels.mockRejectedValueOnce(new Error('boom'));
     const { container } = render(<SettingsPage initialShowAiSettings />);
 
@@ -109,10 +137,13 @@ describe('SettingsPage custom openai provider', () => {
     });
 
     const modelInput = container.querySelector(
-      'input[list="custom-openai-model-options"]',
+      'input[list="business-model-options-aiHoldingsAnalysis"]',
     ) as HTMLInputElement;
     fireEvent.change(modelInput, { target: { value: 'manual-model' } });
 
-    expect(mockedDeps.settings.setCustomOpenAiModel).toHaveBeenCalledWith('manual-model');
+    expect(mockedDeps.settings.updateBusinessModelConfig).toHaveBeenCalledWith(
+      'aiHoldingsAnalysis',
+      expect.objectContaining({ model: 'manual-model' }),
+    );
   });
 });

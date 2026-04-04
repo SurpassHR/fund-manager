@@ -19,9 +19,10 @@ describe('listCustomOpenAiModels', () => {
       modelsEndpoint: 'https://gateway.example.com/openai/models',
     });
 
-    expect(fetchMock).toHaveBeenCalledWith('https://gateway.example.com/openai/models', {
+    expect(fetchMock).toHaveBeenCalledWith(expect.stringMatching(/\/llm-proxy\/models$/), {
       headers: {
         Authorization: 'Bearer custom-key',
+        'X-LLM-Target-Endpoint': 'https://gateway.example.com/openai/models',
       },
     });
     expect(models).toEqual(['qwen-max', 'qwen-plus']);
@@ -39,9 +40,10 @@ describe('listCustomOpenAiModels', () => {
       baseURL: 'https://api.example.com/v1/',
     });
 
-    expect(fetchMock).toHaveBeenCalledWith('https://api.example.com/v1/models', {
+    expect(fetchMock).toHaveBeenCalledWith(expect.stringMatching(/\/llm-proxy\/models$/), {
       headers: {
         Authorization: 'Bearer custom-key',
+        'X-LLM-Target-Endpoint': 'https://api.example.com/v1/models',
       },
     });
     expect(models).toEqual(['model-a', 'model-b']);

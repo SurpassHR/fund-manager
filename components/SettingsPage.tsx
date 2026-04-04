@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Icons } from './Icon';
 import { useTranslation } from '../services/i18n';
 import { useTheme } from '../services/ThemeContext';
@@ -23,6 +23,7 @@ import {
 } from '../services/gistSync/index';
 import { GistSyncChooserCard } from './GistSyncChooserCard';
 import { AnimatedSwitcher } from './transitions/AnimatedSwitcher';
+import { getConfiguredLlmProviders } from '../services/aiProviderConfig';
 
 interface SettingsPageProps {
   onBack?: () => void;
@@ -38,17 +39,8 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack, initialShowA
   const {
     autoRefresh,
     setAutoRefresh,
-    ocrAiProvider,
-    setOcrAiProvider,
-    ocrAiModel,
-    setOcrAiModel,
-    analysisAiProvider,
-    setAnalysisAiProvider,
-    analysisAiModel,
-    setAnalysisAiModel,
     openaiApiKey,
     setOpenaiApiKey,
-    openaiModel,
     setOpenaiModel,
     customOpenAiApiKey,
     setCustomOpenAiApiKey,
@@ -56,28 +48,35 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack, initialShowA
     setCustomOpenAiBaseUrl,
     customOpenAiModelsEndpoint,
     setCustomOpenAiModelsEndpoint,
-    customOpenAiModel,
     setCustomOpenAiModel,
     geminiApiKey,
     setGeminiApiKey,
-    geminiModel,
     setGeminiModel,
     githubToken,
     setGithubToken,
     defaultGistTarget,
     setDefaultGistTarget,
+    llmProviders,
+    addLlmProvider,
+    updateLlmProvider,
+    removeLlmProvider,
+    businessModelConfig,
+    updateBusinessModelConfig,
   } = useSettings();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [activeView, setActiveView] = useState<SettingsView>(initialShowAiSettings ? 'ai' : 'main');
   const [openaiModels, setOpenaiModels] = useState<string[]>([]);
   const [customOpenAiModels, setCustomOpenAiModels] = useState<string[]>([]);
+  const [customProviderModelsById, setCustomProviderModelsById] = useState<Record<string, string[]>>(
+    {},
+  );
   const [geminiModels, setGeminiModels] = useState<string[]>([]);
-  const [openaiLoading, setOpenaiLoading] = useState(false);
-  const [customOpenAiLoading, setCustomOpenAiLoading] = useState(false);
-  const [geminiLoading, setGeminiLoading] = useState(false);
-  const [openaiError, setOpenaiError] = useState('');
-  const [customOpenAiError, setCustomOpenAiError] = useState('');
-  const [geminiError, setGeminiError] = useState('');
+  const [, setOpenaiLoading] = useState(false);
+  const [, setCustomOpenAiLoading] = useState(false);
+  const [, setGeminiLoading] = useState(false);
+  const [, setOpenaiError] = useState('');
+  const [, setCustomOpenAiError] = useState('');
+  const [, setGeminiError] = useState('');
   const [tokenFormatState, setTokenFormatState] = useState<'idle' | 'valid' | 'invalid'>('idle');
   const [tokenApiState, setTokenApiState] = useState<'idle' | 'checking' | 'valid' | 'invalid'>(
     'idle',
@@ -88,6 +87,9 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack, initialShowA
   const [syncBusy, setSyncBusy] = useState(false);
   const [gistListRefreshing, setGistListRefreshing] = useState(false);
   const [gistListCooldownSec, setGistListCooldownSec] = useState(0);
+  const [selectedProviderId, setSelectedProviderId] = useState('');
+  const [showAddProvider, setShowAddProvider] = useState(false);
+  const providerItems = llmProviders;
 
   const getProviderModels = (provider: 'openai' | 'gemini' | 'customOpenAi') => {
     if (provider === 'openai') return openaiModels;
@@ -95,17 +97,15 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack, initialShowA
     return customOpenAiModels;
   };
 
-  const getProviderApiKey = (provider: 'openai' | 'gemini' | 'customOpenAi') => {
-    if (provider === 'openai') return openaiApiKey;
-    if (provider === 'gemini') return geminiApiKey;
-    return customOpenAiApiKey;
-  };
-
-  const getProviderModelFallback = (provider: 'openai' | 'gemini' | 'customOpenAi') => {
-    if (provider === 'openai') return openaiModel;
-    if (provider === 'gemini') return geminiModel;
-    return customOpenAiModel;
-  };
+  useEffect(() => {
+    if (!providerItems.length) {
+      setSelectedProviderId('');
+      return;
+    }
+    if (!providerItems.some((provider) => provider.id === selectedProviderId)) {
+      setSelectedProviderId(providerItems[0].id);
+    }
+  }, [providerItems, selectedProviderId]);
 
   const themeOptions: { value: ThemeOption; label: string; icon: React.ReactNode }[] = [
     {
@@ -192,7 +192,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack, initialShowA
     return t('common.gistSyncErrorUnknown') || 'Gist 同步失败，请稍后重试。';
   };
 
-  const refreshSyncGists = async (token: string) => {
+  const refreshSyncGists = useCallback(async (token: string) => {
     const list = await listSyncGists(token);
     setSyncGists(list);
 
@@ -215,7 +215,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack, initialShowA
         fileName: GIST_SYNC_FILENAME,
       });
     }
-  };
+  }, [defaultGistTarget, setDefaultGistTarget, t]);
 
   const triggerGistListRefresh = async (rateLimited = false) => {
     if (!githubToken || tokenApiState !== 'valid') return;
@@ -361,20 +361,19 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack, initialShowA
 
   useEffect(() => {
     let active = true;
-    if (!openaiApiKey) {
+    const openaiProvider = providerItems.find((provider) => provider.kind === 'openai');
+    const openaiKey = openaiProvider?.apiKey || openaiApiKey;
+    if (!openaiKey) {
       setOpenaiModels([]);
       setOpenaiError('');
       return;
     }
     setOpenaiLoading(true);
     setOpenaiError('');
-    listOpenAiModels(openaiApiKey)
+    listOpenAiModels(openaiKey)
       .then((models) => {
         if (!active) return;
         setOpenaiModels(models);
-        if (!models.includes(openaiModel) && models[0]) {
-          setOpenaiModel(models[0]);
-        }
       })
       .catch(() => {
         if (!active) return;
@@ -388,11 +387,15 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack, initialShowA
     return () => {
       active = false;
     };
-  }, [openaiApiKey, openaiModel, setOpenaiModel, t]);
+  }, [providerItems, openaiApiKey, t]);
 
   useEffect(() => {
     let active = true;
-    if (!customOpenAiApiKey || (!customOpenAiModelsEndpoint && !customOpenAiBaseUrl)) {
+    const customProvider = providerItems.find((provider) => provider.kind === 'customOpenAi');
+    const customKey = customProvider?.apiKey || customOpenAiApiKey;
+    const customBaseUrl = customProvider?.baseURL || customOpenAiBaseUrl;
+    const customModelsEndpoint = customProvider?.modelsEndpoint || customOpenAiModelsEndpoint;
+    if (!customKey || (!customModelsEndpoint && !customBaseUrl)) {
       setCustomOpenAiModels([]);
       setCustomOpenAiError('');
       return;
@@ -400,9 +403,9 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack, initialShowA
     setCustomOpenAiLoading(true);
     setCustomOpenAiError('');
     listCustomOpenAiModels({
-      apiKey: customOpenAiApiKey,
-      baseURL: customOpenAiBaseUrl,
-      modelsEndpoint: customOpenAiModelsEndpoint,
+      apiKey: customKey,
+      baseURL: customBaseUrl,
+      modelsEndpoint: customModelsEndpoint,
     })
       .then((models) => {
         if (!active) return;
@@ -421,24 +424,63 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack, initialShowA
     return () => {
       active = false;
     };
-  }, [customOpenAiApiKey, customOpenAiBaseUrl, customOpenAiModelsEndpoint, t]);
+  }, [providerItems, customOpenAiApiKey, customOpenAiBaseUrl, customOpenAiModelsEndpoint, t]);
 
   useEffect(() => {
     let active = true;
-    if (!geminiApiKey) {
+    const customProviders = providerItems.filter((provider) => provider.kind === 'customOpenAi');
+    if (customProviders.length === 0) {
+      setCustomProviderModelsById({});
+      return;
+    }
+
+    const loadAllCustomProviderModels = async () => {
+      const entries = await Promise.all(
+        customProviders.map(async (provider) => {
+          const apiKey = provider.apiKey.trim();
+          const baseURL = provider.baseURL.trim();
+          const modelsEndpoint = provider.modelsEndpoint.trim();
+          if (!apiKey || (!baseURL && !modelsEndpoint)) {
+            return [provider.id, []] as const;
+          }
+          try {
+            const models = await listCustomOpenAiModels({
+              apiKey,
+              baseURL,
+              modelsEndpoint,
+            });
+            return [provider.id, models] as const;
+          } catch {
+            return [provider.id, []] as const;
+          }
+        }),
+      );
+
+      if (!active) return;
+      setCustomProviderModelsById(Object.fromEntries(entries));
+    };
+
+    void loadAllCustomProviderModels();
+    return () => {
+      active = false;
+    };
+  }, [providerItems]);
+
+  useEffect(() => {
+    let active = true;
+    const geminiProvider = providerItems.find((provider) => provider.kind === 'gemini');
+    const geminiKey = geminiProvider?.apiKey || geminiApiKey;
+    if (!geminiKey) {
       setGeminiModels([]);
       setGeminiError('');
       return;
     }
     setGeminiLoading(true);
     setGeminiError('');
-    listGeminiModels(geminiApiKey)
+    listGeminiModels(geminiKey)
       .then((models) => {
         if (!active) return;
         setGeminiModels(models);
-        if (!models.includes(geminiModel) && models[0]) {
-          setGeminiModel(models[0]);
-        }
       })
       .catch(() => {
         if (!active) return;
@@ -452,7 +494,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack, initialShowA
     return () => {
       active = false;
     };
-  }, [geminiApiKey, geminiModel, setGeminiModel, t]);
+  }, [providerItems, geminiApiKey, t]);
 
   useEffect(() => {
     const formatted = validateGithubTokenFormat(githubToken);
@@ -482,7 +524,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack, initialShowA
     return () => {
       active = false;
     };
-  }, [githubToken]);
+  }, [githubToken, refreshSyncGists]);
 
   useEffect(() => {
     if (gistListCooldownSec <= 0) return;
@@ -491,6 +533,51 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack, initialShowA
     }, 1000);
     return () => clearTimeout(timer);
   }, [gistListCooldownSec]);
+
+  const selectedProvider = providerItems.find((provider) => provider.id === selectedProviderId);
+  const updateProviderWithLegacySync = (
+    providerId: string,
+    patch: Partial<{
+      apiKey: string;
+      model: string;
+      baseURL: string;
+      modelsEndpoint: string;
+      name: string;
+      icon: string;
+      temperature: number;
+    }>,
+  ) => {
+    const provider = providerItems.find((item) => item.id === providerId);
+    if (!provider) return;
+    updateLlmProvider(providerId, patch);
+
+    if (provider.kind === 'openai') {
+      if (typeof patch.apiKey === 'string') setOpenaiApiKey(patch.apiKey);
+      if (typeof patch.model === 'string') setOpenaiModel(patch.model);
+    } else if (provider.kind === 'gemini') {
+      if (typeof patch.apiKey === 'string') setGeminiApiKey(patch.apiKey);
+      if (typeof patch.model === 'string') setGeminiModel(patch.model);
+    } else {
+      if (typeof patch.apiKey === 'string') setCustomOpenAiApiKey(patch.apiKey);
+      if (typeof patch.model === 'string') setCustomOpenAiModel(patch.model);
+      if (typeof patch.baseURL === 'string') setCustomOpenAiBaseUrl(patch.baseURL);
+      if (typeof patch.modelsEndpoint === 'string') {
+        setCustomOpenAiModelsEndpoint(patch.modelsEndpoint);
+      }
+    }
+  };
+
+  const getProviderDisplayName = (kind: 'openai' | 'gemini' | 'customOpenAi') => {
+    if (kind === 'openai') return '开放模型';
+    if (kind === 'gemini') return '双子模型';
+    return '兼容接口';
+  };
+
+  const businessItems: { key: 'aiHoldingsAnalysis' | 'syncHoldings'; label: string }[] = [
+    { key: 'aiHoldingsAnalysis', label: t('common.businessAiHoldingsAnalysis') || '智能持仓分析' },
+    { key: 'syncHoldings', label: t('common.businessSyncHoldings') || '同步持仓识别' },
+  ];
+  const configuredProviders = getConfiguredLlmProviders(providerItems);
 
   const aiSettingsView = (
     <div className="min-h-[60vh] pt-20 pb-44 md:pt-24 md:pb-28">
@@ -504,8 +591,8 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack, initialShowA
               <Icons.ArrowUp size={18} className="-rotate-90" />
             </button>
             <div>
-              <div className="text-[0.62rem] font-semibold uppercase tracking-[0.28em] text-[var(--app-shell-muted)]">
-                AI Console
+              <div className="text-[0.62rem] font-semibold tracking-[0.14em] text-[var(--app-shell-muted)]">
+                大模型面板
               </div>
               <h2 className="mt-1 text-lg font-semibold tracking-[-0.03em] text-[var(--app-shell-ink)]">
                 {t('common.llmSettings') || '大模型配置'}
@@ -514,7 +601,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack, initialShowA
           </div>
 
           <p className="mt-4 max-w-2xl text-sm leading-6 text-[var(--app-shell-muted)]">
-            管理 OCR 与识别模型来源，让持仓录入流程保持可追踪、可切换、可回退。
+            管理识别与分析模型来源，让持仓录入流程保持可追踪、可切换、可回退。
           </p>
         </div>
       </div>
@@ -523,280 +610,268 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack, initialShowA
         <section className="rounded-[1.75rem] border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)] p-4 shadow-[var(--app-shell-shadow)] backdrop-blur-xl md:p-5">
           <div className="mb-4 flex items-center justify-between gap-4">
             <div>
-              <div className="text-[0.62rem] font-semibold uppercase tracking-[0.28em] text-[var(--app-shell-muted)]">
-                LLM Registry
+              <div className="text-[0.62rem] font-semibold tracking-[0.14em] text-[var(--app-shell-muted)]">
+                模型配置
               </div>
               <div className="mt-1 text-base font-semibold text-[var(--app-shell-ink)]">
-                {t('common.llmSettingsManage') || '大模型配置'}
+                {t('common.llmSettingsManage') || '管理大模型配置'}
               </div>
             </div>
           </div>
-          <p className="text-sm text-[var(--app-shell-muted)]">
-            仅维护 Provider 与模型能力配置，不在这里绑定业务用途。
+
+          <div className="grid min-h-[520px] gap-4 md:grid-cols-[260px_1fr]">
+            <aside className="relative rounded-2xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] p-3 pb-14">
+              <div className="space-y-2">
+                {providerItems.map((provider) => (
+                  <button
+                    key={provider.id}
+                    onClick={() => setSelectedProviderId(provider.id)}
+                    className={`flex w-full items-center justify-between rounded-xl border px-3 py-2 text-left text-sm transition ${
+                      selectedProviderId === provider.id
+                        ? 'border-[var(--app-shell-line-strong)] bg-[var(--app-shell-panel)]'
+                        : 'border-transparent bg-transparent hover:border-[var(--app-shell-line)]'
+                    }`}
+                  >
+                    <span className="truncate">
+                      {provider.icon} {getProviderDisplayName(provider.kind)}
+                    </span>
+                    <span className="text-[10px] uppercase tracking-[0.14em] text-[var(--app-shell-muted)]">
+                        {getProviderDisplayName(provider.kind)}
+                    </span>
+                  </button>
+                ))}
+              </div>
+
+              <div className="absolute right-3 bottom-3">
+                <button
+                  onClick={() => setShowAddProvider((prev) => !prev)}
+                  className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)]"
+                  title="新增模型提供方"
+                >
+                  <Icons.Plus size={16} />
+                </button>
+                {showAddProvider && (
+                  <div className="absolute right-0 bottom-12 w-44 rounded-xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)] p-2 shadow-[var(--app-shell-shadow)]">
+                    {(['openai', 'gemini', 'customOpenAi'] as const).map((kind) => (
+                      <button
+                        key={kind}
+                        onClick={() => {
+                          const createdId = addLlmProvider(kind);
+                          setSelectedProviderId(createdId);
+                          setShowAddProvider(false);
+                        }}
+                        className="block w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-[var(--app-shell-panel-strong)]"
+                      >
+                        {kind === 'openai'
+                          ? '开放模型'
+                          : kind === 'gemini'
+                            ? '双子模型'
+                            : '兼容接口'}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </aside>
+
+            <div className="rounded-2xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] p-4">
+              {!selectedProvider ? (
+                <div className="flex h-full min-h-[380px] items-center justify-center text-sm text-[var(--app-shell-muted)]">
+                  请先在左侧选择模型提供方，再进行详细配置。
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="text-sm font-semibold text-[var(--app-shell-ink)]">
+                      {getProviderDisplayName(selectedProvider.kind)} 详细配置
+                    </div>
+                    <button
+                      onClick={() => removeLlmProvider(selectedProvider.id)}
+                      className="rounded-lg border border-red-300 px-2 py-1 text-xs text-red-600"
+                    >
+                      删除
+                    </button>
+                  </div>
+
+                  <label className="block text-[11px] font-semibold uppercase tracking-[0.2em] text-[var(--app-shell-muted)]">
+                    图标
+                  </label>
+                  <input
+                    type="text"
+                    value={selectedProvider.icon}
+                    onChange={(e) =>
+                      updateProviderWithLegacySync(selectedProvider.id, { icon: e.target.value })
+                    }
+                    className="w-full rounded-2xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)] px-4 py-3 text-sm"
+                  />
+
+                  <label className="block text-[11px] font-semibold uppercase tracking-[0.2em] text-[var(--app-shell-muted)]">
+                    名称
+                  </label>
+                  <input
+                    type="text"
+                    value={selectedProvider.name}
+                    onChange={(e) =>
+                      updateProviderWithLegacySync(selectedProvider.id, { name: e.target.value })
+                    }
+                    className="w-full rounded-2xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)] px-4 py-3 text-sm"
+                  />
+
+                  <label className="block text-[11px] font-semibold uppercase tracking-[0.2em] text-[var(--app-shell-muted)]">
+                    接口密钥
+                  </label>
+                  <input
+                    type="password"
+                    value={selectedProvider.apiKey}
+                    onChange={(e) =>
+                      updateProviderWithLegacySync(selectedProvider.id, { apiKey: e.target.value })
+                    }
+                    className="w-full rounded-2xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)] px-4 py-3 text-sm"
+                  />
+
+                  <label className="block text-[11px] font-semibold uppercase tracking-[0.2em] text-[var(--app-shell-muted)]">
+                    温度系数
+                  </label>
+                  <input
+                    type="number"
+                    min={0}
+                    max={2}
+                    step={0.1}
+                    value={selectedProvider.temperature}
+                    onChange={(e) =>
+                      updateProviderWithLegacySync(selectedProvider.id, {
+                        temperature: Number.parseFloat(e.target.value) || 0,
+                      })
+                    }
+                    className="w-full rounded-2xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)] px-4 py-3 text-sm"
+                  />
+
+                  {selectedProvider.kind === 'customOpenAi' && (
+                    <>
+                      <label className="block text-[11px] font-semibold uppercase tracking-[0.2em] text-[var(--app-shell-muted)]">
+                        服务地址
+                      </label>
+                      <input
+                        type="text"
+                        value={selectedProvider.baseURL}
+                        onChange={(e) =>
+                          updateProviderWithLegacySync(selectedProvider.id, {
+                            baseURL: e.target.value,
+                          })
+                        }
+                        className="w-full rounded-2xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)] px-4 py-3 text-sm"
+                      />
+
+                      <label className="block text-[11px] font-semibold uppercase tracking-[0.2em] text-[var(--app-shell-muted)]">
+                        模型列表地址
+                      </label>
+                      <input
+                        type="text"
+                        value={selectedProvider.modelsEndpoint}
+                        onChange={(e) =>
+                          updateProviderWithLegacySync(selectedProvider.id, {
+                            modelsEndpoint: e.target.value,
+                          })
+                        }
+                        className="w-full rounded-2xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)] px-4 py-3 text-sm"
+                      />
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+
+          <p className="mt-4 text-xs text-[var(--app-shell-muted)]">
+            配置层不包含业务用途绑定；业务动作（智能持仓分析/同步持仓）将在执行前选择模型提供方与模型。
           </p>
         </section>
 
-        <div className="grid gap-4 xl:grid-cols-3">
-          <section className="rounded-[1.75rem] border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)] p-4 shadow-[var(--app-shell-shadow)] backdrop-blur-xl md:p-5">
-            <div className="mb-4">
-              <div className="text-[0.62rem] font-semibold uppercase tracking-[0.28em] text-[var(--app-shell-muted)]">
-                OpenAI Stack
-              </div>
-              <div className="mt-1 text-base font-semibold text-[var(--app-shell-ink)]">
-                {t('common.openaiKey') || 'OpenAI API Key'}
-              </div>
-            </div>
-            <div className="space-y-3">
-              <input
-                type="password"
-                value={openaiApiKey}
-                onChange={(e) => setOpenaiApiKey(e.target.value)}
-                placeholder="sk-..."
-                className="w-full rounded-2xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] px-4 py-3 text-sm text-[var(--app-shell-ink)] outline-none transition focus:border-[var(--app-shell-line-strong)]"
-              />
-              <label className="block text-[11px] font-semibold uppercase tracking-[0.2em] text-[var(--app-shell-muted)]">
-                {t('common.openaiModel') || 'OpenAI 模型'}
-              </label>
-              <select
-                value={openaiModel}
-                onChange={(e) => setOpenaiModel(e.target.value)}
-                className="w-full rounded-2xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] px-4 py-3 text-sm text-[var(--app-shell-ink)] outline-none transition focus:border-[var(--app-shell-line-strong)]"
-              >
-                {!openaiApiKey && (
-                  <option value="">
-                    {t('common.modelSelectPlaceholder') || '请先填写 API Key'}
-                  </option>
-                )}
-                {openaiLoading && (
-                  <option value="">{t('common.modelLoading') || '模型加载中...'}</option>
-                )}
-                {openaiError && !openaiLoading && <option value="">{openaiError}</option>}
-                {openaiModels.map((model) => (
-                  <option key={model} value={model}>
-                    {model}
-                  </option>
-                ))}
-                {!openaiModels.includes(openaiModel) && openaiModel && (
-                  <option value={openaiModel}>{openaiModel}</option>
-                )}
-              </select>
-            </div>
-          </section>
-
-          <section className="rounded-[1.75rem] border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)] p-4 shadow-[var(--app-shell-shadow)] backdrop-blur-xl md:p-5">
-            <div className="mb-4">
-              <div className="text-[0.62rem] font-semibold uppercase tracking-[0.28em] text-[var(--app-shell-muted)]">
-                OpenAI Compatible
-              </div>
-              <div className="mt-1 text-base font-semibold text-[var(--app-shell-ink)]">
-                {t('common.customOpenAiBaseUrl') || '兼容接口 Base URL'}
-              </div>
-            </div>
-            <div className="space-y-3">
-              <input
-                type="text"
-                value={customOpenAiBaseUrl}
-                onChange={(e) => setCustomOpenAiBaseUrl(e.target.value)}
-                placeholder="https://api.example.com/v1"
-                className="w-full rounded-2xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] px-4 py-3 text-sm text-[var(--app-shell-ink)] outline-none transition focus:border-[var(--app-shell-line-strong)]"
-              />
-              <input
-                type="password"
-                value={customOpenAiApiKey}
-                onChange={(e) => setCustomOpenAiApiKey(e.target.value)}
-                placeholder="sk-..."
-                className="w-full rounded-2xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] px-4 py-3 text-sm text-[var(--app-shell-ink)] outline-none transition focus:border-[var(--app-shell-line-strong)]"
-              />
-              <input
-                type="text"
-                value={customOpenAiModelsEndpoint}
-                onChange={(e) => setCustomOpenAiModelsEndpoint(e.target.value)}
-                placeholder={
-                  t('common.customOpenAiModelsEndpointPlaceholder') ||
-                  '可选：自定义模型列表地址（留空则使用 baseURL/models）'
-                }
-                className="w-full rounded-2xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] px-4 py-3 text-sm text-[var(--app-shell-ink)] outline-none transition focus:border-[var(--app-shell-line-strong)]"
-              />
-              <label className="block text-[11px] font-semibold uppercase tracking-[0.2em] text-[var(--app-shell-muted)]">
-                {t('common.customOpenAiModel') || '兼容模型（可手动输入）'}
-              </label>
-              <input
-                list="custom-openai-model-options"
-                value={customOpenAiModel}
-                onChange={(e) => setCustomOpenAiModel(e.target.value)}
-                className="w-full rounded-2xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] px-4 py-3 text-sm text-[var(--app-shell-ink)] outline-none transition focus:border-[var(--app-shell-line-strong)]"
-              />
-              <datalist id="custom-openai-model-options">
-                {customOpenAiModels.map((model) => (
-                  <option key={model} value={model}>
-                    {model}
-                  </option>
-                ))}
-              </datalist>
-              {customOpenAiLoading && (
-                <p className="text-xs text-[var(--app-shell-muted)]">
-                  {t('common.modelLoading') || '模型加载中...'}
-                </p>
-              )}
-              {!customOpenAiLoading && customOpenAiError && (
-                <p className="text-xs text-[var(--app-shell-muted)]">{customOpenAiError}</p>
-              )}
-            </div>
-          </section>
-
-          <section className="rounded-[1.75rem] border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)] p-4 shadow-[var(--app-shell-shadow)] backdrop-blur-xl md:p-5">
-            <div className="mb-4">
-              <div className="text-[0.62rem] font-semibold uppercase tracking-[0.28em] text-[var(--app-shell-muted)]">
-                Gemini Stack
-              </div>
-              <div className="mt-1 text-base font-semibold text-[var(--app-shell-ink)]">
-                {t('common.geminiKey') || 'Gemini API Key'}
-              </div>
-            </div>
-            <div className="space-y-3">
-              <input
-                type="password"
-                value={geminiApiKey}
-                onChange={(e) => setGeminiApiKey(e.target.value)}
-                placeholder="AI..."
-                className="w-full rounded-2xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] px-4 py-3 text-sm text-[var(--app-shell-ink)] outline-none transition focus:border-[var(--app-shell-line-strong)]"
-              />
-              <label className="block text-[11px] font-semibold uppercase tracking-[0.2em] text-[var(--app-shell-muted)]">
-                {t('common.geminiModel') || 'Gemini 模型'}
-              </label>
-              <select
-                value={geminiModel}
-                onChange={(e) => setGeminiModel(e.target.value)}
-                className="w-full rounded-2xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] px-4 py-3 text-sm text-[var(--app-shell-ink)] outline-none transition focus:border-[var(--app-shell-line-strong)]"
-              >
-                {!geminiApiKey && (
-                  <option value="">
-                    {t('common.modelSelectPlaceholder') || '请先填写 API Key'}
-                  </option>
-                )}
-                {geminiLoading && (
-                  <option value="">{t('common.modelLoading') || '模型加载中...'}</option>
-                )}
-                {geminiError && !geminiLoading && <option value="">{geminiError}</option>}
-                {geminiModels.map((model) => (
-                  <option key={model} value={model}>
-                    {model}
-                  </option>
-                ))}
-                {!geminiModels.includes(geminiModel) && geminiModel && (
-                  <option value={geminiModel}>{geminiModel}</option>
-                )}
-              </select>
-            </div>
-          </section>
-        </div>
-
         <section className="rounded-[1.75rem] border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)] p-4 shadow-[var(--app-shell-shadow)] backdrop-blur-xl md:p-5">
           <div className="mb-4">
-            <div className="text-[0.62rem] font-semibold uppercase tracking-[0.28em] text-[var(--app-shell-muted)]">
-              Usage Routing
+            <div className="text-[0.62rem] font-semibold tracking-[0.14em] text-[var(--app-shell-muted)]">
+              {t('common.businessModelConfig') || '业务模型配置'}
             </div>
-            <div className="mt-1 text-base font-semibold text-[var(--app-shell-ink)]">用途选择</div>
+            <div className="mt-1 text-base font-semibold text-[var(--app-shell-ink)]">
+              {t('common.businessModelConfigDesc') || '按业务选择模型'}
+            </div>
           </div>
 
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-3 rounded-2xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] p-4">
-              <label className="block text-[11px] font-semibold uppercase tracking-[0.2em] text-[var(--app-shell-muted)]">
-                图像识别 Provider
-              </label>
-              <select
-                value={ocrAiProvider}
-                onChange={(e) => {
-                  const nextProvider = e.target.value as 'openai' | 'gemini' | 'customOpenAi';
-                  setOcrAiProvider(nextProvider);
-                  const nextModels = getProviderModels(nextProvider);
-                  const fallbackModel = getProviderModelFallback(nextProvider);
-                  if (nextModels[0]) {
-                    setOcrAiModel(nextModels[0]);
-                  } else if (fallbackModel) {
-                    setOcrAiModel(fallbackModel);
-                  }
-                }}
-                className="w-full rounded-2xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)] px-4 py-3 text-sm text-[var(--app-shell-ink)] outline-none transition focus:border-[var(--app-shell-line-strong)]"
-              >
-                <option value="openai">OpenAI</option>
-                <option value="gemini">Gemini</option>
-                <option value="customOpenAi">OpenAI Compatible</option>
-              </select>
-              <label className="block text-[11px] font-semibold uppercase tracking-[0.2em] text-[var(--app-shell-muted)]">
-                图像识别 Model
-              </label>
-              <input
-                list="ocr-model-options"
-                value={ocrAiModel}
-                onChange={(e) => setOcrAiModel(e.target.value)}
-                placeholder={
-                  getProviderApiKey(ocrAiProvider)
-                    ? '输入或选择模型'
-                    : t('common.modelSelectPlaceholder') || '请先填写 API Key'
-                }
-                className="w-full rounded-2xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)] px-4 py-3 text-sm text-[var(--app-shell-ink)] outline-none transition focus:border-[var(--app-shell-line-strong)]"
-              />
-              <datalist id="ocr-model-options">
-                {getProviderModels(ocrAiProvider).map((model) => (
-                  <option key={model} value={model}>
-                    {model}
-                  </option>
-                ))}
-              </datalist>
-            </div>
-
-            <div className="space-y-3 rounded-2xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] p-4">
-              <label className="block text-[11px] font-semibold uppercase tracking-[0.2em] text-[var(--app-shell-muted)]">
-                持仓分析 Provider
-              </label>
-              <select
-                value={analysisAiProvider}
-                onChange={(e) => {
-                  const nextProvider = e.target.value as 'openai' | 'gemini' | 'customOpenAi';
-                  setAnalysisAiProvider(nextProvider);
-                  const nextModels = getProviderModels(nextProvider);
-                  const fallbackModel = getProviderModelFallback(nextProvider);
-                  if (nextModels[0]) {
-                    setAnalysisAiModel(nextModels[0]);
-                  } else if (fallbackModel) {
-                    setAnalysisAiModel(fallbackModel);
-                  }
-                }}
-                className="w-full rounded-2xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)] px-4 py-3 text-sm text-[var(--app-shell-ink)] outline-none transition focus:border-[var(--app-shell-line-strong)]"
-              >
-                <option value="openai">OpenAI</option>
-                <option value="gemini">Gemini</option>
-                <option value="customOpenAi">OpenAI Compatible</option>
-              </select>
-              <label className="block text-[11px] font-semibold uppercase tracking-[0.2em] text-[var(--app-shell-muted)]">
-                持仓分析 Model
-              </label>
-              <input
-                list="analysis-model-options"
-                value={analysisAiModel}
-                onChange={(e) => setAnalysisAiModel(e.target.value)}
-                placeholder={
-                  getProviderApiKey(analysisAiProvider)
-                    ? '输入或选择模型'
-                    : t('common.modelSelectPlaceholder') || '请先填写 API Key'
-                }
-                className="w-full rounded-2xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)] px-4 py-3 text-sm text-[var(--app-shell-ink)] outline-none transition focus:border-[var(--app-shell-line-strong)]"
-              />
-              <datalist id="analysis-model-options">
-                {getProviderModels(analysisAiProvider).map((model) => (
-                  <option key={model} value={model}>
-                    {model}
-                  </option>
-                ))}
-              </datalist>
-            </div>
+          <div className="space-y-3">
+            {businessItems.map((item) => {
+              const selected = businessModelConfig[item.key];
+              const selectedBusinessProvider = configuredProviders.find(
+                (provider) => provider.id === selected.providerId,
+              );
+              const scopedProviderModels = selectedBusinessProvider
+                ? selectedBusinessProvider.kind === 'customOpenAi'
+                  ? (customProviderModelsById[selectedBusinessProvider.id] ?? [])
+                  : getProviderModels(selectedBusinessProvider.kind)
+                : [];
+              const businessModelOptions = Array.from(
+                new Set(
+                  [
+                    ...scopedProviderModels,
+                    selectedBusinessProvider?.model || '',
+                    selected.model,
+                  ].filter((model): model is string => Boolean(model)),
+                ),
+              );
+              const businessModelListId = `business-model-options-${item.key}`;
+              const modelPlaceholder = selected.providerId
+                ? '可选择或输入模型'
+                : '请先选择供应商';
+              return (
+                <div
+                  key={item.key}
+                  className="rounded-2xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] p-3"
+                >
+                  <div className="mb-2 text-sm font-semibold text-[var(--app-shell-ink)]">{item.label}</div>
+                  <div className="grid gap-2 md:grid-cols-2">
+                    <select
+                      value={selected.providerId}
+                      onChange={(e) => {
+                        const providerId = e.target.value;
+                        const provider = configuredProviders.find((p) => p.id === providerId);
+                        updateBusinessModelConfig(item.key, {
+                          providerId,
+                          providerKind: provider?.kind ?? selected.providerKind,
+                          model: provider?.model || selected.model,
+                        });
+                      }}
+                      className="rounded-xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)] px-3 py-2 text-sm"
+                    >
+                      <option value="">{t('common.chooseProvider') || '请选择供应商'}</option>
+                      {configuredProviders.map((provider) => (
+                        <option key={provider.id} value={provider.id}>
+                          {provider.icon} {getProviderDisplayName(provider.kind)}
+                        </option>
+                      ))}
+                    </select>
+                    <input
+                      list={businessModelListId}
+                      value={selected.model}
+                      placeholder={modelPlaceholder}
+                      onChange={(e) =>
+                        updateBusinessModelConfig(item.key, {
+                          model: e.target.value,
+                        })
+                      }
+                      className="rounded-xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)] px-3 py-2 text-sm"
+                    />
+                    <datalist id={businessModelListId}>
+                      {businessModelOptions.map((model) => (
+                        <option key={model} value={model}>
+                          {model}
+                        </option>
+                      ))}
+                    </datalist>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </section>
-
-        <p className="px-1 text-[11px] uppercase tracking-[0.18em] text-[var(--app-shell-muted)]">
-          {t('common.aiPrivacyTip') || '截图仅用于识别，不会保存到服务器。'}
-        </p>
       </div>
     </div>
   );
@@ -813,8 +888,8 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack, initialShowA
               <Icons.ArrowUp size={18} className="-rotate-90" />
             </button>
             <div>
-              <div className="text-[0.62rem] font-semibold uppercase tracking-[0.28em] text-[var(--app-shell-muted)]">
-                Sync Protocol
+              <div className="text-[0.62rem] font-semibold tracking-[0.14em] text-[var(--app-shell-muted)]">
+                同步协议
               </div>
               <h2 className="mt-1 text-lg font-semibold tracking-[-0.03em] text-[var(--app-shell-ink)]">
                 {t('common.gistSync') || 'GitHub Gist 同步'}
@@ -831,9 +906,9 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack, initialShowA
       <div className="space-y-4 px-4 md:px-5">
         <section className="rounded-[1.75rem] border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)] p-4 shadow-[var(--app-shell-shadow)] backdrop-blur-xl md:p-5">
           <div className="mb-4">
-            <div className="text-[0.62rem] font-semibold uppercase tracking-[0.28em] text-[var(--app-shell-muted)]">
-              Credential
-            </div>
+                <div className="text-[0.62rem] font-semibold tracking-[0.14em] text-[var(--app-shell-muted)]">
+                  凭证
+                </div>
             <div className="mt-1 text-base font-semibold text-[var(--app-shell-ink)]">
               {t('common.githubToken') || 'GitHub Token'}
             </div>
@@ -852,8 +927,8 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack, initialShowA
             </p>
             <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
               <div className="rounded-2xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] px-4 py-3">
-                <div className="text-[10px] font-semibold uppercase tracking-[0.22em] text-[var(--app-shell-muted)]">
-                  Format
+                <div className="text-[10px] font-semibold tracking-[0.14em] text-[var(--app-shell-muted)]">
+                  格式
                 </div>
                 <div className="mt-2 text-sm font-semibold text-[var(--app-shell-ink)]">
                   {tokenFormatState === 'invalid' &&
@@ -864,8 +939,8 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack, initialShowA
                 </div>
               </div>
               <div className="rounded-2xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] px-4 py-3">
-                <div className="text-[10px] font-semibold uppercase tracking-[0.22em] text-[var(--app-shell-muted)]">
-                  API Status
+                <div className="text-[10px] font-semibold tracking-[0.14em] text-[var(--app-shell-muted)]">
+                  接口状态
                 </div>
                 <div className="mt-2 text-sm font-semibold text-[var(--app-shell-ink)]">
                   {tokenApiState === 'checking' &&
@@ -878,8 +953,8 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack, initialShowA
                 </div>
               </div>
               <div className="rounded-2xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] px-4 py-3 md:col-span-2 xl:col-span-1">
-                <div className="text-[10px] font-semibold uppercase tracking-[0.22em] text-[var(--app-shell-muted)]">
-                  Default Target
+                <div className="text-[10px] font-semibold tracking-[0.14em] text-[var(--app-shell-muted)]">
+                  默认目标
                 </div>
                 <div className="mt-2 text-sm font-semibold text-[var(--app-shell-ink)]">
                   {defaultGistTarget
@@ -894,12 +969,10 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack, initialShowA
         <section className="rounded-[1.75rem] border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)] p-4 shadow-[var(--app-shell-shadow)] backdrop-blur-xl md:p-5">
           <div className="mb-4 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
             <div>
-              <div className="text-[0.62rem] font-semibold uppercase tracking-[0.28em] text-[var(--app-shell-muted)]">
-                Actions
-              </div>
-              <div className="mt-1 text-base font-semibold text-[var(--app-shell-ink)]">
-                Upload / Download Flow
-              </div>
+                <div className="text-[0.62rem] font-semibold tracking-[0.14em] text-[var(--app-shell-muted)]">
+                  操作
+                </div>
+                <div className="mt-1 text-base font-semibold text-[var(--app-shell-ink)]">上传 / 下载</div>
             </div>
             {tokenApiState === 'valid' && syncGists.length === 0 && (
               <p className="text-sm text-amber-600 dark:text-amber-300">
@@ -978,8 +1051,8 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack, initialShowA
               </button>
             )}
             <div>
-              <div className="text-[0.62rem] font-semibold uppercase tracking-[0.28em] text-[var(--app-shell-muted)]">
-                Control Room
+              <div className="text-[0.62rem] font-semibold tracking-[0.14em] text-[var(--app-shell-muted)]">
+                控制面板
               </div>
               <h2 className="mt-1 text-lg font-semibold tracking-[-0.03em] text-[var(--app-shell-ink)]">
                 {t('common.settings')}
@@ -988,7 +1061,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack, initialShowA
           </div>
 
           <p className="mt-4 max-w-2xl text-sm leading-6 text-[var(--app-shell-muted)]">
-            在同一控制台中管理主题、自动刷新、AI 识别与数据同步，保证持仓工作台的节奏统一。
+            在同一控制台中管理主题、自动刷新、大模型能力与数据同步，保证持仓工作台的节奏统一。
           </p>
         </div>
       </div>
@@ -997,9 +1070,9 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack, initialShowA
         <section className="rounded-[1.75rem] border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)] p-4 shadow-[var(--app-shell-shadow)] backdrop-blur-xl md:p-5">
           <div className="mb-4 flex items-center justify-between gap-4">
             <div>
-              <div className="text-[0.62rem] font-semibold uppercase tracking-[0.28em] text-[var(--app-shell-muted)]">
-                Visual System
-              </div>
+                <div className="text-[0.62rem] font-semibold tracking-[0.14em] text-[var(--app-shell-muted)]">
+                  视觉系统
+                </div>
               <div className="mt-1 text-base font-semibold text-[var(--app-shell-ink)]">
                 {t('common.theme')}
               </div>
@@ -1033,15 +1106,15 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack, initialShowA
         <section className="rounded-[1.75rem] border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)] p-4 shadow-[var(--app-shell-shadow)] backdrop-blur-xl md:p-5">
           <div className="mb-4 flex items-center justify-between gap-4">
             <div>
-              <div className="text-[0.62rem] font-semibold uppercase tracking-[0.28em] text-[var(--app-shell-muted)]">
-                Runtime
-              </div>
+                <div className="text-[0.62rem] font-semibold tracking-[0.14em] text-[var(--app-shell-muted)]">
+                  运行设置
+                </div>
               <div className="mt-1 text-base font-semibold text-[var(--app-shell-ink)]">
                 {t('common.features') || '功能'}
               </div>
             </div>
-            <div className="rounded-full border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-[var(--app-shell-muted)]">
-              Live
+            <div className="rounded-full border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] px-3 py-1 text-[10px] font-semibold tracking-[0.14em] text-[var(--app-shell-muted)]">
+              已启用
             </div>
           </div>
           <div className="flex items-center justify-between rounded-2xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] px-4 py-4">
@@ -1067,11 +1140,11 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack, initialShowA
         <div className="grid gap-4 xl:grid-cols-2">
           <section className="rounded-[1.75rem] border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)] p-4 shadow-[var(--app-shell-shadow)] backdrop-blur-xl md:p-5">
             <div className="mb-4">
-              <div className="text-[0.62rem] font-semibold uppercase tracking-[0.28em] text-[var(--app-shell-muted)]">
-                Intelligence
+              <div className="text-[0.62rem] font-semibold tracking-[0.14em] text-[var(--app-shell-muted)]">
+                智能配置
               </div>
               <div className="mt-1 text-base font-semibold text-[var(--app-shell-ink)]">
-                {t('common.aiSettings') || 'AI 识别设置'}
+                {t('common.llmSettings') || '大模型配置'}
               </div>
             </div>
             <button
@@ -1092,9 +1165,9 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack, initialShowA
 
           <section className="rounded-[1.75rem] border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)] p-4 shadow-[var(--app-shell-shadow)] backdrop-blur-xl md:p-5">
             <div className="mb-4">
-              <div className="text-[0.62rem] font-semibold uppercase tracking-[0.28em] text-[var(--app-shell-muted)]">
-                Remote Backup
-              </div>
+                <div className="text-[0.62rem] font-semibold tracking-[0.14em] text-[var(--app-shell-muted)]">
+                  远程备份
+                </div>
               <div className="mt-1 text-base font-semibold text-[var(--app-shell-ink)]">
                 {t('common.sync') || '同步'}
               </div>
@@ -1118,8 +1191,8 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack, initialShowA
 
         <section className="rounded-[1.75rem] border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)] p-4 shadow-[var(--app-shell-shadow)] backdrop-blur-xl md:p-5">
           <div className="mb-4">
-            <div className="text-[0.62rem] font-semibold uppercase tracking-[0.28em] text-[var(--app-shell-muted)]">
-              Local Archive
+            <div className="text-[0.62rem] font-semibold tracking-[0.14em] text-[var(--app-shell-muted)]">
+              本地归档
             </div>
             <div className="mt-1 text-base font-semibold text-[var(--app-shell-ink)]">
               {t('common.data') || '数据'}
