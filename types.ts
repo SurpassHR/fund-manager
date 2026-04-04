@@ -70,7 +70,7 @@ export interface AssetSummary {
   holdingGainPct: number;
 }
 
-export type TabType = 'holding' | 'watchlist' | 'market' | 'news' | 'settings';
+export type TabType = 'holding' | 'watchlist' | 'services' | 'news' | 'settings';
 
 export interface MarketIndex {
   name: string;

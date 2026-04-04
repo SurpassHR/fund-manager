@@ -29,7 +29,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
   const tabs: { id: TabType; label: string; icon: IconComponent }[] = [
     { id: 'holding', label: t('common.holdings'), icon: Icons.Holdings },
     { id: 'watchlist', label: t('common.watchlist'), icon: Icons.User },
-    { id: 'market', label: t('common.market'), icon: Icons.Chart },
+    { id: 'services', label: t('common.services'), icon: Icons.Chart },
     { id: 'news', label: t('common.news'), icon: Icons.News },
     { id: 'settings', label: t('common.settings'), icon: Icons.Settings },
   ];

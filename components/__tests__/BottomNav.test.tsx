@@ -36,6 +36,16 @@ describe('BottomNav', () => {
     expect(within(settingsButton).getByTestId('bottom-nav-active-indicator')).toBeInTheDocument();
   });
 
+  it('renders services tab label', () => {
+    render(
+      <LanguageProvider>
+        <BottomNav activeTab="holding" onTabChange={() => undefined} />
+      </LanguageProvider>,
+    );
+
+    expect(screen.getByRole('button', { name: /服务/i })).toBeInTheDocument();
+  });
+
   it('applies mobile hidden classes when hiddenOnMobile is true', () => {
     const { container } = render(
       <LanguageProvider>

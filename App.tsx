@@ -6,6 +6,7 @@ import { Watchlist } from './components/Watchlist';
 import { Ticker } from './components/Ticker';
 import { ScannerModal } from './components/ScannerModal';
 import { SettingsPage } from './components/SettingsPage';
+import { ServicesPanel } from './components/ServicesPanel';
 import { WelcomeModal } from './components/WelcomeModal';
 import { AnimatedSwitcher } from './components/transitions/AnimatedSwitcher';
 import type { TabType } from './types';
@@ -45,6 +46,8 @@ const AppContent: React.FC = () => {
         return <Watchlist />;
       case 'settings':
         return <SettingsPage initialShowAiSettings={openAiSettingsRequested} />;
+      case 'services':
+        return <ServicesPanel />;
       default:
         return (
           <div className="flex flex-col items-center justify-center min-h-[60vh] text-gray-400 gap-4">
@@ -485,7 +488,10 @@ const AppContent: React.FC = () => {
       <div className="app-shell__noise" aria-hidden="true" />
 
       <div className="app-shell__content">
-        <Header title={t('common.appTitle') || 'XiaoHuYangJi'} hiddenOnMobile={isMobileChromeHidden} />
+        <Header
+          title={t('common.appTitle') || 'XiaoHuYangJi'}
+          hiddenOnMobile={isMobileChromeHidden}
+        />
 
         <main className="app-stage">
           <div className="app-stage__main">
