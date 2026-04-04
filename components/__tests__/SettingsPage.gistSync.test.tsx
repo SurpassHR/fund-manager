@@ -173,6 +173,18 @@ describe('SettingsPage gist sync integration', () => {
     });
   });
 
+  it('在 gist 页面提供创建 ghp 的直达链接', async () => {
+    render(<SettingsPage />);
+    fireEvent.click(screen.getByRole('button', { name: 'common.gistSync' }));
+
+    const createTokenLink = await screen.findByRole('link', {
+      name: 'common.githubTokenCreateLink',
+    });
+    expect(createTokenLink.getAttribute('href')).toBe(
+      'https://github.com/settings/tokens/new?scopes=gist&description=fund-manager-gist-sync',
+    );
+  });
+
   it('opens chooser and handles download callback', async () => {
     render(<SettingsPage />);
 

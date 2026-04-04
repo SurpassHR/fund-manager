@@ -67,9 +67,9 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack, initialShowA
   const [activeView, setActiveView] = useState<SettingsView>(initialShowAiSettings ? 'ai' : 'main');
   const [openaiModels, setOpenaiModels] = useState<string[]>([]);
   const [customOpenAiModels, setCustomOpenAiModels] = useState<string[]>([]);
-  const [customProviderModelsById, setCustomProviderModelsById] = useState<Record<string, string[]>>(
-    {},
-  );
+  const [customProviderModelsById, setCustomProviderModelsById] = useState<
+    Record<string, string[]>
+  >({});
   const [geminiModels, setGeminiModels] = useState<string[]>([]);
   const [, setOpenaiLoading] = useState(false);
   const [, setCustomOpenAiLoading] = useState(false);
@@ -192,30 +192,33 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack, initialShowA
     return t('common.gistSyncErrorUnknown') || 'Gist 同步失败，请稍后重试。';
   };
 
-  const refreshSyncGists = useCallback(async (token: string) => {
-    const list = await listSyncGists(token);
-    setSyncGists(list);
+  const refreshSyncGists = useCallback(
+    async (token: string) => {
+      const list = await listSyncGists(token);
+      setSyncGists(list);
 
-    if (!defaultGistTarget) return;
-    const foundDefault = list.find((item) => item.id === defaultGistTarget.id);
-    if (!foundDefault) {
-      setDefaultGistTarget(null);
-      alert(t('common.gistDefaultTargetFallback') || '默认目标已失效，请重新选择。');
-      return;
-    }
+      if (!defaultGistTarget) return;
+      const foundDefault = list.find((item) => item.id === defaultGistTarget.id);
+      if (!foundDefault) {
+        setDefaultGistTarget(null);
+        alert(t('common.gistDefaultTargetFallback') || '默认目标已失效，请重新选择。');
+        return;
+      }
 
-    if (
-      foundDefault.description !== defaultGistTarget.description ||
-      foundDefault.updated_at !== defaultGistTarget.updatedAt
-    ) {
-      setDefaultGistTarget({
-        id: foundDefault.id,
-        description: foundDefault.description,
-        updatedAt: foundDefault.updated_at,
-        fileName: GIST_SYNC_FILENAME,
-      });
-    }
-  }, [defaultGistTarget, setDefaultGistTarget, t]);
+      if (
+        foundDefault.description !== defaultGistTarget.description ||
+        foundDefault.updated_at !== defaultGistTarget.updatedAt
+      ) {
+        setDefaultGistTarget({
+          id: foundDefault.id,
+          description: foundDefault.description,
+          updatedAt: foundDefault.updated_at,
+          fileName: GIST_SYNC_FILENAME,
+        });
+      }
+    },
+    [defaultGistTarget, setDefaultGistTarget, t],
+  );
 
   const triggerGistListRefresh = async (rateLimited = false) => {
     if (!githubToken || tokenApiState !== 'valid') return;
@@ -636,7 +639,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack, initialShowA
                       {provider.icon} {getProviderDisplayName(provider.kind)}
                     </span>
                     <span className="text-[10px] uppercase tracking-[0.14em] text-[var(--app-shell-muted)]">
-                        {getProviderDisplayName(provider.kind)}
+                      {getProviderDisplayName(provider.kind)}
                     </span>
                   </button>
                 ))}
@@ -818,15 +821,15 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack, initialShowA
                 ),
               );
               const businessModelListId = `business-model-options-${item.key}`;
-              const modelPlaceholder = selected.providerId
-                ? '可选择或输入模型'
-                : '请先选择供应商';
+              const modelPlaceholder = selected.providerId ? '可选择或输入模型' : '请先选择供应商';
               return (
                 <div
                   key={item.key}
                   className="rounded-2xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] p-3"
                 >
-                  <div className="mb-2 text-sm font-semibold text-[var(--app-shell-ink)]">{item.label}</div>
+                  <div className="mb-2 text-sm font-semibold text-[var(--app-shell-ink)]">
+                    {item.label}
+                  </div>
                   <div className="grid gap-2 md:grid-cols-2">
                     <select
                       value={selected.providerId}
@@ -906,9 +909,9 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack, initialShowA
       <div className="space-y-4 px-4 md:px-5">
         <section className="rounded-[1.75rem] border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)] p-4 shadow-[var(--app-shell-shadow)] backdrop-blur-xl md:p-5">
           <div className="mb-4">
-                <div className="text-[0.62rem] font-semibold tracking-[0.14em] text-[var(--app-shell-muted)]">
-                  凭证
-                </div>
+            <div className="text-[0.62rem] font-semibold tracking-[0.14em] text-[var(--app-shell-muted)]">
+              凭证
+            </div>
             <div className="mt-1 text-base font-semibold text-[var(--app-shell-ink)]">
               {t('common.githubToken') || 'GitHub Token'}
             </div>
@@ -925,6 +928,15 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack, initialShowA
             <p className="text-sm text-[var(--app-shell-muted)]">
               {t('common.githubTokenHelp') || 'Token 仅保存在本地。'}
             </p>
+            <a
+              href="https://github.com/settings/tokens/new?scopes=gist&description=fund-manager-gist-sync"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex text-sm font-medium text-[var(--app-shell-accent)] hover:underline"
+            >
+              {t('common.githubTokenCreateLink') ||
+                '没有令牌？点击创建 GitHub Personal Access Token（ghp）'}
+            </a>
             <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
               <div className="rounded-2xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] px-4 py-3">
                 <div className="text-[10px] font-semibold tracking-[0.14em] text-[var(--app-shell-muted)]">
@@ -969,10 +981,12 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack, initialShowA
         <section className="rounded-[1.75rem] border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)] p-4 shadow-[var(--app-shell-shadow)] backdrop-blur-xl md:p-5">
           <div className="mb-4 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
             <div>
-                <div className="text-[0.62rem] font-semibold tracking-[0.14em] text-[var(--app-shell-muted)]">
-                  操作
-                </div>
-                <div className="mt-1 text-base font-semibold text-[var(--app-shell-ink)]">上传 / 下载</div>
+              <div className="text-[0.62rem] font-semibold tracking-[0.14em] text-[var(--app-shell-muted)]">
+                操作
+              </div>
+              <div className="mt-1 text-base font-semibold text-[var(--app-shell-ink)]">
+                上传 / 下载
+              </div>
             </div>
             {tokenApiState === 'valid' && syncGists.length === 0 && (
               <p className="text-sm text-amber-600 dark:text-amber-300">
@@ -1070,9 +1084,9 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack, initialShowA
         <section className="rounded-[1.75rem] border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)] p-4 shadow-[var(--app-shell-shadow)] backdrop-blur-xl md:p-5">
           <div className="mb-4 flex items-center justify-between gap-4">
             <div>
-                <div className="text-[0.62rem] font-semibold tracking-[0.14em] text-[var(--app-shell-muted)]">
-                  视觉系统
-                </div>
+              <div className="text-[0.62rem] font-semibold tracking-[0.14em] text-[var(--app-shell-muted)]">
+                视觉系统
+              </div>
               <div className="mt-1 text-base font-semibold text-[var(--app-shell-ink)]">
                 {t('common.theme')}
               </div>
@@ -1106,9 +1120,9 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack, initialShowA
         <section className="rounded-[1.75rem] border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)] p-4 shadow-[var(--app-shell-shadow)] backdrop-blur-xl md:p-5">
           <div className="mb-4 flex items-center justify-between gap-4">
             <div>
-                <div className="text-[0.62rem] font-semibold tracking-[0.14em] text-[var(--app-shell-muted)]">
-                  运行设置
-                </div>
+              <div className="text-[0.62rem] font-semibold tracking-[0.14em] text-[var(--app-shell-muted)]">
+                运行设置
+              </div>
               <div className="mt-1 text-base font-semibold text-[var(--app-shell-ink)]">
                 {t('common.features') || '功能'}
               </div>
@@ -1165,9 +1179,9 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack, initialShowA
 
           <section className="rounded-[1.75rem] border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)] p-4 shadow-[var(--app-shell-shadow)] backdrop-blur-xl md:p-5">
             <div className="mb-4">
-                <div className="text-[0.62rem] font-semibold tracking-[0.14em] text-[var(--app-shell-muted)]">
-                  远程备份
-                </div>
+              <div className="text-[0.62rem] font-semibold tracking-[0.14em] text-[var(--app-shell-muted)]">
+                远程备份
+              </div>
               <div className="mt-1 text-base font-semibold text-[var(--app-shell-ink)]">
                 {t('common.sync') || '同步'}
               </div>
