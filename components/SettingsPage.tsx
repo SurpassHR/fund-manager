@@ -38,8 +38,14 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack, initialShowA
   const {
     autoRefresh,
     setAutoRefresh,
-    aiProvider,
-    setAiProvider,
+    ocrAiProvider,
+    setOcrAiProvider,
+    ocrAiModel,
+    setOcrAiModel,
+    analysisAiProvider,
+    setAnalysisAiProvider,
+    analysisAiModel,
+    setAnalysisAiModel,
     openaiApiKey,
     setOpenaiApiKey,
     openaiModel,
@@ -82,6 +88,24 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack, initialShowA
   const [syncBusy, setSyncBusy] = useState(false);
   const [gistListRefreshing, setGistListRefreshing] = useState(false);
   const [gistListCooldownSec, setGistListCooldownSec] = useState(0);
+
+  const getProviderModels = (provider: 'openai' | 'gemini' | 'customOpenAi') => {
+    if (provider === 'openai') return openaiModels;
+    if (provider === 'gemini') return geminiModels;
+    return customOpenAiModels;
+  };
+
+  const getProviderApiKey = (provider: 'openai' | 'gemini' | 'customOpenAi') => {
+    if (provider === 'openai') return openaiApiKey;
+    if (provider === 'gemini') return geminiApiKey;
+    return customOpenAiApiKey;
+  };
+
+  const getProviderModelFallback = (provider: 'openai' | 'gemini' | 'customOpenAi') => {
+    if (provider === 'openai') return openaiModel;
+    if (provider === 'gemini') return geminiModel;
+    return customOpenAiModel;
+  };
 
   const themeOptions: { value: ThemeOption; label: string; icon: React.ReactNode }[] = [
     {
@@ -484,7 +508,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack, initialShowA
                 AI Console
               </div>
               <h2 className="mt-1 text-lg font-semibold tracking-[-0.03em] text-[var(--app-shell-ink)]">
-                {t('common.aiSettings')}
+                {t('common.llmSettings') || '大模型配置'}
               </h2>
             </div>
           </div>
@@ -500,22 +524,16 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack, initialShowA
           <div className="mb-4 flex items-center justify-between gap-4">
             <div>
               <div className="text-[0.62rem] font-semibold uppercase tracking-[0.28em] text-[var(--app-shell-muted)]">
-                Provider Routing
+                LLM Registry
               </div>
               <div className="mt-1 text-base font-semibold text-[var(--app-shell-ink)]">
-                {t('common.aiProvider') || '模型提供方'}
+                {t('common.llmSettingsManage') || '大模型配置'}
               </div>
             </div>
           </div>
-          <select
-            value={aiProvider}
-            onChange={(e) => setAiProvider(e.target.value as 'openai' | 'gemini' | 'customOpenAi')}
-            className="w-full rounded-2xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] px-4 py-3 text-sm text-[var(--app-shell-ink)] outline-none transition focus:border-[var(--app-shell-line-strong)]"
-          >
-            <option value="openai">OpenAI</option>
-            <option value="gemini">Gemini</option>
-            <option value="customOpenAi">OpenAI Compatible</option>
-          </select>
+          <p className="text-sm text-[var(--app-shell-muted)]">
+            仅维护 Provider 与模型能力配置，不在这里绑定业务用途。
+          </p>
         </section>
 
         <div className="grid gap-4 xl:grid-cols-3">
@@ -672,6 +690,109 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack, initialShowA
             </div>
           </section>
         </div>
+
+        <section className="rounded-[1.75rem] border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)] p-4 shadow-[var(--app-shell-shadow)] backdrop-blur-xl md:p-5">
+          <div className="mb-4">
+            <div className="text-[0.62rem] font-semibold uppercase tracking-[0.28em] text-[var(--app-shell-muted)]">
+              Usage Routing
+            </div>
+            <div className="mt-1 text-base font-semibold text-[var(--app-shell-ink)]">用途选择</div>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-3 rounded-2xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] p-4">
+              <label className="block text-[11px] font-semibold uppercase tracking-[0.2em] text-[var(--app-shell-muted)]">
+                图像识别 Provider
+              </label>
+              <select
+                value={ocrAiProvider}
+                onChange={(e) => {
+                  const nextProvider = e.target.value as 'openai' | 'gemini' | 'customOpenAi';
+                  setOcrAiProvider(nextProvider);
+                  const nextModels = getProviderModels(nextProvider);
+                  const fallbackModel = getProviderModelFallback(nextProvider);
+                  if (nextModels[0]) {
+                    setOcrAiModel(nextModels[0]);
+                  } else if (fallbackModel) {
+                    setOcrAiModel(fallbackModel);
+                  }
+                }}
+                className="w-full rounded-2xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)] px-4 py-3 text-sm text-[var(--app-shell-ink)] outline-none transition focus:border-[var(--app-shell-line-strong)]"
+              >
+                <option value="openai">OpenAI</option>
+                <option value="gemini">Gemini</option>
+                <option value="customOpenAi">OpenAI Compatible</option>
+              </select>
+              <label className="block text-[11px] font-semibold uppercase tracking-[0.2em] text-[var(--app-shell-muted)]">
+                图像识别 Model
+              </label>
+              <input
+                list="ocr-model-options"
+                value={ocrAiModel}
+                onChange={(e) => setOcrAiModel(e.target.value)}
+                placeholder={
+                  getProviderApiKey(ocrAiProvider)
+                    ? '输入或选择模型'
+                    : t('common.modelSelectPlaceholder') || '请先填写 API Key'
+                }
+                className="w-full rounded-2xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)] px-4 py-3 text-sm text-[var(--app-shell-ink)] outline-none transition focus:border-[var(--app-shell-line-strong)]"
+              />
+              <datalist id="ocr-model-options">
+                {getProviderModels(ocrAiProvider).map((model) => (
+                  <option key={model} value={model}>
+                    {model}
+                  </option>
+                ))}
+              </datalist>
+            </div>
+
+            <div className="space-y-3 rounded-2xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] p-4">
+              <label className="block text-[11px] font-semibold uppercase tracking-[0.2em] text-[var(--app-shell-muted)]">
+                持仓分析 Provider
+              </label>
+              <select
+                value={analysisAiProvider}
+                onChange={(e) => {
+                  const nextProvider = e.target.value as 'openai' | 'gemini' | 'customOpenAi';
+                  setAnalysisAiProvider(nextProvider);
+                  const nextModels = getProviderModels(nextProvider);
+                  const fallbackModel = getProviderModelFallback(nextProvider);
+                  if (nextModels[0]) {
+                    setAnalysisAiModel(nextModels[0]);
+                  } else if (fallbackModel) {
+                    setAnalysisAiModel(fallbackModel);
+                  }
+                }}
+                className="w-full rounded-2xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)] px-4 py-3 text-sm text-[var(--app-shell-ink)] outline-none transition focus:border-[var(--app-shell-line-strong)]"
+              >
+                <option value="openai">OpenAI</option>
+                <option value="gemini">Gemini</option>
+                <option value="customOpenAi">OpenAI Compatible</option>
+              </select>
+              <label className="block text-[11px] font-semibold uppercase tracking-[0.2em] text-[var(--app-shell-muted)]">
+                持仓分析 Model
+              </label>
+              <input
+                list="analysis-model-options"
+                value={analysisAiModel}
+                onChange={(e) => setAnalysisAiModel(e.target.value)}
+                placeholder={
+                  getProviderApiKey(analysisAiProvider)
+                    ? '输入或选择模型'
+                    : t('common.modelSelectPlaceholder') || '请先填写 API Key'
+                }
+                className="w-full rounded-2xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)] px-4 py-3 text-sm text-[var(--app-shell-ink)] outline-none transition focus:border-[var(--app-shell-line-strong)]"
+              />
+              <datalist id="analysis-model-options">
+                {getProviderModels(analysisAiProvider).map((model) => (
+                  <option key={model} value={model}>
+                    {model}
+                  </option>
+                ))}
+              </datalist>
+            </div>
+          </div>
+        </section>
 
         <p className="px-1 text-[11px] uppercase tracking-[0.18em] text-[var(--app-shell-muted)]">
           {t('common.aiPrivacyTip') || '截图仅用于识别，不会保存到服务器。'}
@@ -962,7 +1083,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack, initialShowA
                   <Icons.Settings size={18} />
                 </div>
                 <span className="text-sm font-semibold text-[var(--app-shell-ink)]">
-                  {t('common.aiSettingsManage') || '管理 AI 识别设置'}
+                  {t('common.llmSettingsManage') || '管理大模型配置'}
                 </span>
               </div>
               <Icons.ArrowDown size={16} className="-rotate-90 text-[var(--app-shell-muted)]" />

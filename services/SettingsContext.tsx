@@ -18,6 +18,14 @@ interface SettingsContextValue {
   setUseUnifiedRefresh: (val: boolean) => void;
   aiProvider: AiProvider;
   setAiProvider: (val: AiProvider) => void;
+  ocrAiProvider: AiProvider;
+  setOcrAiProvider: (val: AiProvider) => void;
+  ocrAiModel: string;
+  setOcrAiModel: (val: string) => void;
+  analysisAiProvider: AiProvider;
+  setAnalysisAiProvider: (val: AiProvider) => void;
+  analysisAiModel: string;
+  setAnalysisAiModel: (val: string) => void;
   openaiApiKey: string;
   setOpenaiApiKey: (val: string) => void;
   openaiModel: string;
@@ -46,6 +54,10 @@ const defaultSettings = {
   autoRefresh: false,
   useUnifiedRefresh: false,
   aiProvider: 'openai' as AiProvider,
+  ocrAiProvider: 'openai' as AiProvider,
+  ocrAiModel: 'gpt-4o-mini',
+  analysisAiProvider: 'openai' as AiProvider,
+  analysisAiModel: 'gpt-4o-mini',
   openaiApiKey: '',
   openaiModel: 'gpt-4o-mini',
   customOpenAiApiKey: '',
@@ -83,6 +95,32 @@ const parseSavedSettings = (saved: string): typeof defaultSettings => {
     return defaultSettings;
   }
 
+  const resolveProvider = (value: unknown): AiProvider | null => {
+    if (value === 'openai' || value === 'gemini' || value === 'customOpenAi') {
+      return value;
+    }
+    return null;
+  };
+
+  const openaiModel =
+    typeof parsed.openaiModel === 'string' ? parsed.openaiModel : defaultSettings.openaiModel;
+  const customOpenAiModel =
+    typeof parsed.customOpenAiModel === 'string'
+      ? parsed.customOpenAiModel
+      : defaultSettings.customOpenAiModel;
+  const geminiModel =
+    typeof parsed.geminiModel === 'string' ? parsed.geminiModel : defaultSettings.geminiModel;
+
+  const getProviderDefaultModel = (provider: AiProvider) => {
+    if (provider === 'openai') return openaiModel;
+    if (provider === 'gemini') return geminiModel;
+    return customOpenAiModel;
+  };
+
+  const legacyProvider = resolveProvider(parsed.aiProvider) || defaultSettings.aiProvider;
+  const ocrAiProvider = resolveProvider(parsed.ocrAiProvider) || legacyProvider;
+  const analysisAiProvider = resolveProvider(parsed.analysisAiProvider) || legacyProvider;
+
   return {
     autoRefresh:
       typeof parsed.autoRefresh === 'boolean' ? parsed.autoRefresh : defaultSettings.autoRefresh,
@@ -90,16 +128,18 @@ const parseSavedSettings = (saved: string): typeof defaultSettings => {
       typeof parsed.useUnifiedRefresh === 'boolean'
         ? parsed.useUnifiedRefresh
         : defaultSettings.useUnifiedRefresh,
-    aiProvider:
-      parsed.aiProvider === 'openai' ||
-      parsed.aiProvider === 'gemini' ||
-      parsed.aiProvider === 'customOpenAi'
-        ? parsed.aiProvider
-        : defaultSettings.aiProvider,
+    aiProvider: legacyProvider,
+    ocrAiProvider,
+    ocrAiModel:
+      typeof parsed.ocrAiModel === 'string' ? parsed.ocrAiModel : getProviderDefaultModel(ocrAiProvider),
+    analysisAiProvider,
+    analysisAiModel:
+      typeof parsed.analysisAiModel === 'string'
+        ? parsed.analysisAiModel
+        : getProviderDefaultModel(analysisAiProvider),
     openaiApiKey:
       typeof parsed.openaiApiKey === 'string' ? parsed.openaiApiKey : defaultSettings.openaiApiKey,
-    openaiModel:
-      typeof parsed.openaiModel === 'string' ? parsed.openaiModel : defaultSettings.openaiModel,
+    openaiModel,
     customOpenAiApiKey:
       typeof parsed.customOpenAiApiKey === 'string'
         ? parsed.customOpenAiApiKey
@@ -112,14 +152,10 @@ const parseSavedSettings = (saved: string): typeof defaultSettings => {
       typeof parsed.customOpenAiModelsEndpoint === 'string'
         ? parsed.customOpenAiModelsEndpoint
         : defaultSettings.customOpenAiModelsEndpoint,
-    customOpenAiModel:
-      typeof parsed.customOpenAiModel === 'string'
-        ? parsed.customOpenAiModel
-        : defaultSettings.customOpenAiModel,
+    customOpenAiModel,
     geminiApiKey:
       typeof parsed.geminiApiKey === 'string' ? parsed.geminiApiKey : defaultSettings.geminiApiKey,
-    geminiModel:
-      typeof parsed.geminiModel === 'string' ? parsed.geminiModel : defaultSettings.geminiModel,
+    geminiModel,
     githubToken:
       typeof parsed.githubToken === 'string' ? parsed.githubToken : defaultSettings.githubToken,
     defaultGistTarget: parseDefaultGistTarget(parsed.defaultGistTarget),
@@ -133,6 +169,14 @@ const SettingsContext = createContext<SettingsContextValue>({
   setUseUnifiedRefresh: () => {},
   aiProvider: defaultSettings.aiProvider,
   setAiProvider: () => {},
+  ocrAiProvider: defaultSettings.ocrAiProvider,
+  setOcrAiProvider: () => {},
+  ocrAiModel: defaultSettings.ocrAiModel,
+  setOcrAiModel: () => {},
+  analysisAiProvider: defaultSettings.analysisAiProvider,
+  setAnalysisAiProvider: () => {},
+  analysisAiModel: defaultSettings.analysisAiModel,
+  setAnalysisAiModel: () => {},
   openaiApiKey: defaultSettings.openaiApiKey,
   setOpenaiApiKey: () => {},
   openaiModel: defaultSettings.openaiModel,
@@ -179,6 +223,10 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const setAutoRefresh = (val: boolean) => updateSettings({ autoRefresh: val });
   const setUseUnifiedRefresh = (val: boolean) => updateSettings({ useUnifiedRefresh: val });
   const setAiProvider = (val: AiProvider) => updateSettings({ aiProvider: val });
+  const setOcrAiProvider = (val: AiProvider) => updateSettings({ ocrAiProvider: val });
+  const setOcrAiModel = (val: string) => updateSettings({ ocrAiModel: val });
+  const setAnalysisAiProvider = (val: AiProvider) => updateSettings({ analysisAiProvider: val });
+  const setAnalysisAiModel = (val: string) => updateSettings({ analysisAiModel: val });
   const setOpenaiApiKey = (val: string) => updateSettings({ openaiApiKey: val });
   const setOpenaiModel = (val: string) => updateSettings({ openaiModel: val });
   const setCustomOpenAiApiKey = (val: string) => updateSettings({ customOpenAiApiKey: val });
@@ -201,6 +249,14 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         setUseUnifiedRefresh,
         aiProvider: settings.aiProvider,
         setAiProvider,
+        ocrAiProvider: settings.ocrAiProvider,
+        setOcrAiProvider,
+        ocrAiModel: settings.ocrAiModel,
+        setOcrAiModel,
+        analysisAiProvider: settings.analysisAiProvider,
+        setAnalysisAiProvider,
+        analysisAiModel: settings.analysisAiModel,
+        setAnalysisAiModel,
         openaiApiKey: settings.openaiApiKey,
         setOpenaiApiKey,
         openaiModel: settings.openaiModel,

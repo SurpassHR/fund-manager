@@ -5,6 +5,10 @@ describe('resolveAiRuntimeConfig', () => {
   it('在 customOpenAi 下返回自定义配置', () => {
     const runtime = resolveAiRuntimeConfig({
       aiProvider: 'customOpenAi',
+      ocrAiProvider: 'customOpenAi',
+      ocrAiModel: 'qwen-plus',
+      analysisAiProvider: 'customOpenAi',
+      analysisAiModel: 'qwen-plus',
       openaiApiKey: 'openai-key',
       openaiModel: 'gpt-4o-mini',
       geminiApiKey: 'gemini-key',
@@ -27,6 +31,10 @@ describe('resolveAiRuntimeConfig', () => {
   it('在 customOpenAi 且 baseURL 为空时安全回退为 undefined', () => {
     const runtime = resolveAiRuntimeConfig({
       aiProvider: 'customOpenAi',
+      ocrAiProvider: 'customOpenAi',
+      ocrAiModel: 'custom-model',
+      analysisAiProvider: 'customOpenAi',
+      analysisAiModel: 'custom-model',
       openaiApiKey: '',
       openaiModel: 'gpt-4o-mini',
       geminiApiKey: '',

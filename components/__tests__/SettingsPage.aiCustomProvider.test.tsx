@@ -12,6 +12,14 @@ const mockedDeps = vi.hoisted(() => ({
     setAutoRefresh: vi.fn(),
     aiProvider: 'customOpenAi' as const,
     setAiProvider: vi.fn(),
+    ocrAiProvider: 'customOpenAi' as const,
+    setOcrAiProvider: vi.fn(),
+    ocrAiModel: 'qwen-plus',
+    setOcrAiModel: vi.fn(),
+    analysisAiProvider: 'openai' as const,
+    setAnalysisAiProvider: vi.fn(),
+    analysisAiModel: 'gpt-4o-mini',
+    setAnalysisAiModel: vi.fn(),
     openaiApiKey: '',
     setOpenaiApiKey: vi.fn(),
     openaiModel: 'gpt-4o-mini',
@@ -80,21 +88,29 @@ vi.mock('../GistSyncChooserCard', () => ({
 
 describe('SettingsPage custom openai provider', () => {
   it('custom provider 下展示兼容配置字段', () => {
-    render(<SettingsPage initialShowAiSettings />);
+    const { container } = render(<SettingsPage initialShowAiSettings />);
 
+    expect(screen.getByText('common.llmSettingsManage')).toBeTruthy();
     expect(screen.getByDisplayValue('https://api.example.com/v1')).toBeTruthy();
-    expect(screen.getByDisplayValue('qwen-plus')).toBeTruthy();
+    expect(
+      container.querySelector('input[list="custom-openai-model-options"]')?.getAttribute('value'),
+    ).toBe('qwen-plus');
+    expect(screen.getByText('用途选择')).toBeTruthy();
+    expect(screen.getByText('图像识别 Provider')).toBeTruthy();
+    expect(screen.getByText('持仓分析 Provider')).toBeTruthy();
   });
 
   it('模型拉取失败时保留手动输入能力', async () => {
     mockedDeps.listCustomOpenAiModels.mockRejectedValueOnce(new Error('boom'));
-    render(<SettingsPage initialShowAiSettings />);
+    const { container } = render(<SettingsPage initialShowAiSettings />);
 
     await waitFor(() => {
       expect(mockedDeps.listCustomOpenAiModels).toHaveBeenCalled();
     });
 
-    const modelInput = screen.getByDisplayValue('qwen-plus');
+    const modelInput = container.querySelector(
+      'input[list="custom-openai-model-options"]',
+    ) as HTMLInputElement;
     fireEvent.change(modelInput, { target: { value: 'manual-model' } });
 
     expect(mockedDeps.settings.setCustomOpenAiModel).toHaveBeenCalledWith('manual-model');

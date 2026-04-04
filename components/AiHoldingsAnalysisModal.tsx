@@ -5,7 +5,7 @@ import { useTranslation } from '../services/i18n';
 import { useSettings } from '../services/SettingsContext';
 import { analyzeHoldingsChatStream } from '../services/aiAnalysis';
 import type { AiAnalysisMessage, HoldingsSnapshot } from '../services/aiAnalysis';
-import { resolveAiRuntimeConfig } from '../services/aiProviderConfig';
+import { resolveAiRuntimeConfigByUsage } from '../services/aiProviderConfig';
 import {
   formatCurrency,
   formatPct,
@@ -74,7 +74,7 @@ export const AiHoldingsAnalysisModal: React.FC<AiHoldingsAnalysisModalProps> = (
 
   const { t } = useTranslation();
   const settings = useSettings();
-  const runtime = resolveAiRuntimeConfig(settings);
+  const runtime = resolveAiRuntimeConfigByUsage(settings, 'analysis');
   const { provider, apiKey, model, baseURL } = runtime;
 
   const handleClose = () => {
