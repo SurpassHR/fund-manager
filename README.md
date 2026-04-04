@@ -2,6 +2,11 @@
 
 本地优先、隐私至上的基金管理应用，帮助用户聚合管理基金持仓、查看收益分析。
 
+<p align="center">
+  <img src="assets/screenshot-dark-mode.png" alt="暗色模式截图" width="49%" />
+  <img src="assets/screenshot-light-mode.png" alt="亮色模式截图" width="49%" />
+</p>
+
 ## 功能特性
 
 - **基金管理**：支持添加、编辑、删除基金持仓记录
@@ -16,16 +21,16 @@
 
 ## 技术栈
 
-| 分类 | 技术 |
-|------|------|
-| 框架 | React 19 + TypeScript |
-| 构建 | Vite 6 |
-| 样式 | Tailwind CSS v4 |
-| 图表 | ECharts 5 |
-| 动画 | Framer Motion |
-| 本地存储 | Dexie（IndexedDB） |
-| 图标 | Lucide React |
-| 部署 | GitHub Pages（自动） |
+| 分类     | 技术                  |
+| -------- | --------------------- |
+| 框架     | React 19 + TypeScript |
+| 构建     | Vite 6                |
+| 样式     | Tailwind CSS v4       |
+| 图表     | ECharts 5             |
+| 动画     | Framer Motion         |
+| 本地存储 | Dexie（IndexedDB）    |
+| 图标     | Lucide React          |
+| 部署     | GitHub Pages（自动）  |
 
 ## 本地开发
 

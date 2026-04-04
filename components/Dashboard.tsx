@@ -914,6 +914,8 @@ export const Dashboard: React.FC = () => {
               const pendingCount = (fund.pendingTransactions || []).filter(
                 (tx) => !tx.settled,
               ).length;
+              const displayMaskedValue = (value: string) => (showValues ? value : '****');
+              const displayMetricColor = (value: number) => getSignColor(value);
 
               return (
                 <div
@@ -953,16 +955,17 @@ export const Dashboard: React.FC = () => {
                           </h3>
                           <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500 dark:text-gray-400 md:hidden">
                             <span>
-                              {t('common.cost')}: {formatCurrency(fund.costPrice, 4)}
+                              {t('common.cost')}:{' '}
+                              {displayMaskedValue(formatCurrency(fund.costPrice, 4))}
                             </span>
                             <span>
-                              {t('common.nav')}: {fund.currentNav.toFixed(4)}
+                              {t('common.nav')}: {displayMaskedValue(fund.currentNav.toFixed(4))}
                             </span>
                           </div>
                         </div>
                         <div className="text-right md:hidden">
                           <div className="text-lg font-black tracking-[-0.03em] text-slate-900 dark:text-gray-50">
-                            {formatCurrency(holdingValue)}
+                            {displayMaskedValue(formatCurrency(holdingValue))}
                           </div>
                           <div className="mt-1 text-[10px] font-semibold tracking-[0.14em] text-slate-400 dark:text-gray-500">
                             {t('common.mktVal')}
@@ -974,49 +977,53 @@ export const Dashboard: React.FC = () => {
                     <div className="hidden md:grid md:flex-[5] md:grid-cols-6 md:gap-4 md:text-right">
                       <div className="text-left text-xs text-slate-500 dark:text-gray-400">
                         <div className="font-semibold text-slate-700 dark:text-gray-200">
-                          {formatCurrency(fund.costPrice, 4)}
+                          {displayMaskedValue(formatCurrency(fund.costPrice, 4))}
                         </div>
                         <div className="mt-1 text-slate-400 dark:text-gray-500">
-                          {fund.currentNav.toFixed(4)}
+                          {displayMaskedValue(fund.currentNav.toFixed(4))}
                         </div>
                       </div>
                       <div
-                        className={`text-sm font-semibold ${getSignColor(officialDayChangePct)}`}
+                        className={`text-sm font-semibold ${displayMetricColor(officialDayChangePct)}`}
                       >
-                        {formatPct(officialDayChangePct)}
+                        {displayMaskedValue(formatPct(officialDayChangePct))}
                       </div>
-                      <div className={`text-sm font-semibold ${getSignColor(todayChangePct)}`}>
-                        {formatPct(todayChangePct)}
+                      <div
+                        className={`text-sm font-semibold ${displayMetricColor(todayChangePct)}`}
+                      >
+                        {displayMaskedValue(formatPct(todayChangePct))}
                         {todayChangeTag && (
                           <div className="mt-1 text-[10px] font-medium tracking-[0.14em] text-slate-400 dark:text-gray-500">
                             {todayChangeTag}
                           </div>
                         )}
                       </div>
-                      <div className={`text-sm font-semibold ${getSignColor(displayTodayGainVal)}`}>
-                        {formatSignedCurrency(displayTodayGainVal)}
+                      <div
+                        className={`text-sm font-semibold ${displayMetricColor(displayTodayGainVal)}`}
+                      >
+                        {displayMaskedValue(formatSignedCurrency(displayTodayGainVal))}
                       </div>
                       <div className="flex flex-col items-end">
-                        <div className={`text-sm font-semibold ${getSignColor(totalReturn)}`}>
-                          {formatSignedCurrency(totalReturn)}
+                        <div className={`text-sm font-semibold ${displayMetricColor(totalReturn)}`}>
+                          {displayMaskedValue(formatSignedCurrency(totalReturn))}
                         </div>
                         <div
-                          className={`mt-1 text-[10px] font-medium ${getSignColor(holdingGainPct)}`}
+                          className={`mt-1 text-[10px] font-medium ${displayMetricColor(holdingGainPct)}`}
                         >
-                          {formatPct(holdingGainPct)}
+                          {displayMaskedValue(formatPct(holdingGainPct))}
                         </div>
                       </div>
                       <div className="text-base font-black tracking-[-0.03em] text-slate-900 dark:text-gray-50">
-                        {formatCurrency(holdingValue)}
+                        {displayMaskedValue(formatCurrency(holdingValue))}
                       </div>
                     </div>
 
                     <div className="mt-2 flex items-stretch gap-1.5 md:hidden">
                       <div className="min-w-0 flex-1 rounded-xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)]/90 px-2 py-2 text-right dark:border-white/10 dark:bg-white/5">
                         <div
-                          className={`truncate text-[13px] font-black leading-none tracking-[-0.02em] ${getSignColor(officialDayChangePct)}`}
+                          className={`truncate text-[13px] font-black leading-none tracking-[-0.02em] ${displayMetricColor(officialDayChangePct)}`}
                         >
-                          {formatPct(officialDayChangePct)}
+                          {displayMaskedValue(formatPct(officialDayChangePct))}
                         </div>
                         <div className="mt-1 truncate text-[9px] font-semibold tracking-[0.1em] text-slate-400 dark:text-gray-500">
                           {t('common.yesterdayChangePct') || '昨日涨幅'}
@@ -1024,9 +1031,9 @@ export const Dashboard: React.FC = () => {
                       </div>
                       <div className="min-w-0 flex-1 rounded-xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)]/90 px-2 py-2 text-right dark:border-white/10 dark:bg-white/5">
                         <div
-                          className={`truncate text-[13px] font-black leading-none tracking-[-0.02em] ${getSignColor(todayChangePct)}`}
+                          className={`truncate text-[13px] font-black leading-none tracking-[-0.02em] ${displayMetricColor(todayChangePct)}`}
                         >
-                          {formatPct(todayChangePct)}
+                          {displayMaskedValue(formatPct(todayChangePct))}
                         </div>
                         <div className="mt-1 truncate text-[9px] font-semibold tracking-[0.1em] text-slate-400 dark:text-gray-500">
                           {todayChangeTag || t('common.todayChangePct') || '今日涨幅'}
@@ -1034,9 +1041,9 @@ export const Dashboard: React.FC = () => {
                       </div>
                       <div className="min-w-0 flex-1 rounded-xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)]/80 px-2 py-2 text-right dark:border-white/10 dark:bg-white/5">
                         <div
-                          className={`truncate text-[12px] font-bold ${getSignColor(displayTodayGainVal)}`}
+                          className={`truncate text-[12px] font-bold ${displayMetricColor(displayTodayGainVal)}`}
                         >
-                          {formatSignedCurrency(displayTodayGainVal)}
+                          {displayMaskedValue(formatSignedCurrency(displayTodayGainVal))}
                         </div>
                         <div className="mt-1 truncate text-[9px] font-semibold tracking-[0.1em] text-slate-400 dark:text-gray-500">
                           {t('common.dayGain')}
@@ -1044,14 +1051,14 @@ export const Dashboard: React.FC = () => {
                       </div>
                       <div className="min-w-0 flex-1 rounded-xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)]/80 px-2 py-2 text-right dark:border-white/10 dark:bg-white/5">
                         <div
-                          className={`truncate text-[12px] font-bold ${getSignColor(totalReturn)}`}
+                          className={`truncate text-[12px] font-bold ${displayMetricColor(totalReturn)}`}
                         >
-                          {formatSignedCurrency(totalReturn)}
+                          {displayMaskedValue(formatSignedCurrency(totalReturn))}
                         </div>
                         <div
-                          className={`mt-0.5 truncate text-[9px] font-medium ${getSignColor(holdingGainPct)}`}
+                          className={`mt-0.5 truncate text-[9px] font-medium ${displayMetricColor(holdingGainPct)}`}
                         >
-                          {formatPct(holdingGainPct)}
+                          {displayMaskedValue(formatPct(holdingGainPct))}
                         </div>
                         <div className="mt-0.5 truncate text-[9px] font-semibold tracking-[0.1em] text-slate-400 dark:text-gray-500">
                           {t('common.totalGain')}

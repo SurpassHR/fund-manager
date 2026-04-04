@@ -226,4 +226,26 @@ describe('Dashboard sort persistence', () => {
     const preOpenRow = screen.getAllByText('基金A')[0].closest('div.group');
     expect(preOpenRow).toHaveTextContent('0.00%');
   });
+
+  it('关闭金额可见后隐藏单个基金数值字段', () => {
+    render(<Dashboard />);
+
+    expect(screen.getAllByText('2.0000').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('200.00').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('+100.00%').length).toBeGreaterThan(0);
+
+    const totalAssetsLabel = screen.getByText('common.totalAssets');
+    const toggleButton = totalAssetsLabel.parentElement?.querySelector('button');
+    expect(toggleButton).not.toBeNull();
+
+    fireEvent.click(toggleButton!);
+
+    expect(screen.queryByText('1,000.00')).not.toBeInTheDocument();
+    expect(screen.queryByText('+100.00')).not.toBeInTheDocument();
+    expect(screen.queryByText('+10.00%')).not.toBeInTheDocument();
+    expect(screen.queryByText('2.0000')).not.toBeInTheDocument();
+    expect(screen.queryByText('200.00')).not.toBeInTheDocument();
+    expect(screen.queryByText('+100.00%')).not.toBeInTheDocument();
+    expect(screen.getAllByText('****').length).toBeGreaterThan(0);
+  });
 });
