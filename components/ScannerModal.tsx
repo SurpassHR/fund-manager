@@ -5,7 +5,9 @@ import { useTranslation } from '../services/i18n';
 import { useSettings } from '../services/SettingsContext';
 import { recognizeHoldingsFromImage } from '../services/aiOcr';
 import type { OcrHoldingItem } from '../services/aiOcr';
-import { resolveAiRuntimeConfigByUsage } from '../services/aiProviderConfig';
+import {
+  resolveAiRuntimeConfigByBusiness,
+} from '../services/aiProviderConfig';
 import { searchFunds, fetchFundCommonData } from '../services/api';
 import { db } from '../services/db';
 import type { Fund } from '../types';
@@ -55,8 +57,10 @@ export const ScannerModal: React.FC<ScannerModalProps> = ({ isOpen, onClose }) =
 
   const { t } = useTranslation();
   const settings = useSettings();
-  const runtime = resolveAiRuntimeConfigByUsage(settings, 'ocr');
-  const { provider, apiKey, model, baseURL } = runtime;
+  const { provider, apiKey, model, baseURL } = resolveAiRuntimeConfigByBusiness(
+    settings,
+    'syncHoldings',
+  );
 
   const [existingCodes, setExistingCodes] = useState<Set<string>>(new Set());
 
@@ -165,7 +169,7 @@ export const ScannerModal: React.FC<ScannerModalProps> = ({ isOpen, onClose }) =
     items.map((item) => `${item.id}|${item.name.trim()}|${item.codeHint || ''}`).join('||');
 
   const handleApiKeyIssue = () => {
-    const shouldOpen = confirm(t('common.aiKeyMissing') || '请先在设置里填写 API Key');
+    const shouldOpen = confirm(t('common.aiKeyMissing') || '请先在设置里填写接口密钥');
     if (shouldOpen) {
       handleClose();
       window.dispatchEvent(new CustomEvent('open-ai-settings'));
@@ -217,7 +221,9 @@ export const ScannerModal: React.FC<ScannerModalProps> = ({ isOpen, onClose }) =
         message.includes('apikey') ||
         message.includes('unauthorized') ||
         message.includes('401') ||
-        message.includes('invalid')
+        message.includes('invalid api key') ||
+        message.includes('incorrect api key') ||
+        message.includes('api_key_invalid')
       ) {
         handleApiKeyIssue();
       } else {

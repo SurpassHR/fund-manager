@@ -1,0 +1,13 @@
+name = "fund-manager-llm-proxy"
+main = "src/index.ts"
+compatibility_date = "2026-04-04"
+
+# 本地调试端口（可选）
+[dev]
+port = 8787
+
+# 生产环境建议绑定自定义域名的同源路径
+# 例如：routes = [{ pattern = "example.com/llm-proxy/*", zone_name = "example.com" }]
+# 如需限制可代理上游主机，设置环境变量（逗号分隔）
+# [vars]
+# LLM_PROXY_ALLOWED_HOSTS = "api.openai.com,ice.v.ua,generativelanguage.googleapis.com"

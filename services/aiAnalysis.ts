@@ -1,5 +1,6 @@
 import OpenAI from 'openai';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { getLlmProxyBaseUrl } from './llmProxy';
 
 export type AiProvider = 'openai' | 'gemini' | 'customOpenAi';
 
@@ -44,6 +45,8 @@ export interface HoldingsSnapshot {
   holdings: HoldingSnapshotItem[];
 }
 
+const OPENAI_BASE_URL = 'https://api.openai.com/v1';
+
 const buildSystemPrompt = (holdings: HoldingsSnapshot) =>
   `你是一个基金持仓分析助手，请基于用户的当前持仓数据进行分析与答疑。要求：\n1) 使用简体中文回答。\n2) 先给出简明的要点结论，再根据问题补充细节。\n3) 只基于给定持仓数据推理，不要编造不存在的数据。\n4) 可以给出风险提示与改进方向，但避免提供具体买卖指令。\n\n以下是用户当前持仓快照(JSON)：\n${JSON.stringify(holdings, null, 2)}`;
 
@@ -64,10 +67,15 @@ export const analyzeHoldingsChat = async (params: {
   if (!trimmedQuestion) throw new Error('EMPTY_QUESTION');
 
   if (provider === 'openai' || provider === 'customOpenAi') {
+    const targetBaseUrl = provider === 'openai' ? OPENAI_BASE_URL : baseURL?.trim() || '';
+    if (!targetBaseUrl) throw new Error('MISSING_BASE_URL');
     const client = new OpenAI({
       apiKey,
       dangerouslyAllowBrowser: true,
-      ...(provider === 'customOpenAi' && baseURL ? { baseURL } : {}),
+      baseURL: getLlmProxyBaseUrl(),
+      defaultHeaders: {
+        'X-LLM-Target-Base-URL': targetBaseUrl,
+      },
     });
     const response = await client.chat.completions.create({
       model,
@@ -141,10 +149,15 @@ export const analyzeHoldingsChatStream = async (
 
   try {
     if (provider === 'openai' || provider === 'customOpenAi') {
+      const targetBaseUrl = provider === 'openai' ? OPENAI_BASE_URL : baseURL?.trim() || '';
+      if (!targetBaseUrl) throw new Error('MISSING_BASE_URL');
       const client = new OpenAI({
         apiKey,
         dangerouslyAllowBrowser: true,
-        ...(provider === 'customOpenAi' && baseURL ? { baseURL } : {}),
+        baseURL: getLlmProxyBaseUrl(),
+        defaultHeaders: {
+          'X-LLM-Target-Base-URL': targetBaseUrl,
+        },
       });
       const stream = await client.chat.completions.create(
         {

@@ -1,8 +1,27 @@
 /* eslint-disable react-refresh/only-export-components */
 
 import React, { createContext, useContext, useState } from 'react';
+import {
+  DEFAULT_LLM_BUSINESS_CONFIG,
+  migrateBusinessModelConfig,
+  sanitizeBusinessModelConfig,
+  type BusinessModelConfig,
+  type LlmBusinessKey,
+} from './businessModelConfig';
 
 export type AiProvider = 'openai' | 'gemini' | 'customOpenAi';
+
+export interface LlmProviderConfig {
+  id: string;
+  kind: AiProvider;
+  name: string;
+  apiKey: string;
+  model: string;
+  temperature: number;
+  icon: string;
+  baseURL: string;
+  modelsEndpoint: string;
+}
 
 export interface DefaultGistTargetSnapshot {
   id: string;
@@ -18,14 +37,6 @@ interface SettingsContextValue {
   setUseUnifiedRefresh: (val: boolean) => void;
   aiProvider: AiProvider;
   setAiProvider: (val: AiProvider) => void;
-  ocrAiProvider: AiProvider;
-  setOcrAiProvider: (val: AiProvider) => void;
-  ocrAiModel: string;
-  setOcrAiModel: (val: string) => void;
-  analysisAiProvider: AiProvider;
-  setAnalysisAiProvider: (val: AiProvider) => void;
-  analysisAiModel: string;
-  setAnalysisAiModel: (val: string) => void;
   openaiApiKey: string;
   setOpenaiApiKey: (val: string) => void;
   openaiModel: string;
@@ -46,18 +57,79 @@ interface SettingsContextValue {
   setGithubToken: (val: string) => void;
   defaultGistTarget: DefaultGistTargetSnapshot | null;
   setDefaultGistTarget: (val: DefaultGistTargetSnapshot | null) => void;
+  llmProviders: LlmProviderConfig[];
+  setLlmProviders: (val: LlmProviderConfig[]) => void;
+  addLlmProvider: (kind: AiProvider) => string;
+  updateLlmProvider: (id: string, patch: Partial<LlmProviderConfig>) => void;
+  removeLlmProvider: (id: string) => void;
+  businessModelConfig: BusinessModelConfig;
+  setBusinessModelConfig: (val: BusinessModelConfig) => void;
+  updateBusinessModelConfig: (key: LlmBusinessKey, val: Partial<BusinessModelConfig[LlmBusinessKey]>) => void;
 }
 
 const STORAGE_KEY = 'app-settings-preference';
+
+const createProviderId = () => `llm_${Date.now()}_${Math.random().toString(16).slice(2, 8)}`;
+
+const getDefaultModelByKind = (kind: AiProvider) => {
+  if (kind === 'gemini') return 'gemini-3.1-flash-lite-preview';
+  return 'gpt-4o-mini';
+};
+
+const createDefaultProvider = (kind: AiProvider): LlmProviderConfig => ({
+  id: createProviderId(),
+  kind,
+  name:
+    kind === 'openai'
+      ? '开放模型'
+      : kind === 'gemini'
+        ? '双子模型'
+        : '兼容接口',
+  apiKey: '',
+  model: getDefaultModelByKind(kind),
+  temperature: 0.2,
+  icon: kind === 'openai' ? '🧠' : kind === 'gemini' ? '✨' : '🔌',
+  baseURL: '',
+  modelsEndpoint: '',
+});
+
+const parseLlmProviders = (value: unknown): LlmProviderConfig[] => {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((item) => {
+      if (!item || typeof item !== 'object') return null;
+      const candidate = item as Partial<LlmProviderConfig>;
+      if (
+        typeof candidate.id !== 'string' ||
+        (candidate.kind !== 'openai' && candidate.kind !== 'gemini' && candidate.kind !== 'customOpenAi')
+      ) {
+        return null;
+      }
+      return {
+        id: candidate.id,
+        kind: candidate.kind,
+        name: typeof candidate.name === 'string' ? candidate.name : createDefaultProvider(candidate.kind).name,
+        apiKey: typeof candidate.apiKey === 'string' ? candidate.apiKey : '',
+        model:
+          typeof candidate.model === 'string' && candidate.model
+            ? candidate.model
+            : getDefaultModelByKind(candidate.kind),
+        temperature:
+          typeof candidate.temperature === 'number' && Number.isFinite(candidate.temperature)
+            ? candidate.temperature
+            : 0.2,
+        icon: typeof candidate.icon === 'string' ? candidate.icon : createDefaultProvider(candidate.kind).icon,
+        baseURL: typeof candidate.baseURL === 'string' ? candidate.baseURL : '',
+        modelsEndpoint: typeof candidate.modelsEndpoint === 'string' ? candidate.modelsEndpoint : '',
+      };
+    })
+    .filter((item): item is LlmProviderConfig => Boolean(item));
+};
 
 const defaultSettings = {
   autoRefresh: false,
   useUnifiedRefresh: false,
   aiProvider: 'openai' as AiProvider,
-  ocrAiProvider: 'openai' as AiProvider,
-  ocrAiModel: 'gpt-4o-mini',
-  analysisAiProvider: 'openai' as AiProvider,
-  analysisAiModel: 'gpt-4o-mini',
   openaiApiKey: '',
   openaiModel: 'gpt-4o-mini',
   customOpenAiApiKey: '',
@@ -68,6 +140,12 @@ const defaultSettings = {
   geminiModel: 'gemini-3.1-flash-lite-preview',
   githubToken: '',
   defaultGistTarget: null as DefaultGistTargetSnapshot | null,
+  llmProviders: [
+    createDefaultProvider('openai'),
+    createDefaultProvider('gemini'),
+    createDefaultProvider('customOpenAi'),
+  ] as LlmProviderConfig[],
+  businessModelConfig: DEFAULT_LLM_BUSINESS_CONFIG,
 };
 
 const parseDefaultGistTarget = (value: unknown): DefaultGistTargetSnapshot | null => {
@@ -111,15 +189,51 @@ const parseSavedSettings = (saved: string): typeof defaultSettings => {
   const geminiModel =
     typeof parsed.geminiModel === 'string' ? parsed.geminiModel : defaultSettings.geminiModel;
 
-  const getProviderDefaultModel = (provider: AiProvider) => {
-    if (provider === 'openai') return openaiModel;
-    if (provider === 'gemini') return geminiModel;
-    return customOpenAiModel;
-  };
-
   const legacyProvider = resolveProvider(parsed.aiProvider) || defaultSettings.aiProvider;
-  const ocrAiProvider = resolveProvider(parsed.ocrAiProvider) || legacyProvider;
-  const analysisAiProvider = resolveProvider(parsed.analysisAiProvider) || legacyProvider;
+  const parsedProviders = parseLlmProviders(parsed.llmProviders);
+  const migratedProviders =
+    parsedProviders.length > 0
+      ? parsedProviders
+      : [
+          {
+            ...createDefaultProvider('openai'),
+            apiKey: typeof parsed.openaiApiKey === 'string' ? parsed.openaiApiKey : '',
+            model: openaiModel,
+          },
+          {
+            ...createDefaultProvider('gemini'),
+            apiKey: typeof parsed.geminiApiKey === 'string' ? parsed.geminiApiKey : '',
+            model: geminiModel,
+          },
+          {
+            ...createDefaultProvider('customOpenAi'),
+            apiKey: typeof parsed.customOpenAiApiKey === 'string' ? parsed.customOpenAiApiKey : '',
+            model: customOpenAiModel,
+            baseURL:
+              typeof parsed.customOpenAiBaseUrl === 'string' ? parsed.customOpenAiBaseUrl : '',
+            modelsEndpoint:
+              typeof parsed.customOpenAiModelsEndpoint === 'string'
+                ? parsed.customOpenAiModelsEndpoint
+                : '',
+          },
+        ];
+
+  const parsedBusinessModelConfig = sanitizeBusinessModelConfig(
+    parsed.businessModelConfig,
+    DEFAULT_LLM_BUSINESS_CONFIG,
+  );
+  const migratedBusinessModelConfig =
+    typeof parsed.businessModelConfig === 'object' && parsed.businessModelConfig
+      ? parsedBusinessModelConfig
+      : migrateBusinessModelConfig(
+          {
+            aiProvider: legacyProvider,
+            openaiModel,
+            geminiModel,
+            customOpenAiModel,
+          },
+          DEFAULT_LLM_BUSINESS_CONFIG,
+        );
 
   return {
     autoRefresh:
@@ -129,14 +243,6 @@ const parseSavedSettings = (saved: string): typeof defaultSettings => {
         ? parsed.useUnifiedRefresh
         : defaultSettings.useUnifiedRefresh,
     aiProvider: legacyProvider,
-    ocrAiProvider,
-    ocrAiModel:
-      typeof parsed.ocrAiModel === 'string' ? parsed.ocrAiModel : getProviderDefaultModel(ocrAiProvider),
-    analysisAiProvider,
-    analysisAiModel:
-      typeof parsed.analysisAiModel === 'string'
-        ? parsed.analysisAiModel
-        : getProviderDefaultModel(analysisAiProvider),
     openaiApiKey:
       typeof parsed.openaiApiKey === 'string' ? parsed.openaiApiKey : defaultSettings.openaiApiKey,
     openaiModel,
@@ -159,6 +265,8 @@ const parseSavedSettings = (saved: string): typeof defaultSettings => {
     githubToken:
       typeof parsed.githubToken === 'string' ? parsed.githubToken : defaultSettings.githubToken,
     defaultGistTarget: parseDefaultGistTarget(parsed.defaultGistTarget),
+    llmProviders: migratedProviders,
+    businessModelConfig: migratedBusinessModelConfig,
   };
 };
 
@@ -169,14 +277,6 @@ const SettingsContext = createContext<SettingsContextValue>({
   setUseUnifiedRefresh: () => {},
   aiProvider: defaultSettings.aiProvider,
   setAiProvider: () => {},
-  ocrAiProvider: defaultSettings.ocrAiProvider,
-  setOcrAiProvider: () => {},
-  ocrAiModel: defaultSettings.ocrAiModel,
-  setOcrAiModel: () => {},
-  analysisAiProvider: defaultSettings.analysisAiProvider,
-  setAnalysisAiProvider: () => {},
-  analysisAiModel: defaultSettings.analysisAiModel,
-  setAnalysisAiModel: () => {},
   openaiApiKey: defaultSettings.openaiApiKey,
   setOpenaiApiKey: () => {},
   openaiModel: defaultSettings.openaiModel,
@@ -197,6 +297,14 @@ const SettingsContext = createContext<SettingsContextValue>({
   setGithubToken: () => {},
   defaultGistTarget: defaultSettings.defaultGistTarget,
   setDefaultGistTarget: () => {},
+  llmProviders: defaultSettings.llmProviders,
+  setLlmProviders: () => {},
+  addLlmProvider: () => '',
+  updateLlmProvider: () => {},
+  removeLlmProvider: () => {},
+  businessModelConfig: defaultSettings.businessModelConfig,
+  setBusinessModelConfig: () => {},
+  updateBusinessModelConfig: () => {},
 });
 
 export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -223,10 +331,6 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const setAutoRefresh = (val: boolean) => updateSettings({ autoRefresh: val });
   const setUseUnifiedRefresh = (val: boolean) => updateSettings({ useUnifiedRefresh: val });
   const setAiProvider = (val: AiProvider) => updateSettings({ aiProvider: val });
-  const setOcrAiProvider = (val: AiProvider) => updateSettings({ ocrAiProvider: val });
-  const setOcrAiModel = (val: string) => updateSettings({ ocrAiModel: val });
-  const setAnalysisAiProvider = (val: AiProvider) => updateSettings({ analysisAiProvider: val });
-  const setAnalysisAiModel = (val: string) => updateSettings({ analysisAiModel: val });
   const setOpenaiApiKey = (val: string) => updateSettings({ openaiApiKey: val });
   const setOpenaiModel = (val: string) => updateSettings({ openaiModel: val });
   const setCustomOpenAiApiKey = (val: string) => updateSettings({ customOpenAiApiKey: val });
@@ -239,6 +343,57 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const setGithubToken = (val: string) => updateSettings({ githubToken: val });
   const setDefaultGistTarget = (val: DefaultGistTargetSnapshot | null) =>
     updateSettings({ defaultGistTarget: val });
+  const setLlmProviders = (val: LlmProviderConfig[]) => updateSettings({ llmProviders: val });
+  const addLlmProvider = (kind: AiProvider) => {
+    const created = createDefaultProvider(kind);
+    setSettings((prev) => {
+      const next = { ...prev, llmProviders: [...prev.llmProviders, created] };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      return next;
+    });
+    return created.id;
+  };
+  const updateLlmProvider = (id: string, patch: Partial<LlmProviderConfig>) => {
+    setSettings((prev) => {
+      const next = {
+        ...prev,
+        llmProviders: prev.llmProviders.map((provider) =>
+          provider.id === id ? { ...provider, ...patch } : provider,
+        ),
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      return next;
+    });
+  };
+  const removeLlmProvider = (id: string) => {
+    setSettings((prev) => {
+      const nextProviders = prev.llmProviders.filter((provider) => provider.id !== id);
+      const next = { ...prev, llmProviders: nextProviders };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      return next;
+    });
+  };
+  const setBusinessModelConfig = (val: BusinessModelConfig) =>
+    updateSettings({ businessModelConfig: val });
+  const updateBusinessModelConfig = (
+    key: LlmBusinessKey,
+    val: Partial<BusinessModelConfig[LlmBusinessKey]>,
+  ) => {
+    setSettings((prev) => {
+      const next = {
+        ...prev,
+        businessModelConfig: {
+          ...prev.businessModelConfig,
+          [key]: {
+            ...prev.businessModelConfig[key],
+            ...val,
+          },
+        },
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      return next;
+    });
+  };
 
   return (
     <SettingsContext.Provider
@@ -249,14 +404,6 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         setUseUnifiedRefresh,
         aiProvider: settings.aiProvider,
         setAiProvider,
-        ocrAiProvider: settings.ocrAiProvider,
-        setOcrAiProvider,
-        ocrAiModel: settings.ocrAiModel,
-        setOcrAiModel,
-        analysisAiProvider: settings.analysisAiProvider,
-        setAnalysisAiProvider,
-        analysisAiModel: settings.analysisAiModel,
-        setAnalysisAiModel,
         openaiApiKey: settings.openaiApiKey,
         setOpenaiApiKey,
         openaiModel: settings.openaiModel,
@@ -277,6 +424,14 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         setGithubToken,
         defaultGistTarget: settings.defaultGistTarget,
         setDefaultGistTarget,
+        llmProviders: settings.llmProviders,
+        setLlmProviders,
+        addLlmProvider,
+        updateLlmProvider,
+        removeLlmProvider,
+        businessModelConfig: settings.businessModelConfig,
+        setBusinessModelConfig,
+        updateBusinessModelConfig,
       }}
     >
       {children}

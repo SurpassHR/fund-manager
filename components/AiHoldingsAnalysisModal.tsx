@@ -5,7 +5,9 @@ import { useTranslation } from '../services/i18n';
 import { useSettings } from '../services/SettingsContext';
 import { analyzeHoldingsChatStream } from '../services/aiAnalysis';
 import type { AiAnalysisMessage, HoldingsSnapshot } from '../services/aiAnalysis';
-import { resolveAiRuntimeConfigByUsage } from '../services/aiProviderConfig';
+import {
+  resolveAiRuntimeConfigByBusiness,
+} from '../services/aiProviderConfig';
 import {
   formatCurrency,
   formatPct,
@@ -74,20 +76,22 @@ export const AiHoldingsAnalysisModal: React.FC<AiHoldingsAnalysisModalProps> = (
 
   const { t } = useTranslation();
   const settings = useSettings();
-  const runtime = resolveAiRuntimeConfigByUsage(settings, 'analysis');
-  const { provider, apiKey, model, baseURL } = runtime;
+  const { provider, apiKey, model, baseURL } = resolveAiRuntimeConfigByBusiness(
+    settings,
+    'aiHoldingsAnalysis',
+  );
 
-  const handleClose = () => {
+  const handleClose = useCallback(() => {
     abortControllerRef.current?.abort();
     setQuestion('');
     setError('');
     setStreamingContent('');
     setIsStreaming(false);
     onClose();
-  };
+  }, [onClose]);
 
   const handleApiKeyIssue = () => {
-    const shouldOpen = confirm(t('common.aiKeyMissing') || '请先在设置里填写 API Key');
+    const shouldOpen = confirm(t('common.aiKeyMissing') || '请先在设置里填写接口密钥');
     if (shouldOpen) {
       handleClose();
       window.dispatchEvent(new CustomEvent('open-ai-settings'));
@@ -217,7 +221,7 @@ export const AiHoldingsAnalysisModal: React.FC<AiHoldingsAnalysisModalProps> = (
     abortControllerRef.current?.abort();
   };
 
-  const handleAnalyze = async (forceDefault?: boolean) => {
+  const handleAnalyze = async () => {
     const snapshot = holdingsSnapshot;
     if (!snapshot || snapshot.holdings.length === 0) {
       setError(t('common.aiHoldingAnalysisNoHoldings') || '暂无持仓，请先添加基金');
@@ -227,13 +231,12 @@ export const AiHoldingsAnalysisModal: React.FC<AiHoldingsAnalysisModalProps> = (
       handleApiKeyIssue();
       return;
     }
+
     const defaultQuestion =
       t('common.aiHoldingAnalysisDefaultQuestion') ||
       '请基于当前持仓做一次全面分析（收益、风险、集中度与改进建议）。';
     const trimmedQuestion = question.trim();
-    const nextQuestion = forceDefault
-      ? defaultQuestion
-      : trimmedQuestion || (activeMessages.length === 0 ? defaultQuestion : '');
+    const nextQuestion = trimmedQuestion || (activeMessages.length === 0 ? defaultQuestion : '');
     if (!nextQuestion) return;
 
     if (isStreaming) return;
@@ -501,7 +504,7 @@ export const AiHoldingsAnalysisModal: React.FC<AiHoldingsAnalysisModalProps> = (
                 />
                 <div className="flex gap-2">
                   <button
-                    onClick={() => handleAnalyze(false)}
+                    onClick={() => handleAnalyze()}
                     disabled={!canSubmit}
                     className="flex-1 bg-blue-600 text-white py-2.5 rounded-xl font-bold disabled:opacity-50"
                   >
@@ -518,6 +521,7 @@ export const AiHoldingsAnalysisModal: React.FC<AiHoldingsAnalysisModalProps> = (
                     </button>
                   )}
                 </div>
+
               </div>
             </div>
           </motion.div>
