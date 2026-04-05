@@ -3,7 +3,8 @@ import { Icons } from './Icon';
 import { useTranslation } from '../services/i18n';
 import { useSettings } from '../services/SettingsContext';
 import {
-  getServiceApiStatuses,
+  getInitialServiceApiStatuses,
+  streamServiceApiStatuses,
   type ServiceApiStatus,
   type ServiceHealthStatus,
 } from '../services/serviceStatus';
@@ -74,12 +75,16 @@ export const ServicesPanel: React.FC = () => {
   );
 
   const refreshStatuses = useCallback(async () => {
+    const initial = getInitialServiceApiStatuses(runtimeConfig);
+    setStatusList(initial);
+    setIsLoading(false);
     setIsRefreshing(true);
     try {
-      const next = await getServiceApiStatuses(runtimeConfig);
+      const next = await streamServiceApiStatuses(runtimeConfig, (item) => {
+        setStatusList((prev) => prev.map((status) => (status.id === item.id ? item : status)));
+      });
       setStatusList(next);
     } finally {
-      setIsLoading(false);
       setIsRefreshing(false);
     }
   }, [runtimeConfig]);

@@ -11,7 +11,11 @@ vi.mock('../gistSync/client', () => ({
   verifyGithubToken: vi.fn(),
 }));
 
-import { getServiceApiStatuses } from '../serviceStatus';
+import {
+  getInitialServiceApiStatuses,
+  streamServiceApiStatuses,
+  type ServiceApiStatus,
+} from '../serviceStatus';
 
 const mockFetch = vi.fn<typeof fetch>();
 
@@ -23,6 +27,76 @@ describe('serviceStatus', () => {
   afterEach(() => {
     vi.restoreAllMocks();
     mockFetch.mockReset();
+  });
+
+  it('returns checking status for all apis in initial list', () => {
+    const list = getInitialServiceApiStatuses({
+      openaiApiKey: '',
+      geminiApiKey: '',
+      customOpenAiApiKey: '',
+      customOpenAiBaseUrl: '',
+      customOpenAiModelsEndpoint: '',
+      githubToken: '',
+    });
+
+    expect(list).toHaveLength(7);
+    expect(list.every((item) => item.status === 'checking')).toBe(true);
+  });
+
+  it('streams per-api result without waiting all checks finished', async () => {
+    const appendSpy = vi.spyOn(document.head, 'appendChild').mockImplementation((node) => {
+      if (node instanceof HTMLScriptElement) {
+        setTimeout(() => node.onload?.(new Event('load')));
+      }
+      return node;
+    });
+
+    let resolveMorningstar!: (value: Response) => void;
+    const morningstarPromise = new Promise<Response>((resolve) => {
+      resolveMorningstar = resolve;
+    });
+
+    mockFetch.mockImplementation((input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes('morningstar.cn')) {
+        return morningstarPromise;
+      }
+      if (url.includes('qt.gtimg.cn')) {
+        return Promise.resolve(
+          new Response('v_sh000001="1~上证指数~000001~3028.05~..."', { status: 200 }),
+        );
+      }
+      return Promise.resolve(new Response('{}', { status: 404 }));
+    });
+
+    const updates: ServiceApiStatus[] = [];
+    const task = streamServiceApiStatuses(
+      {
+        openaiApiKey: '',
+        geminiApiKey: '',
+        customOpenAiApiKey: '',
+        customOpenAiBaseUrl: '',
+        customOpenAiModelsEndpoint: '',
+        githubToken: '',
+      },
+      (item) => {
+        updates.push(item);
+      },
+    );
+
+    await vi.waitFor(() => {
+      expect(updates.some((item) => item.id === 'tencent-quote')).toBe(true);
+    });
+    expect(updates.some((item) => item.id === 'morningstar')).toBe(false);
+
+    resolveMorningstar(new Response('{}', { status: 200 }));
+    const list = await task;
+
+    expect(list).toHaveLength(7);
+    expect(list.find((item) => item.id === 'morningstar')?.status).toBe('ok');
+    expect(list.find((item) => item.id === 'openai')?.status).toBe('idle');
+
+    appendSpy.mockRestore();
   });
 
   it('returns idle for key/token based APIs when credentials missing', async () => {
@@ -44,7 +118,7 @@ describe('serviceStatus', () => {
       return new Response('{}', { status: 404 });
     });
 
-    const list = await getServiceApiStatuses({
+    const list = await streamServiceApiStatuses({
       openaiApiKey: '',
       geminiApiKey: '',
       customOpenAiApiKey: '',
@@ -83,7 +157,7 @@ describe('serviceStatus', () => {
       return new Response('{}', { status: 200 });
     });
 
-    const list = await getServiceApiStatuses({
+    const list = await streamServiceApiStatuses({
       openaiApiKey: '',
       geminiApiKey: '',
       customOpenAiApiKey: '',
