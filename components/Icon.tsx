@@ -28,6 +28,9 @@ import {
   TrendingUp,
   FileText,
   Github,
+  Archive,
+  ChevronUp,
+  ChevronDown,
 } from 'lucide-react';
 
 export const Icons = {
@@ -59,6 +62,9 @@ export const Icons = {
   TrendingUp,
   Changelog: FileText,
   Github,
+  Archive,
+  ChevronUp,
+  ChevronDown,
   Member: () => (
     <svg
       width="24"

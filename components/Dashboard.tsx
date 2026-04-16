@@ -1102,7 +1102,7 @@ export const Dashboard: React.FC = () => {
 
             {clearedFunds.length > 0 && (
               <div
-                className="mx-4 mb-3 flex cursor-pointer items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 transition-colors hover:bg-slate-100 dark:border-gray-700 dark:bg-gray-800 dark:hover:bg-gray-750"
+                className="group relative cursor-pointer select-none border-b border-[var(--app-shell-line)]/80 px-4 py-3 transition-colors last:border-b-0 active:bg-[var(--app-shell-panel-strong)] dark:border-border-dark dark:active:bg-white/5 md:px-5 md:py-3.5 md:hover:bg-[var(--app-shell-panel-strong)]/72 dark:md:hover:bg-white/5"
                 onClick={handleToggleClearedGroup}
                 role="button"
                 tabIndex={0}
@@ -1119,18 +1119,20 @@ export const Dashboard: React.FC = () => {
                   }
                 }}
               >
-                <div className="flex items-center gap-2">
-                  <Icons.Archive className="h-5 w-5 text-slate-500 dark:text-gray-400" />
-                  <span className="text-sm font-medium text-slate-700 dark:text-gray-300">
-                    {t('common.clearedFundsCount', { count: String(clearedFunds.length) })}
-                  </span>
-                </div>
-                <div className="text-slate-500 dark:text-gray-400">
-                  {isClearedGroupExpanded ? (
-                    <Icons.ChevronUp className="h-5 w-5" />
-                  ) : (
-                    <Icons.ChevronDown className="h-5 w-5" />
-                  )}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Icons.Archive className="h-5 w-5 text-slate-500 dark:text-gray-400" />
+                    <span className="text-sm font-medium text-slate-700 dark:text-gray-300">
+                      {t('common.clearedFundsCount', { count: String(clearedFunds.length) })}
+                    </span>
+                  </div>
+                  <div className="text-slate-500 dark:text-gray-400">
+                    {isClearedGroupExpanded ? (
+                      <Icons.ChevronUp className="h-5 w-5" />
+                    ) : (
+                      <Icons.ChevronDown className="h-5 w-5" />
+                    )}
+                  </div>
                 </div>
               </div>
             )}

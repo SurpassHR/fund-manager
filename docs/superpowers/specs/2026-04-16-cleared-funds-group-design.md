@@ -7,6 +7,7 @@
 ## 背景
 
 当前实现中,清仓基金(份额为 0 的基金)会被直接过滤掉,不在持仓列表中显示。这导致:
+
 1. 用户无法查看清仓基金的历史交易记录
 2. 如果用户想再次买入同一基金,需要重新添加,丢失历史数据
 3. 总收益计算可能不准确(虽然当前实现已正确处理)
@@ -45,14 +46,14 @@ const [isClearedGroupExpanded, setIsClearedGroupExpanded] = useState<boolean>(()
 将 `filteredFunds` 分为两组:
 
 ```typescript
-const activeFunds = useMemo(() => 
-  sortedFunds.filter(fund => fund.holdingShares > 0),
-  [sortedFunds]
+const activeFunds = useMemo(
+  () => sortedFunds.filter((fund) => fund.holdingShares > 0),
+  [sortedFunds],
 );
 
-const clearedFunds = useMemo(() => 
-  sortedFunds.filter(fund => fund.holdingShares === 0),
-  [sortedFunds]
+const clearedFunds = useMemo(
+  () => sortedFunds.filter((fund) => fund.holdingShares === 0),
+  [sortedFunds],
 );
 ```
 
@@ -70,12 +71,14 @@ const clearedFunds = useMemo(() =>
 #### 2.1 清仓组汇总卡片
 
 **视觉设计**:
+
 - 背景色: 使用主题中的次要背景色(与普通基金卡片区分)
 - 布局: 左侧显示图标和文字,右侧显示展开/折叠箭头
 - 文字: "已清仓 (N)" - N 为清仓基金数量
 - 图标: 使用 `Icons.ChevronDown` (折叠时) / `Icons.ChevronUp` (展开时)
 
 **交互行为**:
+
 - 点击整个卡片切换展开/折叠状态
 - 状态变化时保存到 localStorage
 - 支持长按显示上下文菜单(可选功能,如"全部删除清仓基金")
@@ -83,33 +86,37 @@ const clearedFunds = useMemo(() =>
 **实现示例**:
 
 ```tsx
-{clearedFunds.length > 0 && (
-  <div
-    className="cleared-group-summary"
-    onClick={() => {
-      const nextExpanded = !isClearedGroupExpanded;
-      setIsClearedGroupExpanded(nextExpanded);
-      localStorage.setItem(CLEARED_GROUP_STORAGE_KEY, JSON.stringify(nextExpanded));
-    }}
-  >
-    <div className="cleared-group-summary-left">
-      <Icons.Archive className="cleared-group-icon" />
-      <span>{t('common.clearedFundsCount', { count: clearedFunds.length })}</span>
+{
+  clearedFunds.length > 0 && (
+    <div
+      className="cleared-group-summary"
+      onClick={() => {
+        const nextExpanded = !isClearedGroupExpanded;
+        setIsClearedGroupExpanded(nextExpanded);
+        localStorage.setItem(CLEARED_GROUP_STORAGE_KEY, JSON.stringify(nextExpanded));
+      }}
+    >
+      <div className="cleared-group-summary-left">
+        <Icons.Archive className="cleared-group-icon" />
+        <span>{t('common.clearedFundsCount', { count: clearedFunds.length })}</span>
+      </div>
+      <div className="cleared-group-summary-right">
+        {isClearedGroupExpanded ? <Icons.ChevronUp /> : <Icons.ChevronDown />}
+      </div>
     </div>
-    <div className="cleared-group-summary-right">
-      {isClearedGroupExpanded ? <Icons.ChevronUp /> : <Icons.ChevronDown />}
-    </div>
-  </div>
-)}
+  );
+}
 ```
 
 #### 2.2 清仓基金卡片
 
 **视觉设计**:
+
 - 与活跃基金卡片保持一致的样式
 - 可选: 添加轻微的视觉标识(如左侧边框颜色不同)表示这是清仓基金
 
 **交互行为**:
+
 - 点击: 打开基金详情页(与活跃基金一致)
 - 长按: 显示上下文菜单,包含:
   - 加仓
@@ -127,7 +134,7 @@ const clearedFunds = useMemo(() =>
       exit={{ height: 0, opacity: 0 }}
       transition={{ duration: 0.2 }}
     >
-      {clearedFunds.map(fund => (
+      {clearedFunds.map((fund) => (
         <FundCard
           key={fund.id}
           fund={fund}
@@ -153,21 +160,23 @@ const clearedFunds = useMemo(() =>
 #### 3.1 收益计算保证
 
 **关键点**: 清仓基金的交易历史必须完整保留,以确保:
+
 1. 用户可以查看完整的交易记录
 2. 再次买入时,成本价计算基于历史交易
 3. 总收益统计包含清仓基金的历史收益
 
-**实现**: 
+**实现**:
+
 - 清仓基金不从数据库删除,只是 UI 上分组显示
 - `calculateSummary` 函数已经正确处理 `holdingShares === 0` 的情况(不计入当前持仓,但历史交易保留)
 
 #### 3.2 边界情况处理
 
 1. **无清仓基金**: 不显示清仓组汇总卡片
-2. **清仓基金再次买入**: 
+2. **清仓基金再次买入**:
    - `holdingShares` 变为正数后,自动从清仓组移到活跃列表
    - 无需额外代码,依赖现有的响应式数据流
-3. **筛选器交互**: 
+3. **筛选器交互**:
    - 清仓组只显示当前筛选器下的清仓基金
    - 如果筛选后无清仓基金,不显示清仓组
 4. **排序交互**:
@@ -203,6 +212,7 @@ common: {
 #### 5.1 单元测试 (`Dashboard.clearedFunds.test.tsx`)
 
 1. **测试清仓基金正确分组**
+
    ```typescript
    it('separates active and cleared funds correctly', () => {
      const funds = [
@@ -216,6 +226,7 @@ common: {
    ```
 
 2. **测试展开/折叠状态切换**
+
    ```typescript
    it('toggles cleared group expansion on click', () => {
      // 点击清仓组汇总卡片
@@ -225,6 +236,7 @@ common: {
    ```
 
 3. **测试 localStorage 持久化**
+
    ```typescript
    it('persists expansion state to localStorage', () => {
      // 展开清仓组
@@ -235,6 +247,7 @@ common: {
    ```
 
 4. **测试清仓基金再次买入后自动移到活跃列表**
+
    ```typescript
    it('moves cleared fund to active list after buy', async () => {
      // 创建一个清仓基金
@@ -273,10 +286,11 @@ common: {
 ### 6. 性能考虑
 
 1. **使用 `useMemo` 缓存分组结果**
+
    ```typescript
-   const activeFunds = useMemo(() => 
-     sortedFunds.filter(fund => fund.holdingShares > 0),
-     [sortedFunds]
+   const activeFunds = useMemo(
+     () => sortedFunds.filter((fund) => fund.holdingShares > 0),
+     [sortedFunds],
    );
    ```
 
@@ -319,6 +333,7 @@ common: {
 ### 风险 1: 清仓基金过多导致性能问题
 
 **缓解措施**:
+
 - 使用 `useMemo` 缓存分组结果
 - 折叠时不渲染清仓基金列表
 - 如果未来确实出现性能问题,可以升级到虚拟滚动方案
@@ -326,6 +341,7 @@ common: {
 ### 风险 2: 清仓基金的交易历史可能丢失
 
 **缓解措施**:
+
 - 清仓基金不从数据库删除,只是 UI 上分组显示
 - 添加测试确保交易历史完整保留
 - 在用户手动删除清仓基金时显示确认对话框
@@ -333,6 +349,7 @@ common: {
 ### 风险 3: 用户可能不理解清仓组的概念
 
 **缓解措施**:
+
 - 使用清晰的文案("已清仓")
 - 添加图标提示
 - 可选: 在首次使用时显示引导提示
