@@ -32,6 +32,7 @@ import {
 const LONG_PRESS_DURATION_MS = 600;
 const TOUCH_MOVE_CANCEL_THRESHOLD_PX = 12;
 const DASHBOARD_SORT_STORAGE_KEY = 'dashboard.sortState.v1';
+const CLEARED_GROUP_STORAGE_KEY = 'dashboard.clearedGroupExpanded';
 const REFRESH_DEBOUNCE_MS = 300;
 
 type DashboardSortKey =
@@ -88,6 +89,15 @@ export const Dashboard: React.FC = () => {
   const [activeFilter, setActiveFilter] = useState('All');
   const [showValues, setShowValues] = useState(true);
   const [sortState, setSortState] = useState<DashboardSortState>(() => loadDashboardSortState());
+  const [isClearedGroupExpanded, setIsClearedGroupExpanded] = useState<boolean>(() => {
+    try {
+      const stored = localStorage.getItem(CLEARED_GROUP_STORAGE_KEY);
+      return stored ? JSON.parse(stored) : false;
+    } catch (error) {
+      console.warn('Failed to load cleared group state from localStorage:', error);
+      return false;
+    }
+  });
   const [isAiAnalysisOpen, setIsAiAnalysisOpen] = useState(false);
   const { autoRefresh } = useSettings();
 
@@ -306,6 +316,16 @@ export const Dashboard: React.FC = () => {
     setSortState(DEFAULT_DASHBOARD_SORT_STATE);
   };
 
+  const handleToggleClearedGroup = useCallback(() => {
+    const nextExpanded = !isClearedGroupExpanded;
+    setIsClearedGroupExpanded(nextExpanded);
+    try {
+      localStorage.setItem(CLEARED_GROUP_STORAGE_KEY, JSON.stringify(nextExpanded));
+    } catch (error) {
+      console.warn('Failed to save cleared group state to localStorage:', error);
+    }
+  }, [isClearedGroupExpanded]);
+
   const sortedFunds = useMemo(() => {
     if (!sortState.key) return filteredFunds;
 
@@ -337,6 +357,16 @@ export const Dashboard: React.FC = () => {
       return diff * direction;
     });
   }, [filteredFunds, sortState.direction, sortState.key]);
+
+  const activeFunds = useMemo(
+    () => sortedFunds.filter((fund) => fund.holdingShares > 0),
+    [sortedFunds],
+  );
+
+  const clearedFunds = useMemo(
+    () => sortedFunds.filter((fund) => fund.holdingShares === 0),
+    [sortedFunds],
+  );
 
   if (!funds || !accounts) {
     return <div className="p-8 text-center text-gray-500">{t('common.loading')}</div>;
