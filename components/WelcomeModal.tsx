@@ -172,12 +172,12 @@ export const WelcomeModal: React.FC = () => {
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
       <div
         data-testid="welcome-backdrop"
-        className={`absolute inset-0 transition-all duration-[260ms] ease-[cubic-bezier(0.22,1,0.36,1)] ${isVisible ? 'bg-black/60 backdrop-blur-sm' : 'bg-black/0 backdrop-blur-0'}`}
+        className={`absolute inset-0 transition-all duration-[260ms] ease-[cubic-bezier(0.22,1,0.36,1)] ${isVisible ? 'bg-black/50 backdrop-blur-sm' : 'bg-black/0 backdrop-blur-0'}`}
         onClick={handleClose}
       />
       <div
         data-testid="welcome-modal-card"
-        className={`flex max-h-[90vh] w-full max-w-sm flex-col overflow-hidden rounded-2xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)] shadow-[var(--app-shell-shadow)] transition-all duration-[260ms] ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform ${isVisible ? 'opacity-100' : 'opacity-0'}`}
+        className={`flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-[1.75rem] border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)]/95 shadow-[var(--app-shell-shadow)] backdrop-blur-xl transition-all duration-[260ms] ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform ${isVisible ? 'opacity-100' : 'opacity-0'}`}
         style={{
           transform: `translate3d(${transformX}, ${modalOffsetY}px, 0) scale(${modalScale})`,
           transition,
@@ -194,90 +194,81 @@ export const WelcomeModal: React.FC = () => {
           }
         }}
       >
-        {/* 顶部插画/背景区 */}
-          <div className="relative flex h-32 items-center justify-center overflow-hidden bg-gradient-to-br from-[var(--app-shell-accent)] to-blue-700">
-          <div className="absolute inset-0 opacity-20 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMCIgaGVpZ2h0PSIyMCI+PGNpcmNsZSBjeD0iMSIgY3k9IjEiIHI9IjEiIGZpbGw9IiNmZmYiLz48L3N2Zz4=')] bg-[length:20px_20px]"></div>
-          <div className="text-white text-center z-10 px-4">
-            <h2 className="text-xl font-bold mb-1 truncate">
-              {t('common.welcome') || '欢迎使用小胡养基'}
+        {/* 顶部标题区 - 添加渐变背景 */}
+        <div className="relative overflow-hidden border-b border-[var(--app-shell-line)] bg-gradient-to-br from-blue-500/10 via-purple-500/10 to-pink-500/10 px-6 py-4">
+          <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMCIgaGVpZ2h0PSIyMCI+PGNpcmNsZSBjeD0iMSIgY3k9IjEiIHI9IjEiIGZpbGw9ImN1cnJlbnRDb2xvciIgZmlsbC1vcGFjaXR5PSIwLjA1Ii8+PC9zdmc+')] bg-[length:20px_20px] opacity-50"></div>
+          <div className="relative">
+            <h2 className="text-xl font-semibold tracking-[-0.04em] text-[var(--app-shell-ink)]">
+              {t('common.changelog')}
             </h2>
-            <span className="inline-block max-w-full truncate rounded-full bg-white/20 px-3 py-1 text-xs font-bold font-mono backdrop-blur-md">
+            <div className="mt-2 inline-block rounded-full border border-blue-500/30 bg-gradient-to-r from-blue-500/20 to-purple-500/20 px-3 py-1 text-[11px] font-semibold tracking-[0.18em] text-blue-600 dark:text-blue-400">
               {CURRENT_VERSION}
-            </span>
+            </div>
           </div>
         </div>
 
         {/* 内容区 */}
-        <div className="p-6">
-          <h3 className="mb-4 text-sm font-bold uppercase tracking-wider text-[var(--app-shell-muted)]">
-            {isZh ? '近期更新' : 'Recent Updates'}
-          </h3>
-
-          <ul className="space-y-3 max-h-64 overflow-y-auto pr-2">
+        <div className="flex-1 overflow-y-auto p-6">
+          <div className="space-y-3">
             {COMMITS.length > 0 ? (
               COMMITS.map((commit, idx) => {
                 const subject = isZh ? commit.subjectZh : commit.subjectEn;
-                const colorClass = colors[idx % colors.length];
+                const colorClasses = [
+                  'border-blue-500/30 bg-gradient-to-br from-blue-500/10 to-blue-600/5',
+                  'border-purple-500/30 bg-gradient-to-br from-purple-500/10 to-purple-600/5',
+                  'border-pink-500/30 bg-gradient-to-br from-pink-500/10 to-pink-600/5',
+                  'border-green-500/30 bg-gradient-to-br from-green-500/10 to-green-600/5',
+                  'border-amber-500/30 bg-gradient-to-br from-amber-500/10 to-amber-600/5',
+                ];
+                const badgeColors = [
+                  'border-blue-500/30 bg-blue-500/20 text-blue-600 dark:text-blue-400',
+                  'border-purple-500/30 bg-purple-500/20 text-purple-600 dark:text-purple-400',
+                  'border-pink-500/30 bg-pink-500/20 text-pink-600 dark:text-pink-400',
+                  'border-green-500/30 bg-green-500/20 text-green-600 dark:text-green-400',
+                  'border-amber-500/30 bg-amber-500/20 text-amber-600 dark:text-amber-400',
+                ];
+                const colorClass = colorClasses[idx % colorClasses.length];
+                const badgeColor = badgeColors[idx % badgeColors.length];
 
                 return (
-                  <li
+                  <div
                     key={commit.hash}
-                    className="flex items-start gap-3 rounded-xl px-1.5 py-1 transition-colors hover:bg-[var(--app-shell-panel-strong)]/72"
+                    className={`rounded-xl border p-4 transition hover:shadow-md ${colorClass}`}
                   >
-                    <div
-                      className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${colorClass}`}
-                    >
-                      <span className="text-[10px] font-bold font-mono">{idx + 1}</span>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium leading-relaxed text-[var(--app-shell-ink)]">
-                        {cleanSubject(subject)}
-                      </p>
-                      <span className="font-mono text-[10px] text-[var(--app-shell-muted)]">
-                        {commit.hash}
+                    <div className="mb-2 flex items-center justify-between">
+                      <span
+                        className={`inline-flex h-6 min-w-6 items-center justify-center rounded-full border px-2 text-[10px] font-semibold tracking-[0.2em] ${badgeColor}`}
+                      >
+                        {idx + 1}
                       </span>
+                      <code className="rounded-md bg-[var(--app-shell-panel)]/50 px-2 py-1 font-mono text-[10px] text-[var(--app-shell-muted)]">
+                        {commit.hash.substring(0, 7)}
+                      </code>
                     </div>
-                  </li>
+                    <p className="text-sm leading-relaxed text-[var(--app-shell-ink)]">
+                      {cleanSubject(subject)}
+                    </p>
+                  </div>
                 );
               })
             ) : (
-              <li className="flex items-start gap-3 rounded-xl px-1.5 py-1 transition-colors hover:bg-[var(--app-shell-panel-strong)]/72">
-                <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center text-blue-600 dark:text-blue-400 shrink-0">
-                  <svg
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <polyline points="22 7 13.5 15.5 8.5 10.5 2 17"></polyline>
-                    <polyline points="16 7 22 7 22 13"></polyline>
-                  </svg>
-                </div>
-                <div>
-                  <h4 className="mb-0.5 text-sm font-bold text-[var(--app-shell-ink)]">
-                    常规更新
-                  </h4>
-                  <p className="text-xs leading-relaxed text-[var(--app-shell-muted)]">
-                    带来了性能改进和问题修复。
-                  </p>
-                </div>
-              </li>
+              <div className="rounded-xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)]/50 p-4">
+                <p className="text-center text-sm text-[var(--app-shell-muted)]">
+                  {isZh ? '暂无更新记录' : 'No updates available'}
+                </p>
+              </div>
             )}
-          </ul>
-
-          {/* 按钮 */}
-          <div className="mt-8">
-            <button
-              onClick={handleClose}
-              className="w-full rounded-xl bg-[var(--app-shell-accent)] py-3.5 font-bold text-white shadow-lg shadow-blue-500/30 transition-colors hover:brightness-95 active:brightness-90"
-            >
-              {t('common.gotIt') || '我知道了'}
-            </button>
           </div>
+        </div>
+
+        {/* 底部按钮 */}
+        <div className="border-t border-[var(--app-shell-line)] bg-gradient-to-br from-blue-500/5 via-purple-500/5 to-pink-500/5 p-6">
+          <button
+            onClick={handleClose}
+            className="w-full rounded-full border border-blue-500/30 bg-gradient-to-r from-blue-500/20 to-purple-500/20 py-3 text-sm font-semibold tracking-[0.2em] text-blue-600 transition hover:from-blue-500/30 hover:to-purple-500/30 dark:text-blue-400"
+          >
+            {t('common.gotIt') || '我知道了'}
+          </button>
         </div>
       </div>
     </div>

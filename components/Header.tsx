@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Icons } from './Icon';
 import { useTranslation } from '../services/i18n';
+import { useTheme } from '../services/ThemeContext';
 
 interface HeaderProps {
   title: string;
@@ -9,6 +10,7 @@ interface HeaderProps {
 
 export const Header: React.FC<HeaderProps> = ({ title, hiddenOnMobile = false }) => {
   const { language, setLanguage, t } = useTranslation();
+  const { theme } = useTheme();
   const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
@@ -46,10 +48,24 @@ export const Header: React.FC<HeaderProps> = ({ title, hiddenOnMobile = false })
     >
       <div className="mx-auto w-full max-w-7xl rounded-[1.75rem] border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)]/95 shadow-[var(--app-shell-shadow)] backdrop-blur-xl">
         <div className="relative flex items-center justify-between gap-3 px-4 py-2.5 sm:px-5 sm:py-3">
-          <div className="min-w-0">
-            <h1 className="truncate text-lg font-semibold tracking-[-0.04em] text-[var(--app-shell-ink)] sm:text-[1.35rem]">
-              {title}
-            </h1>
+          <div className="flex min-w-0 items-center">
+            <a
+              href="https://github.com/SurpassHR/fund-manager"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center justify-center transition hover:opacity-80"
+              aria-label="GitHub Repository"
+            >
+              <img
+                src={
+                  theme === 'dark'
+                    ? 'https://github.githubassets.com/favicons/favicon-dark.svg'
+                    : 'https://github.githubassets.com/favicons/favicon.svg'
+                }
+                alt="GitHub"
+                className="h-6 w-6"
+              />
+            </a>
           </div>
 
           <div className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
@@ -61,29 +77,16 @@ export const Header: React.FC<HeaderProps> = ({ title, hiddenOnMobile = false })
           <div className="flex items-center gap-2 text-[var(--app-shell-muted)] sm:gap-2.5">
             <button
               onClick={openChangelog}
-              className="inline-flex rounded-full border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] px-2.5 py-2 text-[0.58rem] font-semibold uppercase tracking-[0.2em] text-[var(--app-shell-ink)] transition hover:border-[var(--app-shell-line-strong)] hover:text-[var(--app-shell-accent)] sm:px-3 sm:text-[0.62rem] sm:tracking-[0.24em]"
+              aria-label={t('common.changelog')}
+              className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] transition hover:border-[var(--app-shell-line-strong)] hover:text-[var(--app-shell-accent)]"
             >
-              {t('common.changelog')}
+              <Icons.Changelog size={18} />
             </button>
             <button
               onClick={toggleLanguage}
               className="inline-flex h-10 min-w-10 items-center justify-center rounded-full border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] px-3 text-[0.7rem] font-semibold uppercase tracking-[0.2em] text-[var(--app-shell-ink)] transition hover:border-[var(--app-shell-line-strong)] hover:text-[var(--app-shell-accent)]"
             >
               {language === 'zh' ? 'EN' : '中'}
-            </button>
-            <button
-              type="button"
-              aria-label="Search"
-              className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] transition hover:border-[var(--app-shell-line-strong)] hover:text-[var(--app-shell-accent)]"
-            >
-              <Icons.Search size={18} />
-            </button>
-            <button
-              type="button"
-              aria-label="Chat"
-              className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] transition hover:border-[var(--app-shell-line-strong)] hover:text-[var(--app-shell-accent)]"
-            >
-              <Icons.Chat size={18} />
             </button>
           </div>
         </div>

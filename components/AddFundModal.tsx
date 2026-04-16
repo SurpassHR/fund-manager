@@ -134,19 +134,36 @@ export const AddFundModal: React.FC<AddFundModalProps> = ({
     }
   }, [accounts, getFallbackAccountName, isOpen, selectedAccount]);
 
+  const [isVisible, setIsVisible] = useState(false);
+  const [closeTimeoutRef, setCloseTimeoutRef] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (isOpen) {
+      setIsVisible(true);
+    }
+  }, [isOpen]);
+
   const handleClose = useCallback(() => {
-    setQuery('');
-    setResults([]);
-    setSelectedFund(null);
-    setCurrentNav(0);
-    setAmount('');
-    setShares('');
-    setCostPrice('');
-    setGain('');
-    setError('');
-    setIsSaving(false);
-    onClose();
-  }, [onClose]);
+    setIsVisible(false);
+    if (closeTimeoutRef !== null) {
+      window.clearTimeout(closeTimeoutRef);
+    }
+    const timeout = window.setTimeout(() => {
+      setQuery('');
+      setResults([]);
+      setSelectedFund(null);
+      setCurrentNav(0);
+      setAmount('');
+      setShares('');
+      setCostPrice('');
+      setGain('');
+      setError('');
+      setIsSaving(false);
+      onClose();
+      setCloseTimeoutRef(null);
+    }, 260);
+    setCloseTimeoutRef(timeout);
+  }, [onClose, closeTimeoutRef]);
 
   const requestClose = useCallback(
     (payload?: { source?: 'edge-swipe' | 'programmatic'; targetX?: number }) => {
@@ -377,12 +394,15 @@ export const AddFundModal: React.FC<AddFundModalProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
-      onClick={() => requestClose({ source: 'programmatic', targetX: window.innerWidth })}
+      className={`fixed inset-0 z-[60] flex items-center justify-center p-4 transition-all duration-[260ms] ease-[cubic-bezier(0.22,1,0.36,1)] ${isVisible ? 'bg-black/50 backdrop-blur-sm' : 'bg-black/0 backdrop-blur-0'}`}
+      onClick={handleClose}
     >
       <div
-        className="bg-white dark:bg-card-dark rounded-xl w-full max-w-md overflow-hidden shadow-2xl flex flex-col max-h-[90vh]"
-        style={{ transform: `translateX(${transformX})`, transition }}
+        className={`bg-white dark:bg-card-dark rounded-xl w-full max-w-md overflow-hidden shadow-2xl flex flex-col max-h-[90vh] transition-all duration-[260ms] ease-[cubic-bezier(0.22,1,0.36,1)] ${isVisible ? 'opacity-100 scale-100' : 'opacity-0 scale-95'}`}
+        style={{
+          transform: `translateX(${transformX})`,
+          transition: closeTargetX !== null || snapX !== null ? 'transform 220ms ease' : undefined,
+        }}
         onClick={(e) => e.stopPropagation()}
         onTransitionEnd={() => {
           if (closeTargetX !== null) {
