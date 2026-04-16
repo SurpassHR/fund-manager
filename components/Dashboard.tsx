@@ -17,7 +17,7 @@ import { RebalanceModal } from './RebalanceModal';
 import { TransactionHistoryModal } from './TransactionHistoryModal';
 import { FundDetail } from './FundDetail';
 import type { Fund } from '../types';
-import { AnimatePresence } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import { useSettings } from '../services/SettingsContext';
 import { AiHoldingsAnalysisModal } from './AiHoldingsAnalysisModal';
 import { hasTouchMovedBeyondThreshold } from '../services/longPressGesture';
@@ -910,7 +910,7 @@ export const Dashboard: React.FC = () => {
           </div>
 
           <div className="overflow-hidden bg-[var(--app-shell-panel)]/92 dark:bg-card-dark">
-            {sortedFunds.map((fund) => {
+            {activeFunds.map((fund) => {
               const holdingValue = fund.holdingShares * fund.currentNav;
               const totalCost = fund.holdingShares * fund.costPrice;
               const totalReturn = holdingValue - totalCost;
@@ -1099,6 +1099,246 @@ export const Dashboard: React.FC = () => {
                 </div>
               );
             })}
+
+            {clearedFunds.length > 0 && (
+              <div
+                className="mx-4 mb-3 flex cursor-pointer items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 transition-colors hover:bg-slate-100 dark:border-gray-700 dark:bg-gray-800 dark:hover:bg-gray-750"
+                onClick={handleToggleClearedGroup}
+                role="button"
+                tabIndex={0}
+                aria-expanded={isClearedGroupExpanded}
+                aria-label={t(
+                  isClearedGroupExpanded
+                    ? 'common.collapseClearedFunds'
+                    : 'common.expandClearedFunds',
+                )}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    handleToggleClearedGroup();
+                  }
+                }}
+              >
+                <div className="flex items-center gap-2">
+                  <Icons.Archive className="h-5 w-5 text-slate-500 dark:text-gray-400" />
+                  <span className="text-sm font-medium text-slate-700 dark:text-gray-300">
+                    {t('common.clearedFundsCount', { count: String(clearedFunds.length) })}
+                  </span>
+                </div>
+                <div className="text-slate-500 dark:text-gray-400">
+                  {isClearedGroupExpanded ? (
+                    <Icons.ChevronUp className="h-5 w-5" />
+                  ) : (
+                    <Icons.ChevronDown className="h-5 w-5" />
+                  )}
+                </div>
+              </div>
+            )}
+
+            <AnimatePresence>
+              {isClearedGroupExpanded && clearedFunds.length > 0 && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.2, ease: 'easeInOut' }}
+                  style={{ overflow: 'hidden' }}
+                >
+                  {clearedFunds.map((fund) => {
+                    const holdingValue = fund.holdingShares * fund.currentNav;
+                    const totalCost = fund.holdingShares * fund.costPrice;
+                    const totalReturn = holdingValue - totalCost;
+                    const officialDayChangePct = fund.officialDayChangePct ?? fund.dayChangePct;
+                    const todayChangePct = fund.todayChangeUnavailable
+                      ? 0
+                      : fund.todayChangePreOpen
+                        ? 0
+                        : fund.todayChangeIsEstimated
+                          ? (fund.estimatedDayChangePct ?? 0)
+                          : (fund.officialDayChangePct ?? fund.dayChangePct);
+                    const displayTodayGainVal = fund.todayChangeUnavailable
+                      ? 0
+                      : fund.todayChangePreOpen
+                        ? 0
+                        : fund.todayChangeIsEstimated
+                          ? (holdingValue * (fund.estimatedDayChangePct ?? 0)) / 100
+                          : fund.dayChangeVal;
+                    const holdingGainPct = totalCost !== 0 ? (totalReturn / totalCost) * 100 : 0;
+                    const todayChangeTag = fund.todayChangePreOpen
+                      ? t('common.preOpen') || '未开盘'
+                      : fund.todayChangeUnavailable
+                        ? t('common.noEstimate') || '无估值'
+                        : fund.todayChangeIsEstimated
+                          ? t('common.estimated') || '估值'
+                          : t('common.updated') || '已更新';
+                    const displayPlatform =
+                      t(`filters.${fund.platform}`) === `filters.${fund.platform}`
+                        ? fund.platform
+                        : t(`filters.${fund.platform}`);
+                    const pendingCount = (fund.pendingTransactions || []).filter(
+                      (tx) => !tx.settled,
+                    ).length;
+                    const displayMaskedValue = (value: string) => (showValues ? value : '****');
+                    const displayMetricColor = (value: number) => getSignColor(value);
+
+                    return (
+                      <div
+                        key={fund.id}
+                        onClick={() => handleRowClick(fund)}
+                        onContextMenu={(e) => fund.id && handleContextMenu(e, fund.id)}
+                        onTouchStart={(e) => fund.id && handleTouchStart(fund.id, e)}
+                        onTouchMove={handleTouchMove}
+                        onTouchEnd={handleTouchEnd}
+                        onTouchCancel={handleTouchEnd}
+                        className={`group relative cursor-pointer select-none border-b border-[var(--app-shell-line)]/80 px-4 py-3 transition-colors last:border-b-0 active:bg-[var(--app-shell-panel-strong)] dark:border-border-dark dark:active:bg-white/5 md:px-5 md:py-3.5 md:hover:bg-[var(--app-shell-panel-strong)]/72 dark:md:hover:bg-white/5 ${
+                          contextMenu?.fundId === fund.id
+                            ? 'bg-[var(--app-shell-panel-strong)] dark:bg-white/10'
+                            : ''
+                        }`}
+                      >
+                        <div className="flex flex-col gap-3 md:flex-row md:items-center">
+                          <div className="min-w-0 flex-1 md:flex-[1.6] md:pr-4">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="rounded-full border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)]/92 px-2 py-1 text-[10px] font-semibold tracking-[0.14em] text-slate-700 dark:border-blue-400/20 dark:bg-blue-500/10 dark:text-blue-200">
+                                {fund.code}
+                              </span>
+                              <span className="max-w-[10rem] truncate rounded-full border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] px-2 py-1 text-[10px] font-semibold tracking-[0.14em] text-slate-500 dark:border-white/10 dark:bg-white/5 dark:text-gray-400">
+                                {displayPlatform}
+                              </span>
+                              {pendingCount > 0 && (
+                                <span className="rounded-full border border-amber-200 bg-amber-50/85 px-2 py-1 text-[10px] font-semibold tracking-[0.14em] text-amber-700 dark:border-amber-400/20 dark:bg-amber-500/10 dark:text-amber-300">
+                                  {pendingCount} {t('common.inTransit')}
+                                </span>
+                              )}
+                            </div>
+
+                            <div className="mt-2 flex items-start justify-between gap-3 md:block">
+                              <div>
+                                <h3 className="text-[15px] font-semibold tracking-tight text-slate-900 dark:text-gray-50 md:text-base">
+                                  {fund.name}
+                                </h3>
+                                <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500 dark:text-gray-400 md:hidden">
+                                  <span>
+                                    {t('common.cost')}:{' '}
+                                    {displayMaskedValue(formatCurrency(fund.costPrice, 4))}
+                                  </span>
+                                  <span>
+                                    {t('common.nav')}:{' '}
+                                    {displayMaskedValue(fund.currentNav.toFixed(4))}
+                                  </span>
+                                </div>
+                              </div>
+                              <div className="text-right md:hidden">
+                                <div className="text-lg font-black tracking-[-0.03em] text-slate-900 dark:text-gray-50">
+                                  {displayMaskedValue(formatCurrency(holdingValue))}
+                                </div>
+                                <div className="mt-1 text-[10px] font-semibold tracking-[0.14em] text-slate-400 dark:text-gray-500">
+                                  {t('common.mktVal')}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="hidden md:grid md:flex-[5] md:grid-cols-6 md:gap-4 md:text-right">
+                            <div className="text-left text-xs text-slate-500 dark:text-gray-400">
+                              <div className="font-semibold text-slate-700 dark:text-gray-200">
+                                {displayMaskedValue(formatCurrency(fund.costPrice, 4))}
+                              </div>
+                              <div className="mt-1 text-slate-400 dark:text-gray-500">
+                                {displayMaskedValue(fund.currentNav.toFixed(4))}
+                              </div>
+                            </div>
+                            <div
+                              className={`text-sm font-semibold ${displayMetricColor(officialDayChangePct)}`}
+                            >
+                              {displayMaskedValue(formatPct(officialDayChangePct))}
+                            </div>
+                            <div
+                              className={`text-sm font-semibold ${displayMetricColor(todayChangePct)}`}
+                            >
+                              {displayMaskedValue(formatPct(todayChangePct))}
+                              {todayChangeTag && (
+                                <div className="mt-1 text-[10px] font-medium tracking-[0.14em] text-slate-400 dark:text-gray-500">
+                                  {todayChangeTag}
+                                </div>
+                              )}
+                            </div>
+                            <div
+                              className={`text-sm font-semibold ${displayMetricColor(displayTodayGainVal)}`}
+                            >
+                              {displayMaskedValue(formatSignedCurrency(displayTodayGainVal))}
+                            </div>
+                            <div className="flex flex-col items-end">
+                              <div
+                                className={`text-sm font-semibold ${displayMetricColor(totalReturn)}`}
+                              >
+                                {displayMaskedValue(formatSignedCurrency(totalReturn))}
+                              </div>
+                              <div
+                                className={`mt-1 text-[10px] font-medium ${displayMetricColor(holdingGainPct)}`}
+                              >
+                                {displayMaskedValue(formatPct(holdingGainPct))}
+                              </div>
+                            </div>
+                            <div className="text-base font-black tracking-[-0.03em] text-slate-900 dark:text-gray-50">
+                              {displayMaskedValue(formatCurrency(holdingValue))}
+                            </div>
+                          </div>
+
+                          <div className="mt-2 flex items-stretch gap-1.5 md:hidden">
+                            <div className="min-w-0 flex-1 rounded-xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)]/90 px-2 py-2 text-right dark:border-white/10 dark:bg-white/5">
+                              <div
+                                className={`truncate text-[13px] font-black leading-none tracking-[-0.02em] ${displayMetricColor(officialDayChangePct)}`}
+                              >
+                                {displayMaskedValue(formatPct(officialDayChangePct))}
+                              </div>
+                              <div className="mt-1 truncate text-[9px] font-semibold tracking-[0.1em] text-slate-400 dark:text-gray-500">
+                                {t('common.yesterdayChangePct') || '昨日涨幅'}
+                              </div>
+                            </div>
+                            <div className="min-w-0 flex-1 rounded-xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)]/90 px-2 py-2 text-right dark:border-white/10 dark:bg-white/5">
+                              <div
+                                className={`truncate text-[13px] font-black leading-none tracking-[-0.02em] ${displayMetricColor(todayChangePct)}`}
+                              >
+                                {displayMaskedValue(formatPct(todayChangePct))}
+                              </div>
+                              <div className="mt-1 truncate text-[9px] font-semibold tracking-[0.1em] text-slate-400 dark:text-gray-500">
+                                {todayChangeTag || t('common.todayChangePct') || '今日涨幅'}
+                              </div>
+                            </div>
+                            <div className="min-w-0 flex-1 rounded-xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)]/80 px-2 py-2 text-right dark:border-white/10 dark:bg-white/5">
+                              <div
+                                className={`truncate text-[12px] font-bold ${displayMetricColor(displayTodayGainVal)}`}
+                              >
+                                {displayMaskedValue(formatSignedCurrency(displayTodayGainVal))}
+                              </div>
+                              <div className="mt-1 truncate text-[9px] font-semibold tracking-[0.1em] text-slate-400 dark:text-gray-500">
+                                {t('common.dayGain')}
+                              </div>
+                            </div>
+                            <div className="min-w-0 flex-1 rounded-xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)]/80 px-2 py-2 text-right dark:border-white/10 dark:bg-white/5">
+                              <div
+                                className={`truncate text-[12px] font-bold ${displayMetricColor(totalReturn)}`}
+                              >
+                                {displayMaskedValue(formatSignedCurrency(totalReturn))}
+                              </div>
+                              <div
+                                className={`mt-0.5 truncate text-[9px] font-medium ${displayMetricColor(holdingGainPct)}`}
+                              >
+                                {displayMaskedValue(formatPct(holdingGainPct))}
+                              </div>
+                              <div className="mt-0.5 truncate text-[9px] font-semibold tracking-[0.1em] text-slate-400 dark:text-gray-500">
+                                {t('common.totalGain')}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         </section>
 
