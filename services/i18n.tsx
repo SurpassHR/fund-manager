@@ -289,6 +289,10 @@ const dictionary = {
       fundCodePlaceholder: '110011',
       indexNamePlaceholder: 'SSE Composite',
       fundNamePlaceholder: 'E Fund Blue Chip',
+      clearedFundsGroup: 'Cleared',
+      clearedFundsCount: 'Cleared ({count})',
+      expandClearedFunds: 'Expand cleared funds',
+      collapseClearedFunds: 'Collapse cleared funds',
     },
     filters: {
       Default: 'Default',
@@ -573,6 +577,10 @@ const dictionary = {
       fundCodePlaceholder: '110011',
       indexNamePlaceholder: '上证指数',
       fundNamePlaceholder: '易方达蓝筹',
+      clearedFundsGroup: '已清仓',
+      clearedFundsCount: '已清仓 ({count})',
+      expandClearedFunds: '展开清仓基金',
+      collapseClearedFunds: '收起清仓基金',
     },
     filters: {
       Default: '默认',
