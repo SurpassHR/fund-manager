@@ -667,16 +667,28 @@ export const FundDetail: React.FC<FundDetailProps> = ({
   }, []);
 
   // Derived History Table Data based on Chart Data + Current NAV
+  // Only show dates up to the authoritative lastTradingDay to avoid displaying
+  // the intraday estimate (injected by withTodayEstimate for the chart) as a fake NAV row.
   const historyData = useMemo(() => {
     if (!chartSeriesData || !chartSeriesData.dates || chartSeriesData.dates.length === 0) return [];
 
+    // Find the last index that corresponds to a real NAV date (≤ lastTradingDay).
+    // withTodayEstimate may have appended today's date which hasn't been published yet.
+    const cutoffDate = lastTradingDay || '';
+    let endIdx = chartSeriesData.dates.length - 1;
+    if (cutoffDate) {
+      while (endIdx >= 0 && chartSeriesData.dates[endIdx] > cutoffDate) {
+        endIdx--;
+      }
+    }
+    if (endIdx < 0) return [];
+
     const list = [];
-    const len = chartSeriesData.dates.length;
 
-    const finalReturn = chartSeriesData.fund[len - 1];
+    const finalReturn = chartSeriesData.fund[endIdx];
 
-    // Iterate backwards from the end
-    for (let i = len - 1; i >= 0; i--) {
+    // Iterate backwards from the verified end
+    for (let i = endIdx; i >= 0; i--) {
       const r = chartSeriesData.fund[i];
       const rPrev = i > 0 ? chartSeriesData.fund[i - 1] : 0;
 
@@ -698,7 +710,7 @@ export const FundDetail: React.FC<FundDetailProps> = ({
       });
     }
     return list;
-  }, [chartSeriesData, currentNav]);
+  }, [chartSeriesData, currentNav, lastTradingDay]);
 
   // Add ESC key listener to close
   useEffect(() => {
