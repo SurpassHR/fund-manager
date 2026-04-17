@@ -107,3 +107,7 @@ fund-manager/
 ## License
 
 [GPL-3.0 License](./LICENSE)
+
+## 社区
+
+感谢 [linux.do](https://linux.do) ——一个充满活力的中国科技社区，你可以在这里学习人工智能、开发及更多内容。
