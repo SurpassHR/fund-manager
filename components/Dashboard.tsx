@@ -1435,29 +1435,23 @@ export const Dashboard: React.FC = () => {
           await requestFundRefresh(true);
         }}
       />
-      {adjustFund && (
-        <AdjustPositionModal
-          isOpen={!!adjustFund}
-          onClose={() => setAdjustFund(null)}
-          fund={adjustFund}
-        />
-      )}
-      {rebalanceFund && (
-        <RebalanceModal
-          isOpen={!!rebalanceFund}
-          onClose={() => setRebalanceFund(null)}
-          sourceFund={rebalanceFund}
-          funds={safeFunds}
-        />
-      )}
-      {historyFund && (
-        <TransactionHistoryModal
-          isOpen={!!historyFund}
-          onClose={() => setHistoryFund(null)}
-          fund={historyFund}
-          onTransactionsDeleted={handleTransactionsDeleted}
-        />
-      )}
+      <AdjustPositionModal
+        isOpen={!!adjustFund}
+        onClose={() => setAdjustFund(null)}
+        fund={adjustFund}
+      />
+      <RebalanceModal
+        isOpen={!!rebalanceFund}
+        onClose={() => setRebalanceFund(null)}
+        sourceFund={rebalanceFund}
+        funds={safeFunds}
+      />
+      <TransactionHistoryModal
+        isOpen={!!historyFund}
+        onClose={() => setHistoryFund(null)}
+        fund={historyFund}
+        onTransactionsDeleted={handleTransactionsDeleted}
+      />
       <AiHoldingsAnalysisModal
         isOpen={isAiAnalysisOpen}
         onClose={() => setIsAiAnalysisOpen(false)}

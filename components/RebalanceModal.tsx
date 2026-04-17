@@ -5,11 +5,12 @@ import { useTranslation } from '../services/i18n';
 import { roundMoney, roundShares, getEffectiveOperationDate } from '../services/rebalanceUtils';
 import type { Fund, MorningstarFund, PendingTransaction } from '../types';
 import { Icons } from './Icon';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface RebalanceModalProps {
   isOpen: boolean;
   onClose: () => void;
-  sourceFund: Fund;
+  sourceFund: Fund | null;
   funds: Fund[];
 }
 
@@ -25,7 +26,8 @@ const getLocalDateString = () => {
 
 const formatRate = (v: number) => `${(v * 100).toFixed(v === 0 ? 0 : v < 0.01 ? 1 : 1)}%`;
 
-const getUnsettledOutShares = (fund: Fund) => {
+const getUnsettledOutShares = (fund: Fund | null) => {
+  if (!fund) return 0;
   const txs = fund.pendingTransactions || [];
   return txs.reduce((sum, tx) => {
     if (tx.settled) return sum;
@@ -45,9 +47,14 @@ type TargetCandidate = {
 export const RebalanceModal: React.FC<RebalanceModalProps> = ({
   isOpen,
   onClose,
-  sourceFund,
+  sourceFund: sourceFundProp,
   funds,
 }) => {
+  const [cachedFund, setCachedFund] = useState<Fund | null>(sourceFundProp);
+  useEffect(() => {
+    if (sourceFundProp) setCachedFund(sourceFundProp);
+  }, [sourceFundProp]);
+  const sourceFund = sourceFundProp || cachedFund;
   const { t } = useTranslation();
   const [targetQuery, setTargetQuery] = useState('');
   const [targetResults, setTargetResults] = useState<MorningstarFund[]>([]);
@@ -71,12 +78,12 @@ export const RebalanceModal: React.FC<RebalanceModalProps> = ({
     if (!keyword) return [];
     return funds.filter(
       (f) =>
-        f.id !== sourceFund.id &&
+        f.id !== sourceFund?.id &&
         (f.code.includes(keyword) || f.name.toLowerCase().includes(keyword.toLowerCase())),
     );
-  }, [funds, sourceFund.id, targetQuery]);
+  }, [funds, sourceFund?.id, targetQuery]);
 
-  const availableShares = Math.max(0, sourceFund.holdingShares - getUnsettledOutShares(sourceFund));
+  const availableShares = Math.max(0, (sourceFund?.holdingShares ?? 0) - getUnsettledOutShares(sourceFund));
   const parsedOutShares = parseFloat(outSharesInput);
   const effectiveOpDate = opDate ? getEffectiveOperationDate(opDate, opTime) : '';
   const shouldShowTargetDropdown =
@@ -152,7 +159,7 @@ export const RebalanceModal: React.FC<RebalanceModalProps> = ({
       }
 
       const [outNavRes, inNavRes] = await Promise.all([
-        fetchHistoricalFundNavWithDate(sourceFund.code, effectiveOpDate),
+        fetchHistoricalFundNavWithDate(sourceFund?.code ?? '', effectiveOpDate),
         fetchHistoricalFundNavWithDate(targetFund.code, effectiveOpDate),
       ]);
 
@@ -180,9 +187,7 @@ export const RebalanceModal: React.FC<RebalanceModalProps> = ({
     return () => {
       cancelled = true;
     };
-  }, [buyFeeRate, effectiveOpDate, parsedOutShares, sellFeeRate, sourceFund.code, targetFund]);
-
-  if (!isOpen) return null;
+  }, [buyFeeRate, effectiveOpDate, parsedOutShares, sellFeeRate, sourceFund?.code, targetFund]);
 
   const handleSave = async () => {
     let selectedTarget = targetFund;
@@ -201,7 +206,7 @@ export const RebalanceModal: React.FC<RebalanceModalProps> = ({
       setError(t('common.rebalanceTargetRequired'));
       return;
     }
-    if (selectedTarget.code === sourceFund.code) {
+    if (selectedTarget.code === sourceFund?.code) {
       setError(t('common.rebalanceSameFundInvalid'));
       return;
     }
@@ -214,7 +219,7 @@ export const RebalanceModal: React.FC<RebalanceModalProps> = ({
       return;
     }
 
-    const sourceId = sourceFund.id;
+    const sourceId = sourceFund?.id;
     const transferId = `${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
     if (!sourceId) return;
 
@@ -237,7 +242,7 @@ export const RebalanceModal: React.FC<RebalanceModalProps> = ({
         createdTargetSeed = {
           code: selectedTarget.code,
           name: selectedTarget.name,
-          platform: sourceFund.platform,
+          platform: sourceFund?.platform ?? '自选',
           holdingShares: 0,
           costPrice: nav,
           currentNav: nav,
@@ -246,7 +251,7 @@ export const RebalanceModal: React.FC<RebalanceModalProps> = ({
           dayChangeVal,
           buyDate: opDate,
           buyTime: opTime,
-          settlementDays: sourceFund.settlementDays ?? 1,
+          settlementDays: sourceFund?.settlementDays ?? 1,
         };
       }
     }
@@ -254,7 +259,7 @@ export const RebalanceModal: React.FC<RebalanceModalProps> = ({
     const baseSettlementDate = getSettlementDate(
       opDate,
       opTime,
-      Math.max(sourceFund.settlementDays ?? 1, selectedTarget.settlementDays ?? 1),
+      Math.max(sourceFund?.settlementDays ?? 1, selectedTarget.settlementDays ?? 1),
     );
 
     await db.transaction('rw', db.funds, async () => {
@@ -317,14 +322,22 @@ export const RebalanceModal: React.FC<RebalanceModalProps> = ({
   };
 
   return (
-    <div
-      className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
-      onClick={onClose}
-    >
-      <div
-        className="bg-white dark:bg-card-dark rounded-xl w-full max-w-md overflow-hidden shadow-2xl flex flex-col max-h-[90vh]"
-        onClick={(e) => e.stopPropagation()}
-      >
+    <AnimatePresence>
+      {isOpen && (
+        <motion.div
+          className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={onClose}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+        >
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+            className="bg-white dark:bg-card-dark rounded-xl w-full max-w-md overflow-hidden shadow-2xl flex flex-col max-h-[90vh]"
+            onClick={(e) => e.stopPropagation()}
+          >
         <div className="p-4 border-b border-gray-100 dark:border-border-dark flex justify-between items-center bg-gray-50 dark:bg-white/5">
           <h3 className="font-bold text-gray-800 dark:text-gray-100">
             {t('common.rebalanceTitle')}
@@ -341,7 +354,7 @@ export const RebalanceModal: React.FC<RebalanceModalProps> = ({
                 {t('common.transferOutFund')}
               </label>
               <div className="w-full p-2.5 border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-white/5 text-sm text-gray-700 dark:text-gray-200">
-                {sourceFund.name}
+                {sourceFund?.name}
               </div>
             </div>
             <div>
@@ -538,7 +551,9 @@ export const RebalanceModal: React.FC<RebalanceModalProps> = ({
             </button>
           </div>
         </div>
-      </div>
-    </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 };

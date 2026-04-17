@@ -6,18 +6,25 @@ import type { Fund, PendingTransaction } from '../types';
 import { resetDragState, useEdgeSwipe } from '../services/useEdgeSwipe';
 import { useOverlayRegistration } from '../services/overlayRegistration';
 import { parseSellInputToShares } from './adjustPositionUtils';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface AdjustPositionModalProps {
   isOpen: boolean;
   onClose: () => void;
-  fund: Fund;
+  fund: Fund | null;
 }
 
 export const AdjustPositionModal: React.FC<AdjustPositionModalProps> = ({
   isOpen,
   onClose,
-  fund,
+  fund: fundProp,
 }) => {
+  const [cachedFund, setCachedFund] = useState<Fund | null>(fundProp);
+  useEffect(() => {
+    if (fundProp) setCachedFund(fundProp);
+  }, [fundProp]);
+  const fund = fundProp || cachedFund;
+
   const { t } = useTranslation();
   const overlayId = 'adjust-position-modal';
   const { isDragging, activeOverlayId, setDragState, snapBackX } = useEdgeSwipe();
@@ -82,16 +89,14 @@ export const AdjustPositionModal: React.FC<AdjustPositionModalProps> = ({
 
   // 实时计算确认日
   useEffect(() => {
-    if (opDate) {
+    if (opDate && fund) {
       const tPlusN = fund.settlementDays ?? 1;
       const sd = getSettlementDate(opDate, opTime, tPlusN);
       setCalculatedSettlementDate(sd);
     }
-  }, [opDate, opTime, fund.settlementDays]);
+  }, [opDate, opTime, fund?.settlementDays]);
 
-  if (!isOpen) return null;
-
-  const parsedSell = type === 'sell' ? parseSellInputToShares(amount, fund.holdingShares) : null;
+  const parsedSell = type === 'sell' ? parseSellInputToShares(amount, fund?.holdingShares ?? 0) : null;
 
   const handleSave = async () => {
     let val = parseFloat(amount);
@@ -108,8 +113,8 @@ export const AdjustPositionModal: React.FC<AdjustPositionModalProps> = ({
       return;
     }
 
-    if (type === 'sell' && val > fund.holdingShares) {
-      alert(`减仓份额不能超过当前持有份额 (${fund.holdingShares.toFixed(2)})`);
+    if (type === 'sell' && val > (fund?.holdingShares ?? 0)) {
+      alert(`减仓份额不能超过当前持有份额 (${(fund?.holdingShares ?? 0).toFixed(2)})`);
       return;
     }
 
@@ -125,37 +130,49 @@ export const AdjustPositionModal: React.FC<AdjustPositionModalProps> = ({
       settled: false,
     };
 
-    const existingPending = fund.pendingTransactions || [];
-    await db.funds.update(fund.id!, {
-      pendingTransactions: [...existingPending, newTx],
-    });
+    const existingPending = fund?.pendingTransactions || [];
+    if (fund?.id) {
+      await db.funds.update(fund.id, {
+        pendingTransactions: [...existingPending, newTx],
+      });
+    }
 
     onClose();
   };
 
-  const pendingCount = (fund.pendingTransactions || []).filter((tx) => !tx.settled).length;
+  const pendingCount = (fund?.pendingTransactions || []).filter((tx) => !tx.settled).length;
 
   return (
-    <div
-      className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
-      onClick={() => requestClose({ source: 'programmatic', targetX: window.innerWidth })}
-    >
-      <div
-        className="bg-white dark:bg-card-dark rounded-xl w-full max-w-md overflow-hidden shadow-2xl flex flex-col max-h-[90vh]"
-        style={{ transform: `translateX(${transformX})`, transition }}
-        onClick={(e) => e.stopPropagation()}
-        onTransitionEnd={() => {
-          if (closeTargetX !== null) {
-            setCloseTargetX(null);
-            resetDragState(setDragState);
-            handleClose();
-            return;
-          }
-          if (snapX !== null) {
-            resetDragState(setDragState);
-          }
-        }}
-      >
+    <AnimatePresence>
+      {isOpen && (
+        <motion.div
+          className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={() => requestClose()}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+        >
+          <div
+            style={{ transform: `translateX(${transformX})`, transition }}
+            onTransitionEnd={() => {
+              if (closeTargetX !== null) {
+                setCloseTargetX(null);
+                resetDragState(setDragState);
+                handleClose();
+                return;
+              }
+              if (snapX !== null) {
+                resetDragState(setDragState);
+              }
+            }}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="bg-white dark:bg-card-dark rounded-xl w-full max-w-md overflow-hidden shadow-2xl flex flex-col max-h-[90vh]"
+              onClick={(e) => e.stopPropagation()}
+            >
         {/* 标题 */}
         <div className="p-4 border-b border-gray-100 dark:border-border-dark flex justify-between items-center bg-gray-50 dark:bg-white/5 shrink-0">
           <h3 className="font-bold text-gray-800 dark:text-gray-100">
@@ -172,16 +189,16 @@ export const AdjustPositionModal: React.FC<AdjustPositionModalProps> = ({
             <div className="flex justify-between items-center">
               <div>
                 <div className="font-bold text-blue-900 dark:text-blue-100 text-sm">
-                  {fund.name}
+                  {fund?.name}
                 </div>
-                <div className="text-xs text-blue-600 dark:text-blue-400 mt-1">{fund.code}</div>
+                <div className="text-xs text-blue-600 dark:text-blue-400 mt-1">{fund?.code}</div>
               </div>
               <div className="text-right">
                 <div className="text-[10px] text-blue-400">
-                  {t('common.shares')} · T+{fund.settlementDays ?? 1}
+                  {t('common.shares')} · T+{fund?.settlementDays ?? 1}
                 </div>
                 <div className="font-sans font-bold text-blue-800 dark:text-blue-300">
-                  {fund.holdingShares.toFixed(2)}
+                  {(fund?.holdingShares ?? 0).toFixed(2)}
                 </div>
               </div>
             </div>
@@ -260,7 +277,7 @@ export const AdjustPositionModal: React.FC<AdjustPositionModalProps> = ({
                 setInputError('');
               }}
               placeholder={
-                type === 'buy' ? '0.00' : `如 50、50%、1/3（最大 ${fund.holdingShares.toFixed(2)}）`
+                type === 'buy' ? '0.00' : `如 50、50%、1/3（最大 ${(fund?.holdingShares ?? 0).toFixed(2)}）`
               }
               className={`w-full p-3 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-white/5 text-gray-900 dark:text-white font-bold font-sans focus:border-blue-500 outline-none text-lg ${noSpinnerClass}`}
             />
@@ -344,7 +361,10 @@ export const AdjustPositionModal: React.FC<AdjustPositionModalProps> = ({
             </button>
           </div>
         </div>
-      </div>
-    </div>
+            </motion.div>
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 };

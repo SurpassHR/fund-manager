@@ -5,25 +5,31 @@ import { Icons } from './Icon';
 import { deletePendingTransaction } from '../services/db';
 import { resetDragState, useEdgeSwipe } from '../services/useEdgeSwipe';
 import { useOverlayRegistration } from '../services/overlayRegistration';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface TransactionHistoryModalProps {
   isOpen: boolean;
   onClose: () => void;
-  fund: Fund;
+  fund: Fund | null;
   onTransactionsDeleted?: (affectedFundIds: number[]) => void;
 }
 
 export const TransactionHistoryModal: React.FC<TransactionHistoryModalProps> = ({
   isOpen,
   onClose,
-  fund,
+  fund: fundProp,
   onTransactionsDeleted,
 }) => {
+  const [cachedFund, setCachedFund] = useState<Fund | null>(fundProp);
+  useEffect(() => {
+    if (fundProp) setCachedFund(fundProp);
+  }, [fundProp]);
+  const fund = fundProp || cachedFund;
   const { t } = useTranslation();
   const overlayId = 'transaction-history-modal';
   const { isDragging, activeOverlayId, setDragState, snapBackX } = useEdgeSwipe();
   const [closeTargetX, setCloseTargetX] = useState<number | null>(null);
-  const [transactions, setTransactions] = useState<PendingTransaction[]>(fund.pendingTransactions || []);
+  const [transactions, setTransactions] = useState<PendingTransaction[]>(fund?.pendingTransactions || []);
   const [deleteFeedback, setDeleteFeedback] = useState<string | null>(null);
   const translateX =
     isDragging && activeOverlayId === overlayId ? 'var(--edge-swipe-drag-x, 0px)' : '0px';
@@ -58,11 +64,9 @@ export const TransactionHistoryModal: React.FC<TransactionHistoryModalProps> = (
   }, [activeOverlayId, overlayId, setDragState]);
 
   useEffect(() => {
-    setTransactions(fund.pendingTransactions || []);
+    setTransactions(fund?.pendingTransactions || []);
     setDeleteFeedback(null);
-  }, [fund.id, fund.pendingTransactions]);
-
-  if (!isOpen) return null;
+  }, [fund?.id, fund?.pendingTransactions]);
 
   // 按操作日期倒序排列
   const sortedTransactions = [...transactions].sort(
@@ -90,7 +94,7 @@ export const TransactionHistoryModal: React.FC<TransactionHistoryModalProps> = (
   };
 
   const handleDelete = async (tx: PendingTransaction) => {
-    if (!fund.id) {
+    if (!fund?.id) {
       return;
     }
 
@@ -147,26 +151,37 @@ export const TransactionHistoryModal: React.FC<TransactionHistoryModalProps> = (
   };
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm sm:p-4 opacity-100 transition-opacity"
-      onClick={() => requestClose({ source: 'programmatic', targetX: window.innerWidth })}
-    >
-      <div
-        className="bg-white dark:bg-card-dark w-full sm:w-[480px] sm:rounded-2xl rounded-t-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] transition-transform translate-y-0 relative"
-        style={{ transform: `translateX(${transformX})`, transition }}
-        onClick={(e) => e.stopPropagation()}
-        onTransitionEnd={() => {
-          if (closeTargetX !== null) {
-            setCloseTargetX(null);
-            resetDragState(setDragState);
-            handleClose();
-            return;
-          }
-          if (snapX !== null) {
-            resetDragState(setDragState);
-          }
-        }}
-      >
+    <AnimatePresence>
+      {isOpen && (
+        <motion.div
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm sm:p-4"
+          onClick={() => requestClose()}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+        >
+          <div
+            className="w-full flex justify-center"
+            style={{ transform: `translateX(${transformX})`, transition }}
+            onTransitionEnd={() => {
+              if (closeTargetX !== null) {
+                setCloseTargetX(null);
+                resetDragState(setDragState);
+                handleClose();
+                return;
+              }
+              if (snapX !== null) {
+                resetDragState(setDragState);
+              }
+            }}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="bg-white dark:bg-card-dark w-full sm:w-[480px] sm:rounded-2xl rounded-t-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] relative"
+              onClick={(e) => e.stopPropagation()}
+            >
         {/* 顶部标题栏 */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-border-dark shrink-0">
           <div className="flex items-center gap-3">
@@ -181,7 +196,7 @@ export const TransactionHistoryModal: React.FC<TransactionHistoryModalProps> = (
             </h2>
           </div>
           <div className="text-xs text-gray-400 bg-gray-50 dark:bg-white/5 px-2 py-1 rounded font-medium">
-            {fund.name}
+            {fund?.name}
           </div>
         </div>
 
@@ -263,7 +278,10 @@ export const TransactionHistoryModal: React.FC<TransactionHistoryModalProps> = (
             </div>
           )}
         </div>
-      </div>
-    </div>
+            </motion.div>
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 };
