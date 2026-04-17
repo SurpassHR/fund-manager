@@ -99,6 +99,11 @@ fund-manager/
 └── package.json        # 项目配置
 ```
 
+## TODO (后续计划)
+
+- [ ] 增加 ETF 实时估值功能
+- [ ] 增加美股、港股相关基金的估值功能
+
 ## License
 
-MIT
+[GPL-3.0 License](./LICENSE)
