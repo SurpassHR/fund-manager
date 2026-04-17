@@ -28,7 +28,7 @@ interface Stats {
   unique: number;
 }
 
-const STALE_MS = 90_000; // 90s without heartbeat = offline
+const STALE_MS = 600_000; // 10m without heartbeat = offline
 
 const CORS_HEADERS: Record<string, string> = {
   'Access-Control-Allow-Origin': '*',
@@ -62,16 +62,24 @@ function pruneStale(sessions: Sessions, now: number): Sessions {
   return live;
 }
 
-async function buildStats(kv: KVNamespace, sessions: Sessions): Promise<Stats> {
+async function buildStats(kv: KVNamespace, sessions: Sessions, cachedPeak?: number, cachedUniqueCount?: number): Promise<Stats> {
   const current = Object.keys(sessions).length;
-  const peak = parseInt((await kv.get('peak')) || '0', 10);
-  let uniqueCount = 0;
-  try {
-    const raw = await kv.get('unique');
-    uniqueCount = raw ? (JSON.parse(raw) as string[]).length : 0;
-  } catch {
-    uniqueCount = 0;
+  
+  let peak = cachedPeak;
+  if (peak === undefined) {
+    peak = parseInt((await kv.get('peak', { cacheTtl: 300 })) || '0', 10);
   }
+
+  let uniqueCount = cachedUniqueCount;
+  if (uniqueCount === undefined) {
+    try {
+      const raw = await kv.get('unique', { cacheTtl: 300 });
+      uniqueCount = raw ? (JSON.parse(raw) as string[]).length : 0;
+    } catch {
+      uniqueCount = 0;
+    }
+  }
+
   return { current, peak, unique: uniqueCount };
 }
 
@@ -119,14 +127,16 @@ export default {
 
       // Update peak
       const current = Object.keys(sessions).length;
-      const prevPeak = parseInt((await kv.get('peak')) || '0', 10);
-      if (current > prevPeak) {
-        await kv.put('peak', String(current));
+      let peak = parseInt((await kv.get('peak', { cacheTtl: 300 })) || '0', 10);
+      if (current > peak) {
+        peak = current;
+        await kv.put('peak', String(peak));
       }
 
       // Track unique visitors
+      let uniqueCount = 0;
       if (uid) {
-        const uniqueRaw = await kv.get('unique');
+        const uniqueRaw = await kv.get('unique', { cacheTtl: 300 });
         let uniqueSet: Set<string>;
         try {
           uniqueSet = new Set(uniqueRaw ? (JSON.parse(uniqueRaw) as string[]) : []);
@@ -137,9 +147,10 @@ export default {
           uniqueSet.add(uid);
           await kv.put('unique', JSON.stringify([...uniqueSet]));
         }
+        uniqueCount = uniqueSet.size;
       }
 
-      return json(await buildStats(kv, sessions));
+      return json(await buildStats(kv, sessions, peak, uniqueCount));
     }
 
     // POST or DELETE /session — explicit disconnect

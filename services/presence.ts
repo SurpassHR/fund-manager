@@ -5,7 +5,7 @@
  * and exposes reactive stats (current / peak / unique).
  */
 
-const HEARTBEAT_INTERVAL_MS = 30_000;
+const HEARTBEAT_INTERVAL_MS = 300_000;
 
 // Worker URL — set via env or fallback.
 // In production, replace with your deployed worker URL.
