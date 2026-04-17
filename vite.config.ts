@@ -104,7 +104,10 @@ const createLlmProxyPlugin = () => ({
 });
 
 export default defineConfig(async ({ mode }) => {
-  const env = loadEnv(mode, '.', '');
+  const fileEnv = loadEnv(mode, '.', '');
+  // loadEnv only reads .env files; merge process.env so CI-injected secrets
+  // (e.g. GEMINI_API_KEY from GitHub Actions) are also available.
+  const env = { ...fileEnv, ...process.env };
   const MAX_COMMITS = 5;
   const resolvedBase = env.VITE_BASE_PATH?.trim() || '/fund-manager/';
   const resolvedOutDir = env.VITE_BUILD_OUT_DIR?.trim() || 'dist/fund-manager';
