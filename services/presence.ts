@@ -12,9 +12,16 @@ const HEARTBEAT_INTERVAL_MS = 30_000;
 const WORKER_URL =
   (typeof import.meta !== 'undefined' && import.meta.env?.VITE_PRESENCE_WORKER_URL) || '';
 
-/** Generate a random session ID (per tab). */
-const generateSid = (): string =>
-  `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+/** Get or create a session ID (persists across page reloads in the same tab). */
+const getOrCreateSid = (): string => {
+  const KEY = 'fm_session_sid';
+  let sid = sessionStorage.getItem(KEY);
+  if (!sid) {
+    sid = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+    sessionStorage.setItem(KEY, sid);
+  }
+  return sid;
+};
 
 /** Get or create a persistent unique visitor ID (across sessions). */
 const getOrCreateUid = (): string => {
@@ -69,7 +76,7 @@ const sendDisconnect = (): void => {
   if (navigator.sendBeacon) {
     navigator.sendBeacon(
       `${WORKER_URL}/session`,
-      new Blob([payload], { type: 'application/json' }),
+      new Blob([payload], { type: 'text/plain' }), // avoid CORS preflight
     );
   }
 };
@@ -96,7 +103,7 @@ export const startPresence = (): void => {
   if (timer) return;
   if (!WORKER_URL) return;
 
-  sid = generateSid();
+  sid = getOrCreateSid();
   uid = getOrCreateUid();
 
   // Initial heartbeat immediately

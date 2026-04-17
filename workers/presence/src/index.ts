@@ -142,8 +142,8 @@ export default {
       return json(await buildStats(kv, sessions));
     }
 
-    // DELETE /session — explicit disconnect
-    if (path === '/session' && request.method === 'DELETE') {
+    // POST or DELETE /session — explicit disconnect
+    if (path === '/session' && (request.method === 'DELETE' || request.method === 'POST')) {
       let body: { sid?: string };
       try {
         body = (await request.json()) as { sid?: string };
