@@ -1,7 +1,13 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Icons } from './Icon';
 import { useTranslation } from '../services/i18n';
 import { useTheme } from '../services/ThemeContext';
+import {
+  startPresence,
+  subscribePresence,
+  isPresenceEnabled,
+  type PresenceStats,
+} from '../services/presence';
 
 interface HeaderProps {
   title: string;
@@ -12,6 +18,11 @@ export const Header: React.FC<HeaderProps> = ({ title, hiddenOnMobile = false })
   const { language, setLanguage, t } = useTranslation();
   const { theme } = useTheme();
   const [now, setNow] = useState(() => Date.now());
+  const [stats, setStats] = useState<PresenceStats>({ current: 0, peak: 0, unique: 0 });
+  const [showPopover, setShowPopover] = useState(false);
+  const popoverRef = useRef<HTMLDivElement>(null);
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const presenceActive = isPresenceEnabled();
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -19,6 +30,35 @@ export const Header: React.FC<HeaderProps> = ({ title, hiddenOnMobile = false })
     }, 1000);
     return () => clearInterval(timer);
   }, []);
+
+  // Start presence heartbeat once
+  useEffect(() => {
+    startPresence();
+  }, []);
+
+  // Subscribe to stats updates
+  useEffect(() => {
+    return subscribePresence(setStats);
+  }, []);
+
+  // Close popover on outside click
+  const handleOutsideClick = useCallback((e: MouseEvent) => {
+    if (
+      popoverRef.current &&
+      !popoverRef.current.contains(e.target as Node) &&
+      btnRef.current &&
+      !btnRef.current.contains(e.target as Node)
+    ) {
+      setShowPopover(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (showPopover) {
+      document.addEventListener('mousedown', handleOutsideClick);
+      return () => document.removeEventListener('mousedown', handleOutsideClick);
+    }
+  }, [showPopover, handleOutsideClick]);
 
   const displayNow = useMemo(() => {
     const d = new Date(now);
@@ -75,6 +115,61 @@ export const Header: React.FC<HeaderProps> = ({ title, hiddenOnMobile = false })
           </div>
 
           <div className="flex items-center gap-2 text-[var(--app-shell-muted)] sm:gap-2.5">
+            {/* Presence / Online Users */}
+            {presenceActive && (
+              <div className="relative">
+                <button
+                  ref={btnRef}
+                  onClick={() => setShowPopover((prev) => !prev)}
+                  aria-label={t('common.onlineUsers') || 'Online users'}
+                  className="relative inline-flex h-10 w-10 items-center justify-center rounded-full border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] transition hover:border-[var(--app-shell-line-strong)] hover:text-[var(--app-shell-accent)]"
+                >
+                  <Icons.Users size={18} />
+                  {stats.current > 0 && (
+                    <span className="absolute -right-1 -top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-[var(--app-shell-accent)] px-1 text-[10px] font-bold leading-none text-white">
+                      {stats.current}
+                    </span>
+                  )}
+                </button>
+
+                {showPopover && (
+                  <div
+                    ref={popoverRef}
+                    className="absolute right-0 top-12 z-50 w-52 rounded-2xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)] p-4 shadow-[var(--app-shell-shadow)] backdrop-blur-xl"
+                  >
+                    <div className="mb-3 text-[10px] font-semibold uppercase tracking-[0.2em] text-[var(--app-shell-muted)]">
+                      {t('common.userStats') || '用户统计'}
+                    </div>
+                    <div className="space-y-2.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-[var(--app-shell-muted)]">
+                          {t('common.currentOnline') || '当前在线'}
+                        </span>
+                        <span className="text-sm font-semibold tabular-nums text-[var(--app-shell-ink)]">
+                          {stats.current}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-[var(--app-shell-muted)]">
+                          {t('common.peakOnline') || '峰值人数'}
+                        </span>
+                        <span className="text-sm font-semibold tabular-nums text-[var(--app-shell-ink)]">
+                          {stats.peak}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-[var(--app-shell-muted)]">
+                          {t('common.uniqueVisitors') || '累计访客'}
+                        </span>
+                        <span className="text-sm font-semibold tabular-nums text-[var(--app-shell-ink)]">
+                          {stats.unique}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
             <button
               onClick={openChangelog}
               aria-label={t('common.changelog')}

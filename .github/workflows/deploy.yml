@@ -36,6 +36,7 @@ jobs:
         run: npm run build
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          VITE_PRESENCE_WORKER_URL: https://gp.hrfuqiang.top/presence
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
