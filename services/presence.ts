@@ -28,7 +28,8 @@ const getOrCreateUid = (): string => {
   const KEY = 'fm_visitor_uid';
   let uid = localStorage.getItem(KEY);
   if (!uid) {
-    uid = crypto.randomUUID?.() ?? generateSid();
+    uid =
+      crypto.randomUUID?.() ?? `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
     localStorage.setItem(KEY, uid);
   }
   return uid;
