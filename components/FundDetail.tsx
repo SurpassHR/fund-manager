@@ -6,6 +6,7 @@ import type {
   EquityHolding,
   MorningstarGrowthDataResponse,
   DanjuanGrowthDataResponse,
+  ParentEtfInfo,
 } from '../types';
 import { Icons } from './Icon';
 import { TradeMarkerLegend } from './TradeMarkerLegend';
@@ -25,6 +26,7 @@ import {
   buildTencentQuoteCodes,
   fetchFundCommonData,
   fetchFundHoldings,
+  fetchParentETFInfo,
   fetchFundPerformance,
   fetchTencentStockQuotes,
 } from '../services/api';
@@ -241,6 +243,11 @@ export const FundDetail: React.FC<FundDetailProps> = ({
   const [commonData, setCommonData] = useState<FundCommonDataResponse['data'] | null>(null);
   const [holdings, setHoldings] = useState<EquityHolding[]>([]);
   const [quotes, setQuotes] = useState<Record<string, { price: string; pct: number }>>({});
+  const [parentEtfInfo, setParentEtfInfo] = useState<ParentEtfInfo | null>(fund.parentEtfInfo || null);
+  const [parentEtfHoldings, setParentEtfHoldings] = useState<EquityHolding[]>([]);
+  const [parentEtfQuotes, setParentEtfQuotes] = useState<Record<string, { price: string; pct: number }>>(
+    {},
+  );
 
   // State for the verified last trading day (for header and API queries)
   const [lastTradingDay, setLastTradingDay] = useState<string>('');
@@ -450,39 +457,65 @@ export const FundDetail: React.FC<FundDetailProps> = ({
 
   // 5. Fetch Holdings
   useEffect(() => {
+    const buildHoldingQuotes = async (equity: EquityHolding[]) => {
+      const codes = buildTencentQuoteCodes(equity.map((h) => h.ticker));
+      if (codes.length === 0) return {};
+
+      const quoteMap = await fetchTencentStockQuotes(codes);
+      const nextQuotes: Record<string, { price: string; pct: number }> = {};
+      equity.forEach((holding) => {
+        const key = normalizeTicker(holding.ticker);
+        if (!key) return;
+        const quote = quoteMap[key];
+        if (quote) {
+          nextQuotes[holding.ticker] = quote;
+        }
+      });
+      return nextQuotes;
+    };
+
+    const normalizeParentCode = (raw?: string): string => {
+      if (!raw) return '';
+      const match = raw.toUpperCase().match(/^(\d{6})/);
+      return match?.[1] || '';
+    };
+
     const fetchHoldings = async () => {
       try {
+        const resolvedParent = fund.parentEtfInfo || (await fetchParentETFInfo(fund.code, fund.name));
+        setParentEtfInfo(resolvedParent || null);
+
         const json = await fetchFundHoldings(fund.code);
         if (json?.data?.equityHoldings) {
           const equity = json.data.equityHoldings;
           setHoldings(equity);
-
-          const codes = buildTencentQuoteCodes(equity.map((h) => h.ticker));
-          if (codes.length > 0) {
-            const quoteMap = await fetchTencentStockQuotes(codes);
-            const nextQuotes: Record<string, { price: string; pct: number }> = {};
-            equity.forEach((holding) => {
-              const key = normalizeTicker(holding.ticker);
-              if (!key) return;
-              const quote = quoteMap[key];
-              if (quote) {
-                nextQuotes[holding.ticker] = quote;
-              }
-            });
-            setQuotes(nextQuotes);
-          } else {
-            setQuotes({});
-          }
+          setQuotes(await buildHoldingQuotes(equity));
         } else {
           setHoldings([]);
           setQuotes({});
+        }
+
+        const parentCode = normalizeParentCode(resolvedParent?.parentCode);
+        if (parentCode) {
+          const parentJson = await fetchFundHoldings(parentCode);
+          if (parentJson?.data?.equityHoldings) {
+            const parentEquity = parentJson.data.equityHoldings;
+            setParentEtfHoldings(parentEquity);
+            setParentEtfQuotes(await buildHoldingQuotes(parentEquity));
+          } else {
+            setParentEtfHoldings([]);
+            setParentEtfQuotes({});
+          }
+        } else {
+          setParentEtfHoldings([]);
+          setParentEtfQuotes({});
         }
       } catch (err) {
         console.error(err);
       }
     };
     fetchHoldings();
-  }, [fund.code]);
+  }, [fund.code, fund.name, fund.parentEtfInfo]);
 
   // Resolve Display Data
   // Priority: CommonData API -> Performance API -> Local DB
@@ -788,6 +821,11 @@ export const FundDetail: React.FC<FundDetailProps> = ({
                 {fund.name}
               </h2>
               <p className="text-xs text-gray-500 dark:text-gray-400">{fund.code}</p>
+              {fund.category === 'ETF_LINK' && parentEtfInfo?.parentCode && (
+                <p className="mt-0.5 text-[11px] text-emerald-600 dark:text-emerald-300 truncate">
+                  母ETF: {parentEtfInfo.parentName || '--'} ({parentEtfInfo.parentCode})
+                </p>
+              )}
             </div>
             <div className="w-10"></div>
           </div>
@@ -997,7 +1035,7 @@ export const FundDetail: React.FC<FundDetailProps> = ({
             {holdings.length > 0 && (
               <div className="mb-2 rounded-[1.5rem] border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)]/92 p-4 shadow-[0_10px_24px_rgba(15,23,42,0.05)] transition-colors">
                 <h3 className="font-bold text-gray-800 dark:text-gray-100 text-sm mb-4 border-l-4 border-blue-500 pl-2">
-                  持仓明细{' '}
+                  当前基金持仓明细{' '}
                   <span className="text-xs text-gray-400 font-normal ml-1">(实时估算)</span>
                 </h3>
 
@@ -1052,6 +1090,76 @@ export const FundDetail: React.FC<FundDetailProps> = ({
                       </div>
                     );
                   })}
+                </div>
+              </div>
+            )}
+
+            {fund.category === 'ETF_LINK' && parentEtfInfo && parentEtfHoldings.length > 0 && (
+              <div className="mb-2 rounded-[1.5rem] border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)]/92 p-4 shadow-[0_10px_24px_rgba(15,23,42,0.05)] transition-colors">
+                <h3 className="font-bold text-gray-800 dark:text-gray-100 text-sm mb-2 border-l-4 border-emerald-500 pl-2">
+                  母ETF持仓明细
+                </h3>
+                <div className="mb-3 text-xs text-gray-500 dark:text-gray-400">
+                  {parentEtfInfo.parentName || '--'} ({parentEtfInfo.parentCode || '--'})
+                </div>
+
+                <div className="space-y-0">
+                  <div className="grid grid-cols-10 gap-2 text-xs text-gray-400 pb-2 border-b border-gray-50 dark:border-border-dark">
+                    <div className="col-span-4 pl-1">股票名称</div>
+                    <div className="col-span-3 text-right">最新价/涨跌</div>
+                    <div className="col-span-3 text-right pr-1">持仓占比</div>
+                  </div>
+
+                  {parentEtfHoldings.map((stock, idx) => {
+                    const quote = parentEtfQuotes[stock.ticker];
+                    const price = quote ? quote.price : '--';
+                    const pct = quote ? quote.pct : 0;
+                    const hasQuote = !!quote;
+
+                    return (
+                      <div
+                        key={`parent-${idx}`}
+                        className="grid grid-cols-10 items-center gap-2 border-b border-gray-50 py-3 transition-colors last:border-0 hover:bg-[var(--app-shell-panel-strong)]/70 dark:border-border-dark"
+                      >
+                        <div className="col-span-4 pl-1">
+                          <div className="font-medium text-gray-800 dark:text-gray-200 text-sm truncate">
+                            {stock.name}
+                          </div>
+                          <div className="text-xs text-gray-400 font-sans">{stock.ticker}</div>
+                        </div>
+                        <div className="col-span-3 text-right">
+                          <div className="font-sans text-sm text-gray-800 dark:text-gray-200">{price}</div>
+                          {hasQuote && (
+                            <div className={`text-xs font-sans font-medium ${getSignColor(pct)}`}>
+                              {formatPct(pct)}
+                            </div>
+                          )}
+                        </div>
+                        <div className="col-span-3 text-right pr-1">
+                          <div className="font-sans text-gray-800 dark:text-gray-200 font-medium">
+                            {stock.weight.toFixed(2)}%
+                          </div>
+                          <div className="w-full bg-gray-100 dark:bg-white/10 h-1 mt-1 rounded-full overflow-hidden flex justify-end">
+                            <div
+                              className="bg-emerald-200 dark:bg-emerald-800 h-full"
+                              style={{ width: `${Math.min(stock.weight * 5, 100)}%` }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {fund.category === 'ETF_LINK' && parentEtfInfo && parentEtfHoldings.length === 0 && (
+              <div className="mb-2 rounded-[1.5rem] border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)]/92 p-4 shadow-[0_10px_24px_rgba(15,23,42,0.05)] transition-colors">
+                <h3 className="font-bold text-gray-800 dark:text-gray-100 text-sm mb-2 border-l-4 border-emerald-500 pl-2">
+                  母ETF持仓明细
+                </h3>
+                <div className="text-xs text-gray-500 dark:text-gray-400">
+                  {parentEtfInfo.parentName || '--'} ({parentEtfInfo.parentCode || '--'}) 暂无持仓明细数据
                 </div>
               </div>
             )}

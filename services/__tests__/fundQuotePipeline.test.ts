@@ -5,6 +5,8 @@ import {
   fetchEastMoneyLatestNav,
   fetchFundCommonData,
   fetchFundHoldings,
+  fetchParentETFInfo,
+  fetchParentETFPct,
   fetchTencentStockQuotes,
 } from '../api';
 import { runFundQuotePipeline } from '../fundQuotePipeline';
@@ -13,6 +15,8 @@ vi.mock('../api', () => ({
   fetchEastMoneyLatestNav: vi.fn(),
   fetchFundCommonData: vi.fn(),
   fetchFundHoldings: vi.fn(),
+  fetchParentETFInfo: vi.fn(),
+  fetchParentETFPct: vi.fn(),
   fetchTencentStockQuotes: vi.fn(),
   buildTencentQuoteCodes: vi.fn(),
 }));
@@ -142,5 +146,42 @@ describe('runFundQuotePipeline', () => {
     expect(result.candidates).toHaveLength(1);
     expect(result.candidates[0]?.shouldEstimate).toBe(false);
     expect(result.estimateMap.size).toBe(0);
+  });
+
+  it('estimates ETF联接基金 from parent ETF pct', async () => {
+    vi.mocked(fetchEastMoneyLatestNav).mockResolvedValue({
+      nav: 1.1,
+      navDate: '2026-03-26',
+      navChangePercent: 0.2,
+    });
+    vi.mocked(fetchFundCommonData).mockResolvedValue(null);
+    vi.mocked(fetchParentETFInfo).mockResolvedValue({
+      parentCode: '516150.SH',
+      parentName: '嘉实中证稀土产业ETF',
+    });
+    vi.mocked(fetchParentETFPct).mockResolvedValue(1.0);
+    vi.mocked(fetchFundHoldings).mockResolvedValue(null);
+
+    const result = await runFundQuotePipeline(
+      [
+        {
+          item: { id: 1, code: '011036', name: '嘉实中证稀土产业ETF联接C' },
+          code: '011036',
+          fallbackNav: 0,
+          fallbackChangePct: 0,
+          dropOnMissingNav: true,
+        },
+      ],
+      {
+        todayStr: '2026-03-27',
+        shouldUseEstimatedValue: true,
+      },
+    );
+
+    expect(result.candidates).toHaveLength(1);
+    expect(result.estimateMap.get('011036')).toBeCloseTo(0.95, 6);
+    expect(fetchParentETFInfo).toHaveBeenCalledWith('011036', '嘉实中证稀土产业ETF联接C');
+    expect(fetchParentETFPct).toHaveBeenCalled();
+    expect(fetchFundHoldings).not.toHaveBeenCalled();
   });
 });

@@ -7,6 +7,7 @@ import {
   getSignColor,
   formatPct,
 } from '../services/financeUtils';
+import { isEtfLinkFundName } from '../services/constants';
 import { Icons } from './Icon';
 import { useTranslation } from '../services/i18n';
 import type { HoldingsSnapshot } from '../services/aiAnalysis';
@@ -946,6 +947,10 @@ export const Dashboard: React.FC = () => {
               ).length;
               const displayMaskedValue = (value: string) => (showValues ? value : '****');
               const displayMetricColor = (value: number) => getSignColor(value);
+              const isEtfLinkFund =
+                fund.category === 'ETF_LINK' ||
+                Boolean(fund.parentEtfInfo?.parentCode) ||
+                isEtfLinkFundName(fund.name);
 
               return (
                 <div
@@ -974,6 +979,11 @@ export const Dashboard: React.FC = () => {
                         {pendingCount > 0 && (
                           <span className="rounded-full border border-amber-200 bg-amber-50/85 px-2 py-1 text-[10px] font-semibold tracking-[0.14em] text-amber-700 dark:border-amber-400/20 dark:bg-amber-500/10 dark:text-amber-300">
                             {pendingCount} {t('common.inTransit')}
+                          </span>
+                        )}
+                        {isEtfLinkFund && (
+                          <span className="rounded-full border border-emerald-200 bg-emerald-50/85 px-2 py-1 text-[10px] font-semibold tracking-[0.14em] text-emerald-700 dark:border-emerald-400/20 dark:bg-emerald-500/10 dark:text-emerald-300">
+                            ETF联接
                           </span>
                         )}
                       </div>
@@ -1182,6 +1192,10 @@ export const Dashboard: React.FC = () => {
                     ).length;
                     const displayMaskedValue = (value: string) => (showValues ? value : '****');
                     const displayMetricColor = (value: number) => getSignColor(value);
+                    const isEtfLinkFund =
+                      fund.category === 'ETF_LINK' ||
+                      Boolean(fund.parentEtfInfo?.parentCode) ||
+                      isEtfLinkFundName(fund.name);
 
                     return (
                       <div
@@ -1210,6 +1224,11 @@ export const Dashboard: React.FC = () => {
                               {pendingCount > 0 && (
                                 <span className="rounded-full border border-amber-200 bg-amber-50/85 px-2 py-1 text-[10px] font-semibold tracking-[0.14em] text-amber-700 dark:border-amber-400/20 dark:bg-amber-500/10 dark:text-amber-300">
                                   {pendingCount} {t('common.inTransit')}
+                                </span>
+                              )}
+                              {isEtfLinkFund && (
+                                <span className="rounded-full border border-emerald-200 bg-emerald-50/85 px-2 py-1 text-[10px] font-semibold tracking-[0.14em] text-emerald-700 dark:border-emerald-400/20 dark:bg-emerald-500/10 dark:text-emerald-300">
+                                  ETF联接
                                 </span>
                               )}
                             </div>

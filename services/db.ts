@@ -3,6 +3,7 @@ import type { Fund, Account, AssetSummary, WatchlistItem, PendingTransaction } f
 import {
   fetchHistoricalFundNavWithDate,
   checkIsMarketTrading,
+  fetchParentETFInfo,
   fetchGeneralTencentQuotes,
 } from './api';
 import { getEffectiveOperationDate, roundMoney, roundShares } from './rebalanceUtils';
@@ -11,6 +12,7 @@ import {
   buildFundBackupPayload,
   parseAndNormalizeFundBackupPayload,
 } from './fundBackup';
+import { isEtfLinkFundName } from './constants';
 import { sanitizeWatchlistName } from './watchlistName';
 import { runFundQuotePipeline } from './fundQuotePipeline';
 import type { RefreshExecutionResult, RefreshExecutionStatus } from './refreshPolicy';
@@ -630,6 +632,8 @@ export const refreshFundData = (options?: RefreshOptions) => {
         candidates.map(async (candidate) => {
           const { item: fund, nav, navDate, navChangePercent } = candidate;
           const estimatedChangePct = estimateMap.get(candidate.code);
+          const parentEtfInfo = await fetchParentETFInfo(fund.code, fund.name);
+          const isEtfLink = isEtfLinkFundName(fund.name) || Boolean(parentEtfInfo?.parentCode);
 
           let isGainActive = true;
           if (fund.buyDate) {
@@ -672,7 +676,10 @@ export const refreshFundData = (options?: RefreshOptions) => {
             isNearlyEqual(fund.estimatedDayChangePct ?? 0, estimatedDayChangePct) &&
             Boolean(fund.todayChangeIsEstimated) === todayChangeIsEstimated &&
             Boolean(fund.todayChangeUnavailable) === todayChangeUnavailable &&
-            Boolean(fund.todayChangePreOpen) === todayChangePreOpen;
+            Boolean(fund.todayChangePreOpen) === todayChangePreOpen &&
+            (fund.category ?? 'UNKNOWN') === (isEtfLink ? 'ETF_LINK' : fund.category ?? 'UNKNOWN') &&
+            (fund.parentEtfInfo?.parentCode ?? '') === (parentEtfInfo?.parentCode ?? '') &&
+            (fund.parentEtfInfo?.parentName ?? '') === (parentEtfInfo?.parentName ?? '');
 
           if (shouldSkipUpdate) return;
 
@@ -686,6 +693,8 @@ export const refreshFundData = (options?: RefreshOptions) => {
             todayChangeIsEstimated,
             todayChangeUnavailable,
             todayChangePreOpen,
+            category: isEtfLink ? 'ETF_LINK' : fund.category,
+            parentEtfInfo: parentEtfInfo || undefined,
           });
         }),
       );
@@ -773,6 +782,8 @@ export const refreshWatchlistData = (options?: RefreshOptions) => {
           candidates.map(async (candidate) => {
             const { item, nav, navDate, navChangePercent } = candidate;
             const estimatedChangePct = estimateMap.get(candidate.code);
+            const parentEtfInfo = await fetchParentETFInfo(item.code, item.name);
+            const isEtfLink = isEtfLinkFundName(item.name) || Boolean(parentEtfInfo?.parentCode);
             const hasOfficialTodayNav = navDate === todayStr;
             const shouldTryEstimate = candidate.shouldEstimate && !hasOfficialTodayNav;
             const hasEstimate = shouldTryEstimate && estimatedChangePct !== undefined;
@@ -801,7 +812,10 @@ export const refreshWatchlistData = (options?: RefreshOptions) => {
               item.lastUpdate === nextLastUpdate &&
               Boolean(item.todayChangeIsEstimated) === hasEstimate &&
               Boolean(item.todayChangeUnavailable) === todayChangeUnavailable &&
-              Boolean(item.todayChangePreOpen) === todayChangePreOpen;
+              Boolean(item.todayChangePreOpen) === todayChangePreOpen &&
+              (item.category ?? 'UNKNOWN') === (isEtfLink ? 'ETF_LINK' : item.category ?? 'UNKNOWN') &&
+              (item.parentEtfInfo?.parentCode ?? '') === (parentEtfInfo?.parentCode ?? '') &&
+              (item.parentEtfInfo?.parentName ?? '') === (parentEtfInfo?.parentName ?? '');
 
             if (shouldSkipUpdate) return;
 
@@ -812,6 +826,8 @@ export const refreshWatchlistData = (options?: RefreshOptions) => {
               todayChangeIsEstimated: hasEstimate,
               todayChangeUnavailable,
               todayChangePreOpen,
+              category: isEtfLink ? 'ETF_LINK' : item.category,
+              parentEtfInfo: parentEtfInfo || undefined,
             });
           }),
         );

@@ -4,8 +4,11 @@ import {
   fetchEastMoneyLatestNav,
   fetchFundCommonData,
   fetchFundHoldings,
+  fetchParentETFInfo,
+  fetchParentETFPct,
   fetchTencentStockQuotes,
 } from './api';
+import { isEtfLinkFundName } from './constants';
 
 type HoldingTicker = { ticker: string };
 type HoldingWithWeight = HoldingTicker & { weight: number };
@@ -40,6 +43,12 @@ type FundQuotePipelineResult<T> = {
 };
 
 const normalizeTicker = (ticker?: string) => (ticker ? ticker.replace(/\D/g, '') : '');
+
+const readNameFromItem = <T>(item: T): string | undefined => {
+  if (!item || typeof item !== 'object') return undefined;
+  const candidate = (item as Record<string, unknown>).name;
+  return typeof candidate === 'string' ? candidate : undefined;
+};
 
 const calcWeightedChangePct = (
   holdings: HoldingWithWeight[],
@@ -157,8 +166,43 @@ export const runFundQuotePipeline = async <T>(
     return { candidates, estimateMap, failedBase };
   }
 
+  // 0) 先处理 ETF 联接基金：直接使用母 ETF 的实时涨跌幅
+  if (estimateCandidates.length > 0) {
+    const etfLinkResults = await Promise.allSettled(
+      estimateCandidates.map(async (candidate) => {
+        const fundName = readNameFromItem(candidate.item);
+        const parentInfo = await fetchParentETFInfo(candidate.code, fundName);
+        const isEtfLink = isEtfLinkFundName(fundName) || Boolean(parentInfo?.parentCode);
+        if (!isEtfLink || !parentInfo) return null;
+        const parentPct = await fetchParentETFPct(parentInfo, { force });
+        if (typeof parentPct !== 'number') return null;
+
+        // 联接基金通常主要持有母 ETF，默认按 95% 估算
+        return {
+          code: candidate.code,
+          pct: parentPct * 0.95,
+        };
+      }),
+    );
+
+    etfLinkResults.forEach((result) => {
+      if (result.status === 'fulfilled' && result.value) {
+        estimateMap.set(result.value.code, result.value.pct);
+      }
+    });
+  }
+
+  // ETF 联接已算出的不再走持仓估算
+  const remainingEstimateCandidates = estimateCandidates.filter(
+    (candidate) => !estimateMap.has(candidate.code),
+  );
+
+  if (remainingEstimateCandidates.length === 0) {
+    return { candidates, estimateMap, failedBase };
+  }
+
   const holdingsResults = await Promise.allSettled(
-    estimateCandidates.map(async (candidate) => {
+    remainingEstimateCandidates.map(async (candidate) => {
       const holdingsJson = await fetchFundHoldings(candidate.code, { force });
       const equityHoldings = holdingsJson?.data?.equityHoldings as EquityHolding[] | undefined;
       if (!equityHoldings || equityHoldings.length === 0) return null;

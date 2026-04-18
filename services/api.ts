@@ -5,7 +5,18 @@ import type {
   MorningstarResponse,
   FundPerformanceResponse,
   EquityHolding,
+  TrackingInfo,
+  TrackingSource,
+  TrackingConfidence,
+  ParentEtfInfo,
 } from '../types';
+import {
+  ETF_LINK_PARENT_MAP,
+  extractIndexName,
+  getIndexCode,
+  inferParentEtfName,
+  isEtfLinkFundName,
+} from './constants';
 
 // --- API Configurations ---
 const MORNINGSTAR_API_BASE = 'https://www.morningstar.cn/cn-api';
@@ -649,4 +660,293 @@ export const checkIsMarketTrading = async (options?: { force?: boolean }): Promi
     },
     shouldCache: () => true,
   });
+};
+
+// --- Fund Tracking Info API Functions ---
+
+/**
+ * Fetches fund F10 data (基金档案) from EastMoney.
+ * Returns HTML content containing tracking index and benchmark information.
+ *
+ * @param fundCode - The code of the fund
+ * @returns A promise resolving to HTML content or null on failure
+ */
+export const fetchEastMoneyF10 = async (fundCode: string): Promise<string | null> => {
+  try {
+    return await withCache({
+      key: `em-f10:${fundCode}`,
+      ttlMs: 24 * 60 * 60 * 1000, // 24小时缓存
+      fetcher: async () => {
+        const response = await fetch(
+          `https://fundf10.eastmoney.com/F10DataApi.aspx?type=jbgk&code=${fundCode}`,
+        );
+        if (!response.ok) {
+          throw new Error(`Failed to fetch F10 data for ${fundCode}`);
+        }
+        const text = await response.text();
+
+        // 解析 JavaScript 变量赋值: var apidata = {content:"..."}
+        const match = text.match(/var apidata\s*=\s*\{content:"(.*)"\};?/);
+        if (!match || !match[1]) {
+          console.warn(`No F10 content found for ${fundCode}`);
+          return null;
+        }
+
+        return match[1];
+      },
+      shouldCache: (value) => value !== null,
+    });
+  } catch (error) {
+    console.error(`Failed to fetch F10 for ${fundCode}:`, error);
+    return null;
+  }
+};
+
+/**
+ * Fetches fund tracking information using a hybrid approach:
+ * 1. Try EastMoney F10 (highest confidence)
+ * 2. Fallback to Morningstar category (medium confidence)
+ * 3. Fallback to manual configuration (if available)
+ *
+ * @param fundCode - The code of the fund
+ * @param fundName - The name of the fund (optional, for inference)
+ * @returns A promise resolving to TrackingInfo or null
+ */
+export const fetchFundTrackingInfo = async (
+  fundCode: string,
+  fundName?: string,
+): Promise<TrackingInfo | null> => {
+  try {
+    // Step 1: Try EastMoney F10
+    const f10Html = await fetchEastMoneyF10(fundCode);
+    if (f10Html) {
+      // 解析跟踪标的
+      const trackingRegex = /<th>跟踪标的<\/th><td>([^<]+)<\/td>/;
+      const trackingMatch = f10Html.match(trackingRegex);
+      let trackingIndex = trackingMatch ? trackingMatch[1].trim() : null;
+
+      // 如果是"该基金无跟踪标的",则设为 null
+      if (trackingIndex === '该基金无跟踪标的') {
+        trackingIndex = null;
+      }
+
+      // 如果找到跟踪标的,直接返回
+      if (trackingIndex) {
+        const indexCode = getIndexCode(trackingIndex);
+        if (indexCode) {
+          return {
+            indexName: trackingIndex,
+            indexCode,
+            source: 'EASTMONEY' as TrackingSource,
+            confidence: 'HIGH' as TrackingConfidence,
+            lastUpdate: new Date().toISOString(),
+          };
+        }
+      }
+
+      // 如果没有跟踪标的,尝试从业绩比较基准提取
+      const benchmarkRegex = /<th>业绩比较基准<\/th><td>([^<]+)<\/td>/;
+      const benchmarkMatch = f10Html.match(benchmarkRegex);
+      const benchmark = benchmarkMatch ? benchmarkMatch[1].trim() : null;
+
+      if (benchmark) {
+        const extractedIndex = extractIndexName(benchmark);
+        if (extractedIndex) {
+          const indexCode = getIndexCode(extractedIndex);
+          if (indexCode) {
+            return {
+              indexName: extractedIndex,
+              indexCode,
+              source: 'EASTMONEY' as TrackingSource,
+              confidence: 'MEDIUM' as TrackingConfidence,
+              lastUpdate: new Date().toISOString(),
+            };
+          }
+        }
+      }
+    }
+
+    // Step 2: Fallback to Morningstar category
+    const commonData = await fetchFundCommonData(fundCode);
+    if (commonData?.data?.morningstarCategory) {
+      const category = commonData.data.morningstarCategory;
+
+      // 尝试从晨星分类推断跟踪指数
+      // 例如: "QDII美国股票" -> 可能跟踪标普500或纳斯达克
+      // 这里只做简单映射,复杂情况需要手动配置
+      const categoryMap: Record<string, { indexName: string; indexCode: string }> = {
+        QDII美国股票: { indexName: '标普500指数', indexCode: 'SPX' },
+        沪港深股票: { indexName: '恒生指数', indexCode: 'HSI' },
+      };
+
+      const inferred = categoryMap[category];
+      if (inferred) {
+        return {
+          indexName: inferred.indexName,
+          indexCode: inferred.indexCode,
+          source: 'MORNINGSTAR' as TrackingSource,
+          confidence: 'MEDIUM' as TrackingConfidence,
+          lastUpdate: new Date().toISOString(),
+        };
+      }
+    }
+
+    // Step 3: No tracking info found
+    console.warn(`No tracking info found for ${fundCode} (${fundName || 'unknown'})`);
+    return null;
+  } catch (error) {
+    console.error(`Failed to fetch tracking info for ${fundCode}:`, error);
+    return null;
+  }
+};
+
+const formatParentEtfTencentCode = (parentCode: string): string | null => {
+  const normalized = parentCode.trim().toUpperCase();
+  const match = normalized.match(/^(\d{6})(?:\.(SH|SZ))?$/);
+  if (!match) return null;
+  const code = match[1];
+  const market = match[2];
+
+  if (market === 'SH') return `sh${code}`;
+  if (market === 'SZ') return `sz${code}`;
+  if (code.startsWith('5') || code.startsWith('6')) return `sh${code}`;
+  return `sz${code}`;
+};
+
+const normalizeParentEtfCode = (rawCode: string): string => {
+  const upper = rawCode.trim().toUpperCase();
+  const full = upper.match(/^(\d{6})\.(SH|SZ)$/);
+  if (full) return `${full[1]}.${full[2]}`;
+
+  const codeOnly = upper.match(/^(\d{6})$/)?.[1] || '';
+  if (!codeOnly) return '';
+  return codeOnly.startsWith('5') || codeOnly.startsWith('6')
+    ? `${codeOnly}.SH`
+    : `${codeOnly}.SZ`;
+};
+
+const decodeF10HtmlText = (html: string): string => {
+  return html
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&quot;/gi, '"')
+    .replace(/&amp;/gi, '&')
+    .replace(/\s+/g, ' ')
+    .trim();
+};
+
+const extractParentEtfFromF10 = (f10Html: string): ParentEtfInfo | null => {
+  const plain = decodeF10HtmlText(f10Html);
+
+  const normalizeParentName = (raw: string): string => {
+    const trimmed = raw
+      .trim()
+      .replace(/^(本基金(?:主要)?投资于|主要投资于|投资于)/, '')
+      .trim();
+    const tail = trimmed.match(/([\u4e00-\u9fa5A-Za-z0-9·\-（）()]{2,}ETF)\s*$/i);
+    return (tail?.[1] || trimmed).trim();
+  };
+
+  // name + code, e.g. 嘉实中证稀土产业ETF 516150.SH / 嘉实中证稀土产业ETF(516150)
+  const nameCodeMatch = plain.match(/([\u4e00-\u9fa5A-Za-z0-9·\-（）()]+ETF)[^\d]{0,24}(\d{6}(?:\.(?:SH|SZ))?)/i);
+  if (nameCodeMatch?.[1] && nameCodeMatch?.[2]) {
+    const normalizedCode = normalizeParentEtfCode(nameCodeMatch[2]);
+    if (normalizedCode) {
+      return {
+        parentName: normalizeParentName(nameCodeMatch[1]),
+        parentCode: normalizedCode,
+      };
+    }
+  }
+
+  // code + name, e.g. 516150.SH 嘉实中证稀土产业ETF
+  const codeNameMatch = plain.match(/(\d{6}(?:\.(?:SH|SZ))?)[^\u4e00-\u9fa5A-Za-z]{0,24}([\u4e00-\u9fa5A-Za-z0-9·\-（）()]+ETF)/i);
+  if (codeNameMatch?.[1] && codeNameMatch?.[2]) {
+    const normalizedCode = normalizeParentEtfCode(codeNameMatch[1]);
+    if (normalizedCode) {
+      return {
+        parentName: normalizeParentName(codeNameMatch[2]),
+        parentCode: normalizedCode,
+      };
+    }
+  }
+
+  return null;
+};
+
+/**
+ * 获取 ETF 联接基金对应的母 ETF 信息。
+ *
+ * 策略：
+ * 1) 优先使用手动映射（最高置信度，便于维护关键基金）
+ * 2) 再通过名称推断（如 "ETF联接C" -> "ETF"）
+ *
+ * 注意：名称推断当前仅返回名称，不会自动检索市场代码。
+ */
+export const fetchParentETFInfo = async (
+  fundCode: string,
+  fundName?: string,
+): Promise<ParentEtfInfo | null> => {
+  return withCache({
+    key: `parent-etf:${fundCode}:${fundName || ''}`,
+    ttlMs: 24 * 60 * 60 * 1000,
+    fetcher: async () => {
+      const mapped = ETF_LINK_PARENT_MAP[fundCode];
+      if (mapped) {
+        return {
+          parentCode: mapped.parentCode,
+          parentName: mapped.parentName,
+        };
+      }
+
+      const f10Html = await fetchEastMoneyF10(fundCode);
+      if (f10Html) {
+        const fromF10 = extractParentEtfFromF10(f10Html);
+        if (fromF10) {
+          return fromF10;
+        }
+      }
+
+      if (!isEtfLinkFundName(fundName)) {
+        return null;
+      }
+
+      const inferredParentName = inferParentEtfName(fundName);
+      if (!inferredParentName) return null;
+
+      // 尝试用晨星搜索补全代码
+      const search = await searchFunds(inferredParentName);
+      const candidate =
+        search?.data?.find((item) => {
+          if (!item?.fundName || !item?.symbol) return false;
+          const symbol = String(item.symbol).trim();
+          return /\d{6}/.test(symbol) && item.fundName.includes('ETF');
+        }) || null;
+
+      const matchedCode = candidate?.symbol ? String(candidate.symbol).match(/\d{6}/)?.[0] : null;
+
+      return {
+        parentCode: matchedCode ? normalizeParentEtfCode(matchedCode) : '',
+        parentName: inferredParentName,
+      };
+    },
+    shouldCache: () => true,
+  });
+};
+
+/**
+ * 获取 ETF 联接基金母 ETF 的实时涨跌幅（%）
+ */
+export const fetchParentETFPct = async (
+  parentInfo: ParentEtfInfo,
+  options?: { force?: boolean },
+): Promise<number | null> => {
+  if (!parentInfo.parentCode) return null;
+  const tencentCode = formatParentEtfTencentCode(parentInfo.parentCode);
+  if (!tencentCode) return null;
+
+  const quoteMap = await fetchTencentStockQuotes([tencentCode], options);
+  const normalized = normalizeTicker(tencentCode);
+  const quote = quoteMap[normalized];
+  return typeof quote?.pct === 'number' ? quote.pct : null;
 };
