@@ -120,6 +120,15 @@ State + storage:
 - Prefer RTL queries via `screen` and semantic selectors.
 - Keep tests deterministic; avoid relying on real network calls.
 
+## AI 持仓分析开发约定
+
+- 核心逻辑集中在 `services/aiAnalysis.ts`，其中包含提示词生成、上下文压缩、结构化结果解析与缓存 key 逻辑。
+- 定期提醒逻辑集中在 `services/aiReminder.ts`，提醒配置持久化到 localStorage；实现时应保持浏览器能力缺失时的优雅降级。
+- `components/AiHoldingsAnalysisModal.tsx` 采用常见聊天应用双栏布局：左侧会话列表，右侧聊天与分析区。新增交互优先保持这一布局，不要退回单栏堆叠式信息结构。
+- AI 可视化当前使用 ECharts，测试环境（jsdom）不支持 canvas；若新增图表初始化逻辑，必须保留测试环境保护，避免在 jsdom 中直接初始化 canvas 图表。
+- 会话导出支持 JSON / Markdown；若继续扩展 PDF 导出，应优先保证 Markdown/JSON 仍然可用，避免单一格式失败导致导出不可用。
+- AI 分析缓存应基于持仓快照、问题、模式、provider、model 共同生成 key，避免不同上下文缓存串用。
+
 ## I18n
 
 - Use `useTranslation().t("common.xxx")` from `services/i18n.tsx`.

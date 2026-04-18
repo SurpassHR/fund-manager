@@ -348,3 +348,69 @@ export interface FundMetadata {
    */
   underlyingMarket?: UnderlyingMarket;
 }
+
+// ========== AI 持仓分析会话与结构化输出类型 ==========
+
+export type AiAnalysisMode = 'quick' | 'deep' | 'risk';
+
+export type AiAnalysisRole = 'user' | 'assistant' | 'system';
+
+export interface AiAnalysisMessageRecord {
+  role: AiAnalysisRole;
+  content: string;
+  createdAt?: string;
+  tokenEstimate?: number;
+  compressed?: boolean;
+}
+
+export interface AiChatSessionRecord {
+  id: string;
+  title: string;
+  messages: AiAnalysisMessageRecord[];
+  createdAt: string;
+  updatedAt: string;
+  mode?: AiAnalysisMode;
+  pinned?: boolean;
+  archived?: boolean;
+  summary?: string;
+  lastQuestion?: string;
+  exportVersion?: number;
+}
+
+export interface AiChatSessionExportPayload {
+  version: number;
+  exportedAt: string;
+  sessions: AiChatSessionRecord[];
+}
+
+export interface AiVisualizationMetric {
+  key: string;
+  label: string;
+  value: number | string;
+  unit?: string;
+  trend?: 'up' | 'down' | 'flat';
+}
+
+export interface AiVisualizationSeriesDatum {
+  name: string;
+  value: number;
+  category?: string;
+  color?: string;
+}
+
+export interface AiVisualizationConfig {
+  type: 'pie' | 'bar' | 'line' | 'heatmap' | 'radar';
+  title: string;
+  description?: string;
+  series: AiVisualizationSeriesDatum[];
+}
+
+export interface AiStructuredAnalysisResult {
+  summary: string;
+  bullets: string[];
+  risks: string[];
+  opportunities: string[];
+  actions: string[];
+  metrics?: AiVisualizationMetric[];
+  visualizations?: AiVisualizationConfig[];
+}
