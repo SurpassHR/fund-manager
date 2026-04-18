@@ -136,6 +136,41 @@ State + storage:
 - Intraday estimate only runs when market is trading and official NAV is not today, using top-10 holdings real-time quotes.
 - `checkIsMarketTrading` must prefer Tencent index timestamp parsing and only fall back to weekday+09:20 if API parsing fails.
 
+### QDII/港股/ETF 估值规则
+
+- **基金类型识别**:使用 `identifyFundType` 识别 QDII/港股/ETF 基金,基于代码前缀(如 16xxxx)、名称关键词(如 "QDII"、"港股")和 fundType 字段。
+- **跟踪信息获取**:使用 `fetchFundTrackingInfo` 从东方财富 API 获取基金跟踪的指数或标的,返回 `{ trackingIndex, trackingSymbol }`,其中 `trackingSymbol` 是腾讯财经 API 使用的代码格式(如 "IXIC.GI" 表示纳斯达克指数)。
+- **境外行情获取**:使用 `fetchOverseasQuotes` 从腾讯财经 API 获取境外指数/股票实时行情,支持批量查询,返回包含 `symbol`、`name`、`price`、`change`、`changePct`、`updateTime` 的数组。
+- **时区处理**:境外市场交易时间判断需考虑时区差异,使用 `checkIsOverseasMarketTrading` 判断美股(美东时间 09:30-16:00)、港股(香港时间 09:30-16:00)等市场是否在交易时间内。
+- **估值计算**:QDII/港股/ETF 基金的日内估值基于跟踪指数的涨跌幅,公式为 `estimatedNav = lastNav * (1 + trackingIndexChangePct)`,仅在对应市场交易时间内计算。
+- **API 限制**:腾讯财经 API 有频率限制,`fetchOverseasQuotes` 内置请求队列管理,避免并发请求过多触发限流。
+- **数据延迟**:境外行情数据可能有 15 分钟延迟,`updateTime` 字段标识行情更新时间,需在 UI 中提示用户。
+- **错误处理**:如果跟踪信息获取失败或行情接口返回空数据,应优雅降级,不显示估值而非报错,避免影响其他基金的正常显示。
+
+### 使用示例
+
+```typescript
+// 识别基金类型
+const fundType = identifyFundType(fundCode, fundName, fundTypeField);
+if (fundType === 'QDII' || fundType === 'HK' || fundType === 'ETF') {
+  // 获取跟踪信息
+  const trackingInfo = await fetchFundTrackingInfo(fundCode);
+  if (trackingInfo?.trackingSymbol) {
+    // 检查市场交易时间
+    const isTrading = checkIsOverseasMarketTrading(trackingInfo.trackingSymbol);
+    if (isTrading) {
+      // 获取实时行情
+      const quotes = await fetchOverseasQuotes([trackingInfo.trackingSymbol]);
+      if (quotes.length > 0) {
+        const quote = quotes[0];
+        // 计算估值
+        const estimatedNav = lastNav * (1 + quote.changePct / 100);
+      }
+    }
+  }
+}
+```
+
 ## Vite/Runtime Assumptions
 
 - Vite base is `/fund-manager/` for GitHub Pages.
