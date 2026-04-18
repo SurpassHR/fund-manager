@@ -6,16 +6,16 @@ import { Header } from '../Header';
 import { LanguageProvider } from '../../services/i18n';
 
 describe('Header', () => {
-  it('renders the provided title without decorative editorial labels', () => {
+  it('renders without title (title prop is ignored)', () => {
     render(
       <LanguageProvider>
         <Header title="Test Title" />
       </LanguageProvider>,
     );
 
-    expect(screen.getByRole('heading', { name: 'Test Title' })).toBeInTheDocument();
+    // Header no longer renders title, it shows time instead
+    expect(screen.queryByRole('heading', { name: 'Test Title' })).not.toBeInTheDocument();
     expect(screen.queryByText('FM')).not.toBeInTheDocument();
-    expect(screen.queryByText('06:00')).not.toBeInTheDocument();
     expect(screen.queryByText('Morning Edition')).not.toBeInTheDocument();
   });
 

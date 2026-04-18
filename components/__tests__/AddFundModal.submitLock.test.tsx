@@ -179,17 +179,21 @@ describe('AddFundModal submit lock', () => {
 
     await waitFor(() => {
       expect(mocked.fundsAdd).toHaveBeenCalledTimes(1);
-      expect(onFundAdded).toHaveBeenCalledTimes(1);
     });
 
-    try {
+    // onClose should be called immediately after fundsAdd, before onFundAdded completes
+    await waitFor(() => {
       expect(onClose).toHaveBeenCalledTimes(1);
-    } finally {
-      await act(async () => {
-        refreshDeferred.resolve();
-        await refreshDeferred.promise;
-      });
-    }
+    });
+
+    // onFundAdded is called but may not have completed yet
+    expect(onFundAdded).toHaveBeenCalledTimes(1);
+
+    // Clean up the pending refresh promise
+    await act(async () => {
+      refreshDeferred.resolve();
+      await refreshDeferred.promise;
+    });
   });
 
   it('买入日期键盘方向键不应拦截原生行为', async () => {

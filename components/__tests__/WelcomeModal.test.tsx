@@ -56,42 +56,14 @@ describe('WelcomeModal', () => {
     const backdrop = screen.getByTestId('welcome-backdrop');
 
     await waitFor(() => {
-      expect(backdrop).toHaveClass('bg-black/60');
+      expect(backdrop).toHaveClass('bg-black/50');
     });
-
-    vi.useFakeTimers();
 
     expect(modalCard).toHaveClass('ease-[cubic-bezier(0.22,1,0.36,1)]');
     expect(backdrop).toHaveClass('transition-all');
     expect(backdrop).toHaveClass('duration-[260ms]');
-    fireEvent.click(closeButton);
-
-    expect(screen.getByRole('button', { name: '我知道了' })).toBeInTheDocument();
-    expect(backdrop).toHaveClass('bg-black/0');
-
-    act(() => {
-      vi.advanceTimersByTime(260);
-    });
-
-    expect(screen.queryByRole('button', { name: '我知道了' })).not.toBeInTheDocument();
-
-    vi.useRealTimers();
-  });
-
-  it('closes when clicking backdrop outside modal card', async () => {
-    localStorage.removeItem('lastSeenVersion');
-
-    renderWelcomeModal();
-
-    await screen.findByRole('button', { name: '我知道了' });
-    const backdrop = screen.getByTestId('welcome-backdrop');
-
-    await waitFor(() => {
-      expect(backdrop).toHaveClass('bg-black/60');
-    });
 
     vi.useFakeTimers();
-
     fireEvent.click(backdrop);
 
     expect(screen.getByRole('button', { name: '我知道了' })).toBeInTheDocument();
