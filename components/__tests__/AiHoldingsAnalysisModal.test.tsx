@@ -103,12 +103,15 @@ describe('AiHoldingsAnalysisModal', () => {
 
     renderModal();
 
-    fireEvent.click(screen.getByRole('button', { name: '重命名会话' }));
-    expect(await screen.findByRole('option', { name: '新的会话名' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: '会话更多操作' }));
+    fireEvent.click(screen.getByRole('button', { name: /重命名会话/ }));
+    const renamedNodes = await screen.findAllByText('新的会话名');
+    expect(renamedNodes.length).toBeGreaterThan(0);
 
-    fireEvent.click(screen.getByRole('button', { name: '删除会话' }));
+    fireEvent.click(screen.getByRole('button', { name: '会话更多操作' }));
+    fireEvent.click(screen.getByRole('button', { name: /删除会话/ }));
     await waitFor(() => {
-      expect(screen.queryByRole('option', { name: '新的会话名' })).not.toBeInTheDocument();
+      expect(screen.queryByText('新的会话名')).not.toBeInTheDocument();
     });
   });
 
@@ -130,7 +133,8 @@ describe('AiHoldingsAnalysisModal', () => {
     fireEvent.click(screen.getByRole('button', { name: '分析持仓' }));
 
     await waitFor(() => expect(analyzeHoldingsChatStreamMock).toHaveBeenCalled());
-    fireEvent.click(screen.getByRole('button', { name: '导出 Markdown' }));
+    fireEvent.click(screen.getByRole('button', { name: '导出会话' }));
+    fireEvent.click(screen.getByRole('button', { name: /导出 Markdown/ }));
 
     expect(createObjectURL).toHaveBeenCalled();
     expect(clickSpy).toHaveBeenCalled();
@@ -164,26 +168,32 @@ describe('AiHoldingsAnalysisModal', () => {
     expect(screen.getByRole('combobox', { name: '提醒频率' })).toHaveValue('weekly');
   });
 
-  it('桌面端使用更宽且固定尺寸的双栏弹窗，并让底栏退入模糊背景层', () => {
+  it('桌面端使用 min(90vh,980px) 的双栏工作台，并保留模糊背景层', () => {
     Object.defineProperty(window, 'innerWidth', { value: 1440, writable: true });
     renderModal();
 
-    const dialogPanel = screen.getByText('AI 持仓分析').closest('[class*="sm:w-"]');
-    expect(dialogPanel?.className).toContain('sm:w-[1120px]');
-    expect(dialogPanel?.className).toContain('sm:h-[78vh]');
+    const shell = screen.getByTestId('ai-analysis-modal-shell');
+    expect(shell.className).toContain('sm:w-[1120px]');
+    expect(shell.className).toContain('sm:h-[min(90vh,980px)]');
 
-    const overlay = screen.getByText('AI 持仓分析').closest('.fixed');
+    const overlay = shell.closest('.fixed');
     expect(overlay?.className).toContain('backdrop-blur');
 
-    const main = screen.getByRole('main');
-    expect(main.className).toContain('overflow-hidden');
+    const viewport = screen.getByTestId('ai-analysis-message-viewport');
+    expect(viewport.className).toContain('overflow-y-auto');
   });
 
-  it('聊天主卡片内部使用统一纵向间距', () => {
+  it('工具栏、消息区、输入区构成主区三段式', () => {
     renderModal();
 
-    const chatCard = screen.getByText('当前对话').closest('[class*="rounded-xl"]');
-    expect(chatCard?.className).toContain('gap-4');
+    const toolbar = screen.getByTestId('ai-analysis-toolbar');
+    const viewport = screen.getByTestId('ai-analysis-message-viewport');
+    const composer = screen.getByTestId('ai-analysis-composer');
+    const mainSection = toolbar.parentElement;
+
+    expect(mainSection).toBe(viewport.parentElement);
+    expect(mainSection).toBe(composer.parentElement);
+    expect(screen.getByText('当前对话')).toBeInTheDocument();
   });
 
   it('消息区使用更舒适的阅读宽度与平滑滚动容器', async () => {
@@ -196,10 +206,10 @@ describe('AiHoldingsAnalysisModal', () => {
 
     await waitFor(() => expect(analyzeHoldingsChatStreamMock).toHaveBeenCalled());
 
-    const scrollRegion = screen.getByTestId('ai-chat-scroll-region');
+    const scrollRegion = screen.getByTestId('ai-analysis-message-viewport');
     expect(scrollRegion.className).toContain('scroll-smooth');
 
-    const assistantBubble = screen.getByText('分析完成').closest('[class*="max-w-"]');
-    expect(assistantBubble?.className).toContain('max-w-3xl');
+    const assistantArticle = screen.getByText('分析完成').closest('article');
+    expect(assistantArticle?.className).toContain('max-w-3xl');
   });
 });
