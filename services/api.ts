@@ -239,6 +239,37 @@ export const searchFunds = async (query: string): Promise<MorningstarResponse | 
 // 使用队列严格控制并发，防止污染唯一的全局变量 window.apidata
 let eastMoneyQueue = Promise.resolve();
 
+const loadEastMoneyApiData = async (url: string): Promise<EastMoneyApiData | null> => {
+  return await new Promise((resolve) => {
+    eastMoneyQueue = eastMoneyQueue.then(() => {
+      return new Promise<void>((innerResolve) => {
+        const script = document.createElement('script');
+        script.src = url;
+        script.referrerPolicy = 'no-referrer';
+
+        const finish = (result: EastMoneyApiData | null) => {
+          if (document.head.contains(script)) {
+            document.head.removeChild(script);
+          }
+          (window as EastMoneyWindow).apidata = undefined;
+          resolve(result);
+          innerResolve();
+        };
+
+        script.onload = () => {
+          finish((window as EastMoneyWindow).apidata || null);
+        };
+
+        script.onerror = () => {
+          finish(null);
+        };
+
+        document.head.appendChild(script);
+      });
+    });
+  });
+};
+
 /**
  * Fetches the latest Net Asset Value (NAV) data for a fund from EastMoney.
  * Uses a queue to prevent concurrent requests from polluting the global window.apidata.
@@ -253,59 +284,26 @@ export const fetchEastMoneyLatestNav = async (
     key: `em-latest-nav:${fundCode}`,
     ttlMs: 30000,
     force: options?.force,
-    fetcher: () =>
-      new Promise((resolve) => {
-        eastMoneyQueue = eastMoneyQueue.then(() => {
-          return new Promise<void>((innerResolve) => {
-            const script = document.createElement('script');
-            // fundf10 端点不校验 Referer，返回 var apidata={...} 格式
-            script.src = `https://fundf10.eastmoney.com/F10DataApi.aspx?type=lsjz&code=${fundCode}&page=1&per=1&rt=${Date.now()}`;
-            // 不发送当前页面的 Referer，保护隐私
-            script.referrerPolicy = 'no-referrer';
-
-            script.onload = () => {
-              let result = null;
-              try {
-                // 脚本执行后会将结果赋值给全局 window.apidata
-                const data = (window as EastMoneyWindow).apidata;
-                if (data && data.content) {
-                  const regex =
-                    /<tr>\s*<td>(\d{4}-\d{2}-\d{2})<\/td>\s*<td[^>]*>([\d.]+)<\/td>\s*<td[^>]*>[\d.]+<\/td>\s*<td[^>]*>([-\d.]+)%?<\/td>/;
-                  const match = data.content.match(regex);
-                  if (match) {
-                    result = {
-                      navDate: match[1],
-                      nav: parseFloat(match[2]),
-                      navChangePercent: parseFloat(match[3]) || 0,
-                    };
-                  }
-                }
-              } catch (e) {
-                console.error(`Error parsing EastMoney data for ${fundCode}`, e);
-              } finally {
-                if (document.head.contains(script)) {
-                  document.head.removeChild(script);
-                }
-                (window as EastMoneyWindow).apidata = undefined;
-
-                resolve(result);
-                innerResolve();
-              }
-            };
-
-            script.onerror = () => {
-              console.error(`Failed to load EastMoney script for ${fundCode}`);
-              if (document.head.contains(script)) {
-                document.head.removeChild(script);
-              }
-              resolve(null);
-              innerResolve();
-            };
-
-            document.head.appendChild(script);
-          });
-        });
-      }),
+    fetcher: async () => {
+      const data = await loadEastMoneyApiData(
+        `https://fundf10.eastmoney.com/F10DataApi.aspx?type=lsjz&code=${fundCode}&page=1&per=1&rt=${Date.now()}`,
+      );
+      if (!data?.content) return null;
+      try {
+        const regex =
+          /<tr>\s*<td>(\d{4}-\d{2}-\d{2})<\/td>\s*<td[^>]*>([\d.]+)<\/td>\s*<td[^>]*>[\d.]+<\/td>\s*<td[^>]*>([-\d.]+)%?<\/td>/;
+        const match = data.content.match(regex);
+        if (!match) return null;
+        return {
+          navDate: match[1],
+          nav: parseFloat(match[2]),
+          navChangePercent: parseFloat(match[3]) || 0,
+        };
+      } catch (e) {
+        console.error(`Error parsing EastMoney data for ${fundCode}`, e);
+        return null;
+      }
+    },
     shouldCache: (value) => value !== null,
   });
 };
@@ -332,64 +330,27 @@ export const fetchHistoricalFundNavWithDate = async (
   return withCache({
     key: `em-hist-nav-with-date:${fundCode}:${date}`,
     ttlMs: 24 * 60 * 60 * 1000,
-    fetcher: () =>
-      new Promise((resolve) => {
-        eastMoneyQueue = eastMoneyQueue.then(() => {
-          return new Promise<void>((innerResolve) => {
-            // To support non-trading days, query a date range of 30 days ending on the target date
-            const [year, month, day] = date.split('-').map(Number);
-            const d = new Date(year, month - 1, day - 30);
-            const startDateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-
-            const script = document.createElement('script');
-            // per=1 gets only the latest 1 record within the range (since results are descending by date)
-            script.src = `https://fundf10.eastmoney.com/F10DataApi.aspx?type=lsjz&code=${fundCode}&page=1&per=1&sdate=${startDateStr}&edate=${date}&rt=${Date.now()}`;
-            script.referrerPolicy = 'no-referrer';
-
-            script.onload = () => {
-              let result = null;
-              try {
-                const data = (window as EastMoneyWindow).apidata;
-                if (data && data.content) {
-                  const regex = /<tr>\s*<td>(\d{4}-\d{2}-\d{2})<\/td>\s*<td[^>]*>([\d.]+)<\/td>/;
-                  const match = data.content.match(regex);
-                  if (match && match[1] && match[2]) {
-                    result = {
-                      navDate: match[1],
-                      nav: parseFloat(match[2]),
-                    };
-                  }
-                }
-              } catch (e) {
-                console.error(
-                  `Error parsing historical EastMoney data for ${fundCode} on ${date}`,
-                  e,
-                );
-              } finally {
-                if (document.head.contains(script)) {
-                  document.head.removeChild(script);
-                }
-                (window as EastMoneyWindow).apidata = undefined;
-                resolve(result);
-                innerResolve();
-              }
-            };
-
-            script.onerror = () => {
-              console.error(
-                `Failed to load historical EastMoney script for ${fundCode} on ${date}`,
-              );
-              if (document.head.contains(script)) {
-                document.head.removeChild(script);
-              }
-              resolve(null);
-              innerResolve();
-            };
-
-            document.head.appendChild(script);
-          });
-        });
-      }),
+    fetcher: async () => {
+      const [year, month, day] = date.split('-').map(Number);
+      const d = new Date(year, month - 1, day - 30);
+      const startDateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      const data = await loadEastMoneyApiData(
+        `https://fundf10.eastmoney.com/F10DataApi.aspx?type=lsjz&code=${fundCode}&page=1&per=1&sdate=${startDateStr}&edate=${date}&rt=${Date.now()}`,
+      );
+      if (!data?.content) return null;
+      try {
+        const regex = /<tr>\s*<td>(\d{4}-\d{2}-\d{2})<\/td>\s*<td[^>]*>([\d.]+)<\/td>/;
+        const match = data.content.match(regex);
+        if (!match?.[1] || !match?.[2]) return null;
+        return {
+          navDate: match[1],
+          nav: parseFloat(match[2]),
+        };
+      } catch (e) {
+        console.error(`Error parsing historical EastMoney data for ${fundCode} on ${date}`, e);
+        return null;
+      }
+    },
     shouldCache: (value) => value !== null,
   });
 };
@@ -677,22 +638,15 @@ export const fetchEastMoneyF10 = async (fundCode: string): Promise<string | null
       key: `em-f10:${fundCode}`,
       ttlMs: 24 * 60 * 60 * 1000, // 24小时缓存
       fetcher: async () => {
-        const response = await fetch(
-          `https://fundf10.eastmoney.com/F10DataApi.aspx?type=jbgk&code=${fundCode}`,
+        const data = await loadEastMoneyApiData(
+          `https://fundf10.eastmoney.com/F10DataApi.aspx?type=jbgk&code=${fundCode}&rt=${Date.now()}`,
         );
-        if (!response.ok) {
-          throw new Error(`Failed to fetch F10 data for ${fundCode}`);
-        }
-        const text = await response.text();
-
-        // 解析 JavaScript 变量赋值: var apidata = {content:"..."}
-        const match = text.match(/var apidata\s*=\s*\{content:"(.*)"\};?/);
-        if (!match || !match[1]) {
+        if (!data?.content) {
           console.warn(`No F10 content found for ${fundCode}`);
           return null;
         }
 
-        return match[1];
+        return data.content;
       },
       shouldCache: (value) => value !== null,
     });
