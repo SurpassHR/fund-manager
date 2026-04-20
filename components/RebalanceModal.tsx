@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { db, getSettlementDate } from '../services/db';
 import { fetchFundCommonData, fetchHistoricalFundNavWithDate, searchFunds } from '../services/api';
 import { useTranslation } from '../services/i18n';
@@ -6,6 +6,7 @@ import { roundMoney, roundShares, getEffectiveOperationDate } from '../services/
 import type { Fund, MorningstarFund, PendingTransaction } from '../types';
 import { Icons } from './Icon';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useOverlayRegistration } from '../services/overlayRegistration';
 
 interface RebalanceModalProps {
   isOpen: boolean;
@@ -56,6 +57,7 @@ export const RebalanceModal: React.FC<RebalanceModalProps> = ({
   }, [sourceFundProp]);
   const sourceFund = sourceFundProp || cachedFund;
   const { t } = useTranslation();
+  const overlayId = 'rebalance-modal';
   const [targetQuery, setTargetQuery] = useState('');
   const [targetResults, setTargetResults] = useState<MorningstarFund[]>([]);
   const [targetSearching, setTargetSearching] = useState(false);
@@ -92,16 +94,22 @@ export const RebalanceModal: React.FC<RebalanceModalProps> = ({
   const shouldShowTargetDropdown =
     !targetFund && (targetSearching || localTargetMatches.length > 0 || targetResults.length > 0);
 
+  const handleClose = useCallback(() => {
+    onClose();
+  }, [onClose]);
+
+  useOverlayRegistration(overlayId, isOpen, handleClose);
+
   useEffect(() => {
     if (!isOpen) return;
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
-        onClose();
+        handleClose();
       }
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [isOpen, onClose]);
+  }, [handleClose, isOpen]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -322,7 +330,7 @@ export const RebalanceModal: React.FC<RebalanceModalProps> = ({
       });
     });
 
-    onClose();
+    handleClose();
   };
 
   return (
@@ -330,7 +338,7 @@ export const RebalanceModal: React.FC<RebalanceModalProps> = ({
       {isOpen && (
         <motion.div
           className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm flex items-end sm:items-center justify-center sm:p-4"
-          onClick={onClose}
+          onClick={handleClose}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -346,7 +354,7 @@ export const RebalanceModal: React.FC<RebalanceModalProps> = ({
               <h3 className="font-bold text-gray-800 dark:text-gray-100">
                 {t('common.rebalanceTitle')}
               </h3>
-              <button onClick={onClose}>
+              <button onClick={handleClose}>
                 <Icons.Plus className="transform rotate-45 text-gray-400" />
               </button>
             </div>
