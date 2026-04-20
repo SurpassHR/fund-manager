@@ -5,9 +5,7 @@ import { useTranslation } from '../services/i18n';
 import { useSettings } from '../services/SettingsContext';
 import { recognizeHoldingsFromImage } from '../services/aiOcr';
 import type { OcrHoldingItem } from '../services/aiOcr';
-import {
-  resolveAiRuntimeConfigByBusiness,
-} from '../services/aiProviderConfig';
+import { resolveAiRuntimeConfigByBusiness } from '../services/aiProviderConfig';
 import { searchFunds, fetchFundCommonData } from '../services/api';
 import { db } from '../services/db';
 import type { Fund } from '../types';
@@ -347,7 +345,7 @@ export const ScannerModal: React.FC<ScannerModalProps> = ({ isOpen, onClose }) =
       <AnimatePresence>
         {isOpen && (
           <motion.div
-            className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
+            className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-end sm:items-center justify-center sm:p-4"
             onPaste={handlePaste}
             onClick={handleClose}
             initial={{ opacity: 0 }}
@@ -356,6 +354,7 @@ export const ScannerModal: React.FC<ScannerModalProps> = ({ isOpen, onClose }) =
             transition={{ duration: 0.2 }}
           >
             <div
+              className="w-full flex justify-center"
               style={{ transform: `translateX(${transformX})`, transition }}
               onTransitionEnd={() => {
                 if (closeTargetX !== null) {
@@ -370,7 +369,7 @@ export const ScannerModal: React.FC<ScannerModalProps> = ({ isOpen, onClose }) =
               }}
             >
               <motion.div
-                className="bg-white dark:bg-card-dark rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl max-h-[90vh] flex flex-col"
+                className="bg-white dark:bg-card-dark rounded-t-2xl sm:rounded-2xl w-full sm:max-w-lg overflow-hidden shadow-2xl max-h-[92vh] sm:max-h-[90vh] flex flex-col"
                 onClick={(e) => e.stopPropagation()}
                 initial={isDesktop ? { opacity: 0, scale: 0.95, y: 20 } : { opacity: 1, y: 40 }}
                 animate={isDesktop ? { opacity: 1, scale: 1, y: 0 } : { opacity: 1, y: 0 }}
@@ -451,7 +450,7 @@ export const ScannerModal: React.FC<ScannerModalProps> = ({ isOpen, onClose }) =
       <AnimatePresence>
         {isReviewing && (
           <motion.div
-            className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
+            className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm flex items-end sm:items-center justify-center sm:p-4"
             onClick={() => {
               setIsReviewing(false);
               lastAutoValidateSignatureRef.current = '';
@@ -462,6 +461,7 @@ export const ScannerModal: React.FC<ScannerModalProps> = ({ isOpen, onClose }) =
             transition={{ duration: 0.2 }}
           >
             <div
+              className="w-full flex justify-center"
               style={{ transform: `translateX(${transformX})`, transition }}
               onTransitionEnd={() => {
                 if (closeTargetX !== null) {
@@ -476,7 +476,7 @@ export const ScannerModal: React.FC<ScannerModalProps> = ({ isOpen, onClose }) =
               }}
             >
               <motion.div
-                className="bg-white dark:bg-card-dark rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl max-h-[90vh] flex flex-col"
+                className="bg-white dark:bg-card-dark rounded-t-2xl sm:rounded-2xl w-full sm:max-w-lg overflow-hidden shadow-2xl max-h-[92vh] sm:max-h-[90vh] flex flex-col"
                 onClick={(e) => e.stopPropagation()}
                 initial={isDesktop ? { opacity: 0, scale: 0.95, y: 20 } : { opacity: 1, y: 40 }}
                 animate={isDesktop ? { opacity: 1, scale: 1, y: 0 } : { opacity: 1, y: 0 }}

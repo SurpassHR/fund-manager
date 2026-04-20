@@ -5,7 +5,11 @@ import { useTranslation } from '../services/i18n';
 import { useSettings } from '../services/SettingsContext';
 import { analyzeHoldingsChatStream } from '../services/aiAnalysis';
 import type { AiAnalysisMessage, AiAnalysisMode, HoldingsSnapshot } from '../services/aiAnalysis';
-import { buildAiAnalysisCacheKey, getCachedAiAnalysisResult, setCachedAiAnalysisResult } from '../services/aiAnalysis';
+import {
+  buildAiAnalysisCacheKey,
+  getCachedAiAnalysisResult,
+  setCachedAiAnalysisResult,
+} from '../services/aiAnalysis';
 import {
   notifyAiReminder,
   readAiReminderSettings,
@@ -13,14 +17,8 @@ import {
   writeAiReminderSettings,
   type AiReminderFrequency,
 } from '../services/aiReminder';
-import {
-  resolveAiRuntimeConfigByBusiness,
-} from '../services/aiProviderConfig';
-import {
-  formatCurrency,
-  formatSignedCurrency,
-  getSignColor,
-} from '../services/financeUtils';
+import { resolveAiRuntimeConfigByBusiness } from '../services/aiProviderConfig';
+import { formatCurrency, formatSignedCurrency, getSignColor } from '../services/financeUtils';
 import { marked } from 'marked';
 import DOMPurify from 'dompurify';
 import * as echarts from 'echarts';
@@ -98,6 +96,7 @@ export const AiHoldingsAnalysisModal: React.FC<AiHoldingsAnalysisModalProps> = (
   const [openSessionMenuId, setOpenSessionMenuId] = useState<string>('');
   const [exportMenuOpen, setExportMenuOpen] = useState(false);
   const [reminderMenuOpen, setReminderMenuOpen] = useState(false);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
   const allocationChartRef = useRef<HTMLDivElement | null>(null);
   const performanceChartRef = useRef<HTMLDivElement | null>(null);
@@ -132,6 +131,7 @@ export const AiHoldingsAnalysisModal: React.FC<AiHoldingsAnalysisModalProps> = (
     setError('');
     setStreamingContent('');
     setIsStreaming(false);
+    setMobileSidebarOpen(false);
     onClose();
   }, [onClose]);
 
@@ -280,6 +280,7 @@ export const AiHoldingsAnalysisModal: React.FC<AiHoldingsAnalysisModalProps> = (
     setStreamingContent('');
     setIsStreaming(false);
     abortControllerRef.current?.abort();
+    setMobileSidebarOpen(false);
   };
 
   const handleSwitchSession = (id: string) => {
@@ -292,6 +293,7 @@ export const AiHoldingsAnalysisModal: React.FC<AiHoldingsAnalysisModalProps> = (
     setIsStreaming(false);
     const nextSession = sessions.find((session) => session.id === id);
     if (nextSession?.mode) setAnalysisMode(nextSession.mode);
+    setMobileSidebarOpen(false);
   };
 
   const handleRenameSession = (sessionId: string) => {
@@ -328,9 +330,7 @@ export const AiHoldingsAnalysisModal: React.FC<AiHoldingsAnalysisModalProps> = (
   };
 
   const handleExportSession = (sessionId?: string) => {
-    const target = sessionId
-      ? sessions.find((s) => s.id === sessionId)
-      : activeSession;
+    const target = sessionId ? sessions.find((s) => s.id === sessionId) : activeSession;
     if (!target || typeof window === 'undefined') return;
     const payload = {
       version: 1,
@@ -347,14 +347,16 @@ export const AiHoldingsAnalysisModal: React.FC<AiHoldingsAnalysisModalProps> = (
   };
 
   const handleExportMarkdown = (sessionId?: string) => {
-    const target = sessionId
-      ? sessions.find((s) => s.id === sessionId)
-      : activeSession;
+    const target = sessionId ? sessions.find((s) => s.id === sessionId) : activeSession;
     if (!target || typeof window === 'undefined') return;
-    const markdown = [`# ${target.title}`, '', ...target.messages.map((message) => {
-      const title = message.role === 'user' ? '## 用户' : '## AI';
-      return `${title}\n\n${message.content}`;
-    })].join('\n');
+    const markdown = [
+      `# ${target.title}`,
+      '',
+      ...target.messages.map((message) => {
+        const title = message.role === 'user' ? '## 用户' : '## AI';
+        return `${title}\n\n${message.content}`;
+      }),
+    ].join('\n');
     const blob = new Blob([markdown], { type: 'text/markdown;charset=utf-8' });
     const url = window.URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -407,7 +409,10 @@ export const AiHoldingsAnalysisModal: React.FC<AiHoldingsAnalysisModalProps> = (
     });
     const cachedReply = getCachedAiAnalysisResult(cacheKey);
     if (cachedReply) {
-      updateSessionMessages(sessionId, (prev) => [...prev, { role: 'assistant', content: cachedReply }]);
+      updateSessionMessages(sessionId, (prev) => [
+        ...prev,
+        { role: 'assistant', content: cachedReply },
+      ]);
       setQuestion('');
       setError('');
       return;
@@ -532,7 +537,6 @@ export const AiHoldingsAnalysisModal: React.FC<AiHoldingsAnalysisModalProps> = (
   };
   const hasHoldings = summary.holdings.length > 0;
   const canSubmit = !isStreaming && hasHoldings && (question.trim() || activeMessages.length === 0);
-  const isDesktop = typeof window !== 'undefined' && window.innerWidth >= 768;
   const isEmptyState = hasHoldings && activeMessages.length === 0 && !isStreaming;
 
   useEffect(() => {
@@ -595,18 +599,42 @@ export const AiHoldingsAnalysisModal: React.FC<AiHoldingsAnalysisModalProps> = (
         >
           <motion.div
             data-testid="ai-analysis-modal-shell"
-            className="flex h-[92vh] w-full flex-col overflow-hidden rounded-t-2xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] text-[var(--app-shell-ink)] shadow-[var(--app-shell-shadow)] sm:h-[min(90vh,980px)] sm:w-[1120px] sm:max-w-[1120px] sm:flex-row sm:rounded-2xl"
+            className="relative flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-2xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] text-[var(--app-shell-ink)] shadow-[var(--app-shell-shadow)] sm:h-[min(90vh,980px)] sm:w-[1120px] sm:max-w-[1120px] sm:flex-row sm:rounded-2xl"
             onClick={(e) => e.stopPropagation()}
-            initial={isDesktop ? { opacity: 0, scale: 0.96, y: 20 } : { opacity: 1, y: 40 }}
-            animate={isDesktop ? { opacity: 1, scale: 1, y: 0 } : { opacity: 1, y: 0 }}
-            exit={isDesktop ? { opacity: 0, scale: 0.96, y: 20 } : { opacity: 1, y: 40 }}
+            initial={{ opacity: 0, y: 40 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 40 }}
             transition={{ type: 'spring', damping: 28, stiffness: 280 }}
           >
+            {/* Mobile sidebar backdrop */}
+            <div
+              className={`absolute inset-0 z-20 bg-black/40 backdrop-blur-sm transition-opacity duration-300 ease-out sm:hidden ${
+                mobileSidebarOpen
+                  ? 'opacity-100 pointer-events-auto'
+                  : 'opacity-0 pointer-events-none'
+              }`}
+              onClick={() => setMobileSidebarOpen(false)}
+            />
+
             {/* Sidebar */}
             <aside
               data-testid="ai-analysis-sidebar"
-              className="hidden shrink-0 flex-col border-r border-[var(--app-shell-line)] bg-[var(--app-shell-panel)] sm:flex sm:w-[256px]"
+              className={`absolute inset-y-0 left-0 z-30 flex w-[84%] max-w-[320px] shrink-0 flex-col border-r border-[var(--app-shell-line)] bg-[var(--app-shell-panel)] shadow-2xl transition-transform duration-300 ease-out sm:relative sm:inset-auto sm:z-auto sm:w-[256px] sm:max-w-none sm:translate-x-0 sm:shadow-none sm:transition-none ${
+                mobileSidebarOpen ? 'translate-x-0' : '-translate-x-full'
+              }`}
             >
+              <div className="flex items-center justify-between px-3 pt-3 sm:hidden">
+                <span className="text-sm font-semibold text-[var(--app-shell-ink)]">
+                  {t('common.aiHoldingAnalysisSessions') || '会话'}
+                </span>
+                <button
+                  aria-label="关闭会话列表"
+                  onClick={() => setMobileSidebarOpen(false)}
+                  className="flex h-7 w-7 items-center justify-center rounded-full text-[var(--app-shell-muted)] hover:bg-[var(--app-shell-line)] hover:text-[var(--app-shell-ink)]"
+                >
+                  <Icons.X size={14} />
+                </button>
+              </div>
               <div className="flex flex-col gap-3 p-3">
                 <button
                   onClick={handleNewSession}
@@ -666,9 +694,7 @@ export const AiHoldingsAnalysisModal: React.FC<AiHoldingsAnalysisModalProps> = (
                       <div
                         data-menu-anchor
                         className={`absolute right-1.5 top-1.5 ${
-                          active || menuOpen
-                            ? 'opacity-100'
-                            : 'opacity-0 group-hover:opacity-100'
+                          active || menuOpen ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
                         } transition-opacity`}
                       >
                         <button
@@ -679,7 +705,16 @@ export const AiHoldingsAnalysisModal: React.FC<AiHoldingsAnalysisModalProps> = (
                           }}
                           className="flex h-6 w-6 items-center justify-center rounded text-[var(--app-shell-muted)] hover:bg-[var(--app-shell-panel-strong)] hover:text-[var(--app-shell-ink)]"
                         >
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <svg
+                            width="14"
+                            height="14"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          >
                             <circle cx="12" cy="5" r="1.5" />
                             <circle cx="12" cy="12" r="1.5" />
                             <circle cx="12" cy="19" r="1.5" />
@@ -761,12 +796,32 @@ export const AiHoldingsAnalysisModal: React.FC<AiHoldingsAnalysisModalProps> = (
             </aside>
 
             {/* Main column */}
-            <section className="flex min-w-0 flex-1 flex-col">
+            <section className="flex min-h-0 min-w-0 flex-1 flex-col">
               {/* Toolbar */}
               <header
                 data-testid="ai-analysis-toolbar"
                 className="flex shrink-0 items-center gap-3 border-b border-[var(--app-shell-line)] px-4 py-3 sm:px-5"
               >
+                <button
+                  aria-label="打开会话列表"
+                  onClick={() => setMobileSidebarOpen(true)}
+                  className="-ml-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[var(--app-shell-muted)] transition-colors hover:bg-[var(--app-shell-line)] hover:text-[var(--app-shell-ink)] sm:hidden"
+                >
+                  <svg
+                    width="18"
+                    height="18"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <line x1="3" y1="6" x2="21" y2="6" />
+                    <line x1="3" y1="12" x2="21" y2="12" />
+                    <line x1="3" y1="18" x2="21" y2="18" />
+                  </svg>
+                </button>
                 <div className="flex min-w-0 flex-1 items-center gap-3">
                   <div className="min-w-0">
                     <div className="truncate text-sm font-semibold text-[var(--app-shell-ink)]">
@@ -1069,7 +1124,13 @@ export const AiHoldingsAnalysisModal: React.FC<AiHoldingsAnalysisModalProps> = (
                           onClick={handleStop}
                           className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--app-shell-ink)] text-[var(--app-shell-paper)] transition-opacity hover:opacity-90"
                         >
-                          <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor" aria-hidden>
+                          <svg
+                            width="12"
+                            height="12"
+                            viewBox="0 0 12 12"
+                            fill="currentColor"
+                            aria-hidden
+                          >
                             <rect x="2" y="2" width="8" height="8" rx="1.5" />
                           </svg>
                         </button>
@@ -1085,9 +1146,23 @@ export const AiHoldingsAnalysisModal: React.FC<AiHoldingsAnalysisModalProps> = (
                       )}
                     </div>
                   </div>
-                  <div className="mt-2 flex items-center justify-between text-[10px] text-[var(--app-shell-muted)]">
+                  <div className="mt-2 flex items-center justify-between gap-2 text-[10px] text-[var(--app-shell-muted)]">
                     <span>Enter 发送 · Shift + Enter 换行</span>
-                    <span className="md:hidden">当前模式 · {currentModeLabel}</span>
+                    <label className="flex items-center gap-1 md:hidden">
+                      <span>模式</span>
+                      <select
+                        aria-label="选择分析模式"
+                        value={analysisMode}
+                        onChange={(e) => setAnalysisMode(e.target.value as AiAnalysisMode)}
+                        className="rounded-md border border-[var(--app-shell-line)] bg-transparent px-1.5 py-0.5 text-[11px] text-[var(--app-shell-ink)] focus:border-[var(--app-shell-accent)] focus:outline-none"
+                      >
+                        {MODE_OPTIONS.map(({ value, label }) => (
+                          <option key={value} value={value}>
+                            {label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
                   </div>
                 </div>
               </div>

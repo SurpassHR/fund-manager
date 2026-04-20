@@ -394,11 +394,11 @@ export const AddFundModal: React.FC<AddFundModalProps> = ({
 
   return (
     <div
-      className={`fixed inset-0 z-[60] flex items-center justify-center p-4 transition-all duration-[260ms] ease-[cubic-bezier(0.22,1,0.36,1)] ${isVisible ? 'bg-black/50 backdrop-blur-sm' : 'bg-black/0 backdrop-blur-0'}`}
+      className={`fixed inset-0 z-[60] flex items-end sm:items-center justify-center sm:p-4 transition-all duration-[260ms] ease-[cubic-bezier(0.22,1,0.36,1)] ${isVisible ? 'bg-black/50 backdrop-blur-sm' : 'bg-black/0 backdrop-blur-0'}`}
       onClick={handleClose}
     >
       <div
-        className={`bg-white dark:bg-card-dark rounded-xl w-full max-w-md overflow-hidden shadow-2xl flex flex-col max-h-[90vh] transition-all duration-[260ms] ease-[cubic-bezier(0.22,1,0.36,1)] ${isVisible ? 'opacity-100 scale-100' : 'opacity-0 scale-95'}`}
+        className={`bg-white dark:bg-card-dark rounded-t-2xl sm:rounded-xl w-full sm:max-w-md overflow-hidden shadow-2xl flex flex-col max-h-[92vh] sm:max-h-[90vh] transition-all duration-[260ms] ease-[cubic-bezier(0.22,1,0.36,1)] ${isVisible ? 'opacity-100 scale-100' : 'opacity-0 scale-95'}`}
         style={{
           transform: `translateX(${transformX})`,
           transition: closeTargetX !== null || snapX !== null ? 'transform 220ms ease' : undefined,

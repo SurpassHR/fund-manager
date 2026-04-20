@@ -169,7 +169,7 @@ export const WelcomeModal: React.FC = () => {
       );
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center sm:p-4">
       <div
         data-testid="welcome-backdrop"
         className={`absolute inset-0 transition-all duration-[260ms] ease-[cubic-bezier(0.22,1,0.36,1)] ${isVisible ? 'bg-black/50 backdrop-blur-sm' : 'bg-black/0 backdrop-blur-0'}`}
@@ -177,7 +177,7 @@ export const WelcomeModal: React.FC = () => {
       />
       <div
         data-testid="welcome-modal-card"
-        className={`flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-[1.75rem] border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)]/95 shadow-[var(--app-shell-shadow)] backdrop-blur-xl transition-all duration-[260ms] ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform ${isVisible ? 'opacity-100' : 'opacity-0'}`}
+        className={`flex max-h-[92vh] sm:max-h-[90vh] w-full sm:max-w-lg flex-col overflow-hidden rounded-t-[1.75rem] sm:rounded-[1.75rem] border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)]/95 shadow-[var(--app-shell-shadow)] backdrop-blur-xl transition-all duration-[260ms] ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform ${isVisible ? 'opacity-100' : 'opacity-0'}`}
         style={{
           transform: `translate3d(${transformX}, ${modalOffsetY}px, 0) scale(${modalScale})`,
           transition,

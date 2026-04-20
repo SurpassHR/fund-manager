@@ -211,13 +211,14 @@ export const AddWatchlistModal: React.FC<AddWatchlistModalProps> = ({
     <AnimatePresence>
       {isOpen && (
         <motion.div
-          className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
+          className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center sm:p-4"
           onClick={() => requestClose({ source: 'programmatic', targetX: window.innerWidth })}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
         >
           <div
+            className="w-full flex justify-center"
             style={{ transform: `translateX(${transformX})`, transition }}
             onTransitionEnd={() => {
               if (closeTargetX !== null) {
@@ -235,7 +236,7 @@ export const AddWatchlistModal: React.FC<AddWatchlistModalProps> = ({
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="bg-white dark:bg-card-dark rounded-xl shadow-xl w-full max-w-md overflow-hidden flex flex-col max-h-[90vh]"
+              className="bg-white dark:bg-card-dark rounded-t-2xl sm:rounded-xl shadow-xl w-full sm:max-w-md overflow-hidden flex flex-col max-h-[92vh] sm:max-h-[90vh]"
               onClick={(e) => e.stopPropagation()}
             >
               {/* Header */}

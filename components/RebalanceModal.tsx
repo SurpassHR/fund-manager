@@ -83,7 +83,10 @@ export const RebalanceModal: React.FC<RebalanceModalProps> = ({
     );
   }, [funds, sourceFund?.id, targetQuery]);
 
-  const availableShares = Math.max(0, (sourceFund?.holdingShares ?? 0) - getUnsettledOutShares(sourceFund));
+  const availableShares = Math.max(
+    0,
+    (sourceFund?.holdingShares ?? 0) - getUnsettledOutShares(sourceFund),
+  );
   const parsedOutShares = parseFloat(outSharesInput);
   const effectiveOpDate = opDate ? getEffectiveOperationDate(opDate, opTime) : '';
   const shouldShowTargetDropdown =
@@ -238,7 +241,8 @@ export const RebalanceModal: React.FC<RebalanceModalProps> = ({
         const nav = commonData?.data?.nav ?? 0;
         const navDate = commonData?.data?.navDate ?? opDate;
         const navChangePercent = commonData?.data?.navChangePercent ?? 0;
-        const dayChangeVal = nav > 0 ? roundMoney((nav * navChangePercent) / 100 / (1 + navChangePercent / 100)) : 0;
+        const dayChangeVal =
+          nav > 0 ? roundMoney((nav * navChangePercent) / 100 / (1 + navChangePercent / 100)) : 0;
         createdTargetSeed = {
           code: selectedTarget.code,
           name: selectedTarget.name,
@@ -325,7 +329,7 @@ export const RebalanceModal: React.FC<RebalanceModalProps> = ({
     <AnimatePresence>
       {isOpen && (
         <motion.div
-          className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
+          className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm flex items-end sm:items-center justify-center sm:p-4"
           onClick={onClose}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -335,222 +339,219 @@ export const RebalanceModal: React.FC<RebalanceModalProps> = ({
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            className="bg-white dark:bg-card-dark rounded-xl w-full max-w-md overflow-hidden shadow-2xl flex flex-col max-h-[90vh]"
+            className="bg-white dark:bg-card-dark rounded-t-2xl sm:rounded-xl w-full sm:max-w-md overflow-hidden shadow-2xl flex flex-col max-h-[92vh] sm:max-h-[90vh]"
             onClick={(e) => e.stopPropagation()}
           >
-        <div className="p-4 border-b border-gray-100 dark:border-border-dark flex justify-between items-center bg-gray-50 dark:bg-white/5">
-          <h3 className="font-bold text-gray-800 dark:text-gray-100">
-            {t('common.rebalanceTitle')}
-          </h3>
-          <button onClick={onClose}>
-            <Icons.Plus className="transform rotate-45 text-gray-400" />
-          </button>
-        </div>
-
-        <div className="p-6 space-y-4 overflow-y-auto">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-bold text-gray-500 mb-1">
-                {t('common.transferOutFund')}
-              </label>
-              <div className="w-full p-2.5 border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-white/5 text-sm text-gray-700 dark:text-gray-200">
-                {sourceFund?.name}
-              </div>
+            <div className="p-4 border-b border-gray-100 dark:border-border-dark flex justify-between items-center bg-gray-50 dark:bg-white/5">
+              <h3 className="font-bold text-gray-800 dark:text-gray-100">
+                {t('common.rebalanceTitle')}
+              </h3>
+              <button onClick={onClose}>
+                <Icons.Plus className="transform rotate-45 text-gray-400" />
+              </button>
             </div>
-            <div>
-              <label className="block text-xs font-bold text-gray-500 mb-1">
-                {t('common.transferInFund')}
-              </label>
-              <div className="space-y-2">
-                <div className="relative">
+
+            <div className="p-6 space-y-4 overflow-y-auto">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 mb-1">
+                    {t('common.transferOutFund')}
+                  </label>
+                  <div className="w-full p-2.5 border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-white/5 text-sm text-gray-700 dark:text-gray-200">
+                    {sourceFund?.name}
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 mb-1">
+                    {t('common.transferInFund')}
+                  </label>
+                  <div className="space-y-2">
+                    <div className="relative">
+                      <input
+                        value={targetQuery}
+                        onChange={(e) => {
+                          setTargetQuery(e.target.value);
+                          setTargetFund(null);
+                          setError('');
+                        }}
+                        placeholder={t('common.searchFund')}
+                        className="w-full p-2.5 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-white/5 text-sm"
+                      />
+
+                      {shouldShowTargetDropdown && (
+                        <div className="absolute left-0 right-0 top-full mt-1 z-30 max-h-40 overflow-auto border border-gray-100 dark:border-border-dark rounded-lg bg-white dark:bg-card-dark shadow-xl">
+                          {targetSearching && (
+                            <div className="px-2 py-1.5 text-xs text-gray-400">
+                              {t('common.searching')}
+                            </div>
+                          )}
+
+                          {localTargetMatches.map((f) => (
+                            <button
+                              type="button"
+                              key={`local-${f.id}`}
+                              onClick={() => {
+                                setTargetFund({
+                                  id: f.id,
+                                  code: f.code,
+                                  name: f.name,
+                                  settlementDays: f.settlementDays,
+                                });
+                                setTargetQuery(`${f.name} (${f.code})`);
+                                setTargetResults([]);
+                              }}
+                              className="w-full text-left px-2 py-1.5 text-xs hover:bg-gray-50 dark:hover:bg-white/10"
+                            >
+                              {f.name} ({f.code})
+                            </button>
+                          ))}
+
+                          {targetResults.slice(0, 8).map((f) => (
+                            <button
+                              type="button"
+                              key={f.symbol}
+                              onClick={() => {
+                                const name = f.fundNameArr || f.fundName;
+                                setTargetFund({
+                                  code: f.symbol,
+                                  name,
+                                });
+                                setTargetQuery(`${name} (${f.symbol})`);
+                                setTargetResults([]);
+                              }}
+                              className="w-full text-left px-2 py-1.5 text-xs hover:bg-gray-50 dark:hover:bg-white/10"
+                            >
+                              {f.fundNameArr || f.fundName} ({f.symbol})
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 mb-1">
+                    {t('common.operationDate')}
+                  </label>
                   <input
-                    value={targetQuery}
-                    onChange={(e) => {
-                      setTargetQuery(e.target.value);
-                      setTargetFund(null);
-                      setError('');
-                    }}
-                    placeholder={t('common.searchFund')}
+                    type="date"
+                    value={opDate}
+                    onChange={(e) => setOpDate(e.target.value)}
                     className="w-full p-2.5 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-white/5 text-sm"
                   />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 mb-1">
+                    {t('common.operationTime')}
+                  </label>
+                  <select
+                    value={opTime}
+                    onChange={(e) => setOpTime(e.target.value as 'before15' | 'after15')}
+                    className="w-full p-2.5 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-white/5 text-sm"
+                  >
+                    <option value="before15">{t('common.before15')}</option>
+                    <option value="after15">{t('common.after15')}</option>
+                  </select>
+                </div>
+              </div>
 
-                  {shouldShowTargetDropdown && (
-                    <div className="absolute left-0 right-0 top-full mt-1 z-30 max-h-40 overflow-auto border border-gray-100 dark:border-border-dark rounded-lg bg-white dark:bg-card-dark shadow-xl">
-                      {targetSearching && (
-                        <div className="px-2 py-1.5 text-xs text-gray-400">{t('common.searching')}</div>
-                      )}
+              <div>
+                <label className="block text-xs font-bold text-gray-500 mb-1">
+                  {t('common.transferOutShares')}
+                </label>
+                <input
+                  type="number"
+                  value={outSharesInput}
+                  onChange={(e) => {
+                    setOutSharesInput(e.target.value);
+                    setError('');
+                  }}
+                  placeholder={`0.00（可用 ${availableShares.toFixed(2)}）`}
+                  className="w-full p-3 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-white/5 text-gray-900 dark:text-white font-bold font-sans"
+                />
+              </div>
 
-                      {localTargetMatches.map((f) => (
-                        <button
-                          type="button"
-                          key={`local-${f.id}`}
-                          onClick={() =>
-                            {
-                              setTargetFund({
-                                id: f.id,
-                                code: f.code,
-                                name: f.name,
-                                settlementDays: f.settlementDays,
-                              });
-                              setTargetQuery(`${f.name} (${f.code})`);
-                              setTargetResults([]);
-                            }
-                          }
-                          className="w-full text-left px-2 py-1.5 text-xs hover:bg-gray-50 dark:hover:bg-white/10"
-                        >
-                          {f.name} ({f.code})
-                        </button>
-                      ))}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 mb-1">
+                    {t('common.sellFeeRate')}
+                  </label>
+                  <select
+                    value={sellFeeRate}
+                    onChange={(e) => setSellFeeRate(parseFloat(e.target.value))}
+                    className="w-full p-2.5 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-white/5 text-sm"
+                  >
+                    {FEE_OPTIONS.map((rate) => (
+                      <option key={`sell-${rate}`} value={rate}>
+                        {formatRate(rate)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 mb-1">
+                    {t('common.buyFeeRate')}
+                  </label>
+                  <select
+                    value={buyFeeRate}
+                    onChange={(e) => setBuyFeeRate(parseFloat(e.target.value))}
+                    className="w-full p-2.5 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-white/5 text-sm"
+                  >
+                    {FEE_OPTIONS.map((rate) => (
+                      <option key={`buy-${rate}`} value={rate}>
+                        {formatRate(rate)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
 
-                      {targetResults.slice(0, 8).map((f) => (
-                        <button
-                          type="button"
-                          key={f.symbol}
-                          onClick={() =>
-                            {
-                              const name = f.fundNameArr || f.fundName;
-                              setTargetFund({
-                                code: f.symbol,
-                                name,
-                              });
-                              setTargetQuery(`${name} (${f.symbol})`);
-                              setTargetResults([]);
-                            }
-                          }
-                          className="w-full text-left px-2 py-1.5 text-xs hover:bg-gray-50 dark:hover:bg-white/10"
-                        >
-                          {f.fundNameArr || f.fundName} ({f.symbol})
-                        </button>
-                      ))}
+              <div className="bg-amber-50 dark:bg-amber-900/20 p-3 rounded-lg border border-amber-200 dark:border-amber-800/50">
+                <div className="text-xs font-bold text-amber-700 dark:text-amber-200 mb-2">
+                  {t('common.estimatedTransfer')} · {effectiveOpDate || '--'}
+                </div>
+                {preview ? (
+                  <div className="grid grid-cols-2 gap-2 text-xs text-amber-700 dark:text-amber-200">
+                    <div>
+                      {t('common.estimatedOutGross')}: ¥{preview.grossOut.toFixed(2)}
                     </div>
-                  )}
-                </div>
+                    <div>
+                      {t('common.estimatedOutNet')}: ¥{preview.netOut.toFixed(2)}
+                    </div>
+                    <div>
+                      {t('common.estimatedInNet')}: ¥{preview.netIn.toFixed(2)}
+                    </div>
+                    <div>
+                      {t('common.estimatedInShares')}: {preview.inShares.toFixed(4)}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-xs text-amber-600 dark:text-amber-300">
+                    {t('common.navNotReadyTip')}
+                  </div>
+                )}
+              </div>
 
+              {error && <div className="text-sm text-red-500">{error}</div>}
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  onClick={onClose}
+                  className="flex-1 py-3 text-sm font-bold text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-white/10 rounded-xl"
+                >
+                  {t('common.cancel')}
+                </button>
+                <button
+                  onClick={handleSave}
+                  className="flex-1 py-3 text-sm font-bold text-white rounded-xl bg-blue-600 hover:bg-blue-700"
+                >
+                  {t('common.confirm')}
+                </button>
               </div>
             </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-bold text-gray-500 mb-1">
-                {t('common.operationDate')}
-              </label>
-              <input
-                type="date"
-                value={opDate}
-                onChange={(e) => setOpDate(e.target.value)}
-                className="w-full p-2.5 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-white/5 text-sm"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-gray-500 mb-1">
-                {t('common.operationTime')}
-              </label>
-              <select
-                value={opTime}
-                onChange={(e) => setOpTime(e.target.value as 'before15' | 'after15')}
-                className="w-full p-2.5 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-white/5 text-sm"
-              >
-                <option value="before15">{t('common.before15')}</option>
-                <option value="after15">{t('common.after15')}</option>
-              </select>
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-xs font-bold text-gray-500 mb-1">
-              {t('common.transferOutShares')}
-            </label>
-            <input
-              type="number"
-              value={outSharesInput}
-              onChange={(e) => {
-                setOutSharesInput(e.target.value);
-                setError('');
-              }}
-              placeholder={`0.00（可用 ${availableShares.toFixed(2)}）`}
-              className="w-full p-3 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-white/5 text-gray-900 dark:text-white font-bold font-sans"
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-bold text-gray-500 mb-1">
-                {t('common.sellFeeRate')}
-              </label>
-              <select
-                value={sellFeeRate}
-                onChange={(e) => setSellFeeRate(parseFloat(e.target.value))}
-                className="w-full p-2.5 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-white/5 text-sm"
-              >
-                {FEE_OPTIONS.map((rate) => (
-                  <option key={`sell-${rate}`} value={rate}>
-                    {formatRate(rate)}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-gray-500 mb-1">
-                {t('common.buyFeeRate')}
-              </label>
-              <select
-                value={buyFeeRate}
-                onChange={(e) => setBuyFeeRate(parseFloat(e.target.value))}
-                className="w-full p-2.5 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-white/5 text-sm"
-              >
-                {FEE_OPTIONS.map((rate) => (
-                  <option key={`buy-${rate}`} value={rate}>
-                    {formatRate(rate)}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          <div className="bg-amber-50 dark:bg-amber-900/20 p-3 rounded-lg border border-amber-200 dark:border-amber-800/50">
-            <div className="text-xs font-bold text-amber-700 dark:text-amber-200 mb-2">
-              {t('common.estimatedTransfer')} · {effectiveOpDate || '--'}
-            </div>
-            {preview ? (
-              <div className="grid grid-cols-2 gap-2 text-xs text-amber-700 dark:text-amber-200">
-                <div>
-                  {t('common.estimatedOutGross')}: ¥{preview.grossOut.toFixed(2)}
-                </div>
-                <div>
-                  {t('common.estimatedOutNet')}: ¥{preview.netOut.toFixed(2)}
-                </div>
-                <div>
-                  {t('common.estimatedInNet')}: ¥{preview.netIn.toFixed(2)}
-                </div>
-                <div>
-                  {t('common.estimatedInShares')}: {preview.inShares.toFixed(4)}
-                </div>
-              </div>
-            ) : (
-              <div className="text-xs text-amber-600 dark:text-amber-300">
-                {t('common.navNotReadyTip')}
-              </div>
-            )}
-          </div>
-
-          {error && <div className="text-sm text-red-500">{error}</div>}
-
-          <div className="flex gap-3 pt-2">
-            <button
-              onClick={onClose}
-              className="flex-1 py-3 text-sm font-bold text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-white/10 rounded-xl"
-            >
-              {t('common.cancel')}
-            </button>
-            <button
-              onClick={handleSave}
-              className="flex-1 py-3 text-sm font-bold text-white rounded-xl bg-blue-600 hover:bg-blue-700"
-            >
-              {t('common.confirm')}
-            </button>
-          </div>
-        </div>
           </motion.div>
         </motion.div>
       )}
