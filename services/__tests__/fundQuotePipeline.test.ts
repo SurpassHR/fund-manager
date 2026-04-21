@@ -70,6 +70,7 @@ describe('runFundQuotePipeline', () => {
       nav: 1.5,
       navDate: '2026-03-26',
       navChangePercent: 0.5,
+      previousNav: 1.4925,
     });
     vi.mocked(fetchFundCommonData).mockResolvedValue(null);
     vi.mocked(fetchFundHoldings).mockResolvedValue({
@@ -103,6 +104,9 @@ describe('runFundQuotePipeline', () => {
     );
 
     expect(result.candidates).toHaveLength(1);
+    expect(result.candidates[0]).toMatchObject({
+      previousNav: 1.4925,
+    });
     expect(result.estimateMap.get('000001')).toBeCloseTo(1.6, 6);
     expect(fetchFundHoldings).toHaveBeenCalledWith('000001', { force: undefined });
     expect(fetchTencentStockQuotes).toHaveBeenCalledWith(['sh000001', 'sz000002'], {

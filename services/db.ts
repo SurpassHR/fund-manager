@@ -122,9 +122,11 @@ export const deriveFundIntradayDisplayMetrics = (params: {
   navDate: string;
   todayStr: string;
   navChangePercent: number;
+  officialPreviousNav?: number;
   shouldEstimate: boolean;
   estimatedChangePct?: number;
   isGainActive: boolean;
+  dayChangeBaseNav?: number;
 }) => {
   const {
     holdingShares,
@@ -132,9 +134,11 @@ export const deriveFundIntradayDisplayMetrics = (params: {
     navDate,
     todayStr,
     navChangePercent,
+    officialPreviousNav,
     shouldEstimate,
     estimatedChangePct,
     isGainActive,
+    dayChangeBaseNav,
   } = params;
 
   const hasOfficialTodayNav = navDate === todayStr;
@@ -153,11 +157,22 @@ export const deriveFundIntradayDisplayMetrics = (params: {
 
   let dayChangeVal = 0;
   if (isGainActive) {
-    const mktVal = holdingShares * nav;
-    if (hasEstimate) {
+    const currentEffectiveNav = hasEstimate
+      ? nav * (1 + (estimatedChangePct as number) / 100)
+      : nav;
+
+    if (dayChangeBaseNav !== undefined) {
+      dayChangeVal = holdingShares * (currentEffectiveNav - dayChangeBaseNav);
+    } else if (hasEstimate) {
+      const mktVal = holdingShares * nav;
       dayChangeVal = mktVal * ((estimatedChangePct as number) / 100);
     } else if (!todayChangeUnavailable) {
-      dayChangeVal = (mktVal * (navChangePercent / 100)) / (1 + navChangePercent / 100);
+      if (officialPreviousNav !== undefined) {
+        dayChangeVal = holdingShares * (nav - officialPreviousNav);
+      } else {
+        const mktVal = holdingShares * nav;
+        dayChangeVal = (mktVal * (navChangePercent / 100)) / (1 + navChangePercent / 100);
+      }
     }
   }
 
@@ -196,6 +211,20 @@ const getCostDateStr = (buyDateStr: string, buyTime: 'before15' | 'after15'): st
     // 如果顺延后碰到了周末（比如周五15点后，按周一算）
     if (d.getDay() === 6) d.setDate(d.getDate() + 2);
     else if (d.getDay() === 0) d.setDate(d.getDate() + 1);
+  }
+
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const getPreviousTradingDateStr = (dateStr: string): string => {
+  const d = new Date(dateStr);
+  d.setDate(d.getDate() - 1);
+
+  while (d.getDay() === 0 || d.getDay() === 6) {
+    d.setDate(d.getDate() - 1);
   }
 
   const year = d.getFullYear();
@@ -630,18 +659,21 @@ export const refreshFundData = (options?: RefreshOptions) => {
 
       const updateResults = await Promise.allSettled(
         candidates.map(async (candidate) => {
-          const { item: fund, nav, navDate, navChangePercent } = candidate;
+          const { item: fund, nav, navDate, navChangePercent, previousNav } = candidate;
           const estimatedChangePct = estimateMap.get(candidate.code);
           const parentEtfInfo = await fetchParentETFInfo(fund.code, fund.name);
           const isEtfLink = isEtfLinkFundName(fund.name) || Boolean(parentEtfInfo?.parentCode);
 
           let isGainActive = true;
+          let dayChangeBaseNav: number | undefined;
           if (fund.buyDate) {
             const costDateStr = getCostDateStr(fund.buyDate, fund.buyTime || 'before15');
             const effectivePctDate =
               candidate.shouldEstimate && navDate !== todayStr ? todayStr : navDate;
             if (effectivePctDate <= costDateStr) {
               isGainActive = false;
+            } else if (getPreviousTradingDateStr(effectivePctDate) === costDateStr) {
+              dayChangeBaseNav = fund.costPrice;
             }
           }
 
@@ -651,9 +683,11 @@ export const refreshFundData = (options?: RefreshOptions) => {
             navDate,
             todayStr,
             navChangePercent,
+            officialPreviousNav: previousNav,
             shouldEstimate: candidate.shouldEstimate,
             estimatedChangePct,
             isGainActive,
+            dayChangeBaseNav,
           });
           const todayChangePreOpen = !shouldUseEstimatedValue && navDate !== todayStr;
 

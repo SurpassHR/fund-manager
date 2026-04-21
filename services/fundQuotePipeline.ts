@@ -27,6 +27,7 @@ export type FundQuoteCandidate<T> = {
   nav: number;
   navDate: string;
   navChangePercent: number;
+  previousNav?: number;
   shouldEstimate: boolean;
 };
 
@@ -113,12 +114,14 @@ export const runFundQuotePipeline = async <T>(
       let nav = input.fallbackNav;
       let navDate = '';
       let navChangePercent = input.fallbackChangePct;
+      let previousNav: number | undefined;
 
       const emData = await fetchEastMoneyLatestNav(input.code, { force });
       if (emData) {
         nav = emData.nav;
         navDate = emData.navDate;
         navChangePercent = emData.navChangePercent;
+        previousNav = emData.previousNav;
       } else {
         const json = await fetchFundCommonData(input.code, { force });
         if (json?.data?.nav) {
@@ -138,6 +141,7 @@ export const runFundQuotePipeline = async <T>(
         nav,
         navDate,
         navChangePercent,
+        previousNav,
         shouldEstimate: shouldUseEstimatedValue && !isOfficialTodayNav,
       } satisfies FundQuoteCandidate<T>;
     }),

@@ -397,25 +397,28 @@ export const fetchEastMoneyPingzhongData = async (
 export const fetchEastMoneyLatestNav = async (
   fundCode: string,
   options?: { force?: boolean },
-): Promise<{ nav: number; navDate: string; navChangePercent: number } | null> => {
+): Promise<{ nav: number; navDate: string; navChangePercent: number; previousNav?: number } | null> => {
   return withCache({
     key: `em-latest-nav:${fundCode}`,
     ttlMs: 30000,
     force: options?.force,
     fetcher: async () => {
       const data = await loadEastMoneyApiData(
-        `https://fundf10.eastmoney.com/F10DataApi.aspx?type=lsjz&code=${fundCode}&page=1&per=1&rt=${Date.now()}`,
+        `https://fundf10.eastmoney.com/F10DataApi.aspx?type=lsjz&code=${fundCode}&page=1&per=2&rt=${Date.now()}`,
       );
       if (!data?.content) return null;
       try {
-        const regex =
-          /<tr>\s*<td>(\d{4}-\d{2}-\d{2})<\/td>\s*<td[^>]*>([\d.]+)<\/td>\s*<td[^>]*>[\d.]+<\/td>\s*<td[^>]*>([-\d.]+)%?<\/td>/;
-        const match = data.content.match(regex);
-        if (!match) return null;
+        const rowRegex =
+          /<tr>\s*<td>(\d{4}-\d{2}-\d{2})<\/td>\s*<td[^>]*>([\d.]+)<\/td>\s*<td[^>]*>[\d.]+<\/td>\s*<td[^>]*>([-\d.]+)%?<\/td>/g;
+        const rows = Array.from(data.content.matchAll(rowRegex));
+        const latestRow = rows[0];
+        if (!latestRow) return null;
+        const previousRow = rows[1];
         return {
-          navDate: match[1],
-          nav: parseFloat(match[2]),
-          navChangePercent: parseFloat(match[3]) || 0,
+          navDate: latestRow[1],
+          nav: parseFloat(latestRow[2]),
+          navChangePercent: parseFloat(latestRow[3]) || 0,
+          previousNav: previousRow?.[2] ? parseFloat(previousRow[2]) : undefined,
         };
       } catch (e) {
         console.error(`Error parsing EastMoney data for ${fundCode}`, e);

@@ -57,6 +57,42 @@ describe('deriveWatchlistFundEffectivePrice', () => {
 });
 
 describe('deriveFundIntradayDisplayMetrics', () => {
+  it('uses cost price as day-gain baseline on the first active trading day', () => {
+    const metrics = deriveFundIntradayDisplayMetrics({
+      holdingShares: 25515.09,
+      nav: 1.5813,
+      navDate: '2026-03-20',
+      todayStr: '2026-03-20',
+      navChangePercent: 0.87,
+      shouldEstimate: false,
+      estimatedChangePct: undefined,
+      isGainActive: true,
+      dayChangeBaseNav: 1.5677,
+    });
+
+    expect(metrics.dayChangePct).toBe(0.87);
+    expect(metrics.dayChangeVal).toBeCloseTo(347.005224, 6);
+    expect(metrics.todayChangeIsEstimated).toBe(false);
+    expect(metrics.todayChangeUnavailable).toBe(false);
+  });
+
+  it('prefers explicit previous nav over rounded day pct for official day gain', () => {
+    const metrics = deriveFundIntradayDisplayMetrics({
+      holdingShares: 37232.3,
+      nav: 3.071,
+      navDate: '2026-03-20',
+      todayStr: '2026-03-20',
+      navChangePercent: 1.15,
+      shouldEstimate: false,
+      estimatedChangePct: undefined,
+      isGainActive: true,
+      officialPreviousNav: 3.036,
+    });
+
+    expect(metrics.dayChangePct).toBe(1.15);
+    expect(metrics.dayChangeVal).toBeCloseTo(1303.1305, 6);
+  });
+
   it('keeps estimated badge signal even when gain is not active yet', () => {
     const metrics = deriveFundIntradayDisplayMetrics({
       holdingShares: 100,
