@@ -4,6 +4,7 @@ import type {
   FundHoldingsResponse,
   MorningstarResponse,
   FundPerformanceResponse,
+  EastMoneyPingzhongData,
   EquityHolding,
   TrackingInfo,
   TrackingSource,
@@ -239,6 +240,36 @@ export const searchFunds = async (query: string): Promise<MorningstarResponse | 
 // 使用队列严格控制并发，防止污染唯一的全局变量 window.apidata
 let eastMoneyQueue = Promise.resolve();
 
+const PINGZHONG_GLOBALS = [
+  'ishb',
+  'fS_name',
+  'fS_code',
+  'fund_sourceRate',
+  'fund_Rate',
+  'fund_minsg',
+  'stockCodes',
+  'zqCodes',
+  'stockCodesNew',
+  'zqCodesNew',
+  'syl_1n',
+  'syl_6y',
+  'syl_3y',
+  'syl_1y',
+  'Data_fundSharesPositions',
+  'Data_netWorthTrend',
+  'Data_ACWorthTrend',
+  'Data_grandTotal',
+  'Data_rateInSimilarType',
+  'Data_rateInSimilarPersent',
+  'Data_fluctuationScale',
+  'Data_holderStructure',
+  'Data_assetAllocation',
+  'Data_performanceEvaluation',
+  'Data_currentFundManager',
+  'Data_buySedemption',
+  'swithSameType',
+] as const;
+
 const loadEastMoneyApiData = async (url: string): Promise<EastMoneyApiData | null> => {
   return await new Promise((resolve) => {
     eastMoneyQueue = eastMoneyQueue.then(() => {
@@ -267,6 +298,93 @@ const loadEastMoneyApiData = async (url: string): Promise<EastMoneyApiData | nul
         document.head.appendChild(script);
       });
     });
+  });
+};
+
+export const fetchEastMoneyPingzhongData = async (
+  fundCode: string,
+  options?: { force?: boolean },
+): Promise<EastMoneyPingzhongData | null> => {
+  return withCache({
+    key: `em-pingzhong:${fundCode}`,
+    ttlMs: 30 * 60 * 1000,
+    force: options?.force,
+    fetcher: async () => {
+      return new Promise<EastMoneyPingzhongData | null>((resolve) => {
+        eastMoneyQueue = eastMoneyQueue.then(() => {
+          return new Promise<void>((innerResolve) => {
+            const now = new Date();
+            const v = [
+              now.getFullYear(),
+              String(now.getMonth() + 1).padStart(2, '0'),
+              String(now.getDate()).padStart(2, '0'),
+              String(now.getHours()).padStart(2, '0'),
+              String(now.getMinutes()).padStart(2, '0'),
+              String(now.getSeconds()).padStart(2, '0'),
+            ].join('');
+
+            const script = document.createElement('script');
+            script.src = `https://fund.eastmoney.com/pingzhongdata/${fundCode}.js?v=${v}`;
+            script.referrerPolicy = 'no-referrer';
+
+            const win = window as unknown as Window &
+              Record<string, unknown> & {
+                syl_1y?: string;
+                syl_3y?: string;
+                syl_6y?: string;
+                syl_1n?: string;
+                Data_grandTotal?: EastMoneyPingzhongData['grandTotal'];
+                Data_netWorthTrend?: EastMoneyPingzhongData['netWorthTrend'];
+                Data_ACWorthTrend?: EastMoneyPingzhongData['acWorthTrend'];
+              };
+
+            const cleanup = () => {
+              if (document.head.contains(script)) {
+                document.head.removeChild(script);
+              }
+              for (const key of PINGZHONG_GLOBALS) {
+                try {
+                  delete win[key];
+                } catch {
+                  // noop
+                }
+              }
+            };
+
+            const finish = (result: EastMoneyPingzhongData | null) => {
+              cleanup();
+              resolve(result);
+              innerResolve();
+            };
+
+            script.onload = () => {
+              try {
+                finish({
+                  syl_1y: win.syl_1y ?? '',
+                  syl_3y: win.syl_3y ?? '',
+                  syl_6y: win.syl_6y ?? '',
+                  syl_1n: win.syl_1n ?? '',
+                  grandTotal: win.Data_grandTotal ?? [],
+                  netWorthTrend: win.Data_netWorthTrend ?? [],
+                  acWorthTrend: win.Data_ACWorthTrend ?? [],
+                });
+              } catch (error) {
+                console.error(`Error reading pingzhongdata for ${fundCode}`, error);
+                finish(null);
+              }
+            };
+
+            script.onerror = () => {
+              console.error(`Failed to load pingzhongdata script for ${fundCode}`);
+              finish(null);
+            };
+
+            document.head.appendChild(script);
+          });
+        });
+      });
+    },
+    shouldCache: (value) => value !== null,
   });
 };
 

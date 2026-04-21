@@ -187,6 +187,24 @@ export interface DanjuanGrowthDataResponse {
   };
 }
 
+export interface EastMoneyPingzhongData {
+  syl_1y: string;
+  syl_3y: string;
+  syl_6y: string;
+  syl_1n: string;
+  grandTotal: Array<{
+    name: string;
+    data: Array<[number, number]>;
+  }>;
+  netWorthTrend: Array<{
+    x: number;
+    y: number;
+    equityReturn: number;
+    unitMoney: string;
+  }>;
+  acWorthTrend: Array<[number, number]>;
+}
+
 // Holdings API Types
 export interface EquityHolding {
   ticker: string;
