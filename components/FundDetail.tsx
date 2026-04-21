@@ -1,12 +1,12 @@
 import React, { useCallback, useEffect, useState, useRef, useMemo } from 'react';
 import type {
   Fund,
-  FundPerformanceResponse,
   FundCommonDataResponse,
   EquityHolding,
   MorningstarGrowthDataResponse,
   DanjuanGrowthDataResponse,
   ParentEtfInfo,
+  EastMoneyPingzhongData,
 } from '../types';
 import { Icons } from './Icon';
 import { TradeMarkerLegend } from './TradeMarkerLegend';
@@ -24,10 +24,11 @@ import { resetDragState, useEdgeSwipe } from '../services/useEdgeSwipe';
 import { useOverlayRegistration } from '../services/overlayRegistration';
 import {
   buildTencentQuoteCodes,
+  fetchFundPerformance,
   fetchFundCommonData,
   fetchFundHoldings,
+  fetchEastMoneyPingzhongData,
   fetchParentETFInfo,
-  fetchFundPerformance,
   fetchTencentStockQuotes,
 } from '../services/api';
 import * as echarts from 'echarts';
@@ -47,6 +48,18 @@ type GrowthSeriesData = {
   fund: number[];
   avg: number[];
   bmk: number[];
+};
+
+type HistoryNavRow = {
+  date: string;
+  nav: number;
+  accNav: number | null;
+  change: number | null;
+};
+
+type AnnualReturnRow = {
+  year: string;
+  value: number;
 };
 
 type TooltipSeriesParam = {
@@ -85,37 +98,169 @@ const getLocalDateString = (): string => {
   return `${year}-${month}-${day}`;
 };
 
+const formatLocalDate = (input: Date | number): string => {
+  const d = typeof input === 'number' ? new Date(input) : input;
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const parseLocalDate = (dateStr: string): Date => {
+  const [year, month, day] = dateStr.split('-').map(Number);
+  return new Date(year, month - 1, day);
+};
+
 const normalizeTicker = (ticker?: string) => (ticker ? ticker.replace(/\D/g, '') : '');
 
 // Calculate Start Date based on Range and End Date
 const getStartDate = (range: TimeRange, endDateStr: string): string => {
-  // Parse as UTC (YYYY-MM-DD is UTC by default in Date constructor)
-  const d = new Date(endDateStr);
+  const d = parseLocalDate(endDateStr);
 
-  // Use UTC methods to ensure we stay on the correct calendar day regardless of local timezone
   switch (range) {
     case '1M':
-      d.setUTCMonth(d.getUTCMonth() - 1);
+      d.setMonth(d.getMonth() - 1);
       break;
     case '3M':
-      d.setUTCMonth(d.getUTCMonth() - 3);
+      d.setMonth(d.getMonth() - 3);
       break;
     case '6M':
-      d.setUTCMonth(d.getUTCMonth() - 6);
+      d.setMonth(d.getMonth() - 6);
       break;
     case '1Y':
-      d.setUTCFullYear(d.getUTCFullYear() - 1);
+      d.setFullYear(d.getFullYear() - 1);
       break;
     case '3Y':
-      d.setUTCFullYear(d.getUTCFullYear() - 3);
+      d.setFullYear(d.getFullYear() - 3);
       break;
     case '5Y':
-      d.setUTCFullYear(d.getUTCFullYear() - 5);
+      d.setFullYear(d.getFullYear() - 5);
       break;
   }
 
-  // ISO string is always UTC, which matches our YYYY-MM-DD need
-  return d.toISOString().split('T')[0];
+  return formatLocalDate(d);
+};
+
+const buildEastMoneyGrowthSeries = (
+  pingzhongData: EastMoneyPingzhongData | null,
+): GrowthSeriesData | null => {
+  if (!pingzhongData?.grandTotal?.length) return null;
+
+  const [fundSeries, secondSeries, thirdSeries] = pingzhongData.grandTotal;
+  if (!fundSeries?.data?.length) return null;
+
+  const benchmarkSeries = thirdSeries?.data?.length ? thirdSeries : secondSeries;
+  const averageSeries = thirdSeries?.data?.length ? secondSeries : null;
+  const avgMap = new Map<number, number>((averageSeries?.data || []).map(([ts, value]) => [ts, value]));
+  const bmkMap = new Map<number, number>((benchmarkSeries?.data || []).map(([ts, value]) => [ts, value]));
+
+  const normalized = fundSeries.data
+    .filter((item): item is [number, number] => Array.isArray(item) && item.length >= 2)
+    .map(([ts, value]) => ({ ts, date: formatLocalDate(ts), fund: value }))
+    .filter((item) => !Number.isNaN(item.fund));
+
+  if (normalized.length === 0) return null;
+
+  return {
+    dates: normalized.map((item) => item.date),
+    fund: normalized.map((item) => item.fund),
+    avg: normalized.map((item) => avgMap.get(item.ts) ?? 0),
+    bmk: normalized.map((item) => bmkMap.get(item.ts) ?? 0),
+  };
+};
+
+const sliceGrowthSeriesByRange = (
+  data: GrowthSeriesData,
+  startDate: string,
+  endDate: string,
+): GrowthSeriesData | null => {
+  const nextDates: string[] = [];
+  const nextFund: number[] = [];
+  const nextAvg: number[] = [];
+  const nextBmk: number[] = [];
+
+  data.dates.forEach((date, index) => {
+    if (date < startDate || date > endDate) return;
+    nextDates.push(date);
+    nextFund.push(data.fund[index] ?? 0);
+    nextAvg.push(data.avg[index] ?? 0);
+    nextBmk.push(data.bmk[index] ?? 0);
+  });
+
+  if (nextDates.length === 0) return null;
+
+  return {
+    dates: nextDates,
+    fund: nextFund,
+    avg: nextAvg,
+    bmk: nextBmk,
+  };
+};
+
+const buildEastMoneyHistoryRows = (
+  pingzhongData: EastMoneyPingzhongData | null,
+): HistoryNavRow[] => {
+  if (!pingzhongData?.netWorthTrend?.length) return [];
+
+  const accNavMap = new Map<string, number>();
+  pingzhongData.acWorthTrend.forEach(([ts, value]) => {
+    if (typeof ts !== 'number' || typeof value !== 'number' || Number.isNaN(value)) return;
+    accNavMap.set(formatLocalDate(ts), value);
+  });
+
+  return pingzhongData.netWorthTrend
+    .filter((item) => typeof item.x === 'number' && typeof item.y === 'number' && !Number.isNaN(item.y))
+    .map((item) => {
+      const date = formatLocalDate(item.x);
+      return {
+        date: date.substring(5),
+        nav: item.y,
+        accNav: accNavMap.get(date) ?? null,
+        change: typeof item.equityReturn === 'number' && !Number.isNaN(item.equityReturn)
+          ? item.equityReturn
+          : null,
+      };
+    })
+    .reverse();
+};
+
+const buildEastMoneyAnnualReturnRows = (
+  pingzhongData: EastMoneyPingzhongData | null,
+): AnnualReturnRow[] => {
+  if (!pingzhongData?.acWorthTrend?.length) return [];
+
+  const sortedPoints = pingzhongData.acWorthTrend
+    .filter(
+      (item): item is [number, number] =>
+        Array.isArray(item) &&
+        item.length >= 2 &&
+        typeof item[0] === 'number' &&
+        typeof item[1] === 'number' &&
+        !Number.isNaN(item[1]),
+    )
+    .map(([ts, value]) => ({ date: formatLocalDate(ts), value }))
+    .sort((a, b) => a.date.localeCompare(b.date));
+
+  if (sortedPoints.length < 2) return [];
+
+  const yearEndMap = new Map<number, number>();
+  sortedPoints.forEach((point) => {
+    const year = Number(point.date.slice(0, 4));
+    yearEndMap.set(year, point.value);
+  });
+
+  const rows: AnnualReturnRow[] = [];
+  for (const [year, yearEndValue] of [...yearEndMap.entries()].sort((a, b) => a[0] - b[0])) {
+    const basePoint = [...sortedPoints].reverse().find((point) => point.date < `${year}-01-01`);
+    if (!basePoint) continue;
+
+    rows.push({
+      year: String(year),
+      value: ((yearEndValue / basePoint.value) - 1) * 100,
+    });
+  }
+
+  return rows.reverse();
 };
 
 const buildGrowthCacheKey = (fundCode: string, range: TimeRange, endDate: string) => {
@@ -239,9 +384,10 @@ export const FundDetail: React.FC<FundDetailProps> = ({
   // snap-back animation is driven by App.tsx via snapBackX
 
   // Data States
-  const [data, setData] = useState<FundPerformanceResponse['data'] | null>(null);
+  const [pingzhongData, setPingzhongData] = useState<EastMoneyPingzhongData | null>(null);
   const [commonData, setCommonData] = useState<FundCommonDataResponse['data'] | null>(null);
   const [holdings, setHoldings] = useState<EquityHolding[]>([]);
+  const [performanceAnnualReturns, setPerformanceAnnualReturns] = useState<AnnualReturnRow[]>([]);
   const [quotes, setQuotes] = useState<Record<string, { price: string; pct: number }>>({});
   const [parentEtfInfo, setParentEtfInfo] = useState<ParentEtfInfo | null>(fund.parentEtfInfo || null);
   const [parentEtfHoldings, setParentEtfHoldings] = useState<EquityHolding[]>([]);
@@ -296,8 +442,13 @@ export const FundDetail: React.FC<FundDetailProps> = ({
   useEffect(() => {
     if (lastTradingDay) return;
 
-    if (data?.dayEnd?.endDate) {
-      setLastTradingDay(data.dayEnd.endDate);
+    if (pingzhongData?.netWorthTrend && pingzhongData.netWorthTrend.length > 0) {
+      const lastItem = pingzhongData.netWorthTrend[pingzhongData.netWorthTrend.length - 1];
+      const d = new Date(lastItem.x);
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const date = String(d.getDate()).padStart(2, '0');
+      setLastTradingDay(`${year}-${month}-${date}`);
       return;
     }
 
@@ -308,21 +459,41 @@ export const FundDetail: React.FC<FundDetailProps> = ({
       }
     }, 1000); // 给 common-data API 1s 的响应时间
     return () => clearTimeout(timer);
-  }, [data, lastTradingDay]);
+  }, [lastTradingDay, pingzhongData]);
 
   // 3. Fetch Basic Performance (Stats)
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const json = await fetchFundPerformance(fund.code);
-        if (json?.data) {
-          setData(json.data);
+        const result = await fetchEastMoneyPingzhongData(fund.code);
+        if (result) {
+          setPingzhongData(result);
         }
       } catch (err) {
-        console.error('Perf Fetch Error', err);
+        console.error('Pingzhong Fetch Error', err);
       }
     };
     fetchData();
+  }, [fund.code]);
+
+  useEffect(() => {
+    const fetchPerformance = async () => {
+      try {
+        const result = await fetchFundPerformance(fund.code);
+        const annualReturns = result?.data?.annual?.returns ?? [];
+        setPerformanceAnnualReturns(
+          annualReturns
+            .map((item) => ({ year: String(item.k), value: item.v }))
+            .filter((item) => item.year && typeof item.value === 'number' && !Number.isNaN(item.value))
+            .reverse(),
+        );
+      } catch (err) {
+        console.error('Performance Fetch Error', err);
+        setPerformanceAnnualReturns([]);
+      }
+    };
+
+    fetchPerformance();
   }, [fund.code]);
 
   // 4. Fetch Chart Data (Growth Data)
@@ -406,8 +577,21 @@ export const FundDetail: React.FC<FundDetailProps> = ({
     };
 
     const fetchGrowthData = async () => {
-      const todayStr = getLocalDateString();
       const startDate = getStartDate(timeRange, lastTradingDay);
+      const eastMoneySeries = sliceGrowthSeriesByRange(
+        buildEastMoneyGrowthSeries(pingzhongData) ?? { dates: [], fund: [], avg: [], bmk: [] },
+        startDate,
+        lastTradingDay,
+      );
+
+      if (eastMoneySeries) {
+        if (!cancelled) {
+          setChartSeriesData(eastMoneySeries);
+        }
+        return;
+      }
+
+      const todayStr = getLocalDateString();
       const cacheKey = buildGrowthCacheKey(fund.code, timeRange, lastTradingDay);
       const cached = readGrowthCache(cacheKey);
       const isTodayCache = cached?.cacheDate === todayStr;
@@ -453,7 +637,7 @@ export const FundDetail: React.FC<FundDetailProps> = ({
     return () => {
       cancelled = true;
     };
-  }, [fund.code, fund.dayChangePct, timeRange, lastTradingDay]);
+  }, [fund.code, fund.dayChangePct, lastTradingDay, pingzhongData, timeRange]);
 
   // 5. Fetch Holdings
   useEffect(() => {
@@ -519,8 +703,9 @@ export const FundDetail: React.FC<FundDetailProps> = ({
 
   // Resolve Display Data
   // Priority: CommonData API -> Performance API -> Local DB
-  const currentNav = commonData?.nav ?? data?.dayEnd?.nav ?? fund.currentNav;
-  const dayChangePct = commonData?.navChangePercent ?? data?.dayEnd?.changeP ?? fund.dayChangePct;
+  const latestNetWorth = pingzhongData?.netWorthTrend?.[pingzhongData.netWorthTrend.length - 1];
+  const currentNav = commonData?.nav ?? latestNetWorth?.y ?? fund.currentNav;
+  const dayChangePct = commonData?.navChangePercent ?? latestNetWorth?.equityReturn ?? fund.dayChangePct;
   const displayDate = commonData?.navDate ?? lastTradingDay ?? fund.lastUpdate;
 
   // Initialize and Update ECharts
@@ -702,7 +887,7 @@ export const FundDetail: React.FC<FundDetailProps> = ({
   // Derived History Table Data based on Chart Data + Current NAV
   // Only show dates up to the authoritative lastTradingDay to avoid displaying
   // the intraday estimate (injected by withTodayEstimate for the chart) as a fake NAV row.
-  const historyData = useMemo(() => {
+  const derivedHistoryData = useMemo(() => {
     if (!chartSeriesData || !chartSeriesData.dates || chartSeriesData.dates.length === 0) return [];
 
     // Find the last index that corresponds to a real NAV date (≤ lastTradingDay).
@@ -744,6 +929,21 @@ export const FundDetail: React.FC<FundDetailProps> = ({
     }
     return list;
   }, [chartSeriesData, currentNav, lastTradingDay]);
+
+  const historyData = useMemo(() => {
+    const eastMoneyRows = buildEastMoneyHistoryRows(pingzhongData);
+    if (eastMoneyRows.length > 0) return eastMoneyRows;
+    return derivedHistoryData.map((item) => ({
+      ...item,
+      accNav: item.nav,
+    }));
+  }, [derivedHistoryData, pingzhongData]);
+
+  const annualReturnData = useMemo(() => {
+    const eastMoneyRows = buildEastMoneyAnnualReturnRows(pingzhongData);
+    if (eastMoneyRows.length > 0) return eastMoneyRows;
+    return performanceAnnualReturns;
+  }, [performanceAnnualReturns, pingzhongData]);
 
   // Add ESC key listener to close
   useEffect(() => {
@@ -954,21 +1154,21 @@ export const FundDetail: React.FC<FundDetailProps> = ({
             </div>
 
             {/* Historical Data Grid (Performance Summary) */}
-            {data ? (
+            {pingzhongData ? (
               <div className="mb-2 rounded-[1.5rem] border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)]/92 p-4 shadow-[0_10px_24px_rgba(15,23,42,0.05)] transition-colors">
                 <div className="grid grid-cols-4 gap-2 text-center">
                   {[
-                    { label: '近6月', val: data.dayEnd?.returns?.YTD },
-                    { label: '近1年', val: data.dayEnd?.returns?.Y1 },
-                    { label: '近3年', val: data.dayEnd?.returns?.Y3 },
-                    { label: '成立来', val: data.dayEnd?.returns?.sinceInception },
+                    { label: '近1月', val: pingzhongData.syl_1y ? parseFloat(pingzhongData.syl_1y) : null },
+                    { label: '近3月', val: pingzhongData.syl_3y ? parseFloat(pingzhongData.syl_3y) : null },
+                    { label: '近6月', val: pingzhongData.syl_6y ? parseFloat(pingzhongData.syl_6y) : null },
+                    { label: '近1年', val: pingzhongData.syl_1n ? parseFloat(pingzhongData.syl_1n) : null },
                   ].map((item, idx) => (
                     <div key={idx} className="flex flex-col gap-1 py-1 rounded">
                       <span className="text-xs text-gray-400 mb-1">{item.label}</span>
                       <span
                         className={`font-sans font-bold text-sm ${getSignColor(item.val || 0)}`}
                       >
-                        {item.val ? formatPct(item.val) : '--'}
+                        {item.val != null && !isNaN(item.val) ? formatPct(item.val) : '--'}
                       </span>
                     </div>
                   ))}
@@ -1014,14 +1214,13 @@ export const FundDetail: React.FC<FundDetailProps> = ({
                       <div className="text-center text-gray-800 dark:text-gray-200 font-sans">
                         {item.nav.toFixed(4)}
                       </div>
-                      {/* Using derived nav for accumulated as well, since chart is adjusted returns */}
                       <div className="text-center text-gray-800 dark:text-gray-200 font-sans">
-                        {item.nav.toFixed(4)}
+                        {item.accNav != null ? item.accNav.toFixed(4) : '--'}
                       </div>
                       <div
-                        className={`text-right pr-2 font-sans font-medium ${getSignColor(item.change)}`}
+                        className={`text-right pr-2 font-sans font-medium ${getSignColor(item.change ?? 0)}`}
                       >
-                        {formatPct(item.change)}
+                        {item.change != null ? formatPct(item.change) : '--'}
                       </div>
                     </div>
                   ))
@@ -1030,6 +1229,40 @@ export const FundDetail: React.FC<FundDetailProps> = ({
                 )}
               </div>
             </div>
+
+            {/* Annual Returns Table */}
+            {annualReturnData.length > 0 && (
+              <div className="mb-2 rounded-[1.5rem] border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)]/92 p-4 shadow-[0_10px_24px_rgba(15,23,42,0.05)] transition-colors">
+                <div className="flex items-center justify-between mb-4 border-l-4 border-blue-500 pl-2">
+                  <h3 className="font-bold text-gray-800 dark:text-gray-100 text-sm">
+                    {t('common.annualReturns')}
+                  </h3>
+                </div>
+
+                <div className="space-y-0">
+                  <div className="grid grid-cols-2 gap-2 text-xs text-gray-400 pb-3">
+                    <div className="text-left pl-2">{t('common.year')}</div>
+                    <div className="text-right pr-2">{t('common.returnRate')}</div>
+                  </div>
+
+                  {annualReturnData.map((item, idx) => (
+                    <div
+                      key={`${item.year}-${idx}`}
+                      className="grid grid-cols-2 gap-2 py-3 border-t border-gray-50 dark:border-border-dark items-center text-sm transition-colors"
+                    >
+                      <div className="text-left pl-2 text-gray-600 dark:text-gray-400 font-medium font-sans">
+                        {item.year}
+                      </div>
+                      <div
+                        className={`text-right pr-2 font-sans font-medium ${getSignColor(item.value)}`}
+                      >
+                        {formatPct(item.value)}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Holdings Section */}
             {holdings.length > 0 && (
@@ -1160,33 +1393,6 @@ export const FundDetail: React.FC<FundDetailProps> = ({
                 </h3>
                 <div className="text-xs text-gray-500 dark:text-gray-400">
                   {parentEtfInfo.parentName || '--'} ({parentEtfInfo.parentCode || '--'}) 暂无持仓明细数据
-                </div>
-              </div>
-            )}
-
-            {/* Annual Returns Table */}
-            {data && data.annual && (
-              <div className="rounded-[1.5rem] border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)]/92 p-4 shadow-[0_10px_24px_rgba(15,23,42,0.05)] transition-colors">
-                <h3 className="font-bold text-gray-800 dark:text-gray-100 text-sm mb-4 border-l-4 border-blue-500 pl-2">
-                  年度回报
-                </h3>
-                <div className="space-y-3">
-                  {data.annual.returns
-                    ?.slice()
-                    .reverse()
-                    .map((item) => (
-                      <div
-                        key={item.k}
-                        className="flex justify-between items-center text-sm border-b border-gray-50 dark:border-border-dark pb-2 last:border-0"
-                      >
-                        <span className="text-gray-600 dark:text-gray-400 font-sans">
-                          {item.k}年
-                        </span>
-                        <span className={`font-sans font-medium ${getSignColor(item.v)}`}>
-                          {formatPct(item.v)}
-                        </span>
-                      </div>
-                    ))}
                 </div>
               </div>
             )}
