@@ -5,6 +5,23 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { FundDetail } from '../FundDetail';
 import type { Fund } from '../../types';
 
+type Deferred<T> = {
+  promise: Promise<T>;
+  resolve: (value: T) => void;
+  reject: (reason?: unknown) => void;
+};
+
+const createDeferred = <T,>() => {
+  let resolve!: (value: T) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+
+  return { promise, resolve, reject } satisfies Deferred<T>;
+};
+
 const mockedApi = vi.hoisted(() => ({
   fetchFundCommonData: vi.fn(),
   fetchFundHoldings: vi.fn(),
@@ -209,6 +226,67 @@ describe('FundDetail history performance source', () => {
     expect(screen.queryByText('04-05')).not.toBeInTheDocument();
     expect(screen.getByText('04-07')).toBeInTheDocument();
     expect(screen.getByText('04-03')).toBeInTheDocument();
+  });
+
+  it('hides chart loading overlay after EastMoney data arrives during a cancelled fallback fetch', async () => {
+    const deferredPingzhong = createDeferred<Awaited<
+      ReturnType<typeof mockedApi.fetchEastMoneyPingzhongData>
+    > | null>();
+
+    mockedApi.fetchFundCommonData.mockResolvedValueOnce({
+      data: {
+        nav: 1.2345,
+        navDate: '2026-04-07',
+        navChangePercent: 0.5,
+      },
+    });
+    mockedApi.fetchEastMoneyPingzhongData.mockReturnValueOnce(deferredPingzhong.promise);
+    vi.stubGlobal('fetch', vi.fn(() => new Promise(() => {})));
+
+    render(<FundDetail fund={fund} onBack={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(screen.getByText('refresh')).toBeInTheDocument();
+    });
+
+    deferredPingzhong.resolve({
+      syl_1y: '1.11',
+      syl_3y: '2.22',
+      syl_6y: '3.33',
+      syl_1n: '4.44',
+      grandTotal: [
+        {
+          name: '本基金',
+          data: [
+            [new Date('2026-04-03').getTime(), 1.2],
+            [new Date('2026-04-07').getTime(), 2.4],
+          ],
+        },
+        {
+          name: '业绩比较基准',
+          data: [
+            [new Date('2026-04-03').getTime(), 0.8],
+            [new Date('2026-04-07').getTime(), 1.6],
+          ],
+        },
+      ],
+      netWorthTrend: [
+        { x: new Date('2026-04-03').getTime(), y: 1.4321, equityReturn: -0.12, unitMoney: '' },
+        { x: new Date('2026-04-07').getTime(), y: 1.5, equityReturn: 1.23, unitMoney: '' },
+      ],
+      acWorthTrend: [
+        [new Date('2026-04-03').getTime(), 1.7321],
+        [new Date('2026-04-07').getTime(), 1.8],
+      ],
+    });
+
+    await waitFor(() => {
+      expect(chartSpies.setOption).toHaveBeenCalled();
+    });
+
+    await waitFor(() => {
+      expect(screen.queryByText('refresh')).not.toBeInTheDocument();
+    });
   });
 
   it('keeps latest unit nav and accumulated nav stable when switching time ranges', async () => {

@@ -586,6 +586,7 @@ export const FundDetail: React.FC<FundDetailProps> = ({
 
       if (eastMoneySeries) {
         if (!cancelled) {
+          setChartLoading(false);
           setChartSeriesData(eastMoneySeries);
         }
         return;
@@ -597,6 +598,7 @@ export const FundDetail: React.FC<FundDetailProps> = ({
       const isTodayCache = cached?.cacheDate === todayStr;
 
       if (isTodayCache && cached) {
+        setChartLoading(false);
         setChartSeriesData(withTodayEstimate(cached.data, fund.dayChangePct));
         return;
       }
@@ -618,11 +620,13 @@ export const FundDetail: React.FC<FundDetailProps> = ({
 
         // 网络失败时，回退到旧缓存（即使不是今天）
         if (cached && !cancelled) {
+          setChartLoading(false);
           setChartSeriesData(withTodayEstimate(cached.data, fund.dayChangePct));
         }
       } catch (err) {
         console.error('Chart Fetch Error', err);
         if (cached && !cancelled) {
+          setChartLoading(false);
           setChartSeriesData(withTodayEstimate(cached.data, fund.dayChangePct));
         }
       } finally {
