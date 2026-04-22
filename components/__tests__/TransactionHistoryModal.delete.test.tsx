@@ -2,6 +2,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Fund, PendingTransaction } from '../../types';
+import { BottomNav } from '../BottomNav';
 import { TransactionHistoryModal } from '../TransactionHistoryModal';
 
 const mockedDeps = vi.hoisted(() => ({
@@ -166,5 +167,25 @@ describe('TransactionHistoryModal delete flow', () => {
     fireEvent.click(screen.getByRole('button', { name: '撤销' }));
 
     expect(await screen.findByText('关联记录数量异常，已阻止删除，请稍后重试。')).toBeTruthy();
+  });
+
+  it('renders above the mobile bottom navigation', () => {
+    const fund = buildFund([buildTx({ id: 'tx-layer' })]);
+    const { container } = render(
+      <>
+        <BottomNav activeTab="holding" onTabChange={vi.fn()} />
+        <TransactionHistoryModal isOpen onClose={vi.fn()} fund={fund} />
+      </>,
+    );
+
+    const nav = container.querySelector('nav');
+    const modalOverlay = Array.from(container.querySelectorAll('div')).find((element) =>
+      typeof element.className === 'string' &&
+      element.className.includes('fixed inset-0') &&
+      element.className.includes('bg-black/40'),
+    );
+
+    expect(nav?.className).toContain('z-50');
+    expect(modalOverlay?.className).toContain('z-[60]');
   });
 });

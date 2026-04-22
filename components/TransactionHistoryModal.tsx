@@ -154,7 +154,7 @@ export const TransactionHistoryModal: React.FC<TransactionHistoryModalProps> = (
     <AnimatePresence>
       {isOpen && (
         <motion.div
-          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm sm:p-4"
+          className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm sm:p-4"
           onClick={() => requestClose()}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
