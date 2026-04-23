@@ -31,6 +31,7 @@ import {
   fetchParentETFInfo,
   fetchTencentStockQuotes,
 } from '../services/api';
+import { deriveFundHoldingDisplayMetrics } from '../services/fundDayChange';
 import * as echarts from 'echarts';
 import { motion } from 'framer-motion';
 
@@ -711,6 +712,25 @@ export const FundDetail: React.FC<FundDetailProps> = ({
   const currentNav = commonData?.nav ?? latestNetWorth?.y ?? fund.currentNav;
   const dayChangePct = commonData?.navChangePercent ?? latestNetWorth?.equityReturn ?? fund.dayChangePct;
   const displayDate = commonData?.navDate ?? lastTradingDay ?? fund.lastUpdate;
+  const holdingDisplayMetrics = useMemo(
+    () =>
+      deriveFundHoldingDisplayMetrics({
+        holdingShares: fund.holdingShares,
+        currentNav,
+        costPrice: fund.costPrice,
+        buyDate: fund.buyDate,
+        buyTime: fund.buyTime,
+        settlementDays: fund.settlementDays,
+        effectiveDate: displayDate || getLocalDateString(),
+      }),
+    [currentNav, displayDate, fund.buyDate, fund.buyTime, fund.costPrice, fund.holdingShares, fund.settlementDays],
+  );
+  const displayDayChangePct = holdingDisplayMetrics.isInTransit ? 0 : dayChangePct;
+  const displayDayGainVal = holdingDisplayMetrics.isInTransit
+    ? 0
+    : holdingDisplayMetrics.dayChangeBaseNav !== undefined
+      ? currentNav * fund.holdingShares - fund.holdingShares * holdingDisplayMetrics.dayChangeBaseNav
+      : fund.dayChangeVal;
 
   // Initialize and Update ECharts
   useEffect(() => {
@@ -1025,6 +1045,11 @@ export const FundDetail: React.FC<FundDetailProps> = ({
                 {fund.name}
               </h2>
               <p className="text-xs text-gray-500 dark:text-gray-400">{fund.code}</p>
+              {holdingDisplayMetrics.isInTransit && (
+                <p className="mt-0.5 text-[11px] text-amber-600 dark:text-amber-300 truncate">
+                  {t('common.inTransit') || '在途'}
+                </p>
+              )}
               {fund.category === 'ETF_LINK' && parentEtfInfo?.parentCode && (
                 <p className="mt-0.5 text-[11px] text-emerald-600 dark:text-emerald-300 truncate">
                   母ETF: {parentEtfInfo.parentName || '--'} ({parentEtfInfo.parentCode})
@@ -1044,8 +1069,8 @@ export const FundDetail: React.FC<FundDetailProps> = ({
                 <span className="text-3xl font-bold font-sans text-gray-900 dark:text-gray-100">
                   {currentNav.toFixed(4)}
                 </span>
-                <span className={`text-lg font-medium font-sans ${getSignColor(dayChangePct)}`}>
-                  {formatPct(dayChangePct)}
+                <span className={`text-lg font-medium font-sans ${getSignColor(displayDayChangePct)}`}>
+                  {formatPct(displayDayChangePct)}
                 </span>
               </div>
               <div className="mt-4 grid grid-cols-4 gap-2 text-sm">
@@ -1067,10 +1092,8 @@ export const FundDetail: React.FC<FundDetailProps> = ({
                 </div>
 
                 {(() => {
-                  const totalCost = fund.costPrice * fund.holdingShares;
-                  const holdingValue = currentNav * fund.holdingShares;
-                  const totalGain = holdingValue - totalCost;
-                  const dayGainVal = fund.dayChangeVal;
+                  const totalGain = holdingDisplayMetrics.totalGain;
+                  const dayGainVal = displayDayGainVal;
 
                   return (
                     <>

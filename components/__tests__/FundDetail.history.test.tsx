@@ -361,4 +361,35 @@ describe('FundDetail history performance source', () => {
     expect(screen.getByText('2025')).toBeInTheDocument();
     expect(screen.getByText('-5.67%')).toBeInTheDocument();
   });
+
+  it('T+2 买入次日详情页不应展示持有收益和日收益', async () => {
+    mockedApi.fetchFundCommonData.mockResolvedValueOnce({
+      data: {
+        nav: 1.2345,
+        navDate: '2026-04-23',
+        navChangePercent: 0.5,
+      },
+    });
+
+    render(
+      <FundDetail
+        fund={{
+          ...fund,
+          currentNav: 1.2345,
+          lastUpdate: '2026-04-23',
+          dayChangePct: 0.5,
+          dayChangeVal: 7.89,
+          buyDate: '2026-04-22',
+          buyTime: 'before15',
+          settlementDays: 2,
+        }}
+        onBack={vi.fn()}
+      />,
+    );
+
+    await screen.findByText('1.2345');
+
+    expect(screen.queryByText('+23.45')).not.toBeInTheDocument();
+    expect(screen.queryByText('+7.89')).not.toBeInTheDocument();
+  });
 });

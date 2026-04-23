@@ -29,6 +29,7 @@ import {
   readRefreshLastSuccessAt,
   writeRefreshLastSuccessAt,
 } from '../services/refreshPolicy';
+import { deriveFundHoldingDisplayMetrics } from '../services/fundDayChange';
 
 const LONG_PRESS_DURATION_MS = 600;
 const TOUCH_MOVE_CANCEL_THRESHOLD_PX = 12;
@@ -84,6 +85,14 @@ const loadDashboardSortState = (): DashboardSortState => {
   }
 };
 
+const getLocalDateString = () => {
+  const d = new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 export const Dashboard: React.FC = () => {
   const funds = useLiveQuery(() => db.funds.toArray());
   const accounts = useLiveQuery(() => db.accounts.toArray());
@@ -127,13 +136,19 @@ export const Dashboard: React.FC = () => {
 
   const { t } = useTranslation();
 
-  const getLocalDateString = () => {
-    const d = new Date();
-    const year = d.getFullYear();
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-  };
+  const getHoldingDisplayMetrics = useCallback(
+    (fund: Fund, currentNav = fund.currentNav, effectiveDate = fund.lastUpdate || getLocalDateString()) =>
+      deriveFundHoldingDisplayMetrics({
+        holdingShares: fund.holdingShares,
+        currentNav,
+        costPrice: fund.costPrice,
+        buyDate: fund.buyDate,
+        buyTime: fund.buyTime,
+        settlementDays: fund.settlementDays,
+        effectiveDate,
+      }),
+    [],
+  );
 
   const holdingsSnapshot = useMemo<HoldingsSnapshot | null>(() => {
     if (!funds) return null;
@@ -144,10 +159,7 @@ export const Dashboard: React.FC = () => {
     }, '');
     const asOf = latestDateStr || getLocalDateString();
     const holdings = funds.map((fund) => {
-      const marketValue = fund.holdingShares * fund.currentNav;
-      const totalCost = fund.holdingShares * fund.costPrice;
-      const totalGain = marketValue - totalCost;
-      const totalGainPct = totalCost > 0 ? (totalGain / totalCost) * 100 : 0;
+      const { marketValue, totalCost, totalGain, totalGainPct } = getHoldingDisplayMetrics(fund);
       return {
         code: fund.code,
         name: fund.name,
@@ -177,7 +189,7 @@ export const Dashboard: React.FC = () => {
       holdingGainPct: summary.holdingGainPct,
       holdings,
     };
-  }, [funds]);
+  }, [funds, getHoldingDisplayMetrics]);
 
   const requestFundRefresh = useCallback(async (force = false) => {
     if (refreshInFlightRef.current) return false;
@@ -331,19 +343,19 @@ export const Dashboard: React.FC = () => {
     if (!sortState.key) return filteredFunds;
 
     const getSortValue = (fund: Fund) => {
-      const holdingValue = fund.holdingShares * fund.currentNav;
-      const displayTodayGainVal = fund.todayChangeUnavailable
+      const { marketValue, totalGain, isInTransit, dayChangeBaseNav } = getHoldingDisplayMetrics(fund);
+      const displayTodayGainVal = isInTransit || fund.todayChangeUnavailable
         ? 0
+        : dayChangeBaseNav !== undefined
+          ? marketValue - fund.holdingShares * dayChangeBaseNav
         : fund.todayChangeIsEstimated
-          ? (holdingValue * (fund.estimatedDayChangePct ?? 0)) / 100
+          ? (marketValue * (fund.estimatedDayChangePct ?? 0)) / 100
           : fund.dayChangeVal;
-      if (sortState.key === 'marketValue') return holdingValue;
-      if (sortState.key === 'totalGain') {
-        return holdingValue - fund.holdingShares * fund.costPrice;
-      }
+      if (sortState.key === 'marketValue') return marketValue;
+      if (sortState.key === 'totalGain') return totalGain;
       if (sortState.key === 'todayGain') return displayTodayGainVal;
       if (sortState.key === 'estimatedDayChangePct') {
-        if (fund.todayChangeUnavailable) return 0;
+        if (isInTransit || fund.todayChangeUnavailable) return 0;
         return fund.todayChangeIsEstimated
           ? (fund.estimatedDayChangePct ?? 0)
           : (fund.officialDayChangePct ?? fund.dayChangePct);
@@ -357,7 +369,7 @@ export const Dashboard: React.FC = () => {
       if (diff === 0) return 0;
       return diff * direction;
     });
-  }, [filteredFunds, sortState.direction, sortState.key]);
+  }, [filteredFunds, getHoldingDisplayMetrics, sortState.direction, sortState.key]);
 
   const activeFunds = useMemo(
     () => sortedFunds.filter((fund) => fund.holdingShares > 0),
@@ -912,26 +924,33 @@ export const Dashboard: React.FC = () => {
 
           <div className="overflow-hidden bg-[var(--app-shell-panel)]/92 dark:bg-card-dark">
             {activeFunds.map((fund) => {
-              const holdingValue = fund.holdingShares * fund.currentNav;
-              const totalCost = fund.holdingShares * fund.costPrice;
-              const totalReturn = holdingValue - totalCost;
+              const {
+                marketValue: holdingValue,
+                totalGain: totalReturn,
+                totalGainPct: holdingGainPct,
+                isInTransit,
+                dayChangeBaseNav,
+              } = getHoldingDisplayMetrics(fund);
               const officialDayChangePct = fund.officialDayChangePct ?? fund.dayChangePct;
-              const todayChangePct = fund.todayChangeUnavailable
+              const todayChangePct = isInTransit || fund.todayChangeUnavailable
                 ? 0
                 : fund.todayChangePreOpen
                   ? 0
                   : fund.todayChangeIsEstimated
                     ? (fund.estimatedDayChangePct ?? 0)
                     : (fund.officialDayChangePct ?? fund.dayChangePct);
-              const displayTodayGainVal = fund.todayChangeUnavailable
+              const displayTodayGainVal = isInTransit || fund.todayChangeUnavailable
                 ? 0
+                : dayChangeBaseNav !== undefined
+                  ? holdingValue - fund.holdingShares * dayChangeBaseNav
                 : fund.todayChangePreOpen
                   ? 0
                   : fund.todayChangeIsEstimated
                     ? (holdingValue * (fund.estimatedDayChangePct ?? 0)) / 100
                     : fund.dayChangeVal;
-              const holdingGainPct = totalCost !== 0 ? (totalReturn / totalCost) * 100 : 0;
-              const todayChangeTag = fund.todayChangePreOpen
+              const todayChangeTag = isInTransit
+                ? t('common.inTransit') || '在途'
+                : fund.todayChangePreOpen
                 ? t('common.preOpen') || '未开盘'
                 : fund.todayChangeUnavailable
                   ? t('common.noEstimate') || '无估值'
@@ -976,9 +995,9 @@ export const Dashboard: React.FC = () => {
                         <span className="max-w-[10rem] truncate rounded-full border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] px-2 py-1 text-[10px] font-semibold tracking-[0.14em] text-slate-500 dark:border-white/10 dark:bg-white/5 dark:text-gray-400">
                           {displayPlatform}
                         </span>
-                        {pendingCount > 0 && (
+                        {(pendingCount > 0 || isInTransit) && (
                           <span className="rounded-full border border-amber-200 bg-amber-50/85 px-2 py-1 text-[10px] font-semibold tracking-[0.14em] text-amber-700 dark:border-amber-400/20 dark:bg-amber-500/10 dark:text-amber-300">
-                            {pendingCount} {t('common.inTransit')}
+                            {pendingCount > 0 ? `${pendingCount} ${t('common.inTransit')}` : t('common.inTransit')}
                           </span>
                         )}
                         {isEtfLinkFund && (
@@ -1157,26 +1176,33 @@ export const Dashboard: React.FC = () => {
                   style={{ overflow: 'hidden' }}
                 >
                   {clearedFunds.map((fund) => {
-                    const holdingValue = fund.holdingShares * fund.currentNav;
-                    const totalCost = fund.holdingShares * fund.costPrice;
-                    const totalReturn = holdingValue - totalCost;
+                    const {
+                      marketValue: holdingValue,
+                      totalGain: totalReturn,
+                      totalGainPct: holdingGainPct,
+                      isInTransit,
+                      dayChangeBaseNav,
+                    } = getHoldingDisplayMetrics(fund);
                     const officialDayChangePct = fund.officialDayChangePct ?? fund.dayChangePct;
-                    const todayChangePct = fund.todayChangeUnavailable
+                    const todayChangePct = isInTransit || fund.todayChangeUnavailable
                       ? 0
                       : fund.todayChangePreOpen
                         ? 0
                         : fund.todayChangeIsEstimated
                           ? (fund.estimatedDayChangePct ?? 0)
                           : (fund.officialDayChangePct ?? fund.dayChangePct);
-                    const displayTodayGainVal = fund.todayChangeUnavailable
+                    const displayTodayGainVal = isInTransit || fund.todayChangeUnavailable
                       ? 0
+                      : dayChangeBaseNav !== undefined
+                        ? holdingValue - fund.holdingShares * dayChangeBaseNav
                       : fund.todayChangePreOpen
                         ? 0
                         : fund.todayChangeIsEstimated
                           ? (holdingValue * (fund.estimatedDayChangePct ?? 0)) / 100
                           : fund.dayChangeVal;
-                    const holdingGainPct = totalCost !== 0 ? (totalReturn / totalCost) * 100 : 0;
-                    const todayChangeTag = fund.todayChangePreOpen
+                    const todayChangeTag = isInTransit
+                      ? t('common.inTransit') || '在途'
+                      : fund.todayChangePreOpen
                       ? t('common.preOpen') || '未开盘'
                       : fund.todayChangeUnavailable
                         ? t('common.noEstimate') || '无估值'
@@ -1221,11 +1247,13 @@ export const Dashboard: React.FC = () => {
                               <span className="max-w-[10rem] truncate rounded-full border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] px-2 py-1 text-[10px] font-semibold tracking-[0.14em] text-slate-500 dark:border-white/10 dark:bg-white/5 dark:text-gray-400">
                                 {displayPlatform}
                               </span>
-                              {pendingCount > 0 && (
-                                <span className="rounded-full border border-amber-200 bg-amber-50/85 px-2 py-1 text-[10px] font-semibold tracking-[0.14em] text-amber-700 dark:border-amber-400/20 dark:bg-amber-500/10 dark:text-amber-300">
-                                  {pendingCount} {t('common.inTransit')}
-                                </span>
-                              )}
+                                {(pendingCount > 0 || isInTransit) && (
+                                  <span className="rounded-full border border-amber-200 bg-amber-50/85 px-2 py-1 text-[10px] font-semibold tracking-[0.14em] text-amber-700 dark:border-amber-400/20 dark:bg-amber-500/10 dark:text-amber-300">
+                                    {pendingCount > 0
+                                      ? `${pendingCount} ${t('common.inTransit')}`
+                                      : t('common.inTransit')}
+                                  </span>
+                                )}
                               {isEtfLinkFund && (
                                 <span className="rounded-full border border-emerald-200 bg-emerald-50/85 px-2 py-1 text-[10px] font-semibold tracking-[0.14em] text-emerald-700 dark:border-emerald-400/20 dark:bg-emerald-500/10 dark:text-emerald-300">
                                   ETF联接

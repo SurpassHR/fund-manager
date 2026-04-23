@@ -103,6 +103,15 @@ const getBuyDateInput = () => {
   return input as HTMLInputElement;
 };
 
+const getSettlementDaysInput = () => {
+  const label = screen.getByText('common.settlementDays');
+  const input = label.parentElement?.querySelector('input');
+  if (!input) {
+    throw new Error('未找到确认天数输入框');
+  }
+  return input as HTMLInputElement;
+};
+
 const editFund: Fund = {
   id: 1,
   code: '000001',
@@ -227,5 +236,75 @@ describe('AddFundModal submit lock', () => {
     fireEvent.change(buyDateInput, { target: { value: '2026-03-31' } });
 
     expect(buyDateInput.value).toBe('2026-03-31');
+  });
+
+  it('编辑 T+2 且仍在确认日内时不应直接写入收益', async () => {
+    mocked.fundsUpdate.mockResolvedValue(1);
+
+    render(
+      <AddFundModal
+        isOpen
+        onClose={vi.fn()}
+        editFund={{
+          ...editFund,
+          currentNav: 1.3,
+          lastUpdate: '2026-04-03',
+          dayChangePct: 0.6,
+          buyDate: '2026-04-02',
+          buyTime: 'before15',
+          settlementDays: 2,
+        }}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'common.confirm' }));
+
+    await waitFor(() => {
+      expect(mocked.fundsUpdate).toHaveBeenCalledTimes(1);
+    });
+
+    expect(mocked.fundsUpdate).toHaveBeenCalledWith(
+      1,
+      expect.objectContaining({
+        dayChangePct: 0,
+        dayChangeVal: 0,
+        settlementDays: 2,
+      }),
+    );
+  });
+
+  it('新增 T+2 且仍在确认日内时不应直接写入收益', async () => {
+    mocked.fundsAdd.mockResolvedValue(1);
+
+    render(
+      <AddFundModal
+        isOpen
+        onClose={vi.fn()}
+        prefillWatchlistItem={{
+          ...prefillItem,
+          currentPrice: 1.2345,
+          dayChangePct: 0.6,
+          lastUpdate: '2026-04-03',
+        }}
+      />,
+    );
+
+    setSharesValue('10');
+    fireEvent.change(getBuyDateInput(), { target: { value: '2026-04-02' } });
+    fireEvent.change(getSettlementDaysInput(), { target: { value: '2' } });
+    fireEvent.click(screen.getByRole('button', { name: 'common.confirm' }));
+
+    await waitFor(() => {
+      expect(mocked.fundsAdd).toHaveBeenCalledTimes(1);
+    });
+
+    expect(mocked.fundsAdd).toHaveBeenCalledWith(
+      expect.objectContaining({
+        buyDate: '2026-04-02',
+        settlementDays: 2,
+        dayChangePct: 0,
+        dayChangeVal: 0,
+      }),
+    );
   });
 });

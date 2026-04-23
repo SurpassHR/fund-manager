@@ -1,6 +1,10 @@
 import React, { useCallback, useState, useEffect } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../services/db';
+import {
+  deriveFundGainActivationState,
+  deriveFundIntradayDisplayMetrics,
+} from '../services/fundDayChange';
 import { useTranslation } from '../services/i18n';
 import { Icons } from './Icon';
 import type { MorningstarFund, Fund, WatchlistItem } from '../types';
@@ -34,7 +38,6 @@ export const AddFundModal: React.FC<AddFundModalProps> = ({
   const snapX = activeOverlayId === overlayId ? snapBackX : null;
   const transformX =
     closeTargetX !== null ? `${closeTargetX}px` : snapX !== null ? `${snapX}px` : translateX;
-  const transition = closeTargetX !== null || snapX !== null ? 'transform 220ms ease' : 'none';
 
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<MorningstarFund[]>([]);
@@ -314,17 +317,32 @@ export const AddFundModal: React.FC<AddFundModalProps> = ({
     setIsSaving(true);
 
     try {
-      if (editFund && editFund.id) {
-        // 使用 API 返回的真实涨跌幅 (如果没有重新获取 API，则沿用旧值)
-        const mktVal = valShares * currentNav;
-        const dayChangeVal = (mktVal * (navChangePct / 100)) / (1 + navChangePct / 100);
+      const effectiveNavDate = editFund?.lastUpdate || navDate || buyDate || new Date().toISOString().split('T')[0];
+      const { isGainActive, dayChangeBaseNav } = deriveFundGainActivationState({
+        buyDate,
+        buyTime,
+        settlementDays,
+        effectivePctDate: effectiveNavDate,
+        costPrice: effectiveCostPrice,
+      });
+      const metrics = deriveFundIntradayDisplayMetrics({
+        holdingShares: valShares,
+        nav: currentNav,
+        navDate: effectiveNavDate,
+        todayStr: effectiveNavDate,
+        navChangePercent: navChangePct,
+        shouldEstimate: false,
+        isGainActive,
+        dayChangeBaseNav,
+      });
 
+      if (editFund && editFund.id) {
         await db.funds.update(editFund.id, {
           holdingShares: valShares,
           costPrice: effectiveCostPrice,
           platform: selectedAccount,
-          dayChangeVal, // 更新日收益绝对值
-          dayChangePct: navChangePct, // 同时也更新涨跌幅（虽然通常不变，但为了数据一致性）
+          dayChangeVal: metrics.dayChangeVal,
+          dayChangePct: metrics.dayChangePct,
           buyDate,
           buyTime,
           settlementDays,
@@ -339,9 +357,6 @@ export const AddFundModal: React.FC<AddFundModalProps> = ({
         'fundNameArr' in selectedFund
           ? selectedFund.fundNameArr || selectedFund.fundName
           : selectedFund.name;
-      // 使用 API 返回的真实涨跌幅
-      const mktVal = valShares * currentNav;
-      const dayChangeVal = (mktVal * (navChangePct / 100)) / (1 + navChangePct / 100);
 
       await db.funds.add({
         code,
@@ -350,9 +365,9 @@ export const AddFundModal: React.FC<AddFundModalProps> = ({
         holdingShares: valShares,
         costPrice: effectiveCostPrice,
         currentNav,
-        lastUpdate: navDate || new Date().toISOString().split('T')[0],
-        dayChangePct: navChangePct,
-        dayChangeVal,
+        lastUpdate: effectiveNavDate,
+        dayChangePct: metrics.dayChangePct,
+        dayChangeVal: metrics.dayChangeVal,
         buyDate,
         buyTime,
         settlementDays,

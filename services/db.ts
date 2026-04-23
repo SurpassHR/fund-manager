@@ -12,10 +12,22 @@ import {
   buildFundBackupPayload,
   parseAndNormalizeFundBackupPayload,
 } from './fundBackup';
+import {
+  deriveFundGainActivationState,
+  deriveFundHoldingDisplayMetrics,
+  deriveFundIntradayDisplayMetrics,
+} from './fundDayChange';
 import { isEtfLinkFundName } from './constants';
 import { sanitizeWatchlistName } from './watchlistName';
 import { runFundQuotePipeline } from './fundQuotePipeline';
 import type { RefreshExecutionResult, RefreshExecutionStatus } from './refreshPolicy';
+
+export {
+  deriveFundGainActivationState,
+  deriveFundHoldingDisplayMetrics,
+  deriveFundIntradayDisplayMetrics,
+  getSettlementDate,
+} from './fundDayChange';
 
 class XiaoHuYangJiDB extends Dexie {
   funds!: Table<Fund>;
@@ -114,164 +126,6 @@ export const deriveWatchlistFundEffectivePrice = (params: {
   }
 
   return nav;
-};
-
-export const deriveFundIntradayDisplayMetrics = (params: {
-  holdingShares: number;
-  nav: number;
-  navDate: string;
-  todayStr: string;
-  navChangePercent: number;
-  officialPreviousNav?: number;
-  shouldEstimate: boolean;
-  estimatedChangePct?: number;
-  isGainActive: boolean;
-  dayChangeBaseNav?: number;
-}) => {
-  const {
-    holdingShares,
-    nav,
-    navDate,
-    todayStr,
-    navChangePercent,
-    officialPreviousNav,
-    shouldEstimate,
-    estimatedChangePct,
-    isGainActive,
-    dayChangeBaseNav,
-  } = params;
-
-  const hasOfficialTodayNav = navDate === todayStr;
-  const shouldTryEstimate = shouldEstimate && !hasOfficialTodayNav;
-  const hasEstimate = shouldTryEstimate && estimatedChangePct !== undefined;
-  const todayChangeUnavailable = shouldTryEstimate && !hasEstimate;
-  const effectivePctDate = shouldTryEstimate ? todayStr : navDate;
-
-  const dayChangePct = !isGainActive
-    ? 0
-    : hasEstimate
-      ? (estimatedChangePct as number)
-      : todayChangeUnavailable
-        ? 0
-        : navChangePercent;
-
-  let dayChangeVal = 0;
-  if (isGainActive) {
-    const currentEffectiveNav = hasEstimate
-      ? nav * (1 + (estimatedChangePct as number) / 100)
-      : nav;
-
-    if (dayChangeBaseNav !== undefined) {
-      dayChangeVal = holdingShares * (currentEffectiveNav - dayChangeBaseNav);
-    } else if (hasEstimate) {
-      const mktVal = holdingShares * nav;
-      dayChangeVal = mktVal * ((estimatedChangePct as number) / 100);
-    } else if (!todayChangeUnavailable) {
-      if (officialPreviousNav !== undefined) {
-        dayChangeVal = holdingShares * (nav - officialPreviousNav);
-      } else {
-        const mktVal = holdingShares * nav;
-        dayChangeVal = (mktVal * (navChangePercent / 100)) / (1 + navChangePercent / 100);
-      }
-    }
-  }
-
-  return {
-    effectivePctDate,
-    dayChangePct,
-    dayChangeVal,
-    officialDayChangePct: navChangePercent,
-    estimatedDayChangePct: hasEstimate ? (estimatedChangePct as number) : 0,
-    todayChangeIsEstimated: hasEstimate,
-    todayChangeUnavailable,
-  };
-};
-
-/**
- * 根据买入日期和时间，估算基金的“成本生效日期”（即这天的净值作为买入成本）
- * 收益只有在这个日期【之后】的市场交易日才会产生
- */
-const getCostDateStr = (buyDateStr: string, buyTime: 'before15' | 'after15'): string => {
-  const d = new Date(buyDateStr);
-
-  // 如果是周末买入，自动顺延到下周一，且相当于周一 15:00 前买入
-  if (d.getDay() === 0) {
-    // 周日
-    d.setDate(d.getDate() + 1);
-    buyTime = 'before15';
-  } else if (d.getDay() === 6) {
-    // 周六
-    d.setDate(d.getDate() + 2);
-    buyTime = 'before15';
-  }
-
-  // 如果是 15:00 后买入，成本按下一个交易日算
-  if (buyTime === 'after15') {
-    d.setDate(d.getDate() + 1);
-    // 如果顺延后碰到了周末（比如周五15点后，按周一算）
-    if (d.getDay() === 6) d.setDate(d.getDate() + 2);
-    else if (d.getDay() === 0) d.setDate(d.getDate() + 1);
-  }
-
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-};
-
-const getPreviousTradingDateStr = (dateStr: string): string => {
-  const d = new Date(dateStr);
-  d.setDate(d.getDate() - 1);
-
-  while (d.getDay() === 0 || d.getDay() === 6) {
-    d.setDate(d.getDate() - 1);
-  }
-
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-};
-
-/**
- * Calculates the settlement date for a transaction (T+N days).
- * Skips weekends and treats after 15:00 as the next trading day.
- * @param opDateStr - The operation date (YYYY-MM-DD).
- * @param opTime - Whether the operation was before or after 15:00.
- * @param tPlusN - The number of trading days until settlement.
- * @returns The calculated settlement date (YYYY-MM-DD).
- */
-export const getSettlementDate = (
-  opDateStr: string,
-  opTime: 'before15' | 'after15',
-  tPlusN: number,
-): string => {
-  const d = new Date(opDateStr);
-
-  // 如果是周末操作，顺延到周一
-  if (d.getDay() === 0) d.setDate(d.getDate() + 1);
-  else if (d.getDay() === 6) d.setDate(d.getDate() + 2);
-
-  // 15:00 后操作，等效于下一个交易日操作
-  if (opTime === 'after15') {
-    d.setDate(d.getDate() + 1);
-    if (d.getDay() === 6) d.setDate(d.getDate() + 2);
-    else if (d.getDay() === 0) d.setDate(d.getDate() + 1);
-  }
-
-  // 往前走 N 个交易日
-  let remaining = tPlusN;
-  while (remaining > 0) {
-    d.setDate(d.getDate() + 1);
-    if (d.getDay() !== 0 && d.getDay() !== 6) {
-      remaining--;
-    }
-  }
-
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
 };
 
 const getUnsettledOutShares = (fund: Fund) => {
@@ -664,18 +518,14 @@ export const refreshFundData = (options?: RefreshOptions) => {
           const parentEtfInfo = await fetchParentETFInfo(fund.code, fund.name);
           const isEtfLink = isEtfLinkFundName(fund.name) || Boolean(parentEtfInfo?.parentCode);
 
-          let isGainActive = true;
-          let dayChangeBaseNav: number | undefined;
-          if (fund.buyDate) {
-            const costDateStr = getCostDateStr(fund.buyDate, fund.buyTime || 'before15');
-            const effectivePctDate =
-              candidate.shouldEstimate && navDate !== todayStr ? todayStr : navDate;
-            if (effectivePctDate <= costDateStr) {
-              isGainActive = false;
-            } else if (getPreviousTradingDateStr(effectivePctDate) === costDateStr) {
-              dayChangeBaseNav = fund.costPrice;
-            }
-          }
+          const gainActivationDate = candidate.shouldEstimate && navDate !== todayStr ? todayStr : navDate;
+          const { isGainActive, dayChangeBaseNav } = deriveFundGainActivationState({
+            buyDate: fund.buyDate,
+            buyTime: fund.buyTime || 'before15',
+            settlementDays: fund.settlementDays ?? 1,
+            effectivePctDate: gainActivationDate,
+            costPrice: fund.costPrice,
+          });
 
           const metrics = deriveFundIntradayDisplayMetrics({
             holdingShares: fund.holdingShares,
@@ -921,30 +771,41 @@ export const calculateSummary = (funds: Fund[]): AssetSummary => {
   let totalAssets = 0;
   let totalDayGain = 0;
   let totalCost = 0;
+  let holdingGain = 0;
 
   const todayStr = getLocalDateString();
 
   funds.forEach((fund) => {
-    const assetValue = fund.holdingShares * fund.currentNav;
-    const costValue = fund.holdingShares * fund.costPrice;
+    const { marketValue, totalCost: costValue, totalGain, isInTransit, dayChangeBaseNav } =
+      deriveFundHoldingDisplayMetrics({
+        holdingShares: fund.holdingShares,
+        currentNav: fund.currentNav,
+        costPrice: fund.costPrice,
+        buyDate: fund.buyDate,
+        buyTime: fund.buyTime,
+        settlementDays: fund.settlementDays,
+        effectiveDate: fund.lastUpdate || todayStr,
+      });
 
     // 如果该基金的最后更新日期不是“今天”，说明它的涨跌幅停留在之前的交易日
     // 此时它对“今日总收益”的贡献应当为 0
     const dayGain =
-      fund.lastUpdate === todayStr
+      !isInTransit && fund.lastUpdate === todayStr
         ? fund.todayChangeUnavailable
           ? 0
+          : dayChangeBaseNav !== undefined
+            ? marketValue - fund.holdingShares * dayChangeBaseNav
           : fund.todayChangeIsEstimated
-            ? (assetValue * (fund.estimatedDayChangePct ?? 0)) / 100
+            ? (marketValue * (fund.estimatedDayChangePct ?? 0)) / 100
             : fund.dayChangeVal
         : 0;
 
-    totalAssets += assetValue;
+    totalAssets += marketValue;
     totalDayGain += dayGain;
     totalCost += costValue;
+    holdingGain += totalGain;
   });
 
-  const holdingGain = totalAssets - totalCost;
   const holdingGainPct = totalCost > 0 ? (holdingGain / totalCost) * 100 : 0;
   const totalDayGainPct =
     totalAssets - totalDayGain > 0 ? (totalDayGain / (totalAssets - totalDayGain)) * 100 : 0;

@@ -248,4 +248,32 @@ describe('Dashboard sort persistence', () => {
     expect(screen.queryByText('+100.00%')).not.toBeInTheDocument();
     expect(screen.getAllByText('****').length).toBeGreaterThan(0);
   });
+
+  it('T+2 买入次日应显示在途且不展示持有收益', () => {
+    mocked.state.funds = [
+      {
+        id: 1,
+        code: '000001',
+        name: '基金A',
+        platform: '默认账户',
+        holdingShares: 100,
+        costPrice: 1,
+        currentNav: 1.2345,
+        dayChangePct: 0.5,
+        dayChangeVal: 7.89,
+        lastUpdate: '2026-04-23',
+        buyDate: '2026-04-22',
+        buyTime: 'before15',
+        settlementDays: 2,
+      },
+    ];
+
+    render(<Dashboard />);
+
+    const row = screen.getAllByText('基金A')[0].closest('div.group');
+    expect(row).not.toBeNull();
+    expect(row).toHaveTextContent('common.inTransit');
+    expect(row).not.toHaveTextContent('+23.45');
+    expect(row).not.toHaveTextContent('+7.89');
+  });
 });

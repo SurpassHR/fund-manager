@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   calculateSummary,
   deriveFundIntradayDisplayMetrics,
@@ -155,6 +155,10 @@ describe('deriveFundIntradayDisplayMetrics', () => {
 });
 
 describe('calculateSummary', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it('uses estimated pct to calculate day gain when estimated badge is active', () => {
     const now = new Date();
     const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(
@@ -181,5 +185,60 @@ describe('calculateSummary', () => {
     ]);
 
     expect(summary.totalDayGain).toBeCloseTo(2.4, 6);
+  });
+
+  it('keeps holding and day gain at zero before settlement date for T+2 positions', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-04-23T10:00:00'));
+
+    const summary = calculateSummary([
+      {
+        id: 1,
+        code: '000001',
+        name: 'T+2基金',
+        platform: '默认账户',
+        holdingShares: 100,
+        costPrice: 1,
+        currentNav: 1.2345,
+        lastUpdate: '2026-04-23',
+        dayChangePct: 0.5,
+        dayChangeVal: 7.89,
+        buyDate: '2026-04-22',
+        buyTime: 'before15',
+        settlementDays: 2,
+      },
+    ]);
+
+    expect(summary.totalAssets).toBeCloseTo(123.45, 6);
+    expect(summary.totalDayGain).toBe(0);
+    expect(summary.holdingGain).toBe(0);
+    expect(summary.holdingGainPct).toBe(0);
+  });
+
+  it('starts calculating gain on the second trading day for T+2 positions', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-04-23T10:00:00'));
+
+    const summary = calculateSummary([
+      {
+        id: 1,
+        code: '000001',
+        name: 'T+2基金',
+        platform: '默认账户',
+        holdingShares: 100,
+        costPrice: 1,
+        currentNav: 1.2345,
+        lastUpdate: '2026-04-23',
+        dayChangePct: 0.5,
+        dayChangeVal: 7.89,
+        buyDate: '2026-04-21',
+        buyTime: 'before15',
+        settlementDays: 2,
+      },
+    ]);
+
+    expect(summary.totalDayGain).toBeCloseTo(23.45, 6);
+    expect(summary.holdingGain).toBeCloseTo(23.45, 6);
+    expect(summary.holdingGainPct).toBeCloseTo(23.45, 6);
   });
 });
