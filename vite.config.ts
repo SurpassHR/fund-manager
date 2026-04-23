@@ -141,7 +141,7 @@ export default defineConfig(async ({ mode }) => {
   const resolvedBase = normalizeBasePath(
     env.VITE_BASE_PATH?.trim() || inferGitHubPagesBasePath(process.env),
   );
-  const resolvedOutDir = env.VITE_BUILD_OUT_DIR?.trim() || 'dist';
+  const resolvedOutDir = env.VITE_BUILD_OUT_DIR?.trim() || 'dist/fund-manager';
 
   // Fetch the latest 5 git commits
   // Format: hash\x1fsubject\x1fbody\x1e (record separator between commits, unit separator between fields)
