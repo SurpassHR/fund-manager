@@ -342,7 +342,6 @@ const AppContent: React.FC = () => {
       else edge = null;
       if (!edge) return;
       startX = touch.clientX;
-      startY = touch.clientY;
       active = true;
     };
 
