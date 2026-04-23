@@ -64,6 +64,26 @@ describe('ETF联接母基金解析', () => {
     appendSpy.mockRestore();
   });
 
+  it('QDII ETF联接基金命中手动映射', async () => {
+    const result015311 = await fetchParentETFInfo(
+      '015311',
+      '华泰柏瑞南方东英恒生科技ETF联接(QDII)C',
+    );
+    expect(result015311).toEqual({
+      parentCode: '513180.SH',
+      parentName: '华泰柏瑞南方东英恒生科技ETF',
+    });
+
+    const result006328 = await fetchParentETFInfo(
+      '006328',
+      '易方达中证海外中国互联网50ETF联接(QDII)C(人民币份额)',
+    );
+    expect(result006328).toEqual({
+      parentCode: '513050.SH',
+      parentName: '易方达中证海外中国互联网50ETF',
+    });
+  });
+
   it('可查询母ETF实时涨跌幅', async () => {
     const fetchMock = vi.fn(async (url: string) => {
       if (url.includes('qt.gtimg.cn')) {

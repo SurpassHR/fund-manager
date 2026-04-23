@@ -73,6 +73,12 @@ export const ETF_LINK_PARENT_MAP: Record<string, { parentCode: string; parentNam
   '011035': { parentCode: '516150.SH', parentName: '嘉实中证稀土产业ETF' },
   // 嘉实中证稀土产业 ETF 联接 C -> 嘉实中证稀土产业 ETF
   '011036': { parentCode: '516150.SH', parentName: '嘉实中证稀土产业ETF' },
+  // 华泰柏瑞南方东英恒生科技 ETF 联接(QDII) A/C -> 华泰柏瑞南方东英恒生科技 ETF
+  '015310': { parentCode: '513180.SH', parentName: '华泰柏瑞南方东英恒生科技ETF' },
+  '015311': { parentCode: '513180.SH', parentName: '华泰柏瑞南方东英恒生科技ETF' },
+  // 易方达中证海外中国互联网50 ETF 联接(QDII) A/C(人民币份额) -> 易方达中证海外中国互联网50 ETF
+  '006327': { parentCode: '513050.SH', parentName: '易方达中证海外中国互联网50ETF' },
+  '006328': { parentCode: '513050.SH', parentName: '易方达中证海外中国互联网50ETF' },
 };
 
 /**
@@ -87,11 +93,15 @@ export const isEtfLinkFundName = (fundName?: string): boolean => {
 /**
  * 从联接基金名称推断母 ETF 名称
  * 例如: "嘉实中证稀土产业ETF联接C" -> "嘉实中证稀土产业ETF"
+ *       "华泰柏瑞南方东英恒生科技ETF联接(QDII)C" -> "华泰柏瑞南方东英恒生科技ETF"
+ *       "易方达中证海外中国互联网50ETF联接(QDII)C(人民币份额)" -> "易方达中证海外中国互联网50ETF"
  */
 export const inferParentEtfName = (fundName?: string): string | null => {
   if (!fundName) return null;
   const normalized = fundName.trim();
-  const match = normalized.match(/(.+?ETF)(?:[联连]接[A-Z]?|[A-Z])?$/i);
+  // 匹配 "XXXETF联接" 或 "XXXETF连接"，截取 ETF 之前（含）的部分作为母 ETF 名称
+  // 支持括号后缀如 (QDII)、(人民币份额) 等
+  const match = normalized.match(/(.+?ETF)[联连]接/i);
   return match?.[1]?.trim() || null;
 };
 
