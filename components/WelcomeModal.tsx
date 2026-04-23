@@ -151,14 +151,6 @@ export const WelcomeModal: React.FC = () => {
 
   const isZh = language === 'zh';
 
-  const colors = [
-    'bg-blue-100 text-blue-600 dark:bg-blue-900/40 dark:text-blue-400',
-    'bg-amber-100 text-amber-600 dark:bg-amber-900/40 dark:text-amber-400',
-    'bg-green-100 text-green-600 dark:bg-green-900/40 dark:text-green-400',
-    'bg-purple-100 text-purple-600 dark:bg-purple-900/40 dark:text-purple-400',
-    'bg-rose-100 text-rose-600 dark:bg-rose-900/40 dark:text-rose-400',
-  ];
-
   // Strip common emoji prefixes from subject
   const cleanSubject = (s: string) =>
     s

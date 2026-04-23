@@ -89,8 +89,8 @@ export const AdjustPositionModal: React.FC<AdjustPositionModalProps> = ({
 
   // 实时计算确认日
   useEffect(() => {
-    if (opDate && fund) {
-      const tPlusN = fund.settlementDays ?? 1;
+    if (opDate) {
+      const tPlusN = fund?.settlementDays ?? 1;
       const sd = getSettlementDate(opDate, opTime, tPlusN);
       setCalculatedSettlementDate(sd);
     }

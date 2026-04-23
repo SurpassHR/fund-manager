@@ -180,7 +180,6 @@ const AppContent: React.FC = () => {
 
   useEffect(() => {
     let startX = 0;
-    let startY = 0;
     let edge: 'left' | 'right' | null = null;
     let active = false;
     let draggingOverlayId: string | null = null;
@@ -214,7 +213,7 @@ const AppContent: React.FC = () => {
     const onPointerDown = (event: PointerEvent) => {
       if (event.pointerType !== 'touch' || !event.isPrimary) return;
       if (active) return;
-      const { clientX, clientY } = event;
+      const { clientX } = event;
       const width = getScreenWidth();
       if (clientX <= EDGE_ZONE) edge = 'left';
       else if (clientX >= width - EDGE_ZONE) edge = 'right';
@@ -222,7 +221,6 @@ const AppContent: React.FC = () => {
       if (!edge) return;
 
       startX = clientX;
-      startY = clientY;
       active = true;
       pointerId = event.pointerId;
     };

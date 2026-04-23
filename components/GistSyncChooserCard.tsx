@@ -31,7 +31,7 @@ type UploadMode = 'create' | 'overwrite';
 
 const MAX_DESCRIPTION_LEN = 25;
 
-export const formatGistUpdatedAt = (value: string): string => {
+const formatGistUpdatedAt = (value: string): string => {
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) return '-';
 

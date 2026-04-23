@@ -51,7 +51,7 @@ describe('WelcomeModal', () => {
 
     renderWelcomeModal();
 
-    const closeButton = await screen.findByRole('button', { name: '我知道了' });
+    await screen.findByRole('button', { name: '我知道了' });
     const modalCard = screen.getByTestId('welcome-modal-card');
     const backdrop = screen.getByTestId('welcome-backdrop');
 

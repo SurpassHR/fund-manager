@@ -99,7 +99,7 @@ const PresenceIndicator = ({
   );
 };
 
-export const Header: React.FC<HeaderProps> = ({ title, hiddenOnMobile = false }) => {
+export const Header: React.FC<HeaderProps> = ({ title: _title, hiddenOnMobile = false }) => {
   const { language, setLanguage, t } = useTranslation();
   const { theme } = useTheme();
   const [now, setNow] = useState(() => Date.now());

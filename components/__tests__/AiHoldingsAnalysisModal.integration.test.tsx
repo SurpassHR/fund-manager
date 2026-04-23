@@ -2,6 +2,7 @@
 import React from 'react';
 import '@testing-library/jest-dom';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import type * as AiAnalysisModule from '../../services/aiAnalysis';
 import { LanguageProvider } from '../../services/i18n';
 import { AiHoldingsAnalysisModal } from '../AiHoldingsAnalysisModal';
 
@@ -26,9 +27,7 @@ vi.mock('../../services/SettingsContext', () => ({
 }));
 
 vi.mock('../../services/aiAnalysis', async () => {
-  const actual = await vi.importActual<typeof import('../../services/aiAnalysis')>(
-    '../../services/aiAnalysis',
-  );
+  const actual = await vi.importActual<typeof AiAnalysisModule>('../../services/aiAnalysis');
 
   return {
     ...actual,
