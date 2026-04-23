@@ -103,14 +103,45 @@ const createLlmProxyPlugin = () => ({
   },
 });
 
+const normalizeBasePath = (rawBase: string) => {
+  const trimmed = rawBase.trim();
+  if (!trimmed) {
+    return '/';
+  }
+
+  const withLeadingSlash = trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
+  return withLeadingSlash.endsWith('/') ? withLeadingSlash : `${withLeadingSlash}/`;
+};
+
+const inferGitHubPagesBasePath = (runtimeEnv: NodeJS.ProcessEnv) => {
+  const repository = runtimeEnv.GITHUB_REPOSITORY?.trim();
+  if (!repository) {
+    return '/';
+  }
+
+  const repoName = repository.split('/')[1]?.trim();
+  if (!repoName) {
+    return '/';
+  }
+
+  const owner = runtimeEnv.GITHUB_REPOSITORY_OWNER?.trim().toLowerCase();
+  if (owner && repoName.toLowerCase() === `${owner}.github.io`) {
+    return '/';
+  }
+
+  return `/${repoName}/`;
+};
+
 export default defineConfig(async ({ mode }) => {
   const fileEnv = loadEnv(mode, '.', '');
   // loadEnv only reads .env files; merge process.env so CI-injected secrets
   // (e.g. GEMINI_API_KEY from GitHub Actions) are also available.
   const env = { ...fileEnv, ...process.env };
   const MAX_COMMITS = 5;
-  const resolvedBase = env.VITE_BASE_PATH?.trim() || '/fund-manager/';
-  const resolvedOutDir = env.VITE_BUILD_OUT_DIR?.trim() || 'dist/fund-manager';
+  const resolvedBase = normalizeBasePath(
+    env.VITE_BASE_PATH?.trim() || inferGitHubPagesBasePath(process.env),
+  );
+  const resolvedOutDir = env.VITE_BUILD_OUT_DIR?.trim() || 'dist';
 
   // Fetch the latest 5 git commits
   // Format: hash\x1fsubject\x1fbody\x1e (record separator between commits, unit separator between fields)

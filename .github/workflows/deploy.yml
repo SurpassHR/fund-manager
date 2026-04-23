@@ -2,7 +2,7 @@ name: Deploy to GitHub Pages
 
 on:
   push:
-    branches: [v2]
+    branches: [main, v2]
   workflow_dispatch:
 
 permissions:
@@ -32,11 +32,38 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Resolve GitHub Pages base path
+        env:
+          PAGES_BASE_PATH: ${{ vars.PAGES_BASE_PATH }}
+        run: |
+          if [ -n "$PAGES_BASE_PATH" ]; then
+            if [ "${PAGES_BASE_PATH#/}" = "$PAGES_BASE_PATH" ]; then
+              PAGES_BASE_PATH="/$PAGES_BASE_PATH"
+            fi
+            if [ "${PAGES_BASE_PATH%/}" = "$PAGES_BASE_PATH" ]; then
+              PAGES_BASE_PATH="$PAGES_BASE_PATH/"
+            fi
+            echo "VITE_BASE_PATH=$PAGES_BASE_PATH" >> "$GITHUB_ENV"
+            exit 0
+          fi
+
+          REPO_NAME="${GITHUB_REPOSITORY#*/}"
+          OWNER_NAME="${GITHUB_REPOSITORY_OWNER}"
+          if [ "$REPO_NAME" = "${OWNER_NAME}.github.io" ]; then
+            echo "VITE_BASE_PATH=/" >> "$GITHUB_ENV"
+          else
+            echo "VITE_BASE_PATH=/${REPO_NAME}/" >> "$GITHUB_ENV"
+          fi
+
       - name: Build
         run: npm run build
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           VITE_PRESENCE_WORKER_URL: https://gp.hrfuqiang.top/presence
+
+      - name: Inject custom domain (optional)
+        if: ${{ vars.PAGES_CNAME != '' }}
+        run: printf '%s\n' "${{ vars.PAGES_CNAME }}" > dist/CNAME
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3

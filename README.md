@@ -77,13 +77,23 @@ npm run preview
 
 ## 部署
 
-项目已配置 GitHub Actions，推送到 `main` 分支后自动构建部署至 GitHub Pages。
+项目已配置 GitHub Actions，推送到 `main` 或 `v2` 分支后会自动构建并部署到 GitHub Pages。
+
+默认会根据仓库名自动推导 Vite `base` 路径：
+
+- 用户主页仓库（`<owner>.github.io`）→ `/`
+- 项目仓库（普通仓库）→ `/<repo-name>/`
+
+如需手动覆盖，可在 **Settings → Secrets and variables → Actions → Variables** 配置：
+
+- `PAGES_BASE_PATH`：自定义 base（例如 `/` 或 `/my-app/`）
+- `PAGES_CNAME`：可选，自定义域名（例如 `example.com`）
 
 ### 首次启用 GitHub Pages
 
 1. 进入 GitHub 仓库 **Settings → Pages**
 2. **Source** 选择 **GitHub Actions**
-3. 推送代码到 `main` 分支即可触发部署
+3. 推送代码到 `main` 或 `v2` 分支即可触发部署
 
 ## 项目结构
 
