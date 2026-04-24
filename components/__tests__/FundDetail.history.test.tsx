@@ -392,4 +392,101 @@ describe('FundDetail history performance source', () => {
     expect(screen.queryByText('+23.45')).not.toBeInTheDocument();
     expect(screen.queryByText('+7.89')).not.toBeInTheDocument();
   });
+
+  it('详情页实时涨跌幅可用时，应回推日收益而不是沿用落库 0', async () => {
+    mockedApi.fetchFundCommonData.mockResolvedValueOnce({
+      data: {
+        nav: 1.2345,
+        navDate: '2026-04-23',
+        navChangePercent: 0.5,
+      },
+    });
+
+    render(
+      <FundDetail
+        fund={{
+          ...fund,
+          holdingShares: 100,
+          currentNav: 1.2,
+          lastUpdate: '2026-04-22',
+          dayChangePct: 0,
+          dayChangeVal: 0,
+          buyDate: '2026-04-10',
+          buyTime: 'before15',
+          settlementDays: 1,
+        }}
+        onBack={vi.fn()}
+      />,
+    );
+
+    await screen.findByText('1.2345');
+
+    expect(screen.getByText('+0.50%')).toBeInTheDocument();
+    expect(screen.getByText('+0.61')).toBeInTheDocument();
+  });
+
+  it('fund.lastUpdate 已进入确认日时，不应被旧 navDate 误判为在途', async () => {
+    mockedApi.fetchFundCommonData.mockResolvedValueOnce({
+      data: {
+        nav: 1.2345,
+        navDate: '2026-04-22',
+        navChangePercent: 0.5,
+      },
+    });
+
+    render(
+      <FundDetail
+        fund={{
+          ...fund,
+          holdingShares: 100,
+          currentNav: 1.2345,
+          lastUpdate: '2026-04-23',
+          dayChangePct: 0.5,
+          dayChangeVal: 7.89,
+          buyDate: '2026-04-22',
+          buyTime: 'before15',
+          settlementDays: 1,
+        }}
+        onBack={vi.fn()}
+      />,
+    );
+
+    await screen.findByText('1.2345');
+
+    expect(screen.queryByText('common.inTransit')).not.toBeInTheDocument();
+    expect(screen.getAllByText('+23.45').length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('commonData 日期落后于 fund.lastUpdate 时，应按 fund 快照计算日收益', async () => {
+    mockedApi.fetchFundCommonData.mockResolvedValueOnce({
+      data: {
+        nav: 1.2345,
+        navDate: '2026-04-22',
+        navChangePercent: 0,
+      },
+    });
+
+    render(
+      <FundDetail
+        fund={{
+          ...fund,
+          holdingShares: 100,
+          currentNav: 1.2345,
+          lastUpdate: '2026-04-23',
+          dayChangePct: 0.5,
+          dayChangeVal: 0.61,
+          buyDate: '2026-04-10',
+          buyTime: 'before15',
+          settlementDays: 1,
+        }}
+        onBack={vi.fn()}
+      />,
+    );
+
+    await screen.findByText('1.2345');
+
+    expect(screen.queryByText('common.inTransit')).not.toBeInTheDocument();
+    expect(screen.getByText('+0.50%')).toBeInTheDocument();
+    expect(screen.getByText('+0.61')).toBeInTheDocument();
+  });
 });

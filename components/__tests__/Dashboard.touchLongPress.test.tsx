@@ -1,6 +1,6 @@
 /// <reference types="vitest/globals" />
 import React from 'react';
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Dashboard } from '../Dashboard';
 import type { Account, Fund } from '../../types';
@@ -153,5 +153,36 @@ describe('Dashboard mobile long press menu', () => {
 
     expect(screen.getByText('common.menu')).toBeInTheDocument();
     vi.useRealTimers();
+  });
+
+  it('右键菜单支持复制基金详情 JSON 到剪贴板', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText },
+      configurable: true,
+    });
+
+    render(<Dashboard />);
+
+    fireEvent.contextMenu(screen.getAllByText('测试基金A')[0], {
+      clientX: 120,
+      clientY: 120,
+    });
+
+    fireEvent.click(screen.getByText('common.copyFundJson'));
+
+    await waitFor(() => {
+      expect(writeText).toHaveBeenCalledTimes(1);
+    });
+
+    const payload = writeText.mock.calls[0][0] as string;
+    const parsed = JSON.parse(payload) as Fund;
+    expect(parsed.code).toBe('000001');
+    expect(parsed.name).toBe('测试基金A');
+    expect(parsed.holdingShares).toBe(100);
+
+    await waitFor(() => {
+      expect(screen.queryByText('common.menu')).not.toBeInTheDocument();
+    });
   });
 });
