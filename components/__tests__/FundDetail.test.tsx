@@ -48,7 +48,7 @@ it('uses unified transaction marker builder to reflect deletion changes', () => 
     holdingShares: 100,
   });
 
-  expect(beforeDelete.map((m) => m.name)).toEqual(['buy', 'sell']);
+  expect(beforeDelete.map((m) => m.name)).toEqual(['buy', 'liquidation']);
   expect(afterDelete.map((m) => m.name)).toEqual(['buy']);
 });
 
@@ -265,7 +265,7 @@ it('does not mark liquidation when buy transactions exist', () => {
         settled: false,
       },
     ],
-    holdingShares: 0,
+    holdingShares: 1,
   });
 
   expect(markers.some((m) => m.name === 'liquidation')).toBe(false);

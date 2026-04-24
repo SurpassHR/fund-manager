@@ -93,6 +93,28 @@ const getLocalDateString = () => {
   return `${year}-${month}-${day}`;
 };
 
+const copyTextToClipboard = async (text: string) => {
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(text);
+    return;
+  }
+
+  const textarea = document.createElement('textarea');
+  textarea.value = text;
+  textarea.setAttribute('readonly', 'true');
+  textarea.style.position = 'fixed';
+  textarea.style.left = '-9999px';
+  textarea.style.top = '-9999px';
+  document.body.appendChild(textarea);
+  textarea.select();
+
+  const copied = document.execCommand('copy');
+  document.body.removeChild(textarea);
+  if (!copied) {
+    throw new Error('copy-failed');
+  }
+};
+
 export const Dashboard: React.FC = () => {
   const funds = useLiveQuery(() => db.funds.toArray());
   const accounts = useLiveQuery(() => db.accounts.toArray());
@@ -137,7 +159,11 @@ export const Dashboard: React.FC = () => {
   const { t } = useTranslation();
 
   const getHoldingDisplayMetrics = useCallback(
-    (fund: Fund, currentNav = fund.currentNav, effectiveDate = fund.lastUpdate || getLocalDateString()) =>
+    (
+      fund: Fund,
+      currentNav = fund.currentNav,
+      effectiveDate = fund.lastUpdate || getLocalDateString(),
+    ) =>
       deriveFundHoldingDisplayMetrics({
         holdingShares: fund.holdingShares,
         currentNav,
@@ -343,14 +369,18 @@ export const Dashboard: React.FC = () => {
     if (!sortState.key) return filteredFunds;
 
     const getSortValue = (fund: Fund) => {
-      const { marketValue, totalGain, isInTransit, dayChangeBaseNav } = getHoldingDisplayMetrics(fund);
-      const displayTodayGainVal = isInTransit || fund.todayChangeUnavailable
-        ? 0
-        : dayChangeBaseNav !== undefined
-          ? marketValue - fund.holdingShares * dayChangeBaseNav
-        : fund.todayChangeIsEstimated
-          ? (marketValue * (fund.estimatedDayChangePct ?? 0)) / 100
-          : fund.dayChangeVal;
+      const { marketValue, totalGain, isInTransit, dayChangeBaseNav } =
+        getHoldingDisplayMetrics(fund);
+      const displayTodayGainVal =
+        isInTransit || fund.todayChangeUnavailable
+          ? 0
+          : dayChangeBaseNav !== undefined
+            ? fund.todayChangeIsEstimated
+              ? (fund.holdingShares * dayChangeBaseNav * (fund.estimatedDayChangePct ?? 0)) / 100
+              : marketValue - fund.holdingShares * dayChangeBaseNav
+            : fund.todayChangeIsEstimated
+              ? (marketValue * (fund.estimatedDayChangePct ?? 0)) / 100
+              : fund.dayChangeVal;
       if (sortState.key === 'marketValue') return marketValue;
       if (sortState.key === 'totalGain') return totalGain;
       if (sortState.key === 'todayGain') return displayTodayGainVal;
@@ -372,12 +402,12 @@ export const Dashboard: React.FC = () => {
   }, [filteredFunds, getHoldingDisplayMetrics, sortState.direction, sortState.key]);
 
   const activeFunds = useMemo(
-    () => sortedFunds.filter((fund) => fund.holdingShares > 0),
+    () => sortedFunds.filter((fund) => fund.holdingShares > 0.01),
     [sortedFunds],
   );
 
   const clearedFunds = useMemo(
-    () => sortedFunds.filter((fund) => fund.holdingShares === 0),
+    () => sortedFunds.filter((fund) => fund.holdingShares <= 0.01),
     [sortedFunds],
   );
 
@@ -448,6 +478,23 @@ export const Dashboard: React.FC = () => {
       await db.funds.delete(fundId);
     }
     setContextMenu(null);
+  };
+
+  const handleCopyFundJson = async (fundId: number) => {
+    const fund = funds.find((item) => item.id === fundId);
+    if (!fund) {
+      setContextMenu(null);
+      return;
+    }
+
+    try {
+      await copyTextToClipboard(JSON.stringify(fund, null, 2));
+    } catch (error) {
+      console.error('复制基金详情失败', error);
+      alert(t('common.copyFailed') || '复制失败，请稍后重试');
+    } finally {
+      setContextMenu(null);
+    }
   };
 
   const handleRowClick = (fund: Fund) => {
@@ -524,7 +571,7 @@ export const Dashboard: React.FC = () => {
         <div
           className="fixed z-[100] w-48 origin-top-left overflow-hidden rounded-xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)]/98 py-2 shadow-[var(--app-shell-shadow)] backdrop-blur-xl animate-in fade-in zoom-in-95 duration-100"
           style={{
-            top: Math.min(contextMenu.y, window.innerHeight - 150),
+            top: Math.min(contextMenu.y, window.innerHeight - 220),
             left: Math.min(contextMenu.x, window.innerWidth - 200),
           }}
           onClick={(e) => e.stopPropagation()}
@@ -577,6 +624,13 @@ export const Dashboard: React.FC = () => {
           >
             <Icons.Grid size={16} className="text-slate-500" />{' '}
             {t('common.transactionHistory') || '交易记录'}
+          </button>
+          <button
+            onClick={() => void handleCopyFundJson(contextMenu.fundId)}
+            className="flex w-full items-center gap-2 border-b border-[var(--app-shell-line)] px-4 py-3 text-left text-sm text-slate-700 hover:bg-[var(--app-shell-panel-strong)] dark:border-border-dark dark:text-gray-200 dark:hover:bg-blue-900/20"
+          >
+            <Icons.Copy size={16} className="text-slate-500" />{' '}
+            {t('common.copyFundJson') || '复制基金详情(JSON)'}
           </button>
           <button
             onClick={() => handleDelete(contextMenu.fundId)}
@@ -932,31 +986,38 @@ export const Dashboard: React.FC = () => {
                 dayChangeBaseNav,
               } = getHoldingDisplayMetrics(fund);
               const officialDayChangePct = fund.officialDayChangePct ?? fund.dayChangePct;
-              const todayChangePct = isInTransit || fund.todayChangeUnavailable
-                ? 0
-                : fund.todayChangePreOpen
+              const todayChangePct =
+                isInTransit || fund.todayChangeUnavailable
                   ? 0
-                  : fund.todayChangeIsEstimated
-                    ? (fund.estimatedDayChangePct ?? 0)
-                    : (fund.officialDayChangePct ?? fund.dayChangePct);
-              const displayTodayGainVal = isInTransit || fund.todayChangeUnavailable
-                ? 0
-                : dayChangeBaseNav !== undefined
-                  ? holdingValue - fund.holdingShares * dayChangeBaseNav
-                : fund.todayChangePreOpen
+                  : fund.todayChangePreOpen
+                    ? 0
+                    : fund.todayChangeIsEstimated
+                      ? (fund.estimatedDayChangePct ?? 0)
+                      : (fund.officialDayChangePct ?? fund.dayChangePct);
+              const displayTodayGainVal =
+                isInTransit || fund.todayChangeUnavailable
                   ? 0
-                  : fund.todayChangeIsEstimated
-                    ? (holdingValue * (fund.estimatedDayChangePct ?? 0)) / 100
-                    : fund.dayChangeVal;
+                  : dayChangeBaseNav !== undefined
+                    ? fund.todayChangeIsEstimated
+                      ? (fund.holdingShares *
+                          dayChangeBaseNav *
+                          (fund.estimatedDayChangePct ?? 0)) /
+                        100
+                      : holdingValue - fund.holdingShares * dayChangeBaseNav
+                    : fund.todayChangePreOpen
+                      ? 0
+                      : fund.todayChangeIsEstimated
+                        ? (holdingValue * (fund.estimatedDayChangePct ?? 0)) / 100
+                        : fund.dayChangeVal;
               const todayChangeTag = isInTransit
                 ? t('common.inTransit') || '在途'
                 : fund.todayChangePreOpen
-                ? t('common.preOpen') || '未开盘'
-                : fund.todayChangeUnavailable
-                  ? t('common.noEstimate') || '无估值'
-                  : fund.todayChangeIsEstimated
-                    ? t('common.estimated') || '估值'
-                    : t('common.updated') || '已更新';
+                  ? t('common.preOpen') || '未开盘'
+                  : fund.todayChangeUnavailable
+                    ? t('common.noEstimate') || '无估值'
+                    : fund.todayChangeIsEstimated
+                      ? t('common.estimated') || '估值'
+                      : t('common.updated') || '已更新';
               const displayPlatform =
                 t(`filters.${fund.platform}`) === `filters.${fund.platform}`
                   ? fund.platform
@@ -997,7 +1058,9 @@ export const Dashboard: React.FC = () => {
                         </span>
                         {(pendingCount > 0 || isInTransit) && (
                           <span className="rounded-full border border-amber-200 bg-amber-50/85 px-2 py-1 text-[10px] font-semibold tracking-[0.14em] text-amber-700 dark:border-amber-400/20 dark:bg-amber-500/10 dark:text-amber-300">
-                            {pendingCount > 0 ? `${pendingCount} ${t('common.inTransit')}` : t('common.inTransit')}
+                            {pendingCount > 0
+                              ? `${pendingCount} ${t('common.inTransit')}`
+                              : t('common.inTransit')}
                           </span>
                         )}
                         {isEtfLinkFund && (
@@ -1184,31 +1247,38 @@ export const Dashboard: React.FC = () => {
                       dayChangeBaseNav,
                     } = getHoldingDisplayMetrics(fund);
                     const officialDayChangePct = fund.officialDayChangePct ?? fund.dayChangePct;
-                    const todayChangePct = isInTransit || fund.todayChangeUnavailable
-                      ? 0
-                      : fund.todayChangePreOpen
+                    const todayChangePct =
+                      isInTransit || fund.todayChangeUnavailable
                         ? 0
-                        : fund.todayChangeIsEstimated
-                          ? (fund.estimatedDayChangePct ?? 0)
-                          : (fund.officialDayChangePct ?? fund.dayChangePct);
-                    const displayTodayGainVal = isInTransit || fund.todayChangeUnavailable
-                      ? 0
-                      : dayChangeBaseNav !== undefined
-                        ? holdingValue - fund.holdingShares * dayChangeBaseNav
-                      : fund.todayChangePreOpen
+                        : fund.todayChangePreOpen
+                          ? 0
+                          : fund.todayChangeIsEstimated
+                            ? (fund.estimatedDayChangePct ?? 0)
+                            : (fund.officialDayChangePct ?? fund.dayChangePct);
+                    const displayTodayGainVal =
+                      isInTransit || fund.todayChangeUnavailable
                         ? 0
-                        : fund.todayChangeIsEstimated
-                          ? (holdingValue * (fund.estimatedDayChangePct ?? 0)) / 100
-                          : fund.dayChangeVal;
+                        : dayChangeBaseNav !== undefined
+                          ? fund.todayChangeIsEstimated
+                            ? (fund.holdingShares *
+                                dayChangeBaseNav *
+                                (fund.estimatedDayChangePct ?? 0)) /
+                              100
+                            : holdingValue - fund.holdingShares * dayChangeBaseNav
+                          : fund.todayChangePreOpen
+                            ? 0
+                            : fund.todayChangeIsEstimated
+                              ? (holdingValue * (fund.estimatedDayChangePct ?? 0)) / 100
+                              : fund.dayChangeVal;
                     const todayChangeTag = isInTransit
                       ? t('common.inTransit') || '在途'
                       : fund.todayChangePreOpen
-                      ? t('common.preOpen') || '未开盘'
-                      : fund.todayChangeUnavailable
-                        ? t('common.noEstimate') || '无估值'
-                        : fund.todayChangeIsEstimated
-                          ? t('common.estimated') || '估值'
-                          : t('common.updated') || '已更新';
+                        ? t('common.preOpen') || '未开盘'
+                        : fund.todayChangeUnavailable
+                          ? t('common.noEstimate') || '无估值'
+                          : fund.todayChangeIsEstimated
+                            ? t('common.estimated') || '估值'
+                            : t('common.updated') || '已更新';
                     const displayPlatform =
                       t(`filters.${fund.platform}`) === `filters.${fund.platform}`
                         ? fund.platform
@@ -1247,13 +1317,13 @@ export const Dashboard: React.FC = () => {
                               <span className="max-w-[10rem] truncate rounded-full border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] px-2 py-1 text-[10px] font-semibold tracking-[0.14em] text-slate-500 dark:border-white/10 dark:bg-white/5 dark:text-gray-400">
                                 {displayPlatform}
                               </span>
-                                {(pendingCount > 0 || isInTransit) && (
-                                  <span className="rounded-full border border-amber-200 bg-amber-50/85 px-2 py-1 text-[10px] font-semibold tracking-[0.14em] text-amber-700 dark:border-amber-400/20 dark:bg-amber-500/10 dark:text-amber-300">
-                                    {pendingCount > 0
-                                      ? `${pendingCount} ${t('common.inTransit')}`
-                                      : t('common.inTransit')}
-                                  </span>
-                                )}
+                              {(pendingCount > 0 || isInTransit) && (
+                                <span className="rounded-full border border-amber-200 bg-amber-50/85 px-2 py-1 text-[10px] font-semibold tracking-[0.14em] text-amber-700 dark:border-amber-400/20 dark:bg-amber-500/10 dark:text-amber-300">
+                                  {pendingCount > 0
+                                    ? `${pendingCount} ${t('common.inTransit')}`
+                                    : t('common.inTransit')}
+                                </span>
+                              )}
                               {isEtfLinkFund && (
                                 <span className="rounded-full border border-emerald-200 bg-emerald-50/85 px-2 py-1 text-[10px] font-semibold tracking-[0.14em] text-emerald-700 dark:border-emerald-400/20 dark:bg-emerald-500/10 dark:text-emerald-300">
                                   ETF联接

@@ -152,8 +152,12 @@ const buildEastMoneyGrowthSeries = (
 
   const benchmarkSeries = thirdSeries?.data?.length ? thirdSeries : secondSeries;
   const averageSeries = thirdSeries?.data?.length ? secondSeries : null;
-  const avgMap = new Map<number, number>((averageSeries?.data || []).map(([ts, value]) => [ts, value]));
-  const bmkMap = new Map<number, number>((benchmarkSeries?.data || []).map(([ts, value]) => [ts, value]));
+  const avgMap = new Map<number, number>(
+    (averageSeries?.data || []).map(([ts, value]) => [ts, value]),
+  );
+  const bmkMap = new Map<number, number>(
+    (benchmarkSeries?.data || []).map(([ts, value]) => [ts, value]),
+  );
 
   const normalized = fundSeries.data
     .filter((item): item is [number, number] => Array.isArray(item) && item.length >= 2)
@@ -210,16 +214,19 @@ const buildEastMoneyHistoryRows = (
   });
 
   return pingzhongData.netWorthTrend
-    .filter((item) => typeof item.x === 'number' && typeof item.y === 'number' && !Number.isNaN(item.y))
+    .filter(
+      (item) => typeof item.x === 'number' && typeof item.y === 'number' && !Number.isNaN(item.y),
+    )
     .map((item) => {
       const date = formatLocalDate(item.x);
       return {
         date: date.substring(5),
         nav: item.y,
         accNav: accNavMap.get(date) ?? null,
-        change: typeof item.equityReturn === 'number' && !Number.isNaN(item.equityReturn)
-          ? item.equityReturn
-          : null,
+        change:
+          typeof item.equityReturn === 'number' && !Number.isNaN(item.equityReturn)
+            ? item.equityReturn
+            : null,
       };
     })
     .reverse();
@@ -257,7 +264,7 @@ const buildEastMoneyAnnualReturnRows = (
 
     rows.push({
       year: String(year),
-      value: ((yearEndValue / basePoint.value) - 1) * 100,
+      value: (yearEndValue / basePoint.value - 1) * 100,
     });
   }
 
@@ -390,11 +397,13 @@ export const FundDetail: React.FC<FundDetailProps> = ({
   const [holdings, setHoldings] = useState<EquityHolding[]>([]);
   const [performanceAnnualReturns, setPerformanceAnnualReturns] = useState<AnnualReturnRow[]>([]);
   const [quotes, setQuotes] = useState<Record<string, { price: string; pct: number }>>({});
-  const [parentEtfInfo, setParentEtfInfo] = useState<ParentEtfInfo | null>(fund.parentEtfInfo || null);
-  const [parentEtfHoldings, setParentEtfHoldings] = useState<EquityHolding[]>([]);
-  const [parentEtfQuotes, setParentEtfQuotes] = useState<Record<string, { price: string; pct: number }>>(
-    {},
+  const [parentEtfInfo, setParentEtfInfo] = useState<ParentEtfInfo | null>(
+    fund.parentEtfInfo || null,
   );
+  const [parentEtfHoldings, setParentEtfHoldings] = useState<EquityHolding[]>([]);
+  const [parentEtfQuotes, setParentEtfQuotes] = useState<
+    Record<string, { price: string; pct: number }>
+  >({});
 
   // State for the verified last trading day (for header and API queries)
   const [lastTradingDay, setLastTradingDay] = useState<string>('');
@@ -485,7 +494,9 @@ export const FundDetail: React.FC<FundDetailProps> = ({
         setPerformanceAnnualReturns(
           annualReturns
             .map((item) => ({ year: String(item.k), value: item.v }))
-            .filter((item) => item.year && typeof item.value === 'number' && !Number.isNaN(item.value))
+            .filter(
+              (item) => item.year && typeof item.value === 'number' && !Number.isNaN(item.value),
+            )
             .reverse(),
         );
       } catch (err) {
@@ -671,7 +682,8 @@ export const FundDetail: React.FC<FundDetailProps> = ({
 
     const fetchHoldings = async () => {
       try {
-        const resolvedParent = fund.parentEtfInfo || (await fetchParentETFInfo(fund.code, fund.name));
+        const resolvedParent =
+          fund.parentEtfInfo || (await fetchParentETFInfo(fund.code, fund.name));
         setParentEtfInfo(resolvedParent || null);
 
         const json = await fetchFundHoldings(fund.code);
@@ -709,9 +721,19 @@ export const FundDetail: React.FC<FundDetailProps> = ({
   // Resolve Display Data
   // Priority: CommonData API -> Performance API -> Local DB
   const latestNetWorth = pingzhongData?.netWorthTrend?.[pingzhongData.netWorthTrend.length - 1];
-  const currentNav = commonData?.nav ?? latestNetWorth?.y ?? fund.currentNav;
-  const dayChangePct = commonData?.navChangePercent ?? latestNetWorth?.equityReturn ?? fund.dayChangePct;
-  const displayDate = commonData?.navDate ?? lastTradingDay ?? fund.lastUpdate;
+  const shouldUseFundSnapshot = Boolean(
+    commonData?.navDate && fund.lastUpdate && commonData.navDate < fund.lastUpdate,
+  );
+  const currentNav = shouldUseFundSnapshot
+    ? fund.currentNav
+    : (commonData?.nav ?? latestNetWorth?.y ?? fund.currentNav);
+  const dayChangePct = shouldUseFundSnapshot
+    ? fund.dayChangePct
+    : (commonData?.navChangePercent ?? latestNetWorth?.equityReturn ?? fund.dayChangePct);
+  const displayDate = shouldUseFundSnapshot
+    ? fund.lastUpdate
+    : (commonData?.navDate ?? lastTradingDay ?? fund.lastUpdate);
+  const gainActivationDate = fund.lastUpdate || displayDate || getLocalDateString();
   const holdingDisplayMetrics = useMemo(
     () =>
       deriveFundHoldingDisplayMetrics({
@@ -721,16 +743,41 @@ export const FundDetail: React.FC<FundDetailProps> = ({
         buyDate: fund.buyDate,
         buyTime: fund.buyTime,
         settlementDays: fund.settlementDays,
-        effectiveDate: displayDate || getLocalDateString(),
+        effectiveDate: gainActivationDate,
       }),
-    [currentNav, displayDate, fund.buyDate, fund.buyTime, fund.costPrice, fund.holdingShares, fund.settlementDays],
+    [
+      currentNav,
+      fund.buyDate,
+      fund.buyTime,
+      fund.costPrice,
+      fund.holdingShares,
+      fund.settlementDays,
+      gainActivationDate,
+    ],
   );
   const displayDayChangePct = holdingDisplayMetrics.isInTransit ? 0 : dayChangePct;
+  const displayUsesOfficialPct =
+    !shouldUseFundSnapshot &&
+    (commonData?.navChangePercent !== undefined || latestNetWorth?.equityReturn !== undefined);
+  const displayIsEstimated = !displayUsesOfficialPct && Boolean(fund.todayChangeIsEstimated);
+  const displayMarketValue = currentNav * fund.holdingShares;
+  const pctDecimal = displayDayChangePct / 100;
+  const inferredDayGainVal =
+    displayIsEstimated || pctDecimal <= -1
+      ? displayMarketValue * pctDecimal
+      : (displayMarketValue * pctDecimal) / (1 + pctDecimal);
   const displayDayGainVal = holdingDisplayMetrics.isInTransit
     ? 0
     : holdingDisplayMetrics.dayChangeBaseNav !== undefined
-      ? currentNav * fund.holdingShares - fund.holdingShares * holdingDisplayMetrics.dayChangeBaseNav
-      : fund.dayChangeVal;
+      ? displayIsEstimated
+        ? (fund.holdingShares *
+            holdingDisplayMetrics.dayChangeBaseNav *
+            (fund.estimatedDayChangePct ?? 0)) /
+          100
+        : displayMarketValue - fund.holdingShares * holdingDisplayMetrics.dayChangeBaseNav
+      : displayUsesOfficialPct || displayIsEstimated
+        ? inferredDayGainVal
+        : fund.dayChangeVal;
 
   // Initialize and Update ECharts
   useEffect(() => {
@@ -1069,7 +1116,9 @@ export const FundDetail: React.FC<FundDetailProps> = ({
                 <span className="text-3xl font-bold font-sans text-gray-900 dark:text-gray-100">
                   {currentNav.toFixed(4)}
                 </span>
-                <span className={`text-lg font-medium font-sans ${getSignColor(displayDayChangePct)}`}>
+                <span
+                  className={`text-lg font-medium font-sans ${getSignColor(displayDayChangePct)}`}
+                >
                   {formatPct(displayDayChangePct)}
                 </span>
               </div>
@@ -1185,10 +1234,22 @@ export const FundDetail: React.FC<FundDetailProps> = ({
               <div className="mb-2 rounded-[1.5rem] border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)]/92 p-4 shadow-[0_10px_24px_rgba(15,23,42,0.05)] transition-colors">
                 <div className="grid grid-cols-4 gap-2 text-center">
                   {[
-                    { label: '近1月', val: pingzhongData.syl_1y ? parseFloat(pingzhongData.syl_1y) : null },
-                    { label: '近3月', val: pingzhongData.syl_3y ? parseFloat(pingzhongData.syl_3y) : null },
-                    { label: '近6月', val: pingzhongData.syl_6y ? parseFloat(pingzhongData.syl_6y) : null },
-                    { label: '近1年', val: pingzhongData.syl_1n ? parseFloat(pingzhongData.syl_1n) : null },
+                    {
+                      label: '近1月',
+                      val: pingzhongData.syl_1y ? parseFloat(pingzhongData.syl_1y) : null,
+                    },
+                    {
+                      label: '近3月',
+                      val: pingzhongData.syl_3y ? parseFloat(pingzhongData.syl_3y) : null,
+                    },
+                    {
+                      label: '近6月',
+                      val: pingzhongData.syl_6y ? parseFloat(pingzhongData.syl_6y) : null,
+                    },
+                    {
+                      label: '近1年',
+                      val: pingzhongData.syl_1n ? parseFloat(pingzhongData.syl_1n) : null,
+                    },
                   ].map((item, idx) => (
                     <div key={idx} className="flex flex-col gap-1 py-1 rounded">
                       <span className="text-xs text-gray-400 mb-1">{item.label}</span>
@@ -1388,7 +1449,9 @@ export const FundDetail: React.FC<FundDetailProps> = ({
                           <div className="text-xs text-gray-400 font-sans">{stock.ticker}</div>
                         </div>
                         <div className="col-span-3 text-right">
-                          <div className="font-sans text-sm text-gray-800 dark:text-gray-200">{price}</div>
+                          <div className="font-sans text-sm text-gray-800 dark:text-gray-200">
+                            {price}
+                          </div>
                           {hasQuote && (
                             <div className={`text-xs font-sans font-medium ${getSignColor(pct)}`}>
                               {formatPct(pct)}
@@ -1419,7 +1482,8 @@ export const FundDetail: React.FC<FundDetailProps> = ({
                   母ETF持仓明细
                 </h3>
                 <div className="text-xs text-gray-500 dark:text-gray-400">
-                  {parentEtfInfo.parentName || '--'} ({parentEtfInfo.parentCode || '--'}) 暂无持仓明细数据
+                  {parentEtfInfo.parentName || '--'} ({parentEtfInfo.parentCode || '--'})
+                  暂无持仓明细数据
                 </div>
               </div>
             )}

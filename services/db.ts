@@ -518,7 +518,8 @@ export const refreshFundData = (options?: RefreshOptions) => {
           const parentEtfInfo = await fetchParentETFInfo(fund.code, fund.name);
           const isEtfLink = isEtfLinkFundName(fund.name) || Boolean(parentEtfInfo?.parentCode);
 
-          const gainActivationDate = candidate.shouldEstimate && navDate !== todayStr ? todayStr : navDate;
+          const gainActivationDate =
+            candidate.shouldEstimate && navDate !== todayStr ? todayStr : navDate;
           const { isGainActive, dayChangeBaseNav } = deriveFundGainActivationState({
             buyDate: fund.buyDate,
             buyTime: fund.buyTime || 'before15',
@@ -561,7 +562,8 @@ export const refreshFundData = (options?: RefreshOptions) => {
             Boolean(fund.todayChangeIsEstimated) === todayChangeIsEstimated &&
             Boolean(fund.todayChangeUnavailable) === todayChangeUnavailable &&
             Boolean(fund.todayChangePreOpen) === todayChangePreOpen &&
-            (fund.category ?? 'UNKNOWN') === (isEtfLink ? 'ETF_LINK' : fund.category ?? 'UNKNOWN') &&
+            (fund.category ?? 'UNKNOWN') ===
+              (isEtfLink ? 'ETF_LINK' : (fund.category ?? 'UNKNOWN')) &&
             (fund.parentEtfInfo?.parentCode ?? '') === (parentEtfInfo?.parentCode ?? '') &&
             (fund.parentEtfInfo?.parentName ?? '') === (parentEtfInfo?.parentName ?? '');
 
@@ -697,7 +699,8 @@ export const refreshWatchlistData = (options?: RefreshOptions) => {
               Boolean(item.todayChangeIsEstimated) === hasEstimate &&
               Boolean(item.todayChangeUnavailable) === todayChangeUnavailable &&
               Boolean(item.todayChangePreOpen) === todayChangePreOpen &&
-              (item.category ?? 'UNKNOWN') === (isEtfLink ? 'ETF_LINK' : item.category ?? 'UNKNOWN') &&
+              (item.category ?? 'UNKNOWN') ===
+                (isEtfLink ? 'ETF_LINK' : (item.category ?? 'UNKNOWN')) &&
               (item.parentEtfInfo?.parentCode ?? '') === (parentEtfInfo?.parentCode ?? '') &&
               (item.parentEtfInfo?.parentName ?? '') === (parentEtfInfo?.parentName ?? '');
 
@@ -776,16 +779,21 @@ export const calculateSummary = (funds: Fund[]): AssetSummary => {
   const todayStr = getLocalDateString();
 
   funds.forEach((fund) => {
-    const { marketValue, totalCost: costValue, totalGain, isInTransit, dayChangeBaseNav } =
-      deriveFundHoldingDisplayMetrics({
-        holdingShares: fund.holdingShares,
-        currentNav: fund.currentNav,
-        costPrice: fund.costPrice,
-        buyDate: fund.buyDate,
-        buyTime: fund.buyTime,
-        settlementDays: fund.settlementDays,
-        effectiveDate: fund.lastUpdate || todayStr,
-      });
+    const {
+      marketValue,
+      totalCost: costValue,
+      totalGain,
+      isInTransit,
+      dayChangeBaseNav,
+    } = deriveFundHoldingDisplayMetrics({
+      holdingShares: fund.holdingShares,
+      currentNav: fund.currentNav,
+      costPrice: fund.costPrice,
+      buyDate: fund.buyDate,
+      buyTime: fund.buyTime,
+      settlementDays: fund.settlementDays,
+      effectiveDate: fund.lastUpdate || todayStr,
+    });
 
     // 如果该基金的最后更新日期不是“今天”，说明它的涨跌幅停留在之前的交易日
     // 此时它对“今日总收益”的贡献应当为 0
@@ -794,10 +802,12 @@ export const calculateSummary = (funds: Fund[]): AssetSummary => {
         ? fund.todayChangeUnavailable
           ? 0
           : dayChangeBaseNav !== undefined
-            ? marketValue - fund.holdingShares * dayChangeBaseNav
-          : fund.todayChangeIsEstimated
-            ? (marketValue * (fund.estimatedDayChangePct ?? 0)) / 100
-            : fund.dayChangeVal
+            ? fund.todayChangeIsEstimated
+              ? (fund.holdingShares * dayChangeBaseNav * (fund.estimatedDayChangePct ?? 0)) / 100
+              : marketValue - fund.holdingShares * dayChangeBaseNav
+            : fund.todayChangeIsEstimated
+              ? (marketValue * (fund.estimatedDayChangePct ?? 0)) / 100
+              : fund.dayChangeVal
         : 0;
 
     totalAssets += marketValue;

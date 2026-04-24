@@ -96,13 +96,10 @@ export const buildTradeMarkersFromTransactions = ({
   const sellTransactions = sortedTransactions.filter(
     (tx) => tx.type === 'sell' || tx.type === 'transferOut',
   );
-  const buyTransactions = sortedTransactions.filter(
-    (tx) => tx.type === 'buy' || tx.type === 'transferIn',
-  );
 
   let liquidationDate: string | null = null;
-  if (holdingShares === 0 && buyTransactions.length === 0 && sellTransactions.length > 0) {
-    let runningShares = holdingShares + sellTransactions.reduce((sum, tx) => {
+  if (holdingShares <= 0.01) {
+    let runningShares = sellTransactions.reduce((sum, tx) => {
       if (tx.type === 'transferOut') {
         return sum + (tx.outShares ?? tx.amount);
       }
@@ -112,7 +109,7 @@ export const buildTradeMarkersFromTransactions = ({
     for (const tx of sellTransactions) {
       const outAmount = tx.type === 'transferOut' ? (tx.outShares ?? tx.amount) : tx.amount;
       runningShares -= outAmount;
-      if (runningShares <= 0) {
+      if (runningShares <= 0.01) {
         liquidationDate = tx.date;
         break;
       }
