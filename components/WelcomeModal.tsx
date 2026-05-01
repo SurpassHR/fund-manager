@@ -92,7 +92,7 @@ export const WelcomeModal: React.FC = () => {
           <h2 className="text-xl font-semibold tracking-[-0.04em] text-[var(--app-shell-ink)]">
             {t('common.changelog')}
           </h2>
-          <div className="mt-2 inline-block rounded-full border border-blue-500/30 bg-gradient-to-r from-blue-500/20 to-purple-500/20 px-3 py-1 text-[11px] font-semibold tracking-[0.18em] text-blue-600 dark:text-blue-400">
+          <div className="mt-2 inline-block rounded-full border border-blue-500/30 bg-gradient-to-r from-blue-500/20 via-indigo-500/20 to-purple-500/20 px-3 py-1 text-[11px] font-semibold tracking-[0.18em] text-blue-600 dark:text-blue-400 isolate">
             {CURRENT_VERSION}
           </div>
         </div>
@@ -156,7 +156,7 @@ export const WelcomeModal: React.FC = () => {
       <div className="border-t border-[var(--app-shell-line)] bg-gradient-to-br from-blue-500/5 via-purple-500/5 to-pink-500/5 p-6">
         <button
           onClick={handleClose}
-          className="w-full rounded-full border border-blue-500/30 bg-gradient-to-r from-blue-500/20 to-purple-500/20 py-3 text-sm font-semibold tracking-[0.2em] text-blue-600 transition hover:from-blue-500/30 hover:to-purple-500/30 dark:text-blue-400"
+          className="w-full rounded-full border border-blue-500/30 bg-gradient-to-r from-blue-500/20 via-indigo-500/20 to-purple-500/20 py-3 text-sm font-semibold tracking-[0.2em] text-blue-600 transition hover:from-blue-500/30 hover:via-indigo-500/30 hover:to-purple-500/30 dark:text-blue-400 isolate"
         >
           {t('common.gotIt') || '我知道了'}
         </button>

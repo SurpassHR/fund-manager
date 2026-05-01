@@ -198,7 +198,7 @@ export const TransactionHistoryModal: React.FC<TransactionHistoryModalProps> = (
     <AnimatePresence>
       {isOpen && (
         <motion.div
-          className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm sm:p-4"
+          className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-md sm:p-4"
           onClick={() => requestClose()}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -223,7 +223,7 @@ export const TransactionHistoryModal: React.FC<TransactionHistoryModalProps> = (
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="bg-white dark:bg-card-dark w-full sm:w-[480px] sm:rounded-2xl rounded-t-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] relative"
+              className="bg-white/92 dark:bg-card-dark/92 backdrop-blur-xl w-full sm:w-[480px] sm:rounded-2xl rounded-t-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] relative"
               onClick={(e) => e.stopPropagation()}
             >
               {/* 顶部标题栏 */}

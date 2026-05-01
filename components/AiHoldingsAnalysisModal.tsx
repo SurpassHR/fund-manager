@@ -599,7 +599,7 @@ export const AiHoldingsAnalysisModal: React.FC<AiHoldingsAnalysisModalProps> = (
         >
           <motion.div
             data-testid="ai-analysis-modal-shell"
-            className="relative flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-2xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] text-[var(--app-shell-ink)] shadow-[var(--app-shell-shadow)] sm:h-[min(90vh,980px)] sm:w-[1120px] sm:max-w-[1120px] sm:flex-row sm:rounded-2xl"
+            className="relative flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-2xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] backdrop-blur-xl text-[var(--app-shell-ink)] shadow-[var(--app-shell-shadow)] sm:h-[min(90vh,980px)] sm:w-[1120px] sm:max-w-[1120px] sm:flex-row sm:rounded-2xl"
             onClick={(e) => e.stopPropagation()}
             initial={{ opacity: 0, y: 40 }}
             animate={{ opacity: 1, y: 0 }}
@@ -608,7 +608,7 @@ export const AiHoldingsAnalysisModal: React.FC<AiHoldingsAnalysisModalProps> = (
           >
             {/* Mobile sidebar backdrop */}
             <div
-              className={`absolute inset-0 z-20 bg-black/40 backdrop-blur-sm transition-opacity duration-300 ease-out sm:hidden ${
+              className={`absolute inset-0 z-20 bg-black/40 backdrop-blur-md transition-opacity duration-300 ease-out sm:hidden ${
                 mobileSidebarOpen
                   ? 'opacity-100 pointer-events-auto'
                   : 'opacity-0 pointer-events-none'

@@ -337,7 +337,7 @@ export const RebalanceModal: React.FC<RebalanceModalProps> = ({
     <AnimatePresence>
       {isOpen && (
         <motion.div
-          className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm flex items-end sm:items-center justify-center sm:p-4"
+          className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-md flex items-end sm:items-center justify-center sm:p-4"
           onClick={handleClose}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -347,7 +347,7 @@ export const RebalanceModal: React.FC<RebalanceModalProps> = ({
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            className="bg-white dark:bg-card-dark rounded-t-2xl sm:rounded-xl w-full sm:max-w-md overflow-hidden shadow-2xl flex flex-col max-h-[92vh] sm:max-h-[90vh]"
+            className="bg-white/92 dark:bg-card-dark/92 backdrop-blur-xl rounded-t-2xl sm:rounded-xl w-full sm:max-w-md overflow-hidden shadow-2xl flex flex-col max-h-[92vh] sm:max-h-[90vh]"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="p-4 border-b border-gray-100 dark:border-border-dark flex justify-between items-center bg-gray-50 dark:bg-white/5">

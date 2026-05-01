@@ -30,7 +30,7 @@ export const ModalShell: React.FC<ModalShellProps> = ({
   onClose,
   overlayId,
   children,
-  className = 'bg-white dark:bg-card-dark rounded-t-2xl sm:rounded-xl w-full sm:max-w-md overflow-hidden shadow-2xl flex flex-col max-h-[92vh] sm:max-h-[90vh]',
+  className = 'bg-white/92 dark:bg-card-dark/92 backdrop-blur-xl rounded-t-2xl sm:rounded-xl w-full sm:max-w-md overflow-hidden shadow-2xl flex flex-col max-h-[92vh] sm:max-h-[90vh]',
   zIndex = 'z-[60]',
   edgeSwipe = false,
   onCardClick,
@@ -76,7 +76,7 @@ export const ModalShell: React.FC<ModalShellProps> = ({
     <AnimatePresence onExitComplete={onExitComplete}>
       {isOpen && (
         <motion.div
-          className={`fixed inset-0 ${zIndex} flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm sm:p-4`}
+          className={`fixed inset-0 ${zIndex} flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-md sm:p-4`}
           onClick={onBackdropClick ?? handleClose}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}

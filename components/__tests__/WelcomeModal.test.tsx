@@ -61,7 +61,7 @@ describe('WelcomeModal', () => {
     renderWelcomeModal();
 
     await screen.findByRole('button', { name: '我知道了' });
-    const backdrop = document.querySelector('.backdrop-blur-sm')!;
+    const backdrop = document.querySelector('.backdrop-blur-md')!;
 
     expect(backdrop).toHaveClass('bg-black/50');
 
