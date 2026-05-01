@@ -59,11 +59,25 @@ type ThsIndexDef = { market: string; code: string; name: string };
 
 // 同花顺指数代码定义
 const THS_MAJOR_INDICES: ThsIndexDef[] = [
+  // 上交所指数 (market 16)
   { market: '16', code: '1A0001', name: '上证指数' },
+  { market: '16', code: '1B0688', name: '科创50' },
+  { market: '16', code: '1B0680', name: '科创综指' },
+  { market: '16', code: '1B0510', name: '中证A500' },
+  { market: '16', code: '1B0300', name: '沪深300' },
+  { market: '16', code: '1B0852', name: '中证1000' },
+  { market: '16', code: '1B0016', name: '上证50' },
+  { market: '16', code: '1B0905', name: '中证500' },
+  { market: '16', code: '1B0698', name: '科创100' },
+  // 深交所指数 (market 32)
   { market: '32', code: '399001', name: '深证成指' },
   { market: '32', code: '399006', name: '创业板指' },
-  { market: '16', code: '1B0300', name: '沪深300' },
-  { market: '16', code: '1B0016', name: '上证50' },
+  { market: '32', code: '399330', name: '深证100' },
+  { market: '32', code: '399673', name: '创业板50' },
+  // 北交所 (market 144)
+  { market: '144', code: '899050', name: '北证50' },
+  // 同花顺编制 (market 48)
+  { market: '48', code: '883957', name: '同花顺全A' },
 ];
 
 // 同花顺 API 字段 ID
