@@ -22,6 +22,59 @@ import {
 // --- API Configurations ---
 const MORNINGSTAR_API_BASE = 'https://www.morningstar.cn/cn-api';
 const TENCENT_STOCK_API = 'https://qt.gtimg.cn/q=';
+const THS_QUOTE_API =
+  'https://quota-h.10jqka.com.cn/fuyao/common_hq_aggr/quote/v1/multi_last_snapshot';
+const THS_AUTH_HEADERS: Record<string, string> = {
+  'Content-Type': 'application/json',
+  'X-Fuyao-Auth':
+    'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJhdXRob3JpemVyX25hbWVzcGFjZSI6ImNvbW1vbi1ocS1hZ2dyIiwibGljZW5zZWVfdHlwZSI6IkZST05UX0FQUCIsImxpY2Vuc2VlX25hbWVzcGFjZSI6Imh4a2xpbmUtTkVXU19hcHBOZXdzRmxvd0hvbWVfUGFnZSJ9.ldrvWTheNnGOa_rH_buA6OoUpLtW2bhcdr3fABrGHbk',
+  'Source-Id': 'hxkline-NEWS_appNewsFlowHome_Page',
+  Platform: 'hxkline',
+  'X-Auth-Type': 'ths',
+  'X-Auth-Version': '1.0',
+  'X-Auth-ProgId': '7047',
+  'X-Auth-AppName': 'AINVEST',
+  Referer: 'https://www.10jqka.com.cn/',
+  Origin: 'https://www.10jqka.com.cn',
+};
+
+type ThsQuoteEntry = {
+  market: string;
+  code: string;
+  delay: boolean;
+  data_fields: string[];
+  value: (string | number | null)[][];
+};
+
+type ThsQuoteResponse = {
+  status_code: number;
+  status_msg: string;
+  data: {
+    quote_data: ThsQuoteEntry[];
+    fail_params: unknown;
+  } | null;
+};
+
+type ThsIndexDef = { market: string; code: string; name: string };
+
+// 同花顺指数代码定义
+const THS_MAJOR_INDICES: ThsIndexDef[] = [
+  { market: '16', code: '1A0001', name: '上证指数' },
+  { market: '32', code: '399001', name: '深证成指' },
+  { market: '32', code: '399006', name: '创业板指' },
+  { market: '16', code: '1B0300', name: '沪深300' },
+  { market: '16', code: '1B0016', name: '上证50' },
+];
+
+// 同花顺 API 字段 ID
+const THS_FIELD = {
+  NAME: '55',
+  CURRENT_PRICE: '6',
+  PREV_CLOSE: '10',
+  TURNOVER: '19',
+  CHANGE: '264648',
+  CHANGE_PCT: '199112',
+} as const;
 
 type CacheEntry<T> = {
   expiresAt: number;
@@ -95,11 +148,107 @@ const withCache = async <T>(params: {
 };
 
 /**
- * Fetches market indices data for major China markets using Tencent API.
- * Replaces the broken Morningstar endpoint.
+ * 从同花顺扶摇 API 获取市场指数数据（POST + JWT）。
+ * 失败时返回 null，由调用方决定是否回退。
+ */
+const fetchThsMarketIndices = async (): Promise<MarketIndex[] | null> => {
+  try {
+    // 按 market 分组构建 code_list
+    const marketMap = new Map<string, string[]>();
+    for (const idx of THS_MAJOR_INDICES) {
+      const arr = marketMap.get(idx.market) ?? [];
+      arr.push(idx.code);
+      marketMap.set(idx.market, arr);
+    }
+    const codeList = Array.from(marketMap.entries()).map(([market, codes]) => ({
+      market,
+      codes,
+    }));
+
+    const body = JSON.stringify({
+      code_list: codeList,
+      trade_class: 'intraday',
+      data_fields: [
+        THS_FIELD.NAME,
+        THS_FIELD.CURRENT_PRICE,
+        THS_FIELD.PREV_CLOSE,
+        THS_FIELD.CHANGE,
+        THS_FIELD.CHANGE_PCT,
+      ],
+      lang: 'zh_cn',
+      gpid: 1,
+    });
+
+    const res = await fetch(THS_QUOTE_API, {
+      method: 'POST',
+      headers: THS_AUTH_HEADERS,
+      body,
+    });
+    if (!res.ok) throw new Error(`THS API HTTP ${res.status}`);
+
+    const json: ThsQuoteResponse = await res.json();
+    if (json.status_code !== 0 || !json.data?.quote_data) {
+      throw new Error(`THS API error: ${json.status_msg}`);
+    }
+
+    // 构建 code -> ThsQuoteEntry 索引
+    const entryMap = new Map<string, ThsQuoteEntry>();
+    for (const entry of json.data.quote_data) {
+      entryMap.set(entry.code, entry);
+    }
+
+    const results: MarketIndex[] = [];
+    for (const idxDef of THS_MAJOR_INDICES) {
+      const entry = entryMap.get(idxDef.code);
+      if (!entry?.value?.[0]) continue;
+
+      const fields = entry.data_fields;
+      const vals = entry.value[0];
+      const get = (fieldId: string): number | null => {
+        const i = fields.indexOf(fieldId);
+        if (i < 0) return null;
+        const v = vals[i];
+        return typeof v === 'number' ? v : null;
+      };
+
+      const currentPrice = get(THS_FIELD.CURRENT_PRICE);
+      const prevClose = get(THS_FIELD.PREV_CLOSE);
+      if (currentPrice === null) continue;
+
+      // 优先用 prevClose 算涨跌额，否则用 API 返回的 change 字段
+      let changeAmount = get(THS_FIELD.CHANGE);
+      if (prevClose !== null) {
+        changeAmount = currentPrice - prevClose;
+      }
+      const changePct =
+        prevClose !== null && prevClose !== 0
+          ? ((currentPrice - prevClose) / prevClose) * 100
+          : (get(THS_FIELD.CHANGE_PCT) ?? 0);
+
+      results.push({
+        name: idxDef.name,
+        value: currentPrice,
+        change: changeAmount ?? 0,
+        changePct,
+      });
+    }
+    return results;
+  } catch (error) {
+    console.warn('THS market indices fetch failed, will fallback:', error);
+    return null;
+  }
+};
+
+/**
+ * Fetches market indices data — 优先同花顺 API，回退到腾讯 API。
  * @returns A promise that resolves to an array of MarketIndex objects.
  */
 export const fetchMarketIndices = async (): Promise<MarketIndex[]> => {
+  // 优先同花顺
+  const thsResult = await fetchThsMarketIndices();
+  if (thsResult && thsResult.length > 0) return thsResult;
+
+  // 回退腾讯
   try {
     const majorIndices = [
       { code: 'sh000001', name: '上证指数' },
@@ -115,9 +264,6 @@ export const fetchMarketIndices = async (): Promise<MarketIndex[]> => {
     for (const idx of majorIndices) {
       const data = quotes[idx.code];
       if (data) {
-        // Ticker expects value (current price), change (amount), and changePct
-        // We have currentPrice and changePct. We can calculate change amount:
-        // changeAmount = currentPrice - (currentPrice / (1 + changePct/100))
         const prevClose = data.currentPrice / (1 + data.changePct / 100);
         const changeAmount = data.currentPrice - prevClose;
 
@@ -397,7 +543,12 @@ export const fetchEastMoneyPingzhongData = async (
 export const fetchEastMoneyLatestNav = async (
   fundCode: string,
   options?: { force?: boolean },
-): Promise<{ nav: number; navDate: string; navChangePercent: number; previousNav?: number } | null> => {
+): Promise<{
+  nav: number;
+  navDate: string;
+  navChangePercent: number;
+  previousNav?: number;
+} | null> => {
   return withCache({
     key: `em-latest-nav:${fundCode}`,
     ttlMs: 30000,
@@ -895,9 +1046,7 @@ const normalizeParentEtfCode = (rawCode: string): string => {
 
   const codeOnly = upper.match(/^(\d{6})$/)?.[1] || '';
   if (!codeOnly) return '';
-  return codeOnly.startsWith('5') || codeOnly.startsWith('6')
-    ? `${codeOnly}.SH`
-    : `${codeOnly}.SZ`;
+  return codeOnly.startsWith('5') || codeOnly.startsWith('6') ? `${codeOnly}.SH` : `${codeOnly}.SZ`;
 };
 
 const decodeF10HtmlText = (html: string): string => {
@@ -923,7 +1072,9 @@ const extractParentEtfFromF10 = (f10Html: string): ParentEtfInfo | null => {
   };
 
   // name + code, e.g. 嘉实中证稀土产业ETF 516150.SH / 嘉实中证稀土产业ETF(516150)
-  const nameCodeMatch = plain.match(/([\u4e00-\u9fa5A-Za-z0-9·\-（）()]+ETF)[^\d]{0,24}(\d{6}(?:\.(?:SH|SZ))?)/i);
+  const nameCodeMatch = plain.match(
+    /([\u4e00-\u9fa5A-Za-z0-9·\-（）()]+ETF)[^\d]{0,24}(\d{6}(?:\.(?:SH|SZ))?)/i,
+  );
   if (nameCodeMatch?.[1] && nameCodeMatch?.[2]) {
     const normalizedCode = normalizeParentEtfCode(nameCodeMatch[2]);
     if (normalizedCode) {
@@ -935,7 +1086,9 @@ const extractParentEtfFromF10 = (f10Html: string): ParentEtfInfo | null => {
   }
 
   // code + name, e.g. 516150.SH 嘉实中证稀土产业ETF
-  const codeNameMatch = plain.match(/(\d{6}(?:\.(?:SH|SZ))?)[^\u4e00-\u9fa5A-Za-z]{0,24}([\u4e00-\u9fa5A-Za-z0-9·\-（）()]+ETF)/i);
+  const codeNameMatch = plain.match(
+    /(\d{6}(?:\.(?:SH|SZ))?)[^\u4e00-\u9fa5A-Za-z]{0,24}([\u4e00-\u9fa5A-Za-z0-9·\-（）()]+ETF)/i,
+  );
   if (codeNameMatch?.[1] && codeNameMatch?.[2]) {
     const normalizedCode = normalizeParentEtfCode(codeNameMatch[1]);
     if (normalizedCode) {
