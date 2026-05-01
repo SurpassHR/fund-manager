@@ -39,7 +39,7 @@ describe('serviceStatus', () => {
       githubToken: '',
     });
 
-    expect(list).toHaveLength(7);
+    expect(list).toHaveLength(8);
     expect(list.every((item) => item.status === 'checking')).toBe(true);
   });
 
@@ -92,8 +92,9 @@ describe('serviceStatus', () => {
     resolveMorningstar(new Response('{}', { status: 200 }));
     const list = await task;
 
-    expect(list).toHaveLength(7);
+    expect(list).toHaveLength(8);
     expect(list.find((item) => item.id === 'morningstar')?.status).toBe('ok');
+    expect(list.find((item) => item.id === 'ths-fuyao')?.status).toBe('error');
     expect(list.find((item) => item.id === 'openai')?.status).toBe('idle');
 
     appendSpy.mockRestore();
@@ -127,7 +128,7 @@ describe('serviceStatus', () => {
       githubToken: '',
     });
 
-    expect(list).toHaveLength(7);
+    expect(list).toHaveLength(8);
     expect(list.find((item) => item.id === 'morningstar')?.status).toBe('ok');
     expect(list.find((item) => item.id === 'tencent-quote')?.status).toBe('ok');
     expect(list.find((item) => item.id === 'eastmoney-fundf10')?.status).toBe('ok');

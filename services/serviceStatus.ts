@@ -75,6 +75,13 @@ const getServiceApiBases = (config: ServiceRuntimeConfig): ServiceApiBase[] => [
     auth: 'none',
   },
   {
+    id: 'ths-fuyao',
+    name: 'THS Fuyao Quote API',
+    provider: '同花顺',
+    endpoint: 'https://quota-h.10jqka.com.cn/fuyao/common_hq_aggr/quote/v1/multi_last_snapshot',
+    auth: 'none',
+  },
+  {
     id: 'eastmoney-fundf10',
     name: 'EastMoney FundF10 Script API',
     provider: 'EastMoney',
@@ -155,6 +162,44 @@ const runServiceApiCheckTasks = (config: ServiceRuntimeConfig): Promise<ServiceA
       const text = await res.text();
       if (!res.ok) return fail(base, `HTTP ${res.status}`);
       if (!text.includes('~')) return fail(base, '返回格式异常', 'degraded');
+      return ok(base);
+    } catch (error) {
+      return fail(base, error instanceof Error ? error.message : '请求失败');
+    }
+  })(),
+  (async () => {
+    const base = getServiceApiBases(config).find((item) => item.id === 'ths-fuyao');
+    if (!base) throw new Error('MISSING_SERVICE_API_BASE');
+    try {
+      const res = await fetch(
+        'https://quota-h.10jqka.com.cn/fuyao/common_hq_aggr/quote/v1/multi_last_snapshot',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Fuyao-Auth':
+              'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJhdXRob3JpemVyX25hbWVzcGFjZSI6ImNvbW1vbi1ocS1hZ2dyIiwibGljZW5zZWVfdHlwZSI6IkZST05UX0FQUCIsImxpY2Vuc2VlX25hbWVzcGFjZSI6Imh4a2xpbmUtTkVXU19hcHBOZXdzRmxvd0hvbWVfUGFnZSJ9.ldrvWTheNnGOa_rH_buA6OoUpLtW2bhcdr3fABrGHbk',
+            'Source-Id': 'hxkline-NEWS_appNewsFlowHome_Page',
+            Platform: 'hxkline',
+            'X-Auth-Type': 'ths',
+            'X-Auth-Version': '1.0',
+            'X-Auth-ProgId': '7047',
+            'X-Auth-AppName': 'AINVEST',
+            Referer: 'https://www.10jqka.com.cn/',
+            Origin: 'https://www.10jqka.com.cn',
+          },
+          body: JSON.stringify({
+            code_list: [{ market: '16', codes: ['1A0001'] }],
+            trade_class: 'intraday',
+            data_fields: ['55', '6'],
+            lang: 'zh_cn',
+            gpid: 1,
+          }),
+        },
+      );
+      if (!res.ok) return fail(base, `HTTP ${res.status}`);
+      const json = await res.json();
+      if (json.status_code !== 0) return fail(base, json.status_msg || '接口异常', 'degraded');
       return ok(base);
     } catch (error) {
       return fail(base, error instanceof Error ? error.message : '请求失败');
