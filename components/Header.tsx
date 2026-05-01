@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Icons } from './Icon';
 import { useTranslation } from '../services/i18n';
 import { useTheme } from '../services/ThemeContext';
@@ -102,16 +102,8 @@ const PresenceIndicator = ({
 export const Header: React.FC<HeaderProps> = ({ title: _title, hiddenOnMobile = false }) => {
   const { language, setLanguage, t } = useTranslation();
   const { theme } = useTheme();
-  const [now, setNow] = useState(() => Date.now());
   const [stats, setStats] = useState<PresenceStats>({ current: 0, peak: 0, unique: 0 });
   const presenceActive = isPresenceEnabled();
-
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setNow(Date.now());
-    }, 1000);
-    return () => clearInterval(timer);
-  }, []);
 
   // Start presence heartbeat once
   useEffect(() => {
@@ -122,16 +114,6 @@ export const Header: React.FC<HeaderProps> = ({ title: _title, hiddenOnMobile = 
   useEffect(() => {
     return subscribePresence(setStats);
   }, []);
-
-  const displayNow = useMemo(() => {
-    const d = new Date(now);
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    const hours = String(d.getHours()).padStart(2, '0');
-    const minutes = String(d.getMinutes()).padStart(2, '0');
-    const seconds = String(d.getSeconds()).padStart(2, '0');
-    return `${month}-${day} ${hours}:${minutes}:${seconds}`;
-  }, [now]);
 
   const toggleLanguage = () => {
     setLanguage(language === 'zh' ? 'en' : 'zh');
@@ -177,10 +159,15 @@ export const Header: React.FC<HeaderProps> = ({ title: _title, hiddenOnMobile = 
             )}
           </div>
 
-          <div className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
-            <div className="rounded-full border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)]/90 px-3 py-1.5 text-[11px] font-semibold tracking-[0.18em] text-[var(--app-shell-muted)]">
-              {displayNow}
-            </div>
+          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
+            <button
+              onClick={() => window.dispatchEvent(new CustomEvent('open-add-fund'))}
+              aria-label={t('common.addFund')}
+              className="inline-flex items-center gap-1.5 rounded-full border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)]/90 px-3 py-1.5 text-[11px] font-semibold tracking-wider text-[var(--app-shell-accent)] transition hover:border-[var(--app-shell-line-strong)] hover:bg-[var(--app-shell-panel-strong)]"
+            >
+              <Icons.Plus size={14} />
+              {t('common.addFund')}
+            </button>
           </div>
 
           <div className="flex items-center gap-2 text-[var(--app-shell-muted)] sm:gap-2.5">

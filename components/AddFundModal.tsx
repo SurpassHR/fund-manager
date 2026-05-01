@@ -10,8 +10,7 @@ import { Icons } from './Icon';
 import type { MorningstarFund, Fund, WatchlistItem } from '../types';
 import { searchFunds, fetchFundCommonData } from '../services/api';
 import { isValidIsoDate } from '../services/dateInput';
-import { resetDragState, useEdgeSwipe } from '../services/useEdgeSwipe';
-import { useOverlayRegistration } from '../services/overlayRegistration';
+import { ModalShell } from './ModalShell';
 
 interface AddFundModalProps {
   isOpen: boolean;
@@ -30,15 +29,6 @@ export const AddFundModal: React.FC<AddFundModalProps> = ({
 }) => {
   const { t } = useTranslation();
   const accounts = useLiveQuery(() => db.accounts.toArray());
-  const overlayId = 'add-fund-modal';
-  const { isDragging, activeOverlayId, setDragState, snapBackX } = useEdgeSwipe();
-  const [closeTargetX, setCloseTargetX] = useState<number | null>(null);
-  const translateX =
-    isDragging && activeOverlayId === overlayId ? 'var(--edge-swipe-drag-x, 0px)' : '0px';
-  const snapX = activeOverlayId === overlayId ? snapBackX : null;
-  const transformX =
-    closeTargetX !== null ? `${closeTargetX}px` : snapX !== null ? `${snapX}px` : translateX;
-
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<MorningstarFund[]>([]);
   const [loading, setLoading] = useState(false);
@@ -136,60 +126,6 @@ export const AddFundModal: React.FC<AddFundModalProps> = ({
       setSelectedAccount(getFallbackAccountName());
     }
   }, [accounts, getFallbackAccountName, isOpen, selectedAccount]);
-
-  const [isVisible, setIsVisible] = useState(false);
-  const [closeTimeoutRef, setCloseTimeoutRef] = useState<number | null>(null);
-
-  useEffect(() => {
-    if (isOpen) {
-      setIsVisible(true);
-    }
-  }, [isOpen]);
-
-  const handleClose = useCallback(() => {
-    setIsVisible(false);
-    if (closeTimeoutRef !== null) {
-      window.clearTimeout(closeTimeoutRef);
-    }
-    const timeout = window.setTimeout(() => {
-      setQuery('');
-      setResults([]);
-      setSelectedFund(null);
-      setCurrentNav(0);
-      setAmount('');
-      setShares('');
-      setCostPrice('');
-      setGain('');
-      setError('');
-      setIsSaving(false);
-      onClose();
-      setCloseTimeoutRef(null);
-    }, 260);
-    setCloseTimeoutRef(timeout);
-  }, [onClose, closeTimeoutRef]);
-
-  const requestClose = useCallback(
-    (payload?: { source?: 'edge-swipe' | 'programmatic'; targetX?: number }) => {
-      if (payload?.targetX !== undefined) {
-        setCloseTargetX(payload.targetX);
-        return;
-      }
-      handleClose();
-    },
-    [handleClose],
-  );
-
-  useOverlayRegistration(overlayId, isOpen, requestClose);
-
-  useEffect(() => {
-    return () => {
-      if (activeOverlayId === overlayId) {
-        resetDragState(setDragState);
-      }
-    };
-  }, [activeOverlayId, overlayId, setDragState]);
-
-  if (!isOpen) return null;
 
   // --- 联动计算 ---
 
@@ -306,6 +242,7 @@ export const AddFundModal: React.FC<AddFundModalProps> = ({
 
     const valShares = parseFloat(shares);
     const valCostPrice = parseFloat(costPrice);
+    const valAmount = parseFloat(amount);
 
     if (isNaN(valShares) || valShares <= 0) {
       alert('请输入有效的持有份额');
@@ -317,7 +254,8 @@ export const AddFundModal: React.FC<AddFundModalProps> = ({
     setIsSaving(true);
 
     try {
-      const effectiveNavDate = editFund?.lastUpdate || navDate || buyDate || new Date().toISOString().split('T')[0];
+      const effectiveNavDate =
+        editFund?.lastUpdate || navDate || buyDate || new Date().toISOString().split('T')[0];
       const { isGainActive, dayChangeBaseNav } = deriveFundGainActivationState({
         buyDate,
         buyTime,
@@ -348,7 +286,7 @@ export const AddFundModal: React.FC<AddFundModalProps> = ({
           settlementDays,
         });
 
-        handleClose();
+        onClose();
         return;
       }
 
@@ -371,9 +309,11 @@ export const AddFundModal: React.FC<AddFundModalProps> = ({
         buyDate,
         buyTime,
         settlementDays,
+        positionOpenAmount: isNaN(valAmount) ? undefined : valAmount,
+        positionOpenDate: buyDate || undefined,
       });
 
-      handleClose();
+      onClose();
 
       void Promise.resolve(onFundAdded?.()).catch((err) => {
         console.error('onFundAdded callback failed', err);
@@ -408,272 +348,245 @@ export const AddFundModal: React.FC<AddFundModalProps> = ({
   const info = displayInfo();
 
   return (
-    <div
-      className={`fixed inset-0 z-[60] flex items-end sm:items-center justify-center sm:p-4 transition-all duration-[260ms] ease-[cubic-bezier(0.22,1,0.36,1)] ${isVisible ? 'bg-black/50 backdrop-blur-sm' : 'bg-black/0 backdrop-blur-0'}`}
-      onClick={handleClose}
-    >
-      <div
-        className={`bg-white dark:bg-card-dark rounded-t-2xl sm:rounded-xl w-full sm:max-w-md overflow-hidden shadow-2xl flex flex-col max-h-[92vh] sm:max-h-[90vh] transition-all duration-[260ms] ease-[cubic-bezier(0.22,1,0.36,1)] ${isVisible ? 'opacity-100 scale-100' : 'opacity-0 scale-95'}`}
-        style={{
-          transform: `translateX(${transformX})`,
-          transition: closeTargetX !== null || snapX !== null ? 'transform 220ms ease' : undefined,
-        }}
-        onClick={(e) => e.stopPropagation()}
-        onTransitionEnd={() => {
-          if (closeTargetX !== null) {
-            setCloseTargetX(null);
-            resetDragState(setDragState);
-            handleClose();
-            return;
-          }
-          if (snapX !== null) {
-            resetDragState(setDragState);
-          }
-        }}
-      >
-        {/* 标题 */}
-        <div className="p-4 border-b border-gray-100 dark:border-border-dark flex justify-between items-center bg-gray-50 dark:bg-white/5 shrink-0">
-          <h3 className="font-bold text-gray-800 dark:text-gray-100">
-            {editFund
-              ? t('common.editDetails')
-              : selectedFund
-                ? t('common.fillDetails')
-                : t('common.addFund')}
-          </h3>
-          <button onClick={handleClose}>
-            <Icons.Plus className="transform rotate-45 text-gray-400" />
-          </button>
-        </div>
+    <ModalShell isOpen={isOpen} onClose={onClose} overlayId="add-fund-modal" edgeSwipe>
+      {/* 标题 */}
+      <div className="p-4 border-b border-gray-100 dark:border-border-dark flex justify-between items-center bg-gray-50 dark:bg-white/5 shrink-0">
+        <h3 className="font-bold text-gray-800 dark:text-gray-100">
+          {editFund
+            ? t('common.editDetails')
+            : selectedFund
+              ? t('common.fillDetails')
+              : t('common.addFund')}
+        </h3>
+        <button onClick={onClose}>
+          <Icons.Plus className="transform rotate-45 text-gray-400" />
+        </button>
+      </div>
 
-        {/* 内容 */}
-        {!selectedFund ? (
-          <div className="flex flex-col h-full overflow-hidden">
-            <div className="p-4 space-y-3 shrink-0">
-              <div className="relative">
-                <input
-                  type="text"
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                  placeholder={t('common.searchFund')}
-                  className="w-full pl-10 pr-4 py-3 border border-gray-200 dark:border-gray-700 rounded-xl bg-gray-50 dark:bg-white/5 focus:bg-white dark:focus:bg-white/10 focus:border-blue-500 focus:outline-none transition-all dark:text-gray-100"
-                />
-                <Icons.Search className="absolute left-3 top-3.5 text-gray-400" size={18} />
-                <button
-                  onClick={handleSearch}
-                  className="absolute right-2 top-2 bg-blue-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold"
-                >
-                  Search
-                </button>
-              </div>
-              {error && <p className="text-xs text-red-500">{error}</p>}
+      {/* 内容 */}
+      {!selectedFund ? (
+        <div className="flex flex-col h-full overflow-hidden">
+          <div className="p-4 space-y-3 shrink-0">
+            <div className="relative">
+              <input
+                type="text"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                placeholder={t('common.searchFund')}
+                className="w-full pl-10 pr-4 py-3 border border-gray-200 dark:border-gray-700 rounded-xl bg-gray-50 dark:bg-white/5 focus:bg-white dark:focus:bg-white/10 focus:border-blue-500 focus:outline-none transition-all dark:text-gray-100"
+              />
+              <Icons.Search className="absolute left-3 top-3.5 text-gray-400" size={18} />
+              <button
+                onClick={handleSearch}
+                className="absolute right-2 top-2 bg-blue-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold"
+              >
+                Search
+              </button>
             </div>
+            {error && <p className="text-xs text-red-500">{error}</p>}
+          </div>
 
-            <div className="flex-1 overflow-y-auto p-4 pt-0">
-              {loading ? (
-                <div className="text-center text-gray-400 py-8">{t('common.searching')}</div>
-              ) : results.length > 0 ? (
-                <div className="space-y-2">
-                  {results.map((fund) => (
-                    <div
-                      key={fund.fundClassId}
-                      onClick={() => handleSelect(fund)}
-                      className="p-3 border border-gray-100 dark:border-border-dark rounded-lg hover:border-blue-500 dark:hover:border-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 cursor-pointer transition-all"
-                    >
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <div className="font-medium text-gray-800 dark:text-gray-100 text-sm">
-                            {fund.fundNameArr}
-                          </div>
-                          <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                            {fund.symbol} · {fund.fundType}
-                          </div>
+          <div className="flex-1 overflow-y-auto p-4 pt-0">
+            {loading ? (
+              <div className="text-center text-gray-400 py-8">{t('common.searching')}</div>
+            ) : results.length > 0 ? (
+              <div className="space-y-2">
+                {results.map((fund) => (
+                  <div
+                    key={fund.fundClassId}
+                    onClick={() => handleSelect(fund)}
+                    className="p-3 border border-gray-100 dark:border-border-dark rounded-lg hover:border-blue-500 dark:hover:border-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 cursor-pointer transition-all"
+                  >
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <div className="font-medium text-gray-800 dark:text-gray-100 text-sm">
+                          {fund.fundNameArr}
                         </div>
-                        <Icons.Plus className="text-blue-500 dark:text-blue-400" size={16} />
+                        <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                          {fund.symbol} · {fund.fundType}
+                        </div>
                       </div>
+                      <Icons.Plus className="text-blue-500 dark:text-blue-400" size={16} />
                     </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center text-gray-400 py-10 flex flex-col items-center">
-                  <Icons.Search size={48} className="text-gray-200 mb-2" strokeWidth={1} />
-                  <p>{t('common.searchTip')}</p>
-                </div>
-              )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center text-gray-400 py-10 flex flex-col items-center">
+                <Icons.Search size={48} className="text-gray-200 mb-2" strokeWidth={1} />
+                <p>{t('common.searchTip')}</p>
+              </div>
+            )}
+          </div>
+        </div>
+      ) : (
+        <div className="p-6 space-y-4 overflow-y-auto">
+          {/* 基金信息卡 */}
+          <div className="bg-blue-50 dark:bg-blue-900/30 p-3 rounded-lg border border-blue-100 dark:border-blue-800/50 flex justify-between items-center">
+            <div>
+              <div className="font-bold text-blue-900 dark:text-blue-100 text-sm">{info.name}</div>
+              <div className="text-xs text-blue-600 dark:text-blue-400 mt-1">{info.code}</div>
+            </div>
+            <div className="text-right">
+              <div className="text-[10px] text-blue-400 dark:text-blue-500">{t('common.nav')}</div>
+              <div className="font-sans font-bold text-blue-800 dark:text-blue-300">
+                {navLoading ? '...' : currentNav.toFixed(4)}
+              </div>
             </div>
           </div>
-        ) : (
-          <div className="p-6 space-y-4 overflow-y-auto">
-            {/* 基金信息卡 */}
-            <div className="bg-blue-50 dark:bg-blue-900/30 p-3 rounded-lg border border-blue-100 dark:border-blue-800/50 flex justify-between items-center">
-              <div>
-                <div className="font-bold text-blue-900 dark:text-blue-100 text-sm">
-                  {info.name}
-                </div>
-                <div className="text-xs text-blue-600 dark:text-blue-400 mt-1">{info.code}</div>
-              </div>
-              <div className="text-right">
-                <div className="text-[10px] text-blue-400 dark:text-blue-500">
-                  {t('common.nav')}
-                </div>
-                <div className="font-sans font-bold text-blue-800 dark:text-blue-300">
-                  {navLoading ? '...' : currentNav.toFixed(4)}
-                </div>
-              </div>
-            </div>
 
-            {/* 账户选择 */}
+          {/* 账户选择 */}
+          <div>
+            <label className="block text-xs font-bold text-gray-500 mb-1">
+              {t('common.account')}
+            </label>
+            <select
+              value={selectedAccount}
+              onChange={(e) => setSelectedAccount(e.target.value)}
+              className="w-full p-3 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-white/5 focus:outline-none focus:border-blue-500 text-gray-900 dark:text-gray-100"
+            >
+              {accounts?.map((acc) => (
+                <option key={acc.id} value={acc.name}>
+                  {t(`filters.${acc.name}`) === `filters.${acc.name}`
+                    ? acc.name
+                    : t(`filters.${acc.name}`)}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* 买入时间 */}
+          <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-bold text-gray-500 mb-1">
-                {t('common.account')}
+                {t('common.buyDate') || '买入日期'}
+              </label>
+              <input
+                type="date"
+                value={buyDate}
+                onChange={(e) => handleBuyDateChange(e.target.value)}
+                className="w-full p-2.5 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-white/5 focus:outline-none focus:border-blue-500 text-gray-900 dark:text-gray-100 text-sm font-sans"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-gray-500 mb-1">
+                {t('common.buyTime') || '买入时间'}
               </label>
               <select
-                value={selectedAccount}
-                onChange={(e) => setSelectedAccount(e.target.value)}
-                className="w-full p-3 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-white/5 focus:outline-none focus:border-blue-500 text-gray-900 dark:text-gray-100"
+                value={buyTime}
+                onChange={(e) => setBuyTime(e.target.value as 'before15' | 'after15')}
+                className="w-full p-3 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-white/5 focus:outline-none focus:border-blue-500 text-gray-900 dark:text-gray-100 text-sm"
               >
-                {accounts?.map((acc) => (
-                  <option key={acc.id} value={acc.name}>
-                    {t(`filters.${acc.name}`) === `filters.${acc.name}`
-                      ? acc.name
-                      : t(`filters.${acc.name}`)}
-                  </option>
-                ))}
+                <option value="before15">{t('common.before15') || '15:00前'}</option>
+                <option value="after15">{t('common.after15') || '15:00后'}</option>
               </select>
             </div>
+          </div>
 
-            {/* 买入时间 */}
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-bold text-gray-500 mb-1">
-                  {t('common.buyDate') || '买入日期'}
-                </label>
-                <input
-                  type="date"
-                  value={buyDate}
-                  onChange={(e) => handleBuyDateChange(e.target.value)}
-                  className="w-full p-2.5 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-white/5 focus:outline-none focus:border-blue-500 text-gray-900 dark:text-gray-100 text-sm font-sans"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-gray-500 mb-1">
-                  {t('common.buyTime') || '买入时间'}
-                </label>
-                <select
-                  value={buyTime}
-                  onChange={(e) => setBuyTime(e.target.value as 'before15' | 'after15')}
-                  className="w-full p-3 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-white/5 focus:outline-none focus:border-blue-500 text-gray-900 dark:text-gray-100 text-sm"
-                >
-                  <option value="before15">{t('common.before15') || '15:00前'}</option>
-                  <option value="after15">{t('common.after15') || '15:00后'}</option>
-                </select>
-              </div>
-            </div>
-
-            {/* T+N 确认天数 */}
-            <div>
-              <label className="block text-xs font-bold text-gray-500 mb-1">
-                {t('common.settlementDays') || '确认天数 (T+N)'}
-              </label>
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-gray-600 dark:text-gray-400 font-medium">T +</span>
-                <input
-                  type="number"
-                  min="0"
-                  max="10"
-                  value={settlementDays}
-                  onChange={(e) => setSettlementDays(Math.max(0, parseInt(e.target.value) || 0))}
-                  className={`w-20 p-2.5 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-white/5 focus:outline-none focus:border-blue-500 text-gray-900 dark:text-gray-100 text-sm font-sans font-bold text-center ${noSpinnerClass}`}
-                />
-                <span className="text-xs text-gray-400">个交易日</span>
-              </div>
-            </div>
-
-            {/* 联动表单 */}
-            <div className="p-3 bg-gray-50 dark:bg-white/5 rounded-lg border border-gray-100 dark:border-border-dark space-y-3">
-              <div className="grid grid-cols-2 gap-4">
-                {/* 持有金额 */}
-                <div>
-                  <label className="block text-xs font-bold text-gray-500 mb-1">
-                    {t('common.holdingAmount')} (¥)
-                  </label>
-                  <input
-                    type="number"
-                    value={amount}
-                    onChange={(e) => handleAmountChange(e.target.value)}
-                    placeholder="0.00"
-                    className={`w-full p-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-white/5 text-gray-900 dark:text-white font-bold font-sans focus:border-blue-500 outline-none ${noSpinnerClass}`}
-                  />
-                </div>
-                {/* 持有份额 */}
-                <div>
-                  <label className="block text-xs font-bold text-gray-500 mb-1">
-                    {t('common.shares')}
-                  </label>
-                  <input
-                    type="number"
-                    value={shares}
-                    onChange={(e) => handleSharesChange(e.target.value)}
-                    placeholder="0.00"
-                    className={`w-full p-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-white/5 text-gray-900 dark:text-white font-bold font-sans focus:border-blue-500 outline-none ${noSpinnerClass}`}
-                  />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                {/* 持仓成本 */}
-                <div>
-                  <label className="block text-xs font-bold text-gray-500 mb-1">
-                    {t('common.cost')}
-                  </label>
-                  <input
-                    type="number"
-                    value={costPrice}
-                    onChange={(e) => handleCostPriceChange(e.target.value)}
-                    placeholder="0.0000"
-                    className={`w-full p-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-white/5 text-gray-900 dark:text-white font-bold font-sans focus:border-blue-500 outline-none ${noSpinnerClass}`}
-                  />
-                </div>
-                {/* 持有收益 */}
-                <div>
-                  <label className="block text-xs font-bold text-gray-500 mb-1">
-                    {t('common.totalGain')} (¥)
-                  </label>
-                  <input
-                    type="number"
-                    value={gain}
-                    onChange={(e) => handleGainChange(e.target.value)}
-                    placeholder="0.00"
-                    className={`w-full p-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-white/5 font-bold font-sans focus:border-blue-500 outline-none ${noSpinnerClass} ${getGainColor(gain)}`}
-                  />
-                </div>
-              </div>
-              <p className="text-[10px] text-gray-400 text-center">{t('common.autoCalcTip')}</p>
-            </div>
-
-            {/* 操作按钮 */}
-            <div className="flex gap-3 pt-2">
-              <button
-                onClick={() => {
-                  if (isSaving) return;
-                  if (editFund) onClose();
-                  else setSelectedFund(null);
-                }}
-                disabled={isSaving}
-                className="flex-1 py-3 text-sm font-bold text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-white/10 rounded-xl hover:bg-gray-200 dark:hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {t('common.cancel')}
-              </button>
-              <button
-                onClick={handleSave}
-                disabled={isSaving}
-                className="flex-1 py-3 text-sm font-bold text-white bg-blue-600 rounded-xl hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {t('common.confirm')}
-              </button>
+          {/* T+N 确认天数 */}
+          <div>
+            <label className="block text-xs font-bold text-gray-500 mb-1">
+              {t('common.settlementDays') || '确认天数 (T+N)'}
+            </label>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-600 dark:text-gray-400 font-medium">T +</span>
+              <input
+                type="number"
+                min="0"
+                max="10"
+                value={settlementDays}
+                onChange={(e) => setSettlementDays(Math.max(0, parseInt(e.target.value) || 0))}
+                className={`w-20 p-2.5 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-white/5 focus:outline-none focus:border-blue-500 text-gray-900 dark:text-gray-100 text-sm font-sans font-bold text-center ${noSpinnerClass}`}
+              />
+              <span className="text-xs text-gray-400">个交易日</span>
             </div>
           </div>
-        )}
-      </div>
-    </div>
+
+          {/* 联动表单 */}
+          <div className="p-3 bg-gray-50 dark:bg-white/5 rounded-lg border border-gray-100 dark:border-border-dark space-y-3">
+            <div className="grid grid-cols-2 gap-4">
+              {/* 持有金额 */}
+              <div>
+                <label className="block text-xs font-bold text-gray-500 mb-1">
+                  {t('common.holdingAmount')} (¥)
+                </label>
+                <input
+                  type="number"
+                  value={amount}
+                  onChange={(e) => handleAmountChange(e.target.value)}
+                  placeholder="0.00"
+                  className={`w-full p-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-white/5 text-gray-900 dark:text-white font-bold font-sans focus:border-blue-500 outline-none ${noSpinnerClass}`}
+                />
+              </div>
+              {/* 持有份额 */}
+              <div>
+                <label className="block text-xs font-bold text-gray-500 mb-1">
+                  {t('common.shares')}
+                </label>
+                <input
+                  type="number"
+                  value={shares}
+                  onChange={(e) => handleSharesChange(e.target.value)}
+                  placeholder="0.00"
+                  className={`w-full p-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-white/5 text-gray-900 dark:text-white font-bold font-sans focus:border-blue-500 outline-none ${noSpinnerClass}`}
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              {/* 持仓成本 */}
+              <div>
+                <label className="block text-xs font-bold text-gray-500 mb-1">
+                  {t('common.cost')}
+                </label>
+                <input
+                  type="number"
+                  value={costPrice}
+                  onChange={(e) => handleCostPriceChange(e.target.value)}
+                  placeholder="0.0000"
+                  className={`w-full p-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-white/5 text-gray-900 dark:text-white font-bold font-sans focus:border-blue-500 outline-none ${noSpinnerClass}`}
+                />
+              </div>
+              {/* 持有收益 */}
+              <div>
+                <label className="block text-xs font-bold text-gray-500 mb-1">
+                  {t('common.totalGain')} (¥)
+                </label>
+                <input
+                  type="number"
+                  value={gain}
+                  onChange={(e) => handleGainChange(e.target.value)}
+                  placeholder="0.00"
+                  className={`w-full p-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-white/5 font-bold font-sans focus:border-blue-500 outline-none ${noSpinnerClass} ${getGainColor(gain)}`}
+                />
+              </div>
+            </div>
+            <p className="text-[10px] text-gray-400 text-center">{t('common.autoCalcTip')}</p>
+          </div>
+
+          {/* 操作按钮 */}
+          <div className="flex gap-3 pt-2">
+            <button
+              onClick={() => {
+                if (isSaving) return;
+                if (editFund) onClose();
+                else setSelectedFund(null);
+              }}
+              disabled={isSaving}
+              className="flex-1 py-3 text-sm font-bold text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-white/10 rounded-xl hover:bg-gray-200 dark:hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {t('common.cancel')}
+            </button>
+            <button
+              onClick={handleSave}
+              disabled={isSaving}
+              className="flex-1 py-3 text-sm font-bold text-white bg-blue-600 rounded-xl hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {t('common.confirm')}
+            </button>
+          </div>
+        </div>
+      )}
+    </ModalShell>
   );
 };

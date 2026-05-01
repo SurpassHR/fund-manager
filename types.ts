@@ -18,6 +18,8 @@ export interface Fund {
   buyTime?: 'before15' | 'after15';
   settlementDays?: number; // T+N 中的 N,默认 1
   pendingTransactions?: PendingTransaction[]; // 在途交易列表
+  positionOpenAmount?: number; // 建仓资金(元)
+  positionOpenDate?: string; // 建仓日期 YYYY-MM-DD
   // 基金分类与跟踪标的信息(用于 QDII/港股/ETF 估值)
   category?: FundCategory; // 基金类别:境内/QDII/港股/ETF
   trackingInfo?: TrackingInfo; // 跟踪指数/标的信息

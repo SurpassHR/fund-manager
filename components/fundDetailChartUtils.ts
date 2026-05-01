@@ -54,10 +54,10 @@ type ChartOptionInput = {
 };
 
 export const TRADE_MARKER_COLORS = {
-  buy: '#f87171',
-  sell: '#3b82f6',
-  liquidation: '#fbbf24',
-  anchor: '#3b82f6',
+  buy: '#f87171', // red-400 — 买入/加仓
+  sell: '#22c55e', // green-500 — 卖出/减仓
+  liquidation: '#fbbf24', // amber-400 — 清仓
+  anchor: '#3b82f6', // blue-500 — 锚点(自选)
 };
 
 const MARKER_DEFAULTS = {

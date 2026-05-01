@@ -299,6 +299,15 @@ export const Dashboard: React.FC = () => {
   }, []);
 
   useEffect(() => {
+    const handler = () => {
+      setEditingFund(undefined);
+      setIsAddFundOpen(true);
+    };
+    window.addEventListener('open-add-fund', handler);
+    return () => window.removeEventListener('open-add-fund', handler);
+  }, []);
+
+  useEffect(() => {
     if (sortState.key === null) {
       localStorage.removeItem(DASHBOARD_SORT_STORAGE_KEY);
       return;
@@ -1478,18 +1487,7 @@ export const Dashboard: React.FC = () => {
                 </div>
               </div>
 
-              <div className="grid gap-3 sm:grid-cols-3">
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setEditingFund(undefined);
-                    setIsAddFundOpen(true);
-                  }}
-                  className="flex min-h-[4.75rem] flex-col items-start justify-between rounded-2xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)]/80 px-4 py-3 text-left text-slate-700 transition-colors hover:border-[var(--app-shell-line-strong)] hover:bg-[var(--app-shell-panel-strong)] dark:border-white/10 dark:bg-white/5 dark:text-gray-200 dark:hover:border-white/20 dark:hover:bg-white/10"
-                >
-                  <Icons.Plus size={18} />
-                  <span className="text-sm font-semibold">{t('common.addFund')}</span>
-                </button>
+              <div className="grid gap-3 sm:grid-cols-2">
                 <button
                   onClick={(e) => {
                     e.stopPropagation();

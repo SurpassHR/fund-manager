@@ -66,7 +66,7 @@ it('marks buy with red dot', () => {
   expect(markers.some((m) => m.name === 'buy' && m.itemStyle?.color === '#f87171')).toBe(true);
 });
 
-it('marks sell with blue dot', () => {
+it('marks sell with green dot', () => {
   const markers = buildTradeMarkers({
     dates: ['2026-03-02'],
     fundData: [1],
@@ -87,7 +87,7 @@ it('marks sell with blue dot', () => {
     holdingShares: 10,
   });
 
-  expect(markers.some((m) => m.name === 'sell' && m.itemStyle?.color === '#3b82f6')).toBe(true);
+  expect(markers.some((m) => m.name === 'sell' && m.itemStyle?.color === '#22c55e')).toBe(true);
 });
 
 it('marks watchlist anchor with blue dot', () => {
@@ -372,6 +372,6 @@ it('uses correct dot colors', () => {
   );
 
   expect(screen.getByTestId('legend-dot-buy')).toHaveStyle({ backgroundColor: '#f87171' });
-  expect(screen.getByTestId('legend-dot-sell')).toHaveStyle({ backgroundColor: '#3b82f6' });
+  expect(screen.getByTestId('legend-dot-sell')).toHaveStyle({ backgroundColor: '#22c55e' });
   expect(screen.getByTestId('legend-dot-liquidation')).toHaveStyle({ backgroundColor: '#fbbf24' });
 });

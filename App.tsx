@@ -86,7 +86,7 @@ const AppContent: React.FC = () => {
       if (event.key !== 'Escape') return;
       const activeOverlayId = getActiveOverlayId();
       if (!activeOverlayId) return;
-      closeTopOverlay({ source: 'programmatic', targetX: window.innerWidth });
+      closeTopOverlay({ source: 'programmatic' });
     };
 
     window.addEventListener('keydown', onKeyDown);

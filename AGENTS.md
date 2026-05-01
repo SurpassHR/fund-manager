@@ -180,6 +180,15 @@ if (fundType === 'QDII' || fundType === 'HK' || fundType === 'ETF') {
 }
 ```
 
+## Modal Shell
+
+- 所有 Modal 必须使用 `ModalShell` 统一封装开关动画、backdrop、overlay 注册。
+- ModalShell 使用 framer-motion (`AnimatePresence` + `motion.div`) 提供入场/退场动画。
+- 支持 `edgeSwipe` prop 启用边缘滑动手势关闭；ModalShell 内部处理 `closeTargetX`、`requestClose`、overlay 注册。
+- Modal 只需传入 `isOpen`、`onClose`、`overlayId` 和 `children`，不自行管理动画态或 overlay 注册。
+- 可选 prop：`className`（卡片样式）、`zIndex`（层级）、`onExitComplete`（退出完成回调）。
+- 测试中需 `vi.mock('framer-motion', ...)` 将 `AnimatePresence` 设为直通组件、`motion.div` 设为普通 `div`。
+
 ## Vite/Runtime Assumptions
 
 - Vite base is `/fund-manager/` for GitHub Pages.
