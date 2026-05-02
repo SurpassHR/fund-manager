@@ -4,11 +4,6 @@ import { DragContext, type DragState } from '../services/edgeSwipeContext';
 import { resetDragState } from '../services/useEdgeSwipe';
 import { useOverlayRegistration } from '../services/overlayRegistration';
 
-/** 亚克力卡片背景（强制应用，不可被 className 覆盖） */
-const ACRYLIC_CARD = 'bg-white/70 dark:bg-card-dark/70 backdrop-blur-xl';
-const DEFAULT_LAYOUT =
-  'rounded-t-2xl sm:rounded-xl w-full sm:max-w-md overflow-hidden shadow-2xl flex flex-col max-h-[92vh] sm:max-h-[90vh]';
-
 interface ModalShellProps {
   isOpen: boolean;
   onClose: () => void;
@@ -28,6 +23,10 @@ interface ModalShellProps {
   onExitComplete?: () => void;
 }
 
+const ACRYLIC_CARD = 'bg-white/10 dark:bg-card-dark/10 backdrop-blur-xl';
+const STRUCTURAL_CARD =
+  'rounded-t-2xl sm:rounded-xl w-full sm:max-w-md overflow-hidden shadow-2xl flex flex-col max-h-[92vh] sm:max-h-[90vh]';
+
 const noopSetDragState: React.Dispatch<React.SetStateAction<DragState>> = () => {};
 
 export const ModalShell: React.FC<ModalShellProps> = ({
@@ -42,7 +41,7 @@ export const ModalShell: React.FC<ModalShellProps> = ({
   onBackdropClick,
   onExitComplete,
 }) => {
-  const cardClassName = `${ACRYLIC_CARD} ${className || DEFAULT_LAYOUT}`;
+  const cardClassName = `${ACRYLIC_CARD} ${className || STRUCTURAL_CARD}`;
   const ctx = useContext(DragContext);
   const isDragging = ctx?.isDragging ?? false;
   const activeOverlayId = ctx?.activeOverlayId ?? null;
