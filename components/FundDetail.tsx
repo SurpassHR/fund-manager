@@ -20,8 +20,7 @@ import type { MarkPointDatum } from './fundDetailChartUtils';
 import { formatPct, getSignColor, formatSignedCurrency } from '../services/financeUtils';
 import { useTranslation } from '../services/i18n';
 import { useTheme } from '../services/ThemeContext';
-import { resetDragState, useEdgeSwipe } from '../services/useEdgeSwipe';
-import { useOverlayRegistration } from '../services/overlayRegistration';
+import { ModalShell } from './ModalShell';
 import {
   buildTencentQuoteCodes,
   fetchFundPerformance,
@@ -33,7 +32,6 @@ import {
 } from '../services/api';
 import { deriveFundHoldingDisplayMetrics } from '../services/fundDayChange';
 import * as echarts from 'echarts';
-import { motion } from 'framer-motion';
 
 interface FundDetailProps {
   fund: Fund;
@@ -355,41 +353,15 @@ export const FundDetail: React.FC<FundDetailProps> = ({
   const isDark = theme === 'dark';
   const fundId = fund.id ?? fund.code;
   const overlayId = `fund-detail:${fundId}`;
-  const { isDragging, activeOverlayId, setDragState, snapBackX } = useEdgeSwipe();
-  const [closeTargetX, setCloseTargetX] = useState<number | null>(null);
-  const [isEdgeClosing, setIsEdgeClosing] = useState(false);
-  const translateX =
-    isDragging && activeOverlayId === overlayId ? 'var(--edge-swipe-drag-x, 0px)' : '0px';
-  const snapX = activeOverlayId === overlayId ? snapBackX : null;
-  const transformX =
-    closeTargetX !== null ? `${closeTargetX}px` : snapX !== null ? `${snapX}px` : translateX;
-  const transition = closeTargetX !== null || snapX !== null ? 'transform 220ms ease' : 'none';
+  const [isOpen, setIsOpen] = useState(true);
 
-  // snap-back animation is driven by App.tsx via snapBackX
+  const handleClose = useCallback(() => {
+    setIsOpen(false);
+  }, []);
 
-  const requestClose = useCallback(
-    (payload?: { source?: 'edge-swipe' | 'programmatic'; targetX?: number }) => {
-      if (payload?.targetX !== undefined) {
-        setCloseTargetX(payload.targetX);
-        setIsEdgeClosing(true);
-        return;
-      }
-      onBack();
-    },
-    [onBack],
-  );
-
-  useOverlayRegistration(overlayId, true, requestClose);
-
-  useEffect(() => {
-    return () => {
-      if (activeOverlayId === overlayId) {
-        resetDragState(setDragState);
-      }
-    };
-  }, [activeOverlayId, overlayId, setDragState]);
-
-  // snap-back animation is driven by App.tsx via snapBackX
+  const handleExitComplete = useCallback(() => {
+    onBack();
+  }, [onBack]);
 
   // Data States
   const [pingzhongData, setPingzhongData] = useState<EastMoneyPingzhongData | null>(null);
@@ -1019,11 +991,11 @@ export const FundDetail: React.FC<FundDetailProps> = ({
   // Add ESC key listener to close
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onBack();
+      if (e.key === 'Escape') handleClose();
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onBack]);
+  }, [handleClose]);
 
   const ranges: TimeRange[] = ['1M', '3M', '6M', '1Y', '3Y', '5Y'];
   const legendViewModel = useMemo(
@@ -1034,56 +1006,21 @@ export const FundDetail: React.FC<FundDetailProps> = ({
   // Apply toggle limit
   const displayedHistory = showAllHistory ? historyData : historyData.slice(0, 10);
 
-  const isDesktop = typeof window !== 'undefined' && window.innerWidth >= 768;
-
   return (
-    <motion.div
-      className="fixed inset-0 z-[90] overflow-hidden bg-[var(--app-shell-paper)]/96 md:bg-black/35 md:p-4 md:backdrop-blur-sm lg:p-8 dark:bg-[var(--app-shell-paper)]/96 dark:md:bg-black/45"
-      onClick={onBack}
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={isEdgeClosing ? { opacity: 1 } : { opacity: 0 }}
-      transition={{ duration: 0.2 }}
+    <ModalShell
+      isOpen={isOpen}
+      onClose={handleClose}
+      overlayId={overlayId}
+      zIndex="z-[90]"
+      edgeSwipe
+      onExitComplete={handleExitComplete}
+      className="relative flex h-[100dvh] min-h-0 w-full flex-col overflow-hidden bg-gray-50 dark:bg-app-bg-dark md:h-[calc(100dvh-2rem)] md:w-[min(72rem,calc(100vw-2rem))] md:max-w-[calc(100vw-2rem)] md:rounded-[1.75rem] md:border md:border-[var(--app-shell-line)] md:bg-[var(--app-shell-panel)] md:shadow-[var(--app-shell-shadow)] lg:h-[calc(100dvh-4rem)] lg:w-[min(76rem,calc(100vw-4rem))]"
     >
-      {/*
-        关键布局保护：此容器必须保持 `w-full md:flex md:justify-center`。
-        原因：外层是 fixed + 桌面端居中弹层，若误删该 class，详情页在桌面端会回退为左贴且视觉变窄。
-        请勿随意移除此样式，除非同步验证桌面端详情页宽度与居中行为。
-      */}
-      <div
-        className="flex h-full w-full md:items-start md:justify-center"
-        style={{ transform: `translateX(${transformX})`, transition }}
-        onTransitionEnd={(event) => {
-          if (event.propertyName !== 'transform') return;
-          if (closeTargetX !== null) {
-            resetDragState(setDragState);
-            onBack();
-            return;
-          }
-          if (snapX !== null) {
-            resetDragState(setDragState);
-          }
-        }}
-      >
-        <motion.div
-          className="relative flex h-[100dvh] min-h-0 w-full flex-col overflow-hidden bg-gray-50 dark:bg-app-bg-dark md:h-[calc(100dvh-2rem)] md:w-[min(72rem,calc(100vw-2rem))] md:max-w-[calc(100vw-2rem)] md:rounded-[1.75rem] md:border md:border-[var(--app-shell-line)] md:bg-[var(--app-shell-panel)] md:shadow-[var(--app-shell-shadow)] lg:h-[calc(100dvh-4rem)] lg:w-[min(76rem,calc(100vw-4rem))]"
-          onClick={(e) => e.stopPropagation()}
-          initial={isDesktop ? { opacity: 0, scale: 0.95, y: 20 } : { opacity: 1, x: '100%' }}
-          animate={isDesktop ? { opacity: 1, scale: 1, y: 0 } : { opacity: 1, x: 0 }}
-          exit={
-            isDesktop
-              ? { opacity: 0, scale: 0.95, y: 20 }
-              : isEdgeClosing
-                ? { opacity: 1, x: 0 }
-                : { opacity: 1, x: '100%' }
-          }
-          transition={{ type: 'spring', damping: 28, stiffness: 280 }}
-        >
-          {/* Header */}
-          <div className="z-10 flex h-14 shrink-0 items-center justify-between border-b border-[var(--app-shell-line)] bg-[var(--app-shell-panel)]/95 px-4 shadow-[0_8px_20px_rgba(15,23,42,0.06)] backdrop-blur-xl transition-colors">
-            <button
-              onClick={onBack}
-              className="-ml-2 rounded-full p-2 text-[var(--app-shell-muted)] transition-colors hover:bg-[var(--app-shell-panel-strong)] hover:text-[var(--app-shell-ink)]"
+      {/* Header */}
+      <div className="z-10 flex h-14 shrink-0 items-center justify-between border-b border-[var(--app-shell-line)] bg-[var(--app-shell-panel)]/95 px-4 shadow-[0_8px_20px_rgba(15,23,42,0.06)] backdrop-blur-xl transition-colors">
+        <button
+          onClick={handleClose}
+          className="-ml-2 rounded-full p-2 text-[var(--app-shell-muted)] transition-colors hover:bg-[var(--app-shell-panel-strong)] hover:text-[var(--app-shell-ink)]"
             >
               <Icons.ArrowUp className="transform -rotate-90" size={24} />
             </button>
@@ -1500,8 +1437,6 @@ export const FundDetail: React.FC<FundDetailProps> = ({
               数据仅供参考，不构成投资建议
             </span>
           </div>
-        </motion.div>
-      </div>
-    </motion.div>
+    </ModalShell>
   );
 };

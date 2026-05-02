@@ -570,11 +570,9 @@ export const Dashboard: React.FC = () => {
 
   return (
     <div className="min-h-full pb-36 md:pb-24" onContextMenu={(e) => e.preventDefault()}>
-      <AnimatePresence>
-        {selectedFund && (
-          <FundDetail key="fund-detail" fund={selectedFund} onBack={() => setSelectedFund(null)} />
-        )}
-      </AnimatePresence>
+      {selectedFund && (
+        <FundDetail key="fund-detail" fund={selectedFund} onBack={() => setSelectedFund(null)} />
+      )}
 
       {contextMenu && (
         <div
