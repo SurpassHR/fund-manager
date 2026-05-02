@@ -1014,429 +1014,421 @@ export const FundDetail: React.FC<FundDetailProps> = ({
       zIndex="z-[90]"
       edgeSwipe
       onExitComplete={handleExitComplete}
-      className="relative flex h-[100dvh] min-h-0 w-full flex-col overflow-hidden bg-gray-50 dark:bg-app-bg-dark md:h-[calc(100dvh-2rem)] md:w-[min(72rem,calc(100vw-2rem))] md:max-w-[calc(100vw-2rem)] md:rounded-[1.75rem] md:border md:border-[var(--app-shell-line)] md:bg-[var(--app-shell-panel)] md:shadow-[var(--app-shell-shadow)] lg:h-[calc(100dvh-4rem)] lg:w-[min(76rem,calc(100vw-4rem))]"
+      className="relative flex h-[100dvh] min-h-0 w-full flex-col overflow-hidden md:h-[calc(100dvh-2rem)] md:w-[min(72rem,calc(100vw-2rem))] md:max-w-[calc(100vw-2rem)] md:rounded-[1.75rem] md:border md:border-[var(--app-shell-line)] md:shadow-[var(--app-shell-shadow)] lg:h-[calc(100dvh-4rem)] lg:w-[min(76rem,calc(100vw-4rem))]"
     >
       {/* Header */}
-      <div className="z-10 flex h-14 shrink-0 items-center justify-between border-b border-[var(--app-shell-line)] bg-[var(--app-shell-panel)]/95 px-4 shadow-[0_8px_20px_rgba(15,23,42,0.06)] backdrop-blur-xl transition-colors">
+      <div className="z-10 flex h-14 shrink-0 items-center justify-between border-b border-[var(--app-shell-line)] bg-[var(--app-shell-panel)]/80 px-4 shadow-[0_8px_20px_rgba(15,23,42,0.06)] backdrop-blur-xl transition-colors">
         <button
           onClick={handleClose}
           className="-ml-2 rounded-full p-2 text-[var(--app-shell-muted)] transition-colors hover:bg-[var(--app-shell-panel-strong)] hover:text-[var(--app-shell-ink)]"
-            >
-              <Icons.ArrowUp className="transform -rotate-90" size={24} />
-            </button>
-            <div className="text-center max-w-[70%]">
-              <h2 className="font-bold text-gray-800 dark:text-gray-100 text-sm truncate">
-                {fund.name}
-              </h2>
-              <p className="text-xs text-gray-500 dark:text-gray-400">{fund.code}</p>
-              {holdingDisplayMetrics.isInTransit && (
-                <p className="mt-0.5 text-[11px] text-amber-600 dark:text-amber-300 truncate">
-                  {t('common.inTransit') || '在途'}
-                </p>
-              )}
-              {fund.category === 'ETF_LINK' && parentEtfInfo?.parentCode && (
-                <p className="mt-0.5 text-[11px] text-emerald-600 dark:text-emerald-300 truncate">
-                  母ETF: {parentEtfInfo.parentName || '--'} ({parentEtfInfo.parentCode})
-                </p>
-              )}
-            </div>
-            <div className="w-10"></div>
+        >
+          <Icons.ArrowUp className="transform -rotate-90" size={24} />
+        </button>
+        <div className="text-center max-w-[70%]">
+          <h2 className="font-bold text-gray-800 dark:text-gray-100 text-sm truncate">
+            {fund.name}
+          </h2>
+          <p className="text-xs text-gray-500 dark:text-gray-400">{fund.code}</p>
+          {holdingDisplayMetrics.isInTransit && (
+            <p className="mt-0.5 text-[11px] text-amber-600 dark:text-amber-300 truncate">
+              {t('common.inTransit') || '在途'}
+            </p>
+          )}
+          {fund.category === 'ETF_LINK' && parentEtfInfo?.parentCode && (
+            <p className="mt-0.5 text-[11px] text-emerald-600 dark:text-emerald-300 truncate">
+              母ETF: {parentEtfInfo.parentName || '--'} ({parentEtfInfo.parentCode})
+            </p>
+          )}
+        </div>
+        <div className="w-10"></div>
+      </div>
+
+      <div className="no-scrollbar flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-y-contain touch-pan-y">
+        {/* Hero Card */}
+        <div className="mb-2 rounded-[1.5rem] border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)]/92 p-6 shadow-[0_10px_24px_rgba(15,23,42,0.05)] transition-colors">
+          <div className="text-gray-500 dark:text-gray-400 text-xs mb-1">
+            {t('common.nav')} ({displayDate})
           </div>
-
-          <div className="bg-[var(--app-shell-paper)] no-scrollbar flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-y-contain touch-pan-y">
-            {/* Hero Card */}
-            <div className="mb-2 rounded-[1.5rem] border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)]/92 p-6 shadow-[0_10px_24px_rgba(15,23,42,0.05)] transition-colors">
-              <div className="text-gray-500 dark:text-gray-400 text-xs mb-1">
-                {t('common.nav')} ({displayDate})
-              </div>
-              <div className="flex items-baseline gap-3">
-                <span className="text-3xl font-bold font-sans text-gray-900 dark:text-gray-100">
-                  {currentNav.toFixed(4)}
-                </span>
-                <span
-                  className={`text-lg font-medium font-sans ${getSignColor(displayDayChangePct)}`}
-                >
-                  {formatPct(displayDayChangePct)}
-                </span>
-              </div>
-              <div className="mt-4 grid grid-cols-4 gap-2 text-sm">
-                <div className="flex flex-col justify-between rounded-lg border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)]/78 p-2 transition-colors">
-                  <div className="mb-1 text-xs text-[var(--app-shell-muted)]">
-                    {anchorPrice ? t('common.anchorPrice') : t('common.cost')}
-                  </div>
-                  <div className="overflow-hidden text-ellipsis text-xs font-sans text-[var(--app-shell-ink)]">
-                    {anchorPrice ? anchorPrice.toFixed(4) : fund.costPrice.toFixed(4)}
-                  </div>
-                </div>
-                <div className="flex flex-col justify-between rounded-lg border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)]/78 p-2 transition-colors">
-                  <div className="mb-1 text-xs text-[var(--app-shell-muted)]">
-                    {anchorDate ? '锚定日' : t('common.shares')}
-                  </div>
-                  <div className="overflow-hidden text-ellipsis text-xs font-sans text-[var(--app-shell-ink)]">
-                    {anchorDate ? anchorDate : fund.holdingShares.toLocaleString()}
-                  </div>
-                </div>
-
-                {(() => {
-                  const totalGain = holdingDisplayMetrics.totalGain;
-                  const dayGainVal = displayDayGainVal;
-
-                  return (
-                    <>
-                      <div className="flex flex-col justify-between rounded-lg border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)]/78 p-2 transition-colors">
-                        <div className="mb-1 text-xs text-[var(--app-shell-muted)]">
-                          {anchorPrice ? t('common.anchorGain') : t('common.totalGain')}
-                        </div>
-                        {anchorPrice ? (
-                          <div
-                            className={`font-sans font-bold text-xs ${getSignColor(currentNav - anchorPrice)}`}
-                          >
-                            {formatPct(((currentNav - anchorPrice) / anchorPrice) * 100)}
-                          </div>
-                        ) : (
-                          <div className={`font-sans font-bold text-xs ${getSignColor(totalGain)}`}>
-                            {formatSignedCurrency(totalGain)}
-                          </div>
-                        )}
-                      </div>
-                      <div className="flex flex-col justify-between rounded-lg border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)]/78 p-2 transition-colors">
-                        <div className="mb-1 text-xs text-[var(--app-shell-muted)]">
-                          {t('common.dayGain')}
-                        </div>
-                        {anchorPrice ? (
-                          <div
-                            className={`font-sans font-bold text-xs ${getSignColor(dayChangePct)}`}
-                          >
-                            {formatPct(dayChangePct)}
-                          </div>
-                        ) : (
-                          <div
-                            className={`font-sans font-bold text-xs ${getSignColor(dayGainVal)}`}
-                          >
-                            {formatSignedCurrency(dayGainVal)}
-                          </div>
-                        )}
-                      </div>
-                    </>
-                  );
-                })()}
-              </div>
-            </div>
-
-            {/* ECharts Section */}
-            <div className="mb-2 rounded-[1.5rem] border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)]/92 p-4 shadow-[0_10px_24px_rgba(15,23,42,0.05)] transition-colors">
-              <div className="flex items-center justify-between mb-2">
-                <h3 className="font-bold text-gray-800 dark:text-gray-100 text-sm border-l-4 border-blue-500 pl-2">
-                  累计收益走势
-                </h3>
-                <div className="flex rounded-lg bg-[var(--app-shell-panel-strong)] p-0.5 transition-colors">
-                  {ranges.map((range) => (
-                    <button
-                      key={range}
-                      onClick={() => setTimeRange(range)}
-                      className={`px-2 py-1 text-[10px] rounded-md font-medium transition-all ${
-                        timeRange === range
-                          ? 'bg-white dark:bg-card-dark text-blue-600 shadow-sm'
-                          : 'text-[var(--app-shell-muted)] hover:text-[var(--app-shell-ink)]'
-                      }`}
-                    >
-                      {range}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="mb-3">
-                <TradeMarkerLegend mode={legendViewModel.mode} labels={legendViewModel.labels} />
-              </div>
-
-              <div className="relative w-full h-64">
-                {/* ECharts Container (Always mounted to preserve ECharts instance) */}
-                <div
-                  ref={chartRef}
-                  className={`w-full h-full transition-opacity duration-300 ${chartReady && !chartLoading && lastTradingDay ? 'opacity-100' : 'opacity-0'}`}
-                />
-
-                {/* Loading / Placeholder Overlay */}
-                {(!chartReady || chartLoading || !lastTradingDay) && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-gray-50 dark:bg-white/5 rounded transition-colors z-10">
-                    <Icons.Refresh className="animate-spin text-gray-300" size={24} />
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Historical Data Grid (Performance Summary) */}
-            {pingzhongData ? (
-              <div className="mb-2 rounded-[1.5rem] border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)]/92 p-4 shadow-[0_10px_24px_rgba(15,23,42,0.05)] transition-colors">
-                <div className="grid grid-cols-4 gap-2 text-center">
-                  {[
-                    {
-                      label: '近1月',
-                      val: pingzhongData.syl_1y ? parseFloat(pingzhongData.syl_1y) : null,
-                    },
-                    {
-                      label: '近3月',
-                      val: pingzhongData.syl_3y ? parseFloat(pingzhongData.syl_3y) : null,
-                    },
-                    {
-                      label: '近6月',
-                      val: pingzhongData.syl_6y ? parseFloat(pingzhongData.syl_6y) : null,
-                    },
-                    {
-                      label: '近1年',
-                      val: pingzhongData.syl_1n ? parseFloat(pingzhongData.syl_1n) : null,
-                    },
-                  ].map((item, idx) => (
-                    <div key={idx} className="flex flex-col gap-1 py-1 rounded">
-                      <span className="text-xs text-gray-400 mb-1">{item.label}</span>
-                      <span
-                        className={`font-sans font-bold text-sm ${getSignColor(item.val || 0)}`}
-                      >
-                        {item.val != null && !isNaN(item.val) ? formatPct(item.val) : '--'}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ) : null}
-
-            {/* History NAV Table */}
-            <div className="mb-2 rounded-[1.5rem] border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)]/92 p-4 shadow-[0_10px_24px_rgba(15,23,42,0.05)] transition-colors">
-              <div className="flex items-center justify-between mb-4 border-l-4 border-blue-500 pl-2">
-                <h3 className="font-bold text-gray-800 dark:text-gray-100 text-sm">
-                  {t('common.historyNav')}
-                </h3>
-                <button
-                  onClick={() => setShowAllHistory(!showAllHistory)}
-                  className="flex items-center text-xs text-[var(--app-shell-muted)] transition-colors hover:text-[var(--app-shell-accent)]"
-                >
-                  {showAllHistory ? '收起' : t('common.more')}
-                  <Icons.ArrowUp
-                    className={`transform ml-0.5 transition-transform ${showAllHistory ? '' : 'rotate-180'}`}
-                    size={12}
-                  />
-                </button>
-              </div>
-
-              <div className="space-y-0">
-                <div className="grid grid-cols-4 gap-2 text-xs text-gray-400 pb-3">
-                  <div className="text-left pl-2">{t('common.date')}</div>
-                  <div className="text-center">{t('common.unitNav')}</div>
-                  <div className="text-center">{t('common.accNav')}</div>
-                  <div className="text-right pr-2">{t('common.dayChgPct')}</div>
-                </div>
-
-                {displayedHistory.length > 0 ? (
-                  displayedHistory.map((item, idx) => (
-                    <div
-                      key={idx}
-                      className="grid grid-cols-4 gap-2 py-3 border-t border-gray-50 dark:border-border-dark items-center text-sm transition-colors"
-                    >
-                      <div className="text-left pl-2 text-gray-600 dark:text-gray-400 font-medium font-sans">
-                        {item.date}
-                      </div>
-                      <div className="text-center text-gray-800 dark:text-gray-200 font-sans">
-                        {item.nav.toFixed(4)}
-                      </div>
-                      <div className="text-center text-gray-800 dark:text-gray-200 font-sans">
-                        {item.accNav != null ? item.accNav.toFixed(4) : '--'}
-                      </div>
-                      <div
-                        className={`text-right pr-2 font-sans font-medium ${getSignColor(item.change ?? 0)}`}
-                      >
-                        {item.change != null ? formatPct(item.change) : '--'}
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <div className="py-4 text-center text-gray-300 text-xs">Loading history...</div>
-                )}
-              </div>
-            </div>
-
-            {/* Annual Returns Table */}
-            {annualReturnData.length > 0 && (
-              <div className="mb-2 rounded-[1.5rem] border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)]/92 p-4 shadow-[0_10px_24px_rgba(15,23,42,0.05)] transition-colors">
-                <div className="flex items-center justify-between mb-4 border-l-4 border-blue-500 pl-2">
-                  <h3 className="font-bold text-gray-800 dark:text-gray-100 text-sm">
-                    {t('common.annualReturns')}
-                  </h3>
-                </div>
-
-                <div className="space-y-0">
-                  <div className="grid grid-cols-2 gap-2 text-xs text-gray-400 pb-3">
-                    <div className="text-left pl-2">{t('common.year')}</div>
-                    <div className="text-right pr-2">{t('common.returnRate')}</div>
-                  </div>
-
-                  {annualReturnData.map((item, idx) => (
-                    <div
-                      key={`${item.year}-${idx}`}
-                      className="grid grid-cols-2 gap-2 py-3 border-t border-gray-50 dark:border-border-dark items-center text-sm transition-colors"
-                    >
-                      <div className="text-left pl-2 text-gray-600 dark:text-gray-400 font-medium font-sans">
-                        {item.year}
-                      </div>
-                      <div
-                        className={`text-right pr-2 font-sans font-medium ${getSignColor(item.value)}`}
-                      >
-                        {formatPct(item.value)}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Holdings Section */}
-            {holdings.length > 0 && (
-              <div className="mb-2 rounded-[1.5rem] border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)]/92 p-4 shadow-[0_10px_24px_rgba(15,23,42,0.05)] transition-colors">
-                <h3 className="font-bold text-gray-800 dark:text-gray-100 text-sm mb-4 border-l-4 border-blue-500 pl-2">
-                  当前基金持仓明细{' '}
-                  <span className="text-xs text-gray-400 font-normal ml-1">(实时估算)</span>
-                </h3>
-
-                <div className="space-y-0">
-                  {/* Table Header */}
-                  <div className="grid grid-cols-10 gap-2 text-xs text-gray-400 pb-2 border-b border-gray-50 dark:border-border-dark">
-                    <div className="col-span-4 pl-1">股票名称</div>
-                    <div className="col-span-3 text-right">最新价/涨跌</div>
-                    <div className="col-span-3 text-right pr-1">持仓占比</div>
-                  </div>
-
-                  {/* List */}
-                  {holdings.map((stock, idx) => {
-                    const quote = quotes[stock.ticker];
-                    const price = quote ? quote.price : '--';
-                    const pct = quote ? quote.pct : 0;
-                    const hasQuote = !!quote;
-
-                    return (
-                      <div
-                        key={idx}
-                        className="grid grid-cols-10 items-center gap-2 border-b border-gray-50 py-3 transition-colors last:border-0 hover:bg-[var(--app-shell-panel-strong)]/70 dark:border-border-dark"
-                      >
-                        <div className="col-span-4 pl-1">
-                          <div className="font-medium text-gray-800 dark:text-gray-200 text-sm truncate">
-                            {stock.name}
-                          </div>
-                          <div className="text-xs text-gray-400 font-sans">{stock.ticker}</div>
-                        </div>
-                        <div className="col-span-3 text-right">
-                          <div className="font-sans text-sm text-gray-800 dark:text-gray-200">
-                            {price}
-                          </div>
-                          {hasQuote && (
-                            <div className={`text-xs font-sans font-medium ${getSignColor(pct)}`}>
-                              {formatPct(pct)}
-                            </div>
-                          )}
-                        </div>
-                        <div className="col-span-3 text-right pr-1">
-                          <div className="font-sans text-gray-800 dark:text-gray-200 font-medium">
-                            {stock.weight.toFixed(2)}%
-                          </div>
-                          {/* Simple visual bar for weight */}
-                          <div className="w-full bg-gray-100 dark:bg-white/10 h-1 mt-1 rounded-full overflow-hidden flex justify-end">
-                            <div
-                              className="bg-blue-200 dark:bg-blue-800 h-full"
-                              style={{ width: `${Math.min(stock.weight * 5, 100)}%` }}
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {fund.category === 'ETF_LINK' && parentEtfInfo && parentEtfHoldings.length > 0 && (
-              <div className="mb-2 rounded-[1.5rem] border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)]/92 p-4 shadow-[0_10px_24px_rgba(15,23,42,0.05)] transition-colors">
-                <h3 className="font-bold text-gray-800 dark:text-gray-100 text-sm mb-2 border-l-4 border-emerald-500 pl-2">
-                  母ETF持仓明细
-                </h3>
-                <div className="mb-3 text-xs text-gray-500 dark:text-gray-400">
-                  {parentEtfInfo.parentName || '--'} ({parentEtfInfo.parentCode || '--'})
-                </div>
-
-                <div className="space-y-0">
-                  <div className="grid grid-cols-10 gap-2 text-xs text-gray-400 pb-2 border-b border-gray-50 dark:border-border-dark">
-                    <div className="col-span-4 pl-1">股票名称</div>
-                    <div className="col-span-3 text-right">最新价/涨跌</div>
-                    <div className="col-span-3 text-right pr-1">持仓占比</div>
-                  </div>
-
-                  {parentEtfHoldings.map((stock, idx) => {
-                    const quote = parentEtfQuotes[stock.ticker];
-                    const price = quote ? quote.price : '--';
-                    const pct = quote ? quote.pct : 0;
-                    const hasQuote = !!quote;
-
-                    return (
-                      <div
-                        key={`parent-${idx}`}
-                        className="grid grid-cols-10 items-center gap-2 border-b border-gray-50 py-3 transition-colors last:border-0 hover:bg-[var(--app-shell-panel-strong)]/70 dark:border-border-dark"
-                      >
-                        <div className="col-span-4 pl-1">
-                          <div className="font-medium text-gray-800 dark:text-gray-200 text-sm truncate">
-                            {stock.name}
-                          </div>
-                          <div className="text-xs text-gray-400 font-sans">{stock.ticker}</div>
-                        </div>
-                        <div className="col-span-3 text-right">
-                          <div className="font-sans text-sm text-gray-800 dark:text-gray-200">
-                            {price}
-                          </div>
-                          {hasQuote && (
-                            <div className={`text-xs font-sans font-medium ${getSignColor(pct)}`}>
-                              {formatPct(pct)}
-                            </div>
-                          )}
-                        </div>
-                        <div className="col-span-3 text-right pr-1">
-                          <div className="font-sans text-gray-800 dark:text-gray-200 font-medium">
-                            {stock.weight.toFixed(2)}%
-                          </div>
-                          <div className="w-full bg-gray-100 dark:bg-white/10 h-1 mt-1 rounded-full overflow-hidden flex justify-end">
-                            <div
-                              className="bg-emerald-200 dark:bg-emerald-800 h-full"
-                              style={{ width: `${Math.min(stock.weight * 5, 100)}%` }}
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {fund.category === 'ETF_LINK' && parentEtfInfo && parentEtfHoldings.length === 0 && (
-              <div className="mb-2 rounded-[1.5rem] border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)]/92 p-4 shadow-[0_10px_24px_rgba(15,23,42,0.05)] transition-colors">
-                <h3 className="font-bold text-gray-800 dark:text-gray-100 text-sm mb-2 border-l-4 border-emerald-500 pl-2">
-                  母ETF持仓明细
-                </h3>
-                <div className="text-xs text-gray-500 dark:text-gray-400">
-                  {parentEtfInfo.parentName || '--'} ({parentEtfInfo.parentCode || '--'})
-                  暂无持仓明细数据
-                </div>
-              </div>
-            )}
-
-            {/* Scrollable Area End Marker */}
-            <div className="pt-4 pb-6 w-full flex items-center justify-center text-xs text-gray-400 dark:text-gray-500 font-sans">
-              - 到底啦 -
-            </div>
-          </div>
-
-          {/* Fixed Footer Bar */}
-          <div className="z-10 flex h-14 shrink-0 items-center justify-center border-t border-[var(--app-shell-line)] bg-[var(--app-shell-panel)]/95 px-4 shadow-[0_-1px_8px_rgba(15,23,42,0.06)] backdrop-blur-xl transition-colors">
-            <span className="text-xs text-gray-400 dark:text-gray-500 font-sans">
-              数据仅供参考，不构成投资建议
+          <div className="flex items-baseline gap-3">
+            <span className="text-3xl font-bold font-sans text-gray-900 dark:text-gray-100">
+              {currentNav.toFixed(4)}
+            </span>
+            <span className={`text-lg font-medium font-sans ${getSignColor(displayDayChangePct)}`}>
+              {formatPct(displayDayChangePct)}
             </span>
           </div>
+          <div className="mt-4 grid grid-cols-4 gap-2 text-sm">
+            <div className="flex flex-col justify-between rounded-lg border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)]/78 p-2 transition-colors">
+              <div className="mb-1 text-xs text-[var(--app-shell-muted)]">
+                {anchorPrice ? t('common.anchorPrice') : t('common.cost')}
+              </div>
+              <div className="overflow-hidden text-ellipsis text-xs font-sans text-[var(--app-shell-ink)]">
+                {anchorPrice ? anchorPrice.toFixed(4) : fund.costPrice.toFixed(4)}
+              </div>
+            </div>
+            <div className="flex flex-col justify-between rounded-lg border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)]/78 p-2 transition-colors">
+              <div className="mb-1 text-xs text-[var(--app-shell-muted)]">
+                {anchorDate ? '锚定日' : t('common.shares')}
+              </div>
+              <div className="overflow-hidden text-ellipsis text-xs font-sans text-[var(--app-shell-ink)]">
+                {anchorDate ? anchorDate : fund.holdingShares.toLocaleString()}
+              </div>
+            </div>
+
+            {(() => {
+              const totalGain = holdingDisplayMetrics.totalGain;
+              const dayGainVal = displayDayGainVal;
+
+              return (
+                <>
+                  <div className="flex flex-col justify-between rounded-lg border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)]/78 p-2 transition-colors">
+                    <div className="mb-1 text-xs text-[var(--app-shell-muted)]">
+                      {anchorPrice ? t('common.anchorGain') : t('common.totalGain')}
+                    </div>
+                    {anchorPrice ? (
+                      <div
+                        className={`font-sans font-bold text-xs ${getSignColor(currentNav - anchorPrice)}`}
+                      >
+                        {formatPct(((currentNav - anchorPrice) / anchorPrice) * 100)}
+                      </div>
+                    ) : (
+                      <div className={`font-sans font-bold text-xs ${getSignColor(totalGain)}`}>
+                        {formatSignedCurrency(totalGain)}
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex flex-col justify-between rounded-lg border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)]/78 p-2 transition-colors">
+                    <div className="mb-1 text-xs text-[var(--app-shell-muted)]">
+                      {t('common.dayGain')}
+                    </div>
+                    {anchorPrice ? (
+                      <div className={`font-sans font-bold text-xs ${getSignColor(dayChangePct)}`}>
+                        {formatPct(dayChangePct)}
+                      </div>
+                    ) : (
+                      <div className={`font-sans font-bold text-xs ${getSignColor(dayGainVal)}`}>
+                        {formatSignedCurrency(dayGainVal)}
+                      </div>
+                    )}
+                  </div>
+                </>
+              );
+            })()}
+          </div>
+        </div>
+
+        {/* ECharts Section */}
+        <div className="mb-2 rounded-[1.5rem] border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)]/92 p-4 shadow-[0_10px_24px_rgba(15,23,42,0.05)] transition-colors">
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="font-bold text-gray-800 dark:text-gray-100 text-sm border-l-4 border-blue-500 pl-2">
+              累计收益走势
+            </h3>
+            <div className="flex rounded-lg bg-[var(--app-shell-panel-strong)] p-0.5 transition-colors">
+              {ranges.map((range) => (
+                <button
+                  key={range}
+                  onClick={() => setTimeRange(range)}
+                  className={`px-2 py-1 text-[10px] rounded-md font-medium transition-all ${
+                    timeRange === range
+                      ? 'bg-white dark:bg-card-dark text-blue-600 shadow-sm'
+                      : 'text-[var(--app-shell-muted)] hover:text-[var(--app-shell-ink)]'
+                  }`}
+                >
+                  {range}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="mb-3">
+            <TradeMarkerLegend mode={legendViewModel.mode} labels={legendViewModel.labels} />
+          </div>
+
+          <div className="relative w-full h-64">
+            {/* ECharts Container (Always mounted to preserve ECharts instance) */}
+            <div
+              ref={chartRef}
+              className={`w-full h-full transition-opacity duration-300 ${chartReady && !chartLoading && lastTradingDay ? 'opacity-100' : 'opacity-0'}`}
+            />
+
+            {/* Loading / Placeholder Overlay */}
+            {(!chartReady || chartLoading || !lastTradingDay) && (
+              <div className="absolute inset-0 flex items-center justify-center bg-gray-50 dark:bg-white/5 rounded transition-colors z-10">
+                <Icons.Refresh className="animate-spin text-gray-300" size={24} />
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Historical Data Grid (Performance Summary) */}
+        {pingzhongData ? (
+          <div className="mb-2 rounded-[1.5rem] border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)]/92 p-4 shadow-[0_10px_24px_rgba(15,23,42,0.05)] transition-colors">
+            <div className="grid grid-cols-4 gap-2 text-center">
+              {[
+                {
+                  label: '近1月',
+                  val: pingzhongData.syl_1y ? parseFloat(pingzhongData.syl_1y) : null,
+                },
+                {
+                  label: '近3月',
+                  val: pingzhongData.syl_3y ? parseFloat(pingzhongData.syl_3y) : null,
+                },
+                {
+                  label: '近6月',
+                  val: pingzhongData.syl_6y ? parseFloat(pingzhongData.syl_6y) : null,
+                },
+                {
+                  label: '近1年',
+                  val: pingzhongData.syl_1n ? parseFloat(pingzhongData.syl_1n) : null,
+                },
+              ].map((item, idx) => (
+                <div key={idx} className="flex flex-col gap-1 py-1 rounded">
+                  <span className="text-xs text-gray-400 mb-1">{item.label}</span>
+                  <span className={`font-sans font-bold text-sm ${getSignColor(item.val || 0)}`}>
+                    {item.val != null && !isNaN(item.val) ? formatPct(item.val) : '--'}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : null}
+
+        {/* History NAV Table */}
+        <div className="mb-2 rounded-[1.5rem] border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)]/92 p-4 shadow-[0_10px_24px_rgba(15,23,42,0.05)] transition-colors">
+          <div className="flex items-center justify-between mb-4 border-l-4 border-blue-500 pl-2">
+            <h3 className="font-bold text-gray-800 dark:text-gray-100 text-sm">
+              {t('common.historyNav')}
+            </h3>
+            <button
+              onClick={() => setShowAllHistory(!showAllHistory)}
+              className="flex items-center text-xs text-[var(--app-shell-muted)] transition-colors hover:text-[var(--app-shell-accent)]"
+            >
+              {showAllHistory ? '收起' : t('common.more')}
+              <Icons.ArrowUp
+                className={`transform ml-0.5 transition-transform ${showAllHistory ? '' : 'rotate-180'}`}
+                size={12}
+              />
+            </button>
+          </div>
+
+          <div className="space-y-0">
+            <div className="grid grid-cols-4 gap-2 text-xs text-gray-400 pb-3">
+              <div className="text-left pl-2">{t('common.date')}</div>
+              <div className="text-center">{t('common.unitNav')}</div>
+              <div className="text-center">{t('common.accNav')}</div>
+              <div className="text-right pr-2">{t('common.dayChgPct')}</div>
+            </div>
+
+            {displayedHistory.length > 0 ? (
+              displayedHistory.map((item, idx) => (
+                <div
+                  key={idx}
+                  className="grid grid-cols-4 gap-2 py-3 border-t border-gray-50 dark:border-border-dark items-center text-sm transition-colors"
+                >
+                  <div className="text-left pl-2 text-gray-600 dark:text-gray-400 font-medium font-sans">
+                    {item.date}
+                  </div>
+                  <div className="text-center text-gray-800 dark:text-gray-200 font-sans">
+                    {item.nav.toFixed(4)}
+                  </div>
+                  <div className="text-center text-gray-800 dark:text-gray-200 font-sans">
+                    {item.accNav != null ? item.accNav.toFixed(4) : '--'}
+                  </div>
+                  <div
+                    className={`text-right pr-2 font-sans font-medium ${getSignColor(item.change ?? 0)}`}
+                  >
+                    {item.change != null ? formatPct(item.change) : '--'}
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="py-4 text-center text-gray-300 text-xs">Loading history...</div>
+            )}
+          </div>
+        </div>
+
+        {/* Annual Returns Table */}
+        {annualReturnData.length > 0 && (
+          <div className="mb-2 rounded-[1.5rem] border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)]/92 p-4 shadow-[0_10px_24px_rgba(15,23,42,0.05)] transition-colors">
+            <div className="flex items-center justify-between mb-4 border-l-4 border-blue-500 pl-2">
+              <h3 className="font-bold text-gray-800 dark:text-gray-100 text-sm">
+                {t('common.annualReturns')}
+              </h3>
+            </div>
+
+            <div className="space-y-0">
+              <div className="grid grid-cols-2 gap-2 text-xs text-gray-400 pb-3">
+                <div className="text-left pl-2">{t('common.year')}</div>
+                <div className="text-right pr-2">{t('common.returnRate')}</div>
+              </div>
+
+              {annualReturnData.map((item, idx) => (
+                <div
+                  key={`${item.year}-${idx}`}
+                  className="grid grid-cols-2 gap-2 py-3 border-t border-gray-50 dark:border-border-dark items-center text-sm transition-colors"
+                >
+                  <div className="text-left pl-2 text-gray-600 dark:text-gray-400 font-medium font-sans">
+                    {item.year}
+                  </div>
+                  <div
+                    className={`text-right pr-2 font-sans font-medium ${getSignColor(item.value)}`}
+                  >
+                    {formatPct(item.value)}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Holdings Section */}
+        {holdings.length > 0 && (
+          <div className="mb-2 rounded-[1.5rem] border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)]/92 p-4 shadow-[0_10px_24px_rgba(15,23,42,0.05)] transition-colors">
+            <h3 className="font-bold text-gray-800 dark:text-gray-100 text-sm mb-4 border-l-4 border-blue-500 pl-2">
+              当前基金持仓明细{' '}
+              <span className="text-xs text-gray-400 font-normal ml-1">(实时估算)</span>
+            </h3>
+
+            <div className="space-y-0">
+              {/* Table Header */}
+              <div className="grid grid-cols-10 gap-2 text-xs text-gray-400 pb-2 border-b border-gray-50 dark:border-border-dark">
+                <div className="col-span-4 pl-1">股票名称</div>
+                <div className="col-span-3 text-right">最新价/涨跌</div>
+                <div className="col-span-3 text-right pr-1">持仓占比</div>
+              </div>
+
+              {/* List */}
+              {holdings.map((stock, idx) => {
+                const quote = quotes[stock.ticker];
+                const price = quote ? quote.price : '--';
+                const pct = quote ? quote.pct : 0;
+                const hasQuote = !!quote;
+
+                return (
+                  <div
+                    key={idx}
+                    className="grid grid-cols-10 items-center gap-2 border-b border-gray-50 py-3 transition-colors last:border-0 hover:bg-[var(--app-shell-panel-strong)]/70 dark:border-border-dark"
+                  >
+                    <div className="col-span-4 pl-1">
+                      <div className="font-medium text-gray-800 dark:text-gray-200 text-sm truncate">
+                        {stock.name}
+                      </div>
+                      <div className="text-xs text-gray-400 font-sans">{stock.ticker}</div>
+                    </div>
+                    <div className="col-span-3 text-right">
+                      <div className="font-sans text-sm text-gray-800 dark:text-gray-200">
+                        {price}
+                      </div>
+                      {hasQuote && (
+                        <div className={`text-xs font-sans font-medium ${getSignColor(pct)}`}>
+                          {formatPct(pct)}
+                        </div>
+                      )}
+                    </div>
+                    <div className="col-span-3 text-right pr-1">
+                      <div className="font-sans text-gray-800 dark:text-gray-200 font-medium">
+                        {stock.weight.toFixed(2)}%
+                      </div>
+                      {/* Simple visual bar for weight */}
+                      <div className="w-full bg-gray-100 dark:bg-white/10 h-1 mt-1 rounded-full overflow-hidden flex justify-end">
+                        <div
+                          className="bg-blue-200 dark:bg-blue-800 h-full"
+                          style={{ width: `${Math.min(stock.weight * 5, 100)}%` }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {fund.category === 'ETF_LINK' && parentEtfInfo && parentEtfHoldings.length > 0 && (
+          <div className="mb-2 rounded-[1.5rem] border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)]/92 p-4 shadow-[0_10px_24px_rgba(15,23,42,0.05)] transition-colors">
+            <h3 className="font-bold text-gray-800 dark:text-gray-100 text-sm mb-2 border-l-4 border-emerald-500 pl-2">
+              母ETF持仓明细
+            </h3>
+            <div className="mb-3 text-xs text-gray-500 dark:text-gray-400">
+              {parentEtfInfo.parentName || '--'} ({parentEtfInfo.parentCode || '--'})
+            </div>
+
+            <div className="space-y-0">
+              <div className="grid grid-cols-10 gap-2 text-xs text-gray-400 pb-2 border-b border-gray-50 dark:border-border-dark">
+                <div className="col-span-4 pl-1">股票名称</div>
+                <div className="col-span-3 text-right">最新价/涨跌</div>
+                <div className="col-span-3 text-right pr-1">持仓占比</div>
+              </div>
+
+              {parentEtfHoldings.map((stock, idx) => {
+                const quote = parentEtfQuotes[stock.ticker];
+                const price = quote ? quote.price : '--';
+                const pct = quote ? quote.pct : 0;
+                const hasQuote = !!quote;
+
+                return (
+                  <div
+                    key={`parent-${idx}`}
+                    className="grid grid-cols-10 items-center gap-2 border-b border-gray-50 py-3 transition-colors last:border-0 hover:bg-[var(--app-shell-panel-strong)]/70 dark:border-border-dark"
+                  >
+                    <div className="col-span-4 pl-1">
+                      <div className="font-medium text-gray-800 dark:text-gray-200 text-sm truncate">
+                        {stock.name}
+                      </div>
+                      <div className="text-xs text-gray-400 font-sans">{stock.ticker}</div>
+                    </div>
+                    <div className="col-span-3 text-right">
+                      <div className="font-sans text-sm text-gray-800 dark:text-gray-200">
+                        {price}
+                      </div>
+                      {hasQuote && (
+                        <div className={`text-xs font-sans font-medium ${getSignColor(pct)}`}>
+                          {formatPct(pct)}
+                        </div>
+                      )}
+                    </div>
+                    <div className="col-span-3 text-right pr-1">
+                      <div className="font-sans text-gray-800 dark:text-gray-200 font-medium">
+                        {stock.weight.toFixed(2)}%
+                      </div>
+                      <div className="w-full bg-gray-100 dark:bg-white/10 h-1 mt-1 rounded-full overflow-hidden flex justify-end">
+                        <div
+                          className="bg-emerald-200 dark:bg-emerald-800 h-full"
+                          style={{ width: `${Math.min(stock.weight * 5, 100)}%` }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {fund.category === 'ETF_LINK' && parentEtfInfo && parentEtfHoldings.length === 0 && (
+          <div className="mb-2 rounded-[1.5rem] border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)]/92 p-4 shadow-[0_10px_24px_rgba(15,23,42,0.05)] transition-colors">
+            <h3 className="font-bold text-gray-800 dark:text-gray-100 text-sm mb-2 border-l-4 border-emerald-500 pl-2">
+              母ETF持仓明细
+            </h3>
+            <div className="text-xs text-gray-500 dark:text-gray-400">
+              {parentEtfInfo.parentName || '--'} ({parentEtfInfo.parentCode || '--'})
+              暂无持仓明细数据
+            </div>
+          </div>
+        )}
+
+        {/* Scrollable Area End Marker */}
+        <div className="pt-4 pb-6 w-full flex items-center justify-center text-xs text-gray-400 dark:text-gray-500 font-sans">
+          - 到底啦 -
+        </div>
+      </div>
+
+      {/* Fixed Footer Bar */}
+      <div className="z-10 flex h-14 shrink-0 items-center justify-center border-t border-[var(--app-shell-line)] bg-[var(--app-shell-panel)]/80 px-4 shadow-[0_-1px_8px_rgba(15,23,42,0.06)] backdrop-blur-xl transition-colors">
+        <span className="text-xs text-gray-400 dark:text-gray-500 font-sans">
+          数据仅供参考，不构成投资建议
+        </span>
+      </div>
     </ModalShell>
   );
 };

@@ -117,8 +117,14 @@ describe('AiHoldingsAnalysisModal', () => {
   it('支持导出 markdown 会话记录', async () => {
     const createObjectURL = vi.fn(() => 'blob:mock');
     const revokeObjectURL = vi.fn();
-    Object.defineProperty(window.URL, 'createObjectURL', { value: createObjectURL, writable: true });
-    Object.defineProperty(window.URL, 'revokeObjectURL', { value: revokeObjectURL, writable: true });
+    Object.defineProperty(window.URL, 'createObjectURL', {
+      value: createObjectURL,
+      writable: true,
+    });
+    Object.defineProperty(window.URL, 'revokeObjectURL', {
+      value: revokeObjectURL,
+      writable: true,
+    });
 
     const clickSpy = vi
       .spyOn(HTMLAnchorElement.prototype, 'click')
@@ -172,10 +178,11 @@ describe('AiHoldingsAnalysisModal', () => {
     renderModal();
 
     const shell = screen.getByTestId('ai-analysis-modal-shell');
-    expect(shell.className).toContain('sm:w-[1120px]');
-    expect(shell.className).toContain('sm:h-[min(90vh,980px)]');
+    const card = shell.parentElement;
+    expect(card?.className).toContain('sm:w-[1120px]');
+    expect(card?.className).toContain('sm:h-[min(90vh,980px)]');
 
-    const overlay = shell.closest('.fixed');
+    const overlay = card?.closest('.fixed');
     expect(overlay?.className).toContain('backdrop-blur');
 
     const viewport = screen.getByTestId('ai-analysis-message-viewport');

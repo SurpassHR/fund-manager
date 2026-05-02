@@ -4,12 +4,17 @@ import { DragContext, type DragState } from '../services/edgeSwipeContext';
 import { resetDragState } from '../services/useEdgeSwipe';
 import { useOverlayRegistration } from '../services/overlayRegistration';
 
+/** 亚克力卡片背景（强制应用，不可被 className 覆盖） */
+const ACRYLIC_CARD = 'bg-white/70 dark:bg-card-dark/70 backdrop-blur-xl';
+const DEFAULT_LAYOUT =
+  'rounded-t-2xl sm:rounded-xl w-full sm:max-w-md overflow-hidden shadow-2xl flex flex-col max-h-[92vh] sm:max-h-[90vh]';
+
 interface ModalShellProps {
   isOpen: boolean;
   onClose: () => void;
   overlayId: string;
   children: React.ReactNode;
-  /** 卡片额外 className */
+  /** 卡片额外 className（仅用于结构/布局覆盖，不包含背景色） */
   className?: string;
   /** 容器 z-index，默认 z-[60] */
   zIndex?: string;
@@ -30,13 +35,14 @@ export const ModalShell: React.FC<ModalShellProps> = ({
   onClose,
   overlayId,
   children,
-  className = 'bg-white/92 dark:bg-card-dark/92 backdrop-blur-xl rounded-t-2xl sm:rounded-xl w-full sm:max-w-md overflow-hidden shadow-2xl flex flex-col max-h-[92vh] sm:max-h-[90vh]',
+  className,
   zIndex = 'z-[60]',
   edgeSwipe = false,
   onCardClick,
   onBackdropClick,
   onExitComplete,
 }) => {
+  const cardClassName = `${ACRYLIC_CARD} ${className || DEFAULT_LAYOUT}`;
   const ctx = useContext(DragContext);
   const isDragging = ctx?.isDragging ?? false;
   const activeOverlayId = ctx?.activeOverlayId ?? null;
@@ -76,7 +82,7 @@ export const ModalShell: React.FC<ModalShellProps> = ({
     <AnimatePresence onExitComplete={onExitComplete}>
       {isOpen && (
         <motion.div
-          className={`fixed inset-0 ${zIndex} flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-md sm:p-4`}
+          className={`fixed inset-0 ${zIndex} flex items-end sm:items-center justify-center bg-black/30 backdrop-blur-md sm:p-4`}
           onClick={onBackdropClick ?? handleClose}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -114,7 +120,7 @@ export const ModalShell: React.FC<ModalShellProps> = ({
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            className={className}
+            className={cardClassName}
             onClick={onCardClick ?? ((e) => e.stopPropagation())}
           >
             {children}

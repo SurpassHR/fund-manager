@@ -77,7 +77,7 @@ export const WelcomeModal: React.FC = () => {
       overlayId="welcome-modal"
       edgeSwipe
       zIndex="z-[100]"
-      className="flex max-h-[92vh] sm:max-h-[90vh] w-full sm:max-w-lg flex-col overflow-hidden rounded-t-[1.75rem] sm:rounded-[1.75rem] border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)]/95 shadow-[var(--app-shell-shadow)] backdrop-blur-xl"
+      className="flex max-h-[92vh] sm:max-h-[90vh] w-full sm:max-w-lg flex-col overflow-hidden rounded-t-[1.75rem] sm:rounded-[1.75rem] border border-[var(--app-shell-line)] shadow-[var(--app-shell-shadow)]"
       onExitComplete={() => {
         if (wasOpenRef.current) {
           wasOpenRef.current = false;

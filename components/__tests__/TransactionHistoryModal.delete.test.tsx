@@ -179,10 +179,11 @@ describe('TransactionHistoryModal delete flow', () => {
     );
 
     const nav = container.querySelector('nav');
-    const modalOverlay = Array.from(container.querySelectorAll('div')).find((element) =>
-      typeof element.className === 'string' &&
-      element.className.includes('fixed inset-0') &&
-      element.className.includes('bg-black/40'),
+    const modalOverlay = Array.from(container.querySelectorAll('div')).find(
+      (element) =>
+        typeof element.className === 'string' &&
+        element.className.includes('fixed inset-0') &&
+        element.className.includes('bg-black/30'),
     );
 
     expect(nav?.className).toContain('z-50');
