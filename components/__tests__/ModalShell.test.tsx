@@ -1,7 +1,7 @@
 /// <reference types="vitest/globals" />
 import React from 'react';
 import '@testing-library/jest-dom';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { ModalShell } from '../ModalShell';
 import { EdgeSwipeProvider } from '../../services/edgeSwipeState';
 
@@ -33,24 +33,24 @@ describe('ModalShell acrylic frosted glass', () => {
     expect(backdrop).toHaveClass('bg-black/30');
   });
 
-  it('renders card with semi-transparent background and blur for frosted glass', () => {
+  it('renders card with theme-aware acrylic background and blur', () => {
     renderModalShell();
 
     const card = document.querySelector('.backdrop-blur-xl')!;
     expect(card).not.toBeNull();
-    expect(card).toHaveClass('bg-white/10');
+    expect(card).toHaveClass('bg-white/80');
     expect(card).toHaveClass('dark:bg-card-dark/10');
+    expect(card).not.toHaveClass('bg-white/10');
   });
 
-  it('always applies acrylic transparency classes even with custom className', () => {
+  it('always applies theme-aware acrylic classes even with custom className', () => {
     renderModalShell({ className: 'custom-structural border-2' });
 
     const card = document.querySelector('.backdrop-blur-xl')!;
     expect(card).not.toBeNull();
-    // 亚克力透明度类始终由 ModalShell 强制应用
-    expect(card).toHaveClass('bg-white/10');
+    expect(card).toHaveClass('bg-white/80');
     expect(card).toHaveClass('dark:bg-card-dark/10');
-    // 自定义结构类也保留
+    expect(card).not.toHaveClass('bg-white/10');
     expect(card).toHaveClass('custom-structural');
     expect(card).toHaveClass('border-2');
   });
