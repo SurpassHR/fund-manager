@@ -98,8 +98,9 @@ export const ModalShell: React.FC<ModalShellProps> = ({
               ? () => {
                   if (closeTargetX !== null) {
                     if (isGestureCloseRef.current) {
-                      // 手势关闭：不重置 closeTargetX，保持卡片在屏幕外，由 exit 动画淡出 backdrop
                       isGestureCloseRef.current = false;
+                      setCloseTargetX(null);
+                      resetDragState(setDragState);
                       handleClose();
                       return;
                     }

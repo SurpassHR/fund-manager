@@ -1,9 +1,10 @@
 /// <reference types="vitest/globals" />
 import React from 'react';
 import '@testing-library/jest-dom';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { ModalShell } from '../ModalShell';
 import { EdgeSwipeProvider } from '../../services/edgeSwipeState';
+import { closeTopOverlay, resetOverlayStack } from '../../services/overlayStack';
 
 vi.mock('framer-motion', () => ({
   AnimatePresence: ({ children }: { children: React.ReactNode }) => <>{children}</>,
@@ -23,6 +24,25 @@ const renderModalShell = (props: Partial<Parameters<typeof ModalShell>[0]> = {})
     </EdgeSwipeProvider>,
   );
 };
+
+const ControlledEdgeSwipeModal = () => {
+  const [isOpen, setIsOpen] = React.useState(true);
+
+  return (
+    <EdgeSwipeProvider>
+      <button type="button" onClick={() => setIsOpen(true)}>
+        open modal
+      </button>
+      <ModalShell isOpen={isOpen} onClose={() => setIsOpen(false)} overlayId="test-modal" edgeSwipe>
+        <div>modal content</div>
+      </ModalShell>
+    </EdgeSwipeProvider>
+  );
+};
+
+beforeEach(() => {
+  resetOverlayStack();
+});
 
 describe('ModalShell acrylic frosted glass', () => {
   it('renders backdrop with semi-transparent dark overlay for acrylic effect', () => {
@@ -69,5 +89,33 @@ describe('ModalShell acrylic frosted glass', () => {
     renderModalShell();
 
     expect(screen.getByText('modal content')).toBeInTheDocument();
+  });
+
+  it('resets edge swipe close offset when reopening the same modal', async () => {
+    render(<ControlledEdgeSwipeModal />);
+
+    const backdrop = document.querySelector('.backdrop-blur-md') as HTMLElement;
+    act(() => {
+      closeTopOverlay({ source: 'edge-swipe', targetX: 480 });
+    });
+
+    await waitFor(() => {
+      expect(backdrop).toHaveStyle({ transform: 'translateX(480px)' });
+    });
+
+    fireEvent.transitionEnd(backdrop);
+
+    await waitFor(() => {
+      expect(screen.queryByText('modal content')).not.toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'open modal' }));
+
+    await waitFor(() => {
+      expect(screen.getByText('modal content')).toBeInTheDocument();
+    });
+
+    const reopenedBackdrop = document.querySelector('.backdrop-blur-md') as HTMLElement;
+    expect(reopenedBackdrop).toHaveStyle({ transform: 'translateX(0px)' });
   });
 });
