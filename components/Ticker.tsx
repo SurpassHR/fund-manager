@@ -70,7 +70,7 @@ export const Ticker: React.FC<TickerProps> = ({ hiddenOnMobile = false }) => {
                 transition={{ duration: 0.22 }}
                 className="overflow-hidden rounded-[1.5rem] border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)]/95 shadow-[var(--app-shell-shadow)] backdrop-blur-2xl"
               >
-                <div className="px-4 py-3.5 sm:px-5 sm:py-4">
+                <div className="max-h-[40vh] overflow-y-auto hide-scrollbar px-4 py-3.5 sm:px-5 sm:py-4">
                   <div className="mb-2.5 text-[0.62rem] font-semibold tracking-[0.24em] text-[var(--app-shell-muted)]">
                     全球市场指数
                   </div>
@@ -110,13 +110,16 @@ export const Ticker: React.FC<TickerProps> = ({ hiddenOnMobile = false }) => {
             onClick={() => setIsExpanded(!isExpanded)}
           >
             <div className="flex w-full max-w-5xl items-center justify-between px-4 text-sm sm:px-5">
-
               <div className="flex min-w-0 items-center gap-4 overflow-hidden">
                 <span className="text-[0.62rem] font-semibold tracking-[0.2em] text-[var(--app-shell-muted)]">
                   指数
                 </span>
-                <span className="truncate font-semibold text-[var(--app-shell-ink)]">{current.name}</span>
-                <span className={`font-bold ${getSignColor(current.change)}`}>{current.value.toFixed(2)}</span>
+                <span className="truncate font-semibold text-[var(--app-shell-ink)]">
+                  {current.name}
+                </span>
+                <span className={`font-bold ${getSignColor(current.change)}`}>
+                  {current.value.toFixed(2)}
+                </span>
                 <span className={`hidden sm:inline ${getSignColor(current.change)}`}>
                   {current.change.toFixed(2)}
                 </span>

@@ -259,3 +259,12 @@ body {
 .dark .markdown-body pre {
   background: rgba(255, 255, 255, 0.08);
 }
+
+/* 隐藏滚动条但保持滚动能力 */
+.hide-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
