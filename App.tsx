@@ -488,6 +488,7 @@ const AppContent: React.FC = () => {
         <Header
           title={t('common.appTitle') || 'XiaoHuYangJi'}
           hiddenOnMobile={isMobileChromeHidden}
+          activeTab={activeTab}
         />
 
         <main className="app-stage">
