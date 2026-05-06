@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Icons } from './Icon';
 import { useTranslation } from '../services/i18n';
 import { useTheme } from '../services/ThemeContext';
+import type { TabType } from '../types';
 import {
   startPresence,
   subscribePresence,
@@ -12,6 +13,7 @@ import {
 interface HeaderProps {
   title: string;
   hiddenOnMobile?: boolean;
+  activeTab?: TabType;
 }
 
 const PresenceIndicator = ({
@@ -99,7 +101,11 @@ const PresenceIndicator = ({
   );
 };
 
-export const Header: React.FC<HeaderProps> = ({ title: _title, hiddenOnMobile = false }) => {
+export const Header: React.FC<HeaderProps> = ({
+  title: _title,
+  hiddenOnMobile = false,
+  activeTab,
+}) => {
   const { language, setLanguage, t } = useTranslation();
   const { theme } = useTheme();
   const [stats, setStats] = useState<PresenceStats>({ current: 0, peak: 0, unique: 0 });
@@ -159,16 +165,24 @@ export const Header: React.FC<HeaderProps> = ({ title: _title, hiddenOnMobile = 
             )}
           </div>
 
-          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
-            <button
-              onClick={() => window.dispatchEvent(new CustomEvent('open-add-fund'))}
-              aria-label={t('common.addFund')}
-              className="inline-flex items-center gap-1.5 rounded-full border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)]/90 px-3 py-1.5 text-[11px] font-semibold tracking-wider text-[var(--app-shell-accent)] transition hover:border-[var(--app-shell-line-strong)] hover:bg-[var(--app-shell-panel-strong)]"
-            >
-              <Icons.Plus size={14} />
-              {t('common.addFund')}
-            </button>
-          </div>
+          {(activeTab === 'holding' || activeTab === 'watchlist') && (
+            <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
+              <button
+                onClick={() => {
+                  const eventType =
+                    activeTab === 'holding' ? 'open-add-fund' : 'open-add-watchlist';
+                  window.dispatchEvent(new CustomEvent(eventType));
+                }}
+                aria-label={t(
+                  activeTab === 'holding' ? 'common.addHolding' : 'common.addWatchlist',
+                )}
+                className="inline-flex items-center gap-1.5 rounded-full border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)]/90 px-3 py-1.5 text-[11px] font-semibold tracking-wider text-[var(--app-shell-accent)] transition hover:border-[var(--app-shell-line-strong)] hover:bg-[var(--app-shell-panel-strong)]"
+              >
+                <Icons.Plus size={14} />
+                {activeTab === 'holding' ? t('common.addHolding') : t('common.addWatchlist')}
+              </button>
+            </div>
+          )}
 
           <div className="flex items-center gap-2 text-[var(--app-shell-muted)] sm:gap-2.5">
             {/* Presence / Online Users (Desktop only) */}

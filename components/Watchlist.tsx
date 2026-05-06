@@ -208,6 +208,15 @@ export const Watchlist: React.FC = () => {
   }, []);
 
   useEffect(() => {
+    const handler = () => {
+      setEditingItem(undefined);
+      setIsAddModalOpen(true);
+    };
+    window.addEventListener('open-add-watchlist', handler);
+    return () => window.removeEventListener('open-add-watchlist', handler);
+  }, []);
+
+  useEffect(() => {
     if (sortState.key === null) {
       localStorage.removeItem(WATCHLIST_SORT_STORAGE_KEY);
       return;
