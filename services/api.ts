@@ -83,8 +83,8 @@ const THS_MAJOR_INDICES: ThsIndexDef[] = [
 // 同花顺 API 字段 ID
 const THS_FIELD = {
   NAME: '55',
-  CURRENT_PRICE: '6',
-  PREV_CLOSE: '10',
+  CURRENT_PRICE: '10',
+  PREV_CLOSE: '6',
   TURNOVER: '19',
   CHANGE: '264648',
   CHANGE_PCT: '199112',
