@@ -672,7 +672,7 @@ describe('FundDetail history performance source', () => {
     expect(document.querySelector('svg[aria-hidden="true"]')).toBeNull();
   });
 
-  it('uses 12-column grid layout for holdings', async () => {
+  it('uses responsive auto-fit grid layout for holdings', async () => {
     mockedApi.fetchFundHoldings.mockResolvedValue({
       data: {
         equityHoldings: [
@@ -692,8 +692,8 @@ describe('FundDetail history performance source', () => {
       expect(screen.getByText('贵州茅台')).toBeInTheDocument();
     });
 
-    // The holdings grid should have 12-column layout
-    const gridContainer = document.querySelector('.grid.grid-cols-12');
+    // The holdings grid should use auto-fit responsive layout
+    const gridContainer = document.querySelector('[class*="grid-cols-\\[auto_1fr_auto_"]');
     expect(gridContainer).not.toBeNull();
   });
 });

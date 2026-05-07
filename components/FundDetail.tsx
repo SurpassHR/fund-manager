@@ -1231,11 +1231,11 @@ export const FundDetail: React.FC<FundDetailProps> = ({
 
             <div className="space-y-0">
               {/* Table Header */}
-              <div className="grid grid-cols-12 gap-2 text-xs text-gray-400 pb-2 border-b border-gray-50 dark:border-border-dark">
-                <div className="col-span-5 md:col-span-1 pl-1">股票名称</div>
-                <div className="hidden md:col-span-7 md:block" />
-                <div className="col-span-4 md:col-span-1 text-right">最新价/涨跌</div>
-                <div className="col-span-3 text-right pr-1">持仓占比</div>
+              <div className="grid grid-cols-[auto_1fr_auto_4.5rem] md:grid-cols-[auto_1fr_auto_20rem] gap-2 text-xs text-gray-400 pb-2 border-b border-gray-50 dark:border-border-dark">
+                <div className="min-w-0 pl-1">股票名称</div>
+                <div className="" />
+                <div className="text-right">最新价/涨跌</div>
+                <div className="text-right pr-1">持仓占比</div>
               </div>
 
               {/* List */}
@@ -1249,15 +1249,15 @@ export const FundDetail: React.FC<FundDetailProps> = ({
                 return (
                   <div
                     key={idx}
-                    className="grid grid-cols-12 items-center gap-2 border-b border-gray-50 py-3 last:pb-0 transition-colors last:border-0 hover:bg-[var(--app-shell-panel-strong)]/70 dark:border-border-dark"
+                    className="grid grid-cols-[auto_1fr_auto_4.5rem] md:grid-cols-[auto_1fr_auto_20rem] items-center gap-2 border-b border-gray-50 py-3 last:pb-0 transition-colors last:border-0 hover:bg-[var(--app-shell-panel-strong)]/70 dark:border-border-dark"
                   >
-                    <div className="col-span-5 md:col-span-1 pl-1">
+                    <div className="min-w-0 pl-1">
                       <div className="font-medium text-gray-800 dark:text-gray-200 text-sm truncate">
                         {stock.name}
                       </div>
                       <div className="text-xs text-gray-400 font-sans">{stock.ticker}</div>
                     </div>
-                    <div className="hidden md:col-span-7 md:-my-3 md:self-stretch md:flex md:items-center">
+                    <div className="-my-3 self-stretch flex items-center">
                       {sparkData && (
                         <Sparkline
                           data={sparkData.map((p) => p.price)}
@@ -1266,7 +1266,7 @@ export const FundDetail: React.FC<FundDetailProps> = ({
                         />
                       )}
                     </div>
-                    <div className="col-span-4 md:col-span-1 text-right">
+                    <div className="text-right">
                       <div className="font-sans text-sm text-gray-800 dark:text-gray-200">
                         {price}
                       </div>
@@ -1276,7 +1276,7 @@ export const FundDetail: React.FC<FundDetailProps> = ({
                         </div>
                       )}
                     </div>
-                    <div className="col-span-3 text-right pr-1">
+                    <div className="text-right pr-1">
                       <div className="font-sans text-gray-800 dark:text-gray-200 font-medium">
                         {stock.weight.toFixed(2)}%
                       </div>
@@ -1305,11 +1305,11 @@ export const FundDetail: React.FC<FundDetailProps> = ({
             </div>
 
             <div className="space-y-0">
-              <div className="grid grid-cols-12 gap-2 text-xs text-gray-400 pb-2 border-b border-gray-50 dark:border-border-dark">
-                <div className="col-span-5 md:col-span-1 pl-1">股票名称</div>
-                <div className="hidden md:col-span-7 md:block" />
-                <div className="col-span-4 md:col-span-1 text-right">最新价/涨跌</div>
-                <div className="col-span-3 text-right pr-1">持仓占比</div>
+              <div className="grid grid-cols-[auto_1fr_auto_4.5rem] md:grid-cols-[auto_1fr_auto_20rem] gap-2 text-xs text-gray-400 pb-2 border-b border-gray-50 dark:border-border-dark">
+                <div className="min-w-0 pl-1">股票名称</div>
+                <div className="" />
+                <div className="text-right">最新价/涨跌</div>
+                <div className="text-right pr-1">持仓占比</div>
               </div>
 
               {parentEtfHoldings.map((stock, idx) => {
@@ -1322,15 +1322,15 @@ export const FundDetail: React.FC<FundDetailProps> = ({
                 return (
                   <div
                     key={`parent-${idx}`}
-                    className="grid grid-cols-12 items-center gap-2 border-b border-gray-50 py-3 last:pb-0 transition-colors last:border-0 hover:bg-[var(--app-shell-panel-strong)]/70 dark:border-border-dark"
+                    className="grid grid-cols-[auto_1fr_auto_4.5rem] md:grid-cols-[auto_1fr_auto_20rem] items-center gap-2 border-b border-gray-50 py-3 last:pb-0 transition-colors last:border-0 hover:bg-[var(--app-shell-panel-strong)]/70 dark:border-border-dark"
                   >
-                    <div className="col-span-5 md:col-span-1 pl-1">
+                    <div className="min-w-0 pl-1">
                       <div className="font-medium text-gray-800 dark:text-gray-200 text-sm truncate">
                         {stock.name}
                       </div>
                       <div className="text-xs text-gray-400 font-sans">{stock.ticker}</div>
                     </div>
-                    <div className="hidden md:col-span-7 md:-my-3 md:self-stretch md:flex md:items-center">
+                    <div className="-my-3 self-stretch flex items-center">
                       {sparkData && (
                         <Sparkline
                           data={sparkData.map((p) => p.price)}
@@ -1339,7 +1339,7 @@ export const FundDetail: React.FC<FundDetailProps> = ({
                         />
                       )}
                     </div>
-                    <div className="col-span-4 md:col-span-1 text-right">
+                    <div className="text-right">
                       <div className="font-sans text-sm text-gray-800 dark:text-gray-200">
                         {price}
                       </div>
@@ -1349,7 +1349,7 @@ export const FundDetail: React.FC<FundDetailProps> = ({
                         </div>
                       )}
                     </div>
-                    <div className="col-span-3 text-right pr-1">
+                    <div className="text-right pr-1">
                       <div className="font-sans text-gray-800 dark:text-gray-200 font-medium">
                         {stock.weight.toFixed(2)}%
                       </div>
@@ -1378,76 +1378,6 @@ export const FundDetail: React.FC<FundDetailProps> = ({
             </div>
           </div>
         )}
-
-        {/* History NAV Table */}
-        <div className="mb-2 rounded-[1.5rem] border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)]/92 p-4 shadow-[0_10px_24px_rgba(15,23,42,0.05)] transition-colors">
-          <div
-            className="flex items-center justify-between border-l-4 border-blue-500 pl-2 cursor-pointer select-none"
-            onClick={() => setIsHistoryExpanded(!isHistoryExpanded)}
-            role="button"
-            aria-expanded={isHistoryExpanded}
-          >
-            <h3 className="font-bold text-gray-800 dark:text-gray-100 text-sm">
-              {t('common.historyNav')}
-            </h3>
-            <motion.div
-              animate={{ rotate: isHistoryExpanded ? 180 : 0 }}
-              transition={{ type: 'spring', stiffness: 200, damping: 15 }}
-            >
-              <Icons.ArrowUp size={16} className="text-[var(--app-shell-muted)]" />
-            </motion.div>
-          </div>
-
-          <AnimatePresence>
-            {isHistoryExpanded && (
-              <motion.div
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: 'auto', opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                transition={{
-                  height: { duration: 0.3, ease: [0.22, 1, 0.36, 1] },
-                  opacity: { duration: 0.2 },
-                }}
-                style={{ overflow: 'hidden' }}
-              >
-                <div ref={historyContentRef} className="mt-4 space-y-0">
-                  <div className="grid grid-cols-4 gap-2 text-xs text-gray-400 pb-3">
-                    <div className="text-left pl-2">{t('common.date')}</div>
-                    <div className="text-center">{t('common.unitNav')}</div>
-                    <div className="text-center">{t('common.accNav')}</div>
-                    <div className="text-right pr-2">{t('common.dayChgPct')}</div>
-                  </div>
-
-                  {historyData.length > 0 ? (
-                    historyData.map((item, idx) => (
-                      <div
-                        key={idx}
-                        className="grid grid-cols-4 gap-2 py-3 border-t border-gray-50 dark:border-border-dark items-center text-sm transition-colors"
-                      >
-                        <div className="text-left pl-2 text-gray-600 dark:text-gray-400 font-medium font-sans">
-                          {item.date}
-                        </div>
-                        <div className="text-center text-gray-800 dark:text-gray-200 font-sans">
-                          {item.nav.toFixed(4)}
-                        </div>
-                        <div className="text-center text-gray-800 dark:text-gray-200 font-sans">
-                          {item.accNav != null ? item.accNav.toFixed(4) : '--'}
-                        </div>
-                        <div
-                          className={`text-right pr-2 font-sans font-medium ${getSignColor(item.change ?? 0)}`}
-                        >
-                          {item.change != null ? formatPct(item.change) : '--'}
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="py-4 text-center text-gray-300 text-xs">Loading history...</div>
-                  )}
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
 
         {/* Annual Returns Table */}
         {annualReturnData.length > 0 && (
@@ -1508,6 +1438,80 @@ export const FundDetail: React.FC<FundDetailProps> = ({
             </AnimatePresence>
           </div>
         )}
+
+        {/* History NAV Table */}
+        <div className="mb-2 rounded-[1.5rem] border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)]/92 p-4 shadow-[0_10px_24px_rgba(15,23,42,0.05)] transition-colors">
+          <div
+            className="flex items-center justify-between border-l-4 border-blue-500 pl-2 cursor-pointer select-none"
+            onClick={() => setIsHistoryExpanded(!isHistoryExpanded)}
+            role="button"
+            aria-expanded={isHistoryExpanded}
+          >
+            <h3 className="font-bold text-gray-800 dark:text-gray-100 text-sm">
+              {t('common.historyNav')}
+            </h3>
+            <motion.div
+              animate={{ rotate: isHistoryExpanded ? 180 : 0 }}
+              transition={{ type: 'spring', stiffness: 200, damping: 15 }}
+            >
+              <Icons.ArrowUp size={16} className="text-[var(--app-shell-muted)]" />
+            </motion.div>
+          </div>
+
+          <AnimatePresence>
+            {isHistoryExpanded && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{
+                  height: { duration: 0.3, ease: [0.22, 1, 0.36, 1] },
+                  opacity: { duration: 0.2 },
+                }}
+                style={{ overflow: 'hidden' }}
+              >
+                <div ref={historyContentRef} className="mt-4 space-y-0">
+                  <div className="grid grid-cols-4 gap-2 text-xs text-gray-400 pb-3">
+                    <div className="text-left pl-2">{t('common.date')}</div>
+                    <div className="text-center">{t('common.unitNav')}</div>
+                    <div className="text-center">{t('common.accNav')}</div>
+                    <div className="text-right pr-2">{t('common.dayChgPct')}</div>
+                  </div>
+
+                  <div className="max-h-[400px] overflow-y-auto hide-scrollbar">
+                    {historyData.length > 0 ? (
+                      historyData.map((item, idx) => (
+                        <div
+                          key={idx}
+                          className="grid grid-cols-4 gap-2 py-3 border-t border-gray-50 dark:border-border-dark items-center text-sm transition-colors"
+                        >
+                          <div className="text-left pl-2 text-gray-600 dark:text-gray-400 font-medium font-sans">
+                            {item.date}
+                          </div>
+                          <div className="text-center text-gray-800 dark:text-gray-200 font-sans">
+                            {item.nav.toFixed(4)}
+                          </div>
+                          <div className="text-center text-gray-800 dark:text-gray-200 font-sans">
+                            {item.accNav != null ? item.accNav.toFixed(4) : '--'}
+                          </div>
+                          <div
+                            className={`text-right pr-2 font-sans font-medium ${getSignColor(item.change ?? 0)}`}
+                          >
+                            {item.change != null ? formatPct(item.change) : '--'}
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="py-4 text-center text-gray-300 text-xs">
+                        Loading history...
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
 
         {/* Scrollable Area End Marker */}
         <div className="pt-4 pb-6 w-full flex items-center justify-center text-xs text-gray-400 dark:text-gray-500 font-sans">
