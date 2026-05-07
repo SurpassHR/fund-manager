@@ -11,6 +11,7 @@ import type {
 } from '../types';
 import { Icons } from './Icon';
 import { Sparkline } from './Sparkline';
+import { calcFundIntradayTrend } from '../services/fundIntradayTrend';
 import { TradeMarkerLegend } from './TradeMarkerLegend';
 import {
   TRADE_MARKER_COLORS,
@@ -32,6 +33,7 @@ import {
   fetchParentETFInfo,
   fetchTencentStockQuotes,
   fetchTencentIntradayData,
+  checkIsMarketTrading,
 } from '../services/api';
 import type { IntradayPoint } from '../services/api';
 import { deriveFundHoldingDisplayMetrics } from '../services/fundDayChange';
@@ -382,6 +384,11 @@ export const FundDetail: React.FC<FundDetailProps> = ({
   >({});
   const [intradayData, setIntradayData] = useState<Record<string, IntradayPoint[]>>({});
   const [parentIntradayData, setParentIntradayData] = useState<Record<string, IntradayPoint[]>>({});
+
+  // Intraday fund-level trend
+  const [isMarketTrading, setIsMarketTrading] = useState(false);
+  const intradayChartRef = useRef<HTMLDivElement>(null);
+  const intradayChartInstance = useRef<echarts.ECharts | null>(null);
 
   // State for the verified last trading day (for header and API queries)
   const [lastTradingDay, setLastTradingDay] = useState<string>('');
@@ -782,6 +789,14 @@ export const FundDetail: React.FC<FundDetailProps> = ({
         ? inferredDayGainVal
         : fund.dayChangeVal;
 
+  // 计算基金级日内走势（基于持仓个股分时数据加权合成）
+  const fundIntradayTrend = useMemo(() => {
+    const data = fund.category === 'ETF_LINK' ? parentIntradayData : intradayData;
+    const h = fund.category === 'ETF_LINK' ? parentEtfHoldings : holdings;
+    if (!h.length || Object.keys(data).length === 0) return [];
+    return calcFundIntradayTrend(data, h, currentNav);
+  }, [fund.category, intradayData, parentIntradayData, holdings, parentEtfHoldings, currentNav]);
+
   // Initialize and Update ECharts
   useEffect(() => {
     if (!chartReady || !chartRef.current || !chartSeriesData) return;
@@ -955,8 +970,108 @@ export const FundDetail: React.FC<FundDetailProps> = ({
         chartInstance.current.dispose();
         chartInstance.current = null;
       }
+      if (intradayChartInstance.current) {
+        intradayChartInstance.current.dispose();
+        intradayChartInstance.current = null;
+      }
     };
   }, []);
+
+  // 定时检查市场交易状态
+  useEffect(() => {
+    const check = async () => {
+      try {
+        const trading = await checkIsMarketTrading();
+        setIsMarketTrading(trading);
+      } catch {
+        setIsMarketTrading(false);
+      }
+    };
+    check();
+    const timer = setInterval(check, 30000);
+    return () => clearInterval(timer);
+  }, []);
+
+  // 初始化日内走势 ECharts
+  useEffect(() => {
+    if (!chartReady || !intradayChartRef.current || fundIntradayTrend.length === 0) return;
+
+    if (!intradayChartInstance.current) {
+      intradayChartInstance.current = echarts.init(intradayChartRef.current);
+    }
+
+    const times = fundIntradayTrend.map((p) => p.time);
+    const navs = fundIntradayTrend.map((p) => p.estimatedNav);
+    const firstNav = navs[0];
+    const lastNav = navs[navs.length - 1];
+    const changePct = ((lastNav - firstNav) / firstNav) * 100;
+    const isUp = changePct >= 0;
+    const lineColor = isUp ? '#f87171' : '#34d399';
+
+    const option: echarts.EChartsOption = {
+      grid: { top: 16, right: 16, bottom: 24, left: 56 },
+      xAxis: {
+        type: 'category' as const,
+        data: times,
+        axisLabel: {
+          color: isDark ? '#9ca3af' : '#6b7280',
+          fontSize: 10,
+          interval: Math.max(1, Math.floor(times.length / 5)),
+        },
+        axisLine: { lineStyle: { color: isDark ? '#374151' : '#e5e7eb' } },
+      },
+      yAxis: {
+        type: 'value' as const,
+        axisLabel: {
+          color: isDark ? '#9ca3af' : '#6b7280',
+          fontSize: 10,
+          formatter: (v: number) => v.toFixed(4),
+        },
+        splitLine: { lineStyle: { color: isDark ? '#1f2937' : '#f3f4f6' } },
+        scale: true,
+      },
+      tooltip: {
+        trigger: 'axis',
+        backgroundColor: isDark ? '#1f2937' : '#ffffff',
+        borderColor: isDark ? '#374151' : '#e5e7eb',
+        textStyle: { color: isDark ? '#e5e7eb' : '#374151' },
+        formatter: (params: unknown) => {
+          if (!Array.isArray(params) || params.length === 0) return '';
+          const data = (params as TooltipSeriesParam[])[0];
+          if (data?.value == null) return '';
+          const nav = Number(data.value);
+          const pct = ((nav - firstNav) / firstNav) * 100;
+          const sign = pct >= 0 ? '+' : '';
+          return `<div style="font-family:monospace">
+                ${data.axisValue}<br/>
+                <span>估算净值: ${nav.toFixed(4)}</span><br/>
+                <span style="color:${isUp ? '#f87171' : '#34d399'}">${sign}${pct.toFixed(2)}%</span>
+              </div>`;
+        },
+      },
+      series: [
+        {
+          type: 'line',
+          data: navs,
+          smooth: true,
+          symbol: 'none',
+          lineStyle: { color: lineColor, width: 1.5 },
+          areaStyle: {
+            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+              { offset: 0, color: lineColor + '33' },
+              { offset: 1, color: lineColor + '05' },
+            ]),
+          },
+        },
+      ],
+    };
+
+    intradayChartInstance.current.setOption(option);
+
+    const handleResize = () => intradayChartInstance.current?.resize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [chartReady, fundIntradayTrend, isDark]);
 
   // Derived History Table Data based on Chart Data + Current NAV
   // Only show dates up to the authoritative lastTradingDay to avoid displaying
@@ -1187,6 +1302,37 @@ export const FundDetail: React.FC<FundDetailProps> = ({
             )}
           </div>
         </div>
+
+        {/* Intraday Trend Chart (基金级日内走势) */}
+        {isMarketTrading && fundIntradayTrend.length > 0 && (
+          <div className="mb-2 rounded-[1.5rem] border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)]/92 p-4 shadow-[0_10px_24px_rgba(15,23,42,0.05)] transition-colors">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="font-bold text-gray-800 dark:text-gray-100 text-sm border-l-4 border-blue-500 pl-2">
+                日内走势
+              </h3>
+              <span
+                className={`text-xs font-sans font-medium ${getSignColor(
+                  (((fundIntradayTrend[fundIntradayTrend.length - 1]?.estimatedNav ?? currentNav) -
+                    (fundIntradayTrend[0]?.estimatedNav ?? currentNav)) /
+                    (fundIntradayTrend[0]?.estimatedNav ?? currentNav)) *
+                    100,
+                )}`}
+              >
+                {(() => {
+                  const firstNav = fundIntradayTrend[0]?.estimatedNav ?? currentNav;
+                  const lastNav =
+                    fundIntradayTrend[fundIntradayTrend.length - 1]?.estimatedNav ?? currentNav;
+                  const pct = ((lastNav - firstNav) / firstNav) * 100;
+                  return formatPct(pct);
+                })()}
+              </span>
+            </div>
+
+            <div className="relative w-full h-48">
+              <div ref={intradayChartRef} className="w-full h-full" />
+            </div>
+          </div>
+        )}
 
         {/* Historical Data Grid (Performance Summary) */}
         {pingzhongData ? (
