@@ -3,7 +3,7 @@ interface SparklineProps {
   data: number[];
   /** SVG viewport width in pixels (default 60) */
   width?: number;
-  /** SVG viewport height in pixels (default 36) */
+  /** SVG viewport height in pixels (default 28) */
   height?: number;
   /** CSS color for the line. Defaults to red (up) or green (down) based on trend. */
   color?: string;
