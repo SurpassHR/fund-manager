@@ -49,11 +49,9 @@ export const Sparkline = ({
       : data[0] <= data[data.length - 1]
         ? '#f87171'
         : '#34d399');
-  const fillColor = resolvedColor.replace(')', ',0.12)').replace('rgb', 'rgba');
-  // Handle hex colors: #f87171 -> rgba(248,113,113,0.12)
   const hexToRgba = (hex: string, alpha: number): string => {
     const match = hex.match(/^#([0-9a-fA-F]{2})([0-9a-fA-F]{2})([0-9a-fA-F]{2})$/);
-    if (!match) return fillColor; // fallback
+    if (!match) return hex;
     return `rgba(${parseInt(match[1], 16)},${parseInt(match[2], 16)},${parseInt(match[3], 16)},${alpha})`;
   };
   const areaFill = hexToRgba(resolvedColor, 0.12);
