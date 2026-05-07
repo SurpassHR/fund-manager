@@ -502,6 +502,12 @@ export const FundDetail: React.FC<FundDetailProps> = ({
 
     let cancelled = false;
 
+    const getFreqByRange = (range: string): string => {
+      if (range === '1Y') return '1w';
+      if (range === '3Y' || range === '5Y') return '1m';
+      return '1d';
+    };
+
     const fetchMorningstarSeries = async (
       startDate: string,
       endDate: string,
@@ -512,7 +518,7 @@ export const FundDetail: React.FC<FundDetailProps> = ({
         const body = {
           growthDataPoint: 'cumulativeReturn',
           initValue: 10000,
-          freq: '1d',
+          freq: getFreqByRange(timeRange),
           calcBmkSecId: 'F00001LXGJ',
           currency: 'CNY',
           type: 'return',
