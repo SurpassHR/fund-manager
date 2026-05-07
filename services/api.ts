@@ -785,7 +785,8 @@ export const fetchTencentIntradayData = async (
               .map(parseMinuteLine)
               .filter((p): p is IntradayPoint => p !== null);
             return { code, points };
-          } catch {
+          } catch (err) {
+            console.warn('Failed to fetch intraday data for', code, err);
             return { code, points: [] as IntradayPoint[] };
           }
         }),
