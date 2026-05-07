@@ -10,6 +10,7 @@ import type {
   EastMoneyPingzhongData,
 } from '../types';
 import { Icons } from './Icon';
+import { Sparkline } from './Sparkline';
 import { TradeMarkerLegend } from './TradeMarkerLegend';
 import {
   TRADE_MARKER_COLORS,
@@ -30,7 +31,9 @@ import {
   fetchEastMoneyPingzhongData,
   fetchParentETFInfo,
   fetchTencentStockQuotes,
+  fetchTencentIntradayData,
 } from '../services/api';
+import type { IntradayPoint } from '../services/api';
 import { deriveFundHoldingDisplayMetrics } from '../services/fundDayChange';
 import * as echarts from 'echarts';
 
@@ -377,6 +380,8 @@ export const FundDetail: React.FC<FundDetailProps> = ({
   const [parentEtfQuotes, setParentEtfQuotes] = useState<
     Record<string, { price: string; pct: number }>
   >({});
+  const [intradayData, setIntradayData] = useState<Record<string, IntradayPoint[]>>({});
+  const [parentIntradayData, setParentIntradayData] = useState<Record<string, IntradayPoint[]>>({});
 
   // State for the verified last trading day (for header and API queries)
   const [lastTradingDay, setLastTradingDay] = useState<string>('');
@@ -650,6 +655,23 @@ export const FundDetail: React.FC<FundDetailProps> = ({
       return nextQuotes;
     };
 
+    const buildHoldingIntraday = async (equity: EquityHolding[]) => {
+      const codes = buildTencentQuoteCodes(equity.map((h) => h.ticker));
+      if (codes.length === 0) return {};
+
+      const intradayMap = await fetchTencentIntradayData(codes);
+      const nextIntraday: Record<string, IntradayPoint[]> = {};
+      equity.forEach((holding) => {
+        const key = normalizeTicker(holding.ticker);
+        if (!key) return;
+        const data = intradayMap[key];
+        if (data && data.length >= 2) {
+          nextIntraday[holding.ticker] = data;
+        }
+      });
+      return nextIntraday;
+    };
+
     const normalizeParentCode = (raw?: string): string => {
       if (!raw) return '';
       const match = raw.toUpperCase().match(/^(\d{6})/);
@@ -667,9 +689,11 @@ export const FundDetail: React.FC<FundDetailProps> = ({
           const equity = json.data.equityHoldings;
           setHoldings(equity);
           setQuotes(await buildHoldingQuotes(equity));
+          setIntradayData(await buildHoldingIntraday(equity));
         } else {
           setHoldings([]);
           setQuotes({});
+          setIntradayData({});
         }
 
         const parentCode = normalizeParentCode(resolvedParent?.parentCode);
@@ -679,13 +703,16 @@ export const FundDetail: React.FC<FundDetailProps> = ({
             const parentEquity = parentJson.data.equityHoldings;
             setParentEtfHoldings(parentEquity);
             setParentEtfQuotes(await buildHoldingQuotes(parentEquity));
+            setParentIntradayData(await buildHoldingIntraday(parentEquity));
           } else {
             setParentEtfHoldings([]);
             setParentEtfQuotes({});
+            setParentIntradayData({});
           }
         } else {
           setParentEtfHoldings([]);
           setParentEtfQuotes({});
+          setParentIntradayData({});
         }
       } catch (err) {
         console.error(err);
@@ -1204,9 +1231,10 @@ export const FundDetail: React.FC<FundDetailProps> = ({
 
             <div className="space-y-0">
               {/* Table Header */}
-              <div className="grid grid-cols-10 gap-2 text-xs text-gray-400 pb-2 border-b border-gray-50 dark:border-border-dark">
-                <div className="col-span-4 pl-1">股票名称</div>
-                <div className="col-span-3 text-right">最新价/涨跌</div>
+              <div className="grid grid-cols-12 gap-2 text-xs text-gray-400 pb-2 border-b border-gray-50 dark:border-border-dark">
+                <div className="col-span-1 pl-1">股票名称</div>
+                <div className="col-span-7" />
+                <div className="col-span-1 text-right">最新价/涨跌</div>
                 <div className="col-span-3 text-right pr-1">持仓占比</div>
               </div>
 
@@ -1216,19 +1244,29 @@ export const FundDetail: React.FC<FundDetailProps> = ({
                 const price = quote ? quote.price : '--';
                 const pct = quote ? quote.pct : 0;
                 const hasQuote = !!quote;
+                const sparkData = intradayData[stock.ticker];
 
                 return (
                   <div
                     key={idx}
-                    className="grid grid-cols-10 items-center gap-2 border-b border-gray-50 py-3 transition-colors last:border-0 hover:bg-[var(--app-shell-panel-strong)]/70 dark:border-border-dark"
+                    className="grid grid-cols-12 items-center gap-2 border-b border-gray-50 py-3 last:pb-0 transition-colors last:border-0 hover:bg-[var(--app-shell-panel-strong)]/70 dark:border-border-dark"
                   >
-                    <div className="col-span-4 pl-1">
+                    <div className="col-span-1 pl-1">
                       <div className="font-medium text-gray-800 dark:text-gray-200 text-sm truncate">
                         {stock.name}
                       </div>
                       <div className="text-xs text-gray-400 font-sans">{stock.ticker}</div>
                     </div>
-                    <div className="col-span-3 text-right">
+                    <div className="col-span-7 -my-3 self-stretch flex items-center">
+                      {sparkData && (
+                        <Sparkline
+                          data={sparkData.map((p) => p.price)}
+                          positive={pct >= 0}
+                          height={56}
+                        />
+                      )}
+                    </div>
+                    <div className="col-span-1 text-right">
                       <div className="font-sans text-sm text-gray-800 dark:text-gray-200">
                         {price}
                       </div>
@@ -1267,9 +1305,10 @@ export const FundDetail: React.FC<FundDetailProps> = ({
             </div>
 
             <div className="space-y-0">
-              <div className="grid grid-cols-10 gap-2 text-xs text-gray-400 pb-2 border-b border-gray-50 dark:border-border-dark">
-                <div className="col-span-4 pl-1">股票名称</div>
-                <div className="col-span-3 text-right">最新价/涨跌</div>
+              <div className="grid grid-cols-12 gap-2 text-xs text-gray-400 pb-2 border-b border-gray-50 dark:border-border-dark">
+                <div className="col-span-1 pl-1">股票名称</div>
+                <div className="col-span-7" />
+                <div className="col-span-1 text-right">最新价/涨跌</div>
                 <div className="col-span-3 text-right pr-1">持仓占比</div>
               </div>
 
@@ -1278,19 +1317,29 @@ export const FundDetail: React.FC<FundDetailProps> = ({
                 const price = quote ? quote.price : '--';
                 const pct = quote ? quote.pct : 0;
                 const hasQuote = !!quote;
+                const sparkData = parentIntradayData[stock.ticker];
 
                 return (
                   <div
                     key={`parent-${idx}`}
-                    className="grid grid-cols-10 items-center gap-2 border-b border-gray-50 py-3 transition-colors last:border-0 hover:bg-[var(--app-shell-panel-strong)]/70 dark:border-border-dark"
+                    className="grid grid-cols-12 items-center gap-2 border-b border-gray-50 py-3 last:pb-0 transition-colors last:border-0 hover:bg-[var(--app-shell-panel-strong)]/70 dark:border-border-dark"
                   >
-                    <div className="col-span-4 pl-1">
+                    <div className="col-span-1 pl-1">
                       <div className="font-medium text-gray-800 dark:text-gray-200 text-sm truncate">
                         {stock.name}
                       </div>
                       <div className="text-xs text-gray-400 font-sans">{stock.ticker}</div>
                     </div>
-                    <div className="col-span-3 text-right">
+                    <div className="col-span-7 -my-3 self-stretch flex items-center">
+                      {sparkData && (
+                        <Sparkline
+                          data={sparkData.map((p) => p.price)}
+                          positive={pct >= 0}
+                          height={56}
+                        />
+                      )}
+                    </div>
+                    <div className="col-span-1 text-right">
                       <div className="font-sans text-sm text-gray-800 dark:text-gray-200">
                         {price}
                       </div>

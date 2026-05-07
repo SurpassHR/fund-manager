@@ -733,6 +733,77 @@ export const fetchTencentStockQuotes = async (
   }
 };
 
+export interface IntradayPoint {
+  /** Time string in HH:MM format, e.g. "09:30" */
+  time: string;
+  /** Price at that minute */
+  price: number;
+}
+
+const TENCENT_MINUTE_API = 'https://ifzq.gtimg.cn/appstock/app/minute/query';
+
+/**
+ * Fetch intraday minute data for a list of Tencent stock codes.
+ * Returns { [normalizedTicker]: IntradayPoint[] } — codes without data are omitted.
+ */
+export const fetchTencentIntradayData = async (
+  codes: string[],
+  options?: { force?: boolean },
+): Promise<Record<string, IntradayPoint[]>> => {
+  if (!codes || codes.length === 0) return {};
+
+  const key = `tencent-intraday:${buildCodesKey(codes)}`;
+  return await withCache({
+    key,
+    ttlMs: 60000,
+    force: options?.force,
+    fetcher: async () => {
+      const parseMinuteLine = (line: string): IntradayPoint | null => {
+        const parts = line.split(' ');
+        if (parts.length < 2) return null;
+        const rawTime = parts[0];
+        const price = parseFloat(parts[1]);
+        if (rawTime.length < 4 || isNaN(price)) return null;
+        const time = `${rawTime.slice(0, 2)}:${rawTime.slice(2, 4)}`;
+        return { time, price };
+      };
+
+      const results = await Promise.all(
+        codes.map(async (code) => {
+          try {
+            const url = `${TENCENT_MINUTE_API}?code=${encodeURIComponent(code)}`;
+            const res = await fetch(url);
+            if (!res.ok) return { code, points: [] as IntradayPoint[] };
+            const json: unknown = await res.json();
+            const data = json as {
+              code?: number;
+              data?: Record<string, { data?: { data?: string[] } }>;
+            };
+            const rawList = data?.data?.[code]?.data?.data;
+            if (!rawList || !Array.isArray(rawList)) return { code, points: [] as IntradayPoint[] };
+            const points = rawList
+              .map(parseMinuteLine)
+              .filter((p): p is IntradayPoint => p !== null);
+            return { code, points };
+          } catch {
+            return { code, points: [] as IntradayPoint[] };
+          }
+        }),
+      );
+
+      const map: Record<string, IntradayPoint[]> = {};
+      results.forEach(({ code, points }) => {
+        if (points.length === 0) return;
+        const normalized = normalizeTicker(code);
+        if (normalized) {
+          map[normalized] = points;
+        }
+      });
+      return map;
+    },
+  });
+};
+
 /**
  * Fetch generic Tencent quotes for any list of codes (sh000001, sz399001, etc.)
  * Returns { [code]: { currentPrice: number, changePct: number } }

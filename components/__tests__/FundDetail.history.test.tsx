@@ -29,6 +29,7 @@ const mockedApi = vi.hoisted(() => ({
   fetchFundPerformance: vi.fn(),
   fetchEastMoneyPingzhongData: vi.fn(),
   fetchTencentStockQuotes: vi.fn(),
+  fetchTencentIntradayData: vi.fn(),
   buildTencentQuoteCodes: vi.fn(() => []),
 }));
 
@@ -46,6 +47,7 @@ vi.mock('../../services/api', () => ({
   fetchFundPerformance: mockedApi.fetchFundPerformance,
   fetchEastMoneyPingzhongData: mockedApi.fetchEastMoneyPingzhongData,
   fetchTencentStockQuotes: mockedApi.fetchTencentStockQuotes,
+  fetchTencentIntradayData: mockedApi.fetchTencentIntradayData,
   buildTencentQuoteCodes: mockedApi.buildTencentQuoteCodes,
 }));
 
@@ -124,6 +126,7 @@ describe('FundDetail history performance source', () => {
     mockedApi.fetchFundHoldings.mockResolvedValue({ data: { equityHoldings: [] } });
     mockedApi.fetchParentETFInfo.mockResolvedValue(null);
     mockedApi.fetchTencentStockQuotes.mockResolvedValue({});
+    mockedApi.fetchTencentIntradayData.mockResolvedValue({});
     mockedApi.fetchFundPerformance.mockResolvedValue({
       data: {
         dayEnd: {
@@ -611,5 +614,86 @@ describe('FundDetail history performance source', () => {
     expect(collapseRelatedCalls).toHaveLength(0);
 
     setItemSpy.mockRestore();
+  });
+
+  it('shows sparkline column when intraday data is available', async () => {
+    mockedApi.fetchFundHoldings.mockResolvedValue({
+      data: {
+        equityHoldings: [
+          { ticker: '600519', name: '贵州茅台', weight: 5.5, sector: '消费', styleBox: '大盘' },
+        ],
+      },
+    });
+    mockedApi.fetchTencentStockQuotes.mockResolvedValue({
+      '600519': { price: '1800.00', pct: 2.5 },
+    });
+    mockedApi.fetchTencentIntradayData.mockResolvedValue({
+      '600519': [
+        { time: '09:30', price: 1780 },
+        { time: '09:31', price: 1790 },
+        { time: '09:32', price: 1800 },
+      ],
+    });
+    mockedApi.buildTencentQuoteCodes.mockReturnValue(['sh600519']);
+
+    render(<FundDetail fund={fund} onBack={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(screen.getByText('贵州茅台')).toBeInTheDocument();
+    });
+
+    // Sparkline SVG should exist
+    const svg = document.querySelector('svg[aria-hidden="true"]');
+    expect(svg).not.toBeNull();
+    expect(svg!.querySelector('polyline')).not.toBeNull();
+  });
+
+  it('does not render sparkline when intraday data is empty', async () => {
+    mockedApi.fetchFundHoldings.mockResolvedValue({
+      data: {
+        equityHoldings: [
+          { ticker: '600519', name: '贵州茅台', weight: 5.5, sector: '消费', styleBox: '大盘' },
+        ],
+      },
+    });
+    mockedApi.fetchTencentStockQuotes.mockResolvedValue({
+      '600519': { price: '1800.00', pct: 2.5 },
+    });
+    mockedApi.fetchTencentIntradayData.mockResolvedValue({});
+    mockedApi.buildTencentQuoteCodes.mockReturnValue(['sh600519']);
+
+    render(<FundDetail fund={fund} onBack={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(screen.getByText('贵州茅台')).toBeInTheDocument();
+    });
+
+    // No sparkline SVG should exist
+    expect(document.querySelector('svg[aria-hidden="true"]')).toBeNull();
+  });
+
+  it('uses 12-column grid layout for holdings', async () => {
+    mockedApi.fetchFundHoldings.mockResolvedValue({
+      data: {
+        equityHoldings: [
+          { ticker: '600519', name: '贵州茅台', weight: 5.5, sector: '消费', styleBox: '大盘' },
+        ],
+      },
+    });
+    mockedApi.fetchTencentStockQuotes.mockResolvedValue({
+      '600519': { price: '1800.00', pct: 2.5 },
+    });
+    mockedApi.fetchTencentIntradayData.mockResolvedValue({});
+    mockedApi.buildTencentQuoteCodes.mockReturnValue(['sh600519']);
+
+    render(<FundDetail fund={fund} onBack={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(screen.getByText('贵州茅台')).toBeInTheDocument();
+    });
+
+    // The holdings grid should have 12-column layout
+    const gridContainer = document.querySelector('.grid.grid-cols-12');
+    expect(gridContainer).not.toBeNull();
   });
 });

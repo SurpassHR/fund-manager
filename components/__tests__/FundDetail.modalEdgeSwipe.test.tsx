@@ -13,6 +13,7 @@ const mockedApi = vi.hoisted(() => ({
   fetchFundPerformance: vi.fn(),
   fetchEastMoneyPingzhongData: vi.fn(),
   fetchTencentStockQuotes: vi.fn(),
+  fetchTencentIntradayData: vi.fn(),
   buildTencentQuoteCodes: vi.fn(() => []),
 }));
 
@@ -23,6 +24,7 @@ vi.mock('../../services/api', () => ({
   fetchFundPerformance: mockedApi.fetchFundPerformance,
   fetchEastMoneyPingzhongData: mockedApi.fetchEastMoneyPingzhongData,
   fetchTencentStockQuotes: mockedApi.fetchTencentStockQuotes,
+  fetchTencentIntradayData: mockedApi.fetchTencentIntradayData,
   buildTencentQuoteCodes: mockedApi.buildTencentQuoteCodes,
 }));
 
@@ -118,6 +120,7 @@ beforeEach(() => {
   mockedApi.fetchFundHoldings.mockResolvedValue({ data: { equityHoldings: [] } });
   mockedApi.fetchParentETFInfo.mockResolvedValue(null);
   mockedApi.fetchTencentStockQuotes.mockResolvedValue({});
+  mockedApi.fetchTencentIntradayData.mockResolvedValue({});
   mockedApi.fetchFundPerformance.mockResolvedValue({ data: { annual: { returns: [] } } });
   mockedApi.fetchEastMoneyPingzhongData.mockResolvedValue({
     syl_1y: '1.11',
