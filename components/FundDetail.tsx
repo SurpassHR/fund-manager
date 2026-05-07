@@ -1162,6 +1162,7 @@ export const FundDetail: React.FC<FundDetailProps> = ({
     '1Y': 12,
     '3Y': 36,
     '5Y': 60,
+    ALL: Infinity,
   };
   const RANGE_ORDER: TimeRange[] = ['1M', '3M', '6M', '1Y', '3Y', '5Y', 'ALL'];
 
