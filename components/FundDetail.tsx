@@ -1232,9 +1232,9 @@ export const FundDetail: React.FC<FundDetailProps> = ({
             <div className="space-y-0">
               {/* Table Header */}
               <div className="grid grid-cols-12 gap-2 text-xs text-gray-400 pb-2 border-b border-gray-50 dark:border-border-dark">
-                <div className="col-span-1 pl-1">股票名称</div>
-                <div className="col-span-7" />
-                <div className="col-span-1 text-right">最新价/涨跌</div>
+                <div className="col-span-5 md:col-span-1 pl-1">股票名称</div>
+                <div className="hidden md:col-span-7 md:block" />
+                <div className="col-span-4 md:col-span-1 text-right">最新价/涨跌</div>
                 <div className="col-span-3 text-right pr-1">持仓占比</div>
               </div>
 
@@ -1251,13 +1251,13 @@ export const FundDetail: React.FC<FundDetailProps> = ({
                     key={idx}
                     className="grid grid-cols-12 items-center gap-2 border-b border-gray-50 py-3 last:pb-0 transition-colors last:border-0 hover:bg-[var(--app-shell-panel-strong)]/70 dark:border-border-dark"
                   >
-                    <div className="col-span-1 pl-1">
+                    <div className="col-span-5 md:col-span-1 pl-1">
                       <div className="font-medium text-gray-800 dark:text-gray-200 text-sm truncate">
                         {stock.name}
                       </div>
                       <div className="text-xs text-gray-400 font-sans">{stock.ticker}</div>
                     </div>
-                    <div className="col-span-7 -my-3 self-stretch flex items-center">
+                    <div className="hidden md:col-span-7 md:-my-3 md:self-stretch md:flex md:items-center">
                       {sparkData && (
                         <Sparkline
                           data={sparkData.map((p) => p.price)}
@@ -1266,7 +1266,7 @@ export const FundDetail: React.FC<FundDetailProps> = ({
                         />
                       )}
                     </div>
-                    <div className="col-span-1 text-right">
+                    <div className="col-span-4 md:col-span-1 text-right">
                       <div className="font-sans text-sm text-gray-800 dark:text-gray-200">
                         {price}
                       </div>
@@ -1306,9 +1306,9 @@ export const FundDetail: React.FC<FundDetailProps> = ({
 
             <div className="space-y-0">
               <div className="grid grid-cols-12 gap-2 text-xs text-gray-400 pb-2 border-b border-gray-50 dark:border-border-dark">
-                <div className="col-span-1 pl-1">股票名称</div>
-                <div className="col-span-7" />
-                <div className="col-span-1 text-right">最新价/涨跌</div>
+                <div className="col-span-5 md:col-span-1 pl-1">股票名称</div>
+                <div className="hidden md:col-span-7 md:block" />
+                <div className="col-span-4 md:col-span-1 text-right">最新价/涨跌</div>
                 <div className="col-span-3 text-right pr-1">持仓占比</div>
               </div>
 
@@ -1324,13 +1324,13 @@ export const FundDetail: React.FC<FundDetailProps> = ({
                     key={`parent-${idx}`}
                     className="grid grid-cols-12 items-center gap-2 border-b border-gray-50 py-3 last:pb-0 transition-colors last:border-0 hover:bg-[var(--app-shell-panel-strong)]/70 dark:border-border-dark"
                   >
-                    <div className="col-span-1 pl-1">
+                    <div className="col-span-5 md:col-span-1 pl-1">
                       <div className="font-medium text-gray-800 dark:text-gray-200 text-sm truncate">
                         {stock.name}
                       </div>
                       <div className="text-xs text-gray-400 font-sans">{stock.ticker}</div>
                     </div>
-                    <div className="col-span-7 -my-3 self-stretch flex items-center">
+                    <div className="hidden md:col-span-7 md:-my-3 md:self-stretch md:flex md:items-center">
                       {sparkData && (
                         <Sparkline
                           data={sparkData.map((p) => p.price)}
@@ -1339,7 +1339,7 @@ export const FundDetail: React.FC<FundDetailProps> = ({
                         />
                       )}
                     </div>
-                    <div className="col-span-1 text-right">
+                    <div className="col-span-4 md:col-span-1 text-right">
                       <div className="font-sans text-sm text-gray-800 dark:text-gray-200">
                         {price}
                       </div>
