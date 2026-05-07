@@ -46,7 +46,7 @@ interface FundDetailProps {
   onBack: () => void;
 }
 
-type TimeRange = '1M' | '3M' | '6M' | '1Y' | '3Y' | '5Y';
+type TimeRange = '1M' | '3M' | '6M' | '1Y' | '3Y' | '5Y' | 'ALL';
 
 type GrowthSeriesData = {
   dates: string[];
@@ -141,6 +141,8 @@ const getStartDate = (range: TimeRange, endDateStr: string): string => {
     case '5Y':
       d.setFullYear(d.getFullYear() - 5);
       break;
+    case 'ALL':
+      return '2000-01-01';
   }
 
   return formatLocalDate(d);
@@ -149,32 +151,42 @@ const getStartDate = (range: TimeRange, endDateStr: string): string => {
 const buildEastMoneyGrowthSeries = (
   pingzhongData: EastMoneyPingzhongData | null,
 ): GrowthSeriesData | null => {
-  if (!pingzhongData?.grandTotal?.length) return null;
+  const acWorthTrend = pingzhongData?.acWorthTrend;
+  if (!acWorthTrend?.length) return null;
 
-  const [fundSeries, secondSeries, thirdSeries] = pingzhongData.grandTotal;
-  if (!fundSeries?.data?.length) return null;
+  const baseAccNav = acWorthTrend[0][1];
+  if (!baseAccNav || baseAccNav === 0) return null;
 
-  const benchmarkSeries = thirdSeries?.data?.length ? thirdSeries : secondSeries;
-  const averageSeries = thirdSeries?.data?.length ? secondSeries : null;
-  const avgMap = new Map<number, number>(
-    (averageSeries?.data || []).map(([ts, value]) => [ts, value]),
-  );
-  const bmkMap = new Map<number, number>(
-    (benchmarkSeries?.data || []).map(([ts, value]) => [ts, value]),
-  );
+  // 从 Data_grandTotal 提取基准和同类平均（仅覆盖 ~6 个月），按日期匹配
+  const bmkByDate = new Map<string, number>();
+  const avgByDate = new Map<string, number>();
+  const grandTotal = pingzhongData?.grandTotal;
+  if (grandTotal?.length) {
+    const [, secondSeries, thirdSeries] = grandTotal;
+    const benchmarkSeries = thirdSeries?.data?.length ? thirdSeries : secondSeries;
+    const averageSeries = thirdSeries?.data?.length ? secondSeries : null;
+    (averageSeries?.data || []).forEach(([ts, value]) => {
+      avgByDate.set(formatLocalDate(ts), value);
+    });
+    (benchmarkSeries?.data || []).forEach(([ts, value]) => {
+      bmkByDate.set(formatLocalDate(ts), value);
+    });
+  }
 
-  const normalized = fundSeries.data
-    .filter((item): item is [number, number] => Array.isArray(item) && item.length >= 2)
-    .map(([ts, value]) => ({ ts, date: formatLocalDate(ts), fund: value }))
-    .filter((item) => !Number.isNaN(item.fund));
+  const normalized = acWorthTrend
+    .filter(([_, value]) => !Number.isNaN(value))
+    .map(([ts, value]) => ({
+      date: formatLocalDate(ts),
+      fund: ((value - baseAccNav) / baseAccNav) * 100,
+    }));
 
   if (normalized.length === 0) return null;
 
   return {
     dates: normalized.map((item) => item.date),
     fund: normalized.map((item) => item.fund),
-    avg: normalized.map((item) => avgMap.get(item.ts) ?? 0),
-    bmk: normalized.map((item) => bmkMap.get(item.ts) ?? 0),
+    avg: normalized.map((item) => avgByDate.get(item.date) ?? 0),
+    bmk: normalized.map((item) => bmkByDate.get(item.date) ?? 0),
   };
 };
 
@@ -1143,7 +1155,36 @@ export const FundDetail: React.FC<FundDetailProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleClose]);
 
-  const ranges: TimeRange[] = ['1M', '3M', '6M', '1Y', '3Y', '5Y'];
+  const RANGE_MONTHS: Record<TimeRange, number> = {
+    '1M': 1,
+    '3M': 3,
+    '6M': 6,
+    '1Y': 12,
+    '3Y': 36,
+    '5Y': 60,
+  };
+  const RANGE_ORDER: TimeRange[] = ['1M', '3M', '6M', '1Y', '3Y', '5Y', 'ALL'];
+
+  const availableRanges = useMemo(() => {
+    const acWorthTrend = pingzhongData?.acWorthTrend;
+    if (!acWorthTrend?.length) return RANGE_ORDER;
+
+    const firstTs = acWorthTrend[0][0];
+    const firstDate = new Date(firstTs);
+    const now = new Date();
+    const monthsDiff =
+      (now.getFullYear() - firstDate.getFullYear()) * 12 + (now.getMonth() - firstDate.getMonth());
+
+    return RANGE_ORDER.filter((r) => r === 'ALL' || monthsDiff >= RANGE_MONTHS[r]);
+  }, [pingzhongData]);
+
+  // 当前 timeRange 超出可用范围时自动回落
+  useEffect(() => {
+    if (!availableRanges.includes(timeRange)) {
+      setTimeRange(availableRanges[availableRanges.length - 1]);
+    }
+  }, [availableRanges, timeRange]);
+
   const legendViewModel = useMemo(
     () => buildLegendViewModel({ isWatchlist: Boolean(anchorDate), t }),
     [anchorDate, t],
@@ -1267,7 +1308,7 @@ export const FundDetail: React.FC<FundDetailProps> = ({
               累计收益走势
             </h3>
             <div className="flex rounded-lg bg-[var(--app-shell-panel-strong)] p-0.5 transition-colors">
-              {ranges.map((range) => (
+              {availableRanges.map((range) => (
                 <button
                   key={range}
                   onClick={() => setTimeRange(range)}
@@ -1277,7 +1318,7 @@ export const FundDetail: React.FC<FundDetailProps> = ({
                       : 'text-[var(--app-shell-muted)] hover:text-[var(--app-shell-ink)]'
                   }`}
                 >
-                  {range}
+                  {range === 'ALL' ? '成立以来' : range}
                 </button>
               ))}
             </div>

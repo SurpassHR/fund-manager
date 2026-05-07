@@ -172,10 +172,24 @@ describe('FundDetail history performance source', () => {
         },
       ],
       netWorthTrend: [
+        { x: new Date('2025-10-07').getTime(), y: 1.2, equityReturn: -10.5, unitMoney: '' },
+        { x: new Date('2025-11-07').getTime(), y: 1.25, equityReturn: -7.2, unitMoney: '' },
+        { x: new Date('2025-12-07').getTime(), y: 1.3, equityReturn: -5.0, unitMoney: '' },
+        { x: new Date('2026-01-07').getTime(), y: 1.35, equityReturn: -3.1, unitMoney: '' },
+        { x: new Date('2026-02-07').getTime(), y: 1.38, equityReturn: -1.5, unitMoney: '' },
+        { x: new Date('2026-03-07').getTime(), y: 1.4, equityReturn: -0.5, unitMoney: '' },
         { x: new Date('2026-04-03').getTime(), y: 1.4321, equityReturn: -0.12, unitMoney: '' },
         { x: new Date('2026-04-07').getTime(), y: 1.5, equityReturn: 1.23, unitMoney: '' },
       ],
       acWorthTrend: [
+        [new Date('2023-12-31').getTime(), 1.4],
+        [new Date('2024-12-31').getTime(), 1.5],
+        [new Date('2025-10-07').getTime(), 1.5],
+        [new Date('2025-11-07').getTime(), 1.55],
+        [new Date('2025-12-31').getTime(), 1.6],
+        [new Date('2026-01-07').getTime(), 1.65],
+        [new Date('2026-02-07').getTime(), 1.68],
+        [new Date('2026-03-07').getTime(), 1.7],
         [new Date('2026-04-03').getTime(), 1.7321],
         [new Date('2026-04-07').getTime(), 1.8],
       ],
@@ -227,7 +241,7 @@ describe('FundDetail history performance source', () => {
       xAxis?: { data?: string[] };
     };
 
-    expect(latestOption.xAxis?.data).toEqual(['2026-04-03', '2026-04-07']);
+    expect(latestOption.xAxis?.data).toEqual(['2026-03-07', '2026-04-03', '2026-04-07']);
     expect(screen.queryByText('04-04')).not.toBeInTheDocument();
     expect(screen.queryByText('04-05')).not.toBeInTheDocument();
     fireEvent.click(screen.getByText('common.historyNav'));
@@ -281,10 +295,24 @@ describe('FundDetail history performance source', () => {
         },
       ],
       netWorthTrend: [
+        { x: new Date('2025-10-07').getTime(), y: 1.2, equityReturn: -10.5, unitMoney: '' },
+        { x: new Date('2025-11-07').getTime(), y: 1.25, equityReturn: -7.2, unitMoney: '' },
+        { x: new Date('2025-12-07').getTime(), y: 1.3, equityReturn: -5.0, unitMoney: '' },
+        { x: new Date('2026-01-07').getTime(), y: 1.35, equityReturn: -3.1, unitMoney: '' },
+        { x: new Date('2026-02-07').getTime(), y: 1.38, equityReturn: -1.5, unitMoney: '' },
+        { x: new Date('2026-03-07').getTime(), y: 1.4, equityReturn: -0.5, unitMoney: '' },
         { x: new Date('2026-04-03').getTime(), y: 1.4321, equityReturn: -0.12, unitMoney: '' },
         { x: new Date('2026-04-07').getTime(), y: 1.5, equityReturn: 1.23, unitMoney: '' },
       ],
       acWorthTrend: [
+        [new Date('2023-12-31').getTime(), 1.4],
+        [new Date('2024-12-31').getTime(), 1.5],
+        [new Date('2025-10-07').getTime(), 1.5],
+        [new Date('2025-11-07').getTime(), 1.55],
+        [new Date('2025-12-31').getTime(), 1.6],
+        [new Date('2026-01-07').getTime(), 1.65],
+        [new Date('2026-02-07').getTime(), 1.68],
+        [new Date('2026-03-07').getTime(), 1.7],
         [new Date('2026-04-03').getTime(), 1.7321],
         [new Date('2026-04-07').getTime(), 1.8],
       ],
