@@ -48,6 +48,32 @@ describe('Sparkline', () => {
     expect(polyline.getAttribute('stroke')).toBe('#ff0000');
   });
 
+  it('uses red when positive=true even if first > last (downward trend)', () => {
+    const { container } = render(<Sparkline data={[102, 101, 100]} positive={true} />);
+    const polyline = container.querySelector('polyline')!;
+    expect(polyline.getAttribute('stroke')).toBe('#f87171');
+  });
+
+  it('uses green when positive=false even if first <= last (upward trend)', () => {
+    const { container } = render(<Sparkline data={[100, 101, 102]} positive={false} />);
+    const polyline = container.querySelector('polyline')!;
+    expect(polyline.getAttribute('stroke')).toBe('#34d399');
+  });
+
+  it('color prop takes priority over positive', () => {
+    const { container } = render(
+      <Sparkline data={[100, 101, 102]} positive={false} color="#ff0000" />,
+    );
+    const polyline = container.querySelector('polyline')!;
+    expect(polyline.getAttribute('stroke')).toBe('#ff0000');
+  });
+
+  it('falls back to first-vs-last comparison when positive is not provided', () => {
+    const { container } = render(<Sparkline data={[102, 101, 100]} />);
+    const polyline = container.querySelector('polyline')!;
+    expect(polyline.getAttribute('stroke')).toBe('#34d399');
+  });
+
   it('renders area fill polygon', () => {
     const { container } = render(<Sparkline data={[100, 101, 102]} />);
     const polygon = container.querySelector('polygon');
@@ -60,10 +86,10 @@ describe('Sparkline', () => {
     expect(svg.getAttribute('viewBox')).toBe('0 0 80 40');
   });
 
-  it('uses default viewBox 0 0 60 36', () => {
+  it('uses default viewBox 0 0 60 28', () => {
     const { container } = render(<Sparkline data={[100, 101, 102]} />);
     const svg = container.querySelector('svg')!;
-    expect(svg.getAttribute('viewBox')).toBe('0 0 60 36');
+    expect(svg.getAttribute('viewBox')).toBe('0 0 60 28');
   });
 
   it('has responsive width with fixed height', () => {
@@ -71,6 +97,6 @@ describe('Sparkline', () => {
     const svg = container.querySelector('svg')!;
     const cls = svg.getAttribute('class') || '';
     expect(cls).toContain('w-full');
-    expect(svg.getAttribute('height')).toBe('36');
+    expect(svg.getAttribute('height')).toBe('28');
   });
 });

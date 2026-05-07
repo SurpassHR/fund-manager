@@ -7,6 +7,8 @@ interface SparklineProps {
   height?: number;
   /** CSS color for the line. Defaults to red (up) or green (down) based on trend. */
   color?: string;
+  /** When provided, overrides first-vs-last price comparison for color: true=red (up), false=green (down) */
+  positive?: boolean;
   /** Additional CSS classes for the SVG element */
   className?: string;
 }
@@ -16,6 +18,7 @@ export const Sparkline = ({
   width = 60,
   height = 28,
   color,
+  positive,
   className,
 }: SparklineProps): React.ReactElement | null => {
   if (!data || data.length < 2) return null;
@@ -37,7 +40,15 @@ export const Sparkline = ({
     return `${x},${y}`;
   });
 
-  const resolvedColor = color || (data[0] <= data[data.length - 1] ? '#f87171' : '#34d399');
+  const resolvedColor =
+    color ||
+    (positive !== undefined
+      ? positive
+        ? '#f87171'
+        : '#34d399'
+      : data[0] <= data[data.length - 1]
+        ? '#f87171'
+        : '#34d399');
   const fillColor = resolvedColor.replace(')', ',0.12)').replace('rgb', 'rgba');
   // Handle hex colors: #f87171 -> rgba(248,113,113,0.12)
   const hexToRgba = (hex: string, alpha: number): string => {
