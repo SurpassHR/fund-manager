@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState, useRef, useMemo } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import type {
   Fund,
   FundCommonDataResponse,
@@ -386,8 +387,11 @@ export const FundDetail: React.FC<FundDetailProps> = ({
   const chartRef = useRef<HTMLDivElement>(null);
   const chartInstance = useRef<echarts.ECharts | null>(null);
 
-  // History Expansion State
-  const [showAllHistory, setShowAllHistory] = useState(false);
+  // Section Collapse State
+  const [isHistoryExpanded, setIsHistoryExpanded] = useState(false);
+  const [isAnnualReturnsExpanded, setIsAnnualReturnsExpanded] = useState(false);
+  const historyContentRef = useRef<HTMLDivElement>(null);
+  const annualContentRef = useRef<HTMLDivElement>(null);
 
   // Real Chart Data from API
   const [chartSeriesData, setChartSeriesData] = useState<GrowthSeriesData | null>(null);
@@ -1003,9 +1007,6 @@ export const FundDetail: React.FC<FundDetailProps> = ({
     [anchorDate, t],
   );
 
-  // Apply toggle limit
-  const displayedHistory = showAllHistory ? historyData : historyData.slice(0, 10);
-
   return (
     <ModalShell
       isOpen={isOpen}
@@ -1193,94 +1194,6 @@ export const FundDetail: React.FC<FundDetailProps> = ({
           </div>
         ) : null}
 
-        {/* History NAV Table */}
-        <div className="mb-2 rounded-[1.5rem] border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)]/92 p-4 shadow-[0_10px_24px_rgba(15,23,42,0.05)] transition-colors">
-          <div className="flex items-center justify-between mb-4 border-l-4 border-blue-500 pl-2">
-            <h3 className="font-bold text-gray-800 dark:text-gray-100 text-sm">
-              {t('common.historyNav')}
-            </h3>
-            <button
-              onClick={() => setShowAllHistory(!showAllHistory)}
-              className="flex items-center text-xs text-[var(--app-shell-muted)] transition-colors hover:text-[var(--app-shell-accent)]"
-            >
-              {showAllHistory ? '收起' : t('common.more')}
-              <Icons.ArrowUp
-                className={`transform ml-0.5 transition-transform ${showAllHistory ? '' : 'rotate-180'}`}
-                size={12}
-              />
-            </button>
-          </div>
-
-          <div className="space-y-0">
-            <div className="grid grid-cols-4 gap-2 text-xs text-gray-400 pb-3">
-              <div className="text-left pl-2">{t('common.date')}</div>
-              <div className="text-center">{t('common.unitNav')}</div>
-              <div className="text-center">{t('common.accNav')}</div>
-              <div className="text-right pr-2">{t('common.dayChgPct')}</div>
-            </div>
-
-            {displayedHistory.length > 0 ? (
-              displayedHistory.map((item, idx) => (
-                <div
-                  key={idx}
-                  className="grid grid-cols-4 gap-2 py-3 border-t border-gray-50 dark:border-border-dark items-center text-sm transition-colors"
-                >
-                  <div className="text-left pl-2 text-gray-600 dark:text-gray-400 font-medium font-sans">
-                    {item.date}
-                  </div>
-                  <div className="text-center text-gray-800 dark:text-gray-200 font-sans">
-                    {item.nav.toFixed(4)}
-                  </div>
-                  <div className="text-center text-gray-800 dark:text-gray-200 font-sans">
-                    {item.accNav != null ? item.accNav.toFixed(4) : '--'}
-                  </div>
-                  <div
-                    className={`text-right pr-2 font-sans font-medium ${getSignColor(item.change ?? 0)}`}
-                  >
-                    {item.change != null ? formatPct(item.change) : '--'}
-                  </div>
-                </div>
-              ))
-            ) : (
-              <div className="py-4 text-center text-gray-300 text-xs">Loading history...</div>
-            )}
-          </div>
-        </div>
-
-        {/* Annual Returns Table */}
-        {annualReturnData.length > 0 && (
-          <div className="mb-2 rounded-[1.5rem] border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)]/92 p-4 shadow-[0_10px_24px_rgba(15,23,42,0.05)] transition-colors">
-            <div className="flex items-center justify-between mb-4 border-l-4 border-blue-500 pl-2">
-              <h3 className="font-bold text-gray-800 dark:text-gray-100 text-sm">
-                {t('common.annualReturns')}
-              </h3>
-            </div>
-
-            <div className="space-y-0">
-              <div className="grid grid-cols-2 gap-2 text-xs text-gray-400 pb-3">
-                <div className="text-left pl-2">{t('common.year')}</div>
-                <div className="text-right pr-2">{t('common.returnRate')}</div>
-              </div>
-
-              {annualReturnData.map((item, idx) => (
-                <div
-                  key={`${item.year}-${idx}`}
-                  className="grid grid-cols-2 gap-2 py-3 border-t border-gray-50 dark:border-border-dark items-center text-sm transition-colors"
-                >
-                  <div className="text-left pl-2 text-gray-600 dark:text-gray-400 font-medium font-sans">
-                    {item.year}
-                  </div>
-                  <div
-                    className={`text-right pr-2 font-sans font-medium ${getSignColor(item.value)}`}
-                  >
-                    {formatPct(item.value)}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
         {/* Holdings Section */}
         {holdings.length > 0 && (
           <div className="mb-2 rounded-[1.5rem] border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)]/92 p-4 shadow-[0_10px_24px_rgba(15,23,42,0.05)] transition-colors">
@@ -1414,6 +1327,136 @@ export const FundDetail: React.FC<FundDetailProps> = ({
               {parentEtfInfo.parentName || '--'} ({parentEtfInfo.parentCode || '--'})
               暂无持仓明细数据
             </div>
+          </div>
+        )}
+
+        {/* History NAV Table */}
+        <div className="mb-2 rounded-[1.5rem] border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)]/92 p-4 shadow-[0_10px_24px_rgba(15,23,42,0.05)] transition-colors">
+          <div
+            className="flex items-center justify-between border-l-4 border-blue-500 pl-2 cursor-pointer select-none"
+            onClick={() => setIsHistoryExpanded(!isHistoryExpanded)}
+            role="button"
+            aria-expanded={isHistoryExpanded}
+          >
+            <h3 className="font-bold text-gray-800 dark:text-gray-100 text-sm">
+              {t('common.historyNav')}
+            </h3>
+            <motion.div
+              animate={{ rotate: isHistoryExpanded ? 180 : 0 }}
+              transition={{ type: 'spring', stiffness: 200, damping: 15 }}
+            >
+              <Icons.ArrowUp size={16} className="text-[var(--app-shell-muted)]" />
+            </motion.div>
+          </div>
+
+          <AnimatePresence>
+            {isHistoryExpanded && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{
+                  height: { duration: 0.3, ease: [0.22, 1, 0.36, 1] },
+                  opacity: { duration: 0.2 },
+                }}
+                style={{ overflow: 'hidden' }}
+              >
+                <div ref={historyContentRef} className="mt-4 space-y-0">
+                  <div className="grid grid-cols-4 gap-2 text-xs text-gray-400 pb-3">
+                    <div className="text-left pl-2">{t('common.date')}</div>
+                    <div className="text-center">{t('common.unitNav')}</div>
+                    <div className="text-center">{t('common.accNav')}</div>
+                    <div className="text-right pr-2">{t('common.dayChgPct')}</div>
+                  </div>
+
+                  {historyData.length > 0 ? (
+                    historyData.map((item, idx) => (
+                      <div
+                        key={idx}
+                        className="grid grid-cols-4 gap-2 py-3 border-t border-gray-50 dark:border-border-dark items-center text-sm transition-colors"
+                      >
+                        <div className="text-left pl-2 text-gray-600 dark:text-gray-400 font-medium font-sans">
+                          {item.date}
+                        </div>
+                        <div className="text-center text-gray-800 dark:text-gray-200 font-sans">
+                          {item.nav.toFixed(4)}
+                        </div>
+                        <div className="text-center text-gray-800 dark:text-gray-200 font-sans">
+                          {item.accNav != null ? item.accNav.toFixed(4) : '--'}
+                        </div>
+                        <div
+                          className={`text-right pr-2 font-sans font-medium ${getSignColor(item.change ?? 0)}`}
+                        >
+                          {item.change != null ? formatPct(item.change) : '--'}
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="py-4 text-center text-gray-300 text-xs">Loading history...</div>
+                  )}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+
+        {/* Annual Returns Table */}
+        {annualReturnData.length > 0 && (
+          <div className="mb-2 rounded-[1.5rem] border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)]/92 p-4 shadow-[0_10px_24px_rgba(15,23,42,0.05)] transition-colors">
+            <div
+              className="flex items-center justify-between border-l-4 border-blue-500 pl-2 cursor-pointer select-none"
+              onClick={() => setIsAnnualReturnsExpanded(!isAnnualReturnsExpanded)}
+              role="button"
+              aria-expanded={isAnnualReturnsExpanded}
+            >
+              <h3 className="font-bold text-gray-800 dark:text-gray-100 text-sm">
+                {t('common.annualReturns')}
+              </h3>
+              <motion.div
+                animate={{ rotate: isAnnualReturnsExpanded ? 180 : 0 }}
+                transition={{ type: 'spring', stiffness: 200, damping: 15 }}
+              >
+                <Icons.ArrowUp size={16} className="text-[var(--app-shell-muted)]" />
+              </motion.div>
+            </div>
+
+            <AnimatePresence>
+              {isAnnualReturnsExpanded && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{
+                    height: { duration: 0.3, ease: [0.22, 1, 0.36, 1] },
+                    opacity: { duration: 0.2 },
+                  }}
+                  style={{ overflow: 'hidden' }}
+                >
+                  <div ref={annualContentRef} className="mt-4 space-y-0">
+                    <div className="grid grid-cols-2 gap-2 text-xs text-gray-400 pb-3">
+                      <div className="text-left pl-2">{t('common.year')}</div>
+                      <div className="text-right pr-2">{t('common.returnRate')}</div>
+                    </div>
+
+                    {annualReturnData.map((item, idx) => (
+                      <div
+                        key={`${item.year}-${idx}`}
+                        className="grid grid-cols-2 gap-2 py-3 border-t border-gray-50 dark:border-border-dark items-center text-sm transition-colors"
+                      >
+                        <div className="text-left pl-2 text-gray-600 dark:text-gray-400 font-medium font-sans">
+                          {item.year}
+                        </div>
+                        <div
+                          className={`text-right pr-2 font-sans font-medium ${getSignColor(item.value)}`}
+                        >
+                          {formatPct(item.value)}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         )}
 

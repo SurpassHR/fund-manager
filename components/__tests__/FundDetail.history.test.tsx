@@ -84,7 +84,9 @@ vi.mock('../Icon', () => ({
 
 vi.mock('framer-motion', () => ({
   motion: {
-    div: ({ children, ...props }: React.HTMLAttributes<HTMLDivElement>) => <div {...props}>{children}</div>,
+    div: ({ children, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
+      <div {...props}>{children}</div>
+    ),
   },
   AnimatePresence: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
 }));
@@ -225,6 +227,7 @@ describe('FundDetail history performance source', () => {
     expect(latestOption.xAxis?.data).toEqual(['2026-04-03', '2026-04-07']);
     expect(screen.queryByText('04-04')).not.toBeInTheDocument();
     expect(screen.queryByText('04-05')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByText('common.historyNav'));
     expect(screen.getByText('04-07')).toBeInTheDocument();
     expect(screen.getByText('04-03')).toBeInTheDocument();
   });
@@ -242,7 +245,10 @@ describe('FundDetail history performance source', () => {
       },
     });
     mockedApi.fetchEastMoneyPingzhongData.mockReturnValueOnce(deferredPingzhong.promise);
-    vi.stubGlobal('fetch', vi.fn(() => new Promise(() => {})));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => new Promise(() => {})),
+    );
 
     render(<FundDetail fund={fund} onBack={vi.fn()} />);
 
@@ -293,6 +299,8 @@ describe('FundDetail history performance source', () => {
   it('keeps latest unit nav and accumulated nav stable when switching time ranges', async () => {
     render(<FundDetail fund={fund} onBack={vi.fn()} />);
 
+    fireEvent.click(screen.getByText('common.historyNav'));
+
     expect((await screen.findAllByText('1.5000')).length).toBeGreaterThanOrEqual(2);
     expect(screen.getByText('1.8000')).toBeInTheDocument();
 
@@ -331,6 +339,9 @@ describe('FundDetail history performance source', () => {
 
     render(<FundDetail fund={fund} onBack={vi.fn()} />);
 
+    await screen.findByText('common.annualReturns');
+    fireEvent.click(screen.getByText('common.annualReturns'));
+
     expect(await screen.findByText('2024')).toBeInTheDocument();
     expect(screen.getByText('+20.00%')).toBeInTheDocument();
     expect(screen.getByText('2025')).toBeInTheDocument();
@@ -356,6 +367,9 @@ describe('FundDetail history performance source', () => {
     });
 
     render(<FundDetail fund={fund} onBack={vi.fn()} />);
+
+    await screen.findByText('common.annualReturns');
+    fireEvent.click(screen.getByText('common.annualReturns'));
 
     expect(await screen.findByText('2024')).toBeInTheDocument();
     expect(screen.getByText('+12.34%')).toBeInTheDocument();
@@ -489,5 +503,113 @@ describe('FundDetail history performance source', () => {
     expect(screen.queryByText('common.inTransit')).not.toBeInTheDocument();
     expect(screen.getByText('+0.50%')).toBeInTheDocument();
     expect(screen.getByText('+0.61')).toBeInTheDocument();
+  });
+
+  it('history NAV section is collapsed by default', async () => {
+    render(<FundDetail fund={fund} onBack={vi.fn()} />);
+    await screen.findByText('common.historyNav');
+
+    expect(screen.queryByText('04-03')).not.toBeInTheDocument();
+    expect(screen.queryByText('04-07')).not.toBeInTheDocument();
+  });
+
+  it('history NAV section expands when header is clicked', async () => {
+    render(<FundDetail fund={fund} onBack={vi.fn()} />);
+    await screen.findByText('common.historyNav');
+
+    fireEvent.click(screen.getByText('common.historyNav'));
+
+    await waitFor(() => {
+      expect(screen.getByText('04-03')).toBeInTheDocument();
+      expect(screen.getByText('04-07')).toBeInTheDocument();
+    });
+  });
+
+  it('history NAV section collapses when header is clicked again', async () => {
+    render(<FundDetail fund={fund} onBack={vi.fn()} />);
+    await screen.findByText('common.historyNav');
+
+    fireEvent.click(screen.getByText('common.historyNav'));
+    await waitFor(() => {
+      expect(screen.getByText('04-03')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText('common.historyNav'));
+    await waitFor(() => {
+      expect(screen.queryByText('04-03')).not.toBeInTheDocument();
+    });
+  });
+
+  it('annual returns section is collapsed by default', async () => {
+    render(<FundDetail fund={fund} onBack={vi.fn()} />);
+    await screen.findByText('common.annualReturns');
+
+    expect(screen.queryByText('2024')).not.toBeInTheDocument();
+    expect(screen.queryByText('2025')).not.toBeInTheDocument();
+  });
+
+  it('annual returns section expands when header is clicked', async () => {
+    render(<FundDetail fund={fund} onBack={vi.fn()} />);
+    await screen.findByText('common.annualReturns');
+
+    fireEvent.click(screen.getByText('common.annualReturns'));
+
+    await waitFor(() => {
+      expect(screen.getByText('2024')).toBeInTheDocument();
+      expect(screen.getByText('2025')).toBeInTheDocument();
+    });
+  });
+
+  it('annual returns section is not rendered when there is no data', async () => {
+    mockedApi.fetchFundPerformance.mockResolvedValueOnce({
+      data: { annual: { returns: [] } },
+    });
+    mockedApi.fetchEastMoneyPingzhongData.mockResolvedValueOnce({
+      acWorthTrend: [[new Date('2025-12-31').getTime(), 1.5]],
+      netWorthTrend: [],
+      grandTotal: [],
+    });
+
+    render(<FundDetail fund={fund} onBack={vi.fn()} />);
+    await screen.findByText('common.historyNav');
+
+    expect(screen.queryByText('common.annualReturns')).not.toBeInTheDocument();
+  });
+
+  it('holdings section renders before history NAV section', async () => {
+    mockedApi.fetchFundHoldings.mockResolvedValueOnce({
+      data: {
+        equityHoldings: [{ ticker: '600519', name: '贵州茅台', weight: 10 }],
+      },
+    });
+
+    render(<FundDetail fund={fund} onBack={vi.fn()} />);
+
+    await screen.findByText(/当前基金持仓明细/);
+
+    const holdingsHeading = screen.getByText(/当前基金持仓明细/);
+    const historyHeading = screen.getByText('common.historyNav');
+
+    expect(
+      holdingsHeading.compareDocumentPosition(historyHeading) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it('collapse states are not persisted to localStorage', async () => {
+    const setItemSpy = vi.spyOn(Storage.prototype, 'setItem');
+
+    render(<FundDetail fund={fund} onBack={vi.fn()} />);
+    await screen.findByText('common.historyNav');
+
+    fireEvent.click(screen.getByText('common.historyNav'));
+
+    const collapseRelatedCalls = setItemSpy.mock.calls.filter(
+      ([key]) =>
+        typeof key === 'string' &&
+        (key.includes('collapse') || key.includes('expanded') || key.includes('history')),
+    );
+    expect(collapseRelatedCalls).toHaveLength(0);
+
+    setItemSpy.mockRestore();
   });
 });
