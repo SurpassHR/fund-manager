@@ -383,3 +383,34 @@ export const buildLegendViewModel = ({
   mode: isWatchlist ? 'watchlist' : 'holding',
   labels: getTradeLegendLabels(t),
 });
+
+export const normalizeGrowthSeriesToFirst = (data: {
+  dates: string[];
+  fund: number[];
+  avg: number[];
+  bmk: number[];
+}): {
+  dates: string[];
+  fund: number[];
+  avg: number[];
+  bmk: number[];
+} | null => {
+  if (!data.dates.length) return null;
+
+  const rebase = (v: number | undefined | null, base: number): number | null => {
+    if (v == null || isNaN(v)) return null;
+    if (base === -100) return null;
+    return ((100 + v) / (100 + base) - 1) * 100;
+  };
+
+  const baseFund = data.fund[0];
+  const baseAvg = data.avg[0];
+  const baseBmk = data.bmk[0];
+
+  return {
+    dates: data.dates,
+    fund: data.fund.map((v) => rebase(v, baseFund) ?? 0),
+    avg: data.avg.map((v) => rebase(v, baseAvg) ?? 0),
+    bmk: data.bmk.map((v) => rebase(v, baseBmk) ?? 0),
+  };
+};

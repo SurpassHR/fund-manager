@@ -19,6 +19,7 @@ import {
   buildChartOption,
   buildLegendViewModel,
   buildTradeMarkersFromTransactions,
+  normalizeGrowthSeriesToFirst,
 } from './fundDetailChartUtils';
 import type { MarkPointDatum } from './fundDetailChartUtils';
 import { formatPct, getSignColor, formatSignedCurrency } from '../services/financeUtils';
@@ -872,6 +873,21 @@ export const FundDetail: React.FC<FundDetailProps> = ({
     let fundData = initialFundData;
     let avgData = initialAvgData;
     let bmkData = initialBmkData;
+
+    // 非锚定模式：归一化到选定时间段的第一个数据点（起点归零）
+    if (!anchorDate) {
+      const normalized = normalizeGrowthSeriesToFirst({
+        dates,
+        fund: fundData,
+        avg: avgData,
+        bmk: bmkData,
+      });
+      if (normalized) {
+        fundData = normalized.fund;
+        avgData = normalized.avg;
+        bmkData = normalized.bmk;
+      }
+    }
 
     // Rebase to Anchor Date (0-line shifting) if provided
     if (anchorDate) {
