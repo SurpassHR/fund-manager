@@ -929,11 +929,15 @@ export const FundDetail: React.FC<FundDetailProps> = ({
     // 面积数据用增强后的数据计算（长度自动对齐）
     const positiveAreaData = augmentedFundData.map((v) => (v == null ? null : Math.max(0, v)));
     const negativeAreaData = augmentedFundData.map((v) => (v == null ? null : Math.min(0, v)));
-    // 基准数据在相同位置插入 null 保持对齐
+    // 基准数据在相同位置线性插值，保持对齐且不打断线条
     const nullSafeBmkData = bmkData.map((val) => (val == null || isNaN(val) ? null : val));
     const augmentedBmkData = [...nullSafeBmkData];
     for (const idx of insertIndices.toReversed()) {
-      augmentedBmkData.splice(idx, 0, null);
+      // idx 是增强数组中的插入位置，对应原始数组中 idx-1 和 idx（插入前）
+      const left = nullSafeBmkData[idx - 1];
+      const right = nullSafeBmkData[idx];
+      const fill = left !== null && right !== null ? (left + right) / 2 : (left ?? right);
+      augmentedBmkData.splice(idx, 0, fill);
     }
 
     const tooltipFormatter = (params: unknown) => {
