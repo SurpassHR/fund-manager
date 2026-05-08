@@ -217,6 +217,110 @@ export default defineConfig(async ({ mode }) => {
       .filter((item): item is CommitTranslation => item !== null);
   };
 
+  const buildTranslationPrompt = (commits: CommitInfo[]): string => {
+    const subjects = commits.map((c) => `{"hash":"${c.hash}","subject":"${c.subject}"}`).join('\n');
+    return `Translate each git commit subject into both Simplified Chinese and English.
+Input lines are JSON objects with keys "hash" and "subject".
+Return ONLY a valid JSON array of objects, each with keys "hash", "zh", and "en".
+The output hash must match the input hash exactly.
+Do not include markdown blocks or any other text.
+
+Subjects:
+${subjects}`;
+  };
+
+  const mergeTranslationsIntoCommits = (
+    commits: CommitInfo[],
+    translations: CommitTranslation[],
+  ): CommitInfo[] => {
+    const byHash = new Map(translations.map((item) => [item.hash, item]));
+    return commits.map((commit) => {
+      const matched = byHash.get(commit.hash);
+      if (!matched) return commit;
+      return {
+        ...commit,
+        subjectZh: matched.zh,
+        subjectEn: matched.en,
+      };
+    });
+  };
+
+  const translateWithGemini = async (
+    commits: CommitInfo[],
+    apiKey: string,
+  ): Promise<CommitInfo[]> => {
+    const prompt = buildTranslationPrompt(commits);
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: {
+            temperature: 0.1,
+            responseMimeType: 'application/json',
+          },
+        }),
+      },
+    );
+
+    if (!response.ok) {
+      throw new Error(`Gemini API request failed: ${response.status} ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    const textResponse = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!textResponse) {
+      throw new Error('Gemini API returned empty response');
+    }
+
+    const parsed = safeParseJson(textResponse);
+    const translations = normalizeTranslations(parsed);
+    if (translations.length === 0) {
+      throw new Error('Gemini API returned no valid translations');
+    }
+
+    return mergeTranslationsIntoCommits(commits, translations);
+  };
+
+  const translateWithDeepSeek = async (
+    commits: CommitInfo[],
+    apiKey: string,
+  ): Promise<CommitInfo[]> => {
+    const prompt = buildTranslationPrompt(commits);
+    const response = await fetch('https://api.deepseek.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: 'deepseek-chat',
+        messages: [{ role: 'user', content: prompt }],
+        temperature: 0.1,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`DeepSeek API request failed: ${response.status} ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    const textResponse = data.choices?.[0]?.message?.content;
+    if (!textResponse) {
+      throw new Error('DeepSeek API returned empty response');
+    }
+
+    const parsed = safeParseJson(textResponse);
+    const translations = normalizeTranslations(parsed);
+    if (translations.length === 0) {
+      throw new Error('DeepSeek API returned no valid translations');
+    }
+
+    return mergeTranslationsIntoCommits(commits, translations);
+  };
+
   try {
     const gitLog = execSync(
       `git log -${MAX_COMMITS} --pretty=format:"%h%x1f%s%x1f%b%x1e"`,
@@ -234,62 +338,42 @@ export default defineConfig(async ({ mode }) => {
     console.warn('Failed to fetch git commit info:', error);
   }
 
-  // Translate all subjects at once via Gemini
-  if (env.GEMINI_API_KEY && commits.length > 0) {
-    console.log('Gemini API key found, translating commit subjects...');
-    try {
-      const subjects = commits
-        .map((c) => `{"hash":"${c.hash}","subject":"${c.subject}"}`)
-        .join('\n');
-      const prompt = `Translate each git commit subject into both Simplified Chinese and English.
-Input lines are JSON objects with keys "hash" and "subject".
-Return ONLY a valid JSON array of objects, each with keys "hash", "zh", and "en".
-The output hash must match the input hash exactly.
-Do not include markdown blocks or any other text.
+  // Translate commit subjects via Gemini, with DeepSeek fallback
+  if (commits.length > 0) {
+    let translated = false;
 
-Subjects:
-${subjects}`;
-
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${env.GEMINI_API_KEY}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: {
-              temperature: 0.1,
-              responseMimeType: 'application/json',
-            },
-          }),
-        },
-      );
-
-      if (response.ok) {
-        const data = await response.json();
-        const textResponse = data.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (textResponse) {
-          const parsed = safeParseJson(textResponse);
-          const translations = normalizeTranslations(parsed);
-          if (translations.length > 0) {
-            const byHash = new Map(translations.map((item) => [item.hash, item]));
-            commits = commits.map((commit) => {
-              const matched = byHash.get(commit.hash);
-              if (!matched) return commit;
-              return {
-                ...commit,
-                subjectZh: matched.zh,
-                subjectEn: matched.en,
-              };
-            });
-          }
-          console.log('Commit subjects successfully translated.');
-        }
-      } else {
-        console.warn('Gemini API request failed:', response.statusText);
+    if (env.GEMINI_API_KEY) {
+      console.log('[translate] Trying Gemini API...');
+      try {
+        commits = await translateWithGemini(commits, env.GEMINI_API_KEY);
+        console.log('[translate] Commit subjects translated via Gemini.');
+        translated = true;
+      } catch (e) {
+        console.warn('[translate] Gemini translation failed:', e);
       }
-    } catch (e) {
-      console.warn('Failed to translate via Gemini:', e);
+    }
+
+    if (!translated && env.DEEPSEEK_API_KEY) {
+      console.log('[translate] Trying DeepSeek API...');
+      try {
+        commits = await translateWithDeepSeek(commits, env.DEEPSEEK_API_KEY);
+        console.log('[translate] Commit subjects translated via DeepSeek.');
+        translated = true;
+      } catch (e) {
+        console.warn('[translate] DeepSeek translation failed:', e);
+      }
+    }
+
+    if (!translated) {
+      if (!env.GEMINI_API_KEY && !env.DEEPSEEK_API_KEY) {
+        console.warn(
+          '[translate] Neither GEMINI_API_KEY nor DEEPSEEK_API_KEY is set. Skipping translation.',
+        );
+      } else {
+        console.warn(
+          '[translate] All available translation APIs failed. Commit subjects left untranslated.',
+        );
+      }
     }
   }
 

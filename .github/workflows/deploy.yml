@@ -59,6 +59,7 @@ jobs:
         run: npm run build
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
           VITE_PRESENCE_WORKER_URL: https://gp.hrfuqiang.top/presence
 
       - name: Inject custom domain (optional)
