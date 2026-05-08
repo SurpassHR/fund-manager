@@ -35,16 +35,20 @@ type FundSeriesInput = {
   color: string | echarts.graphic.LinearGradient;
   anchorDate?: string;
   isDark: boolean;
+  gradientDirection?: 'normal' | 'reversed';
+  showArea?: boolean;
 };
 
 type ChartOptionInput = {
   fundName: string;
   dates: string[];
-  fundData: Array<number | null>;
+  positiveLineData: Array<number | null>;
+  negativeLineData: Array<number | null>;
+  positiveAreaData: Array<number | null>;
+  negativeAreaData: Array<number | null>;
   bmkData: Array<number | null>;
   markers: MarkPointDatum[];
   isLargeSeries: boolean;
-  color: string | echarts.graphic.LinearGradient;
   anchorDate?: string;
   isDark: boolean;
   shouldAnimate: boolean;
@@ -214,6 +218,8 @@ export const buildFundSeries = ({
   color,
   anchorDate,
   isDark,
+  gradientDirection,
+  showArea = true,
 }: FundSeriesInput): echarts.SeriesOption => ({
   name,
   type: 'line',
@@ -227,15 +233,20 @@ export const buildFundSeries = ({
   progressiveThreshold: isLargeSeries ? 500 : undefined,
   lineStyle: { width: 2, color },
   itemStyle: { color, borderColor: '#fff', borderWidth: 1 },
-  areaStyle: anchorDate
-    ? undefined
-    : {
-        color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-          { offset: 0, color: color as string },
-          { offset: 1, color: isDark ? 'rgba(0,0,0,0)' : 'rgba(255,255,255,0)' },
-        ]),
-        opacity: 0.2,
-      },
+  areaStyle:
+    !showArea || anchorDate
+      ? undefined
+      : (() => {
+          const transparent = isDark ? 'rgba(0,0,0,0)' : 'rgba(255,255,255,0)';
+          const isReversed = gradientDirection === 'reversed';
+          return {
+            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+              { offset: 0, color: isReversed ? transparent : (color as string) },
+              { offset: 1, color: isReversed ? (color as string) : transparent },
+            ]),
+            opacity: 0.2,
+          };
+        })(),
   markLine: anchorDate
     ? {
         silent: true,
@@ -260,14 +271,39 @@ export const buildFundSeries = ({
   z: 3,
 });
 
+const buildAreaSeries = ({
+  data,
+  color,
+  isLargeSeries,
+}: {
+  data: Array<number | null>;
+  color: string;
+  isLargeSeries: boolean;
+}): echarts.SeriesOption => ({
+  name: '',
+  type: 'line',
+  data,
+  showSymbol: false,
+  smooth: true,
+  sampling: isLargeSeries ? 'lttb' : undefined,
+  progressive: isLargeSeries ? 300 : undefined,
+  progressiveThreshold: isLargeSeries ? 500 : undefined,
+  lineStyle: { width: 0, opacity: 0 },
+  areaStyle: { color, opacity: 0.2 },
+  tooltip: { show: false },
+  z: 3,
+});
+
 export const buildChartOption = ({
   fundName,
   dates,
-  fundData,
+  positiveLineData,
+  negativeLineData,
+  positiveAreaData,
+  negativeAreaData,
   bmkData,
   markers,
   isLargeSeries,
-  color,
   anchorDate,
   isDark,
   shouldAnimate,
@@ -343,13 +379,30 @@ export const buildChartOption = ({
   series: [
     buildFundSeries({
       name: fundName,
-      data: fundData,
+      data: positiveLineData,
       markers,
       isLargeSeries,
-      color,
+      color: '#f87171',
       anchorDate,
       isDark,
+      showArea: false,
     }),
+    buildFundSeries({
+      name: fundName,
+      data: negativeLineData,
+      markers: [],
+      isLargeSeries,
+      color: '#34d399',
+      anchorDate,
+      isDark,
+      showArea: false,
+    }),
+    ...(anchorDate
+      ? []
+      : [
+          buildAreaSeries({ data: positiveAreaData, color: '#f87171', isLargeSeries }),
+          buildAreaSeries({ data: negativeAreaData, color: '#34d399', isLargeSeries }),
+        ]),
     {
       name: '业绩基准',
       type: 'line',
@@ -383,6 +436,42 @@ export const buildLegendViewModel = ({
   mode: isWatchlist ? 'watchlist' : 'holding',
   labels: getTradeLegendLabels(t),
 });
+
+export const splitGrowthSeriesAtZero = (
+  data: Array<number | null>,
+): {
+  positive: Array<number | null>;
+  negative: Array<number | null>;
+} => {
+  const n = data.length;
+  const positive: Array<number | null> = new Array(n).fill(null);
+  const negative: Array<number | null> = new Array(n).fill(null);
+
+  for (let i = 0; i < n; i++) {
+    const v = data[i];
+    if (v === null || isNaN(v)) continue;
+    if (v >= 0) positive[i] = v;
+    else negative[i] = v;
+  }
+
+  // 在零轴交叉处，选择离 0 更近的索引，将正负两线在该索引的值同时设为 0
+  for (let i = 1; i < n; i++) {
+    const a = data[i - 1];
+    const b = data[i];
+    if (a === null || isNaN(a) || b === null || isNaN(b)) continue;
+    if ((a >= 0 && b < 0) || (a < 0 && b >= 0)) {
+      if (Math.abs(a) <= Math.abs(b)) {
+        positive[i - 1] = 0;
+        negative[i - 1] = 0;
+      } else {
+        positive[i] = 0;
+        negative[i] = 0;
+      }
+    }
+  }
+
+  return { positive, negative };
+};
 
 export const normalizeGrowthSeriesToFirst = (data: {
   dates: string[];

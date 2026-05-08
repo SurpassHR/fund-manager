@@ -9,6 +9,7 @@ import {
   buildLegendViewModel,
   buildTradeMarkers,
   getTradeLegendLabels,
+  splitGrowthSeriesAtZero,
 } from '../fundDetailChartUtils';
 
 it('uses unified transaction marker builder to reflect deletion changes', () => {
@@ -290,11 +291,13 @@ it('uses markers in chart option series', () => {
   const option = buildChartOption({
     fundName: 'Test Fund',
     dates: ['2026-03-01'],
-    fundData: [1],
+    positiveLineData: [1],
+    negativeLineData: [null],
+    positiveAreaData: [1],
+    negativeAreaData: [0],
     bmkData: [1],
     markers: [{ name: 'buy', coord: ['2026-03-01', 1] }],
     isLargeSeries: false,
-    color: '#f87171',
     anchorDate: undefined,
     isDark: false,
     shouldAnimate: false,
@@ -374,4 +377,265 @@ it('uses correct dot colors', () => {
   expect(screen.getByTestId('legend-dot-buy')).toHaveStyle({ backgroundColor: '#f87171' });
   expect(screen.getByTestId('legend-dot-sell')).toHaveStyle({ backgroundColor: '#22c55e' });
   expect(screen.getByTestId('legend-dot-liquidation')).toHaveStyle({ backgroundColor: '#fbbf24' });
+});
+
+describe('splitGrowthSeriesAtZero', () => {
+  it('puts all values in positive array when data is all positive', () => {
+    const data = [1, 2, 3, 5];
+    const { positive, negative } = splitGrowthSeriesAtZero(data);
+
+    expect(positive).toEqual([1, 2, 3, 5]);
+    expect(negative).toEqual([null, null, null, null]);
+    expect(positive).toHaveLength(4);
+    expect(negative).toHaveLength(4);
+  });
+
+  it('puts all values in negative array when data is all negative', () => {
+    const data = [-1, -2, -3, -0.5];
+    const { positive, negative } = splitGrowthSeriesAtZero(data);
+
+    expect(positive).toEqual([null, null, null, null]);
+    expect(negative).toEqual([-1, -2, -3, -0.5]);
+  });
+
+  it('splits mixed data with shared zero at crossings for line continuity', () => {
+    const data = [2, 1, -1, -2, 3, -3];
+    const { positive, negative } = splitGrowthSeriesAtZero(data);
+
+    // 在交叉点离 0 更近的索引上，两线共享 y=0 以保证交汇
+    expect(positive).toEqual([2, 0, null, 0, 0, null]);
+    expect(negative).toEqual([null, 0, -1, 0, 0, -3]);
+  });
+
+  it('bridges zero crossings and handles native zeros correctly', () => {
+    const data = [0, 0, -1, 2, 0, -3];
+    const { positive, negative } = splitGrowthSeriesAtZero(data);
+
+    expect(positive).toEqual([0, 0, 0, 2, 0, null]);
+    expect(negative).toEqual([null, 0, 0, null, 0, -3]);
+  });
+
+  it('returns null in both arrays for null/NaN values', () => {
+    const data = [1, null, -2, NaN, 3] as Array<number | null>;
+    const { positive, negative } = splitGrowthSeriesAtZero(data);
+
+    expect(positive).toEqual([1, null, null, null, 3]);
+    expect(negative).toEqual([null, null, -2, null, null]);
+  });
+
+  it('returns empty arrays for empty input', () => {
+    const { positive, negative } = splitGrowthSeriesAtZero([]);
+
+    expect(positive).toEqual([]);
+    expect(negative).toEqual([]);
+  });
+
+  it('preserves output array length matching input', () => {
+    const data = [1, -2, 3, -4, 5, -6, 7, -8, 9, -10];
+    const { positive, negative } = splitGrowthSeriesAtZero(data);
+
+    expect(positive).toHaveLength(10);
+    expect(negative).toHaveLength(10);
+  });
+});
+
+describe('buildFundSeries areaStyle gradient direction', () => {
+  it('uses normal gradient by default: line color at top, transparent at bottom', () => {
+    const series = buildFundSeries({
+      name: 'Test Fund',
+      data: [2, 3, 1],
+      markers: [],
+      isLargeSeries: false,
+      color: '#f87171',
+      isDark: false,
+    }) as { areaStyle?: { color?: { colorStops?: Array<{ offset: number; color: string }> } } };
+
+    const stops = series.areaStyle?.color?.colorStops;
+    expect(stops).toBeDefined();
+    expect(stops![0]).toEqual({ offset: 0, color: '#f87171' });
+    expect(stops![1]).toEqual({ offset: 1, color: 'rgba(255,255,255,0)' });
+  });
+
+  it('uses reversed gradient when gradientDirection is "reversed": transparent at top, line color at bottom', () => {
+    const series = buildFundSeries({
+      name: 'Test Fund',
+      data: [-2, -3, -1],
+      markers: [],
+      isLargeSeries: false,
+      color: '#34d399',
+      gradientDirection: 'reversed',
+      isDark: false,
+    }) as { areaStyle?: { color?: { colorStops?: Array<{ offset: number; color: string }> } } };
+
+    const stops = series.areaStyle?.color?.colorStops;
+    expect(stops).toBeDefined();
+    expect(stops![0]).toEqual({ offset: 0, color: 'rgba(255,255,255,0)' });
+    expect(stops![1]).toEqual({ offset: 1, color: '#34d399' });
+  });
+
+  it('suppresses areaStyle when showArea is false', () => {
+    const series = buildFundSeries({
+      name: 'Test Fund',
+      data: [2, 3],
+      markers: [],
+      isLargeSeries: false,
+      color: '#f87171',
+      showArea: false,
+      isDark: false,
+    }) as { areaStyle?: unknown };
+
+    expect(series.areaStyle).toBeUndefined();
+  });
+
+  it('disables areaStyle in anchor mode regardless of gradientDirection', () => {
+    const normal = buildFundSeries({
+      name: 'Test Fund',
+      data: [2, 3],
+      markers: [],
+      isLargeSeries: false,
+      color: '#f87171',
+      anchorDate: '2026-03-01',
+      gradientDirection: 'normal',
+      isDark: false,
+    }) as { areaStyle?: unknown };
+
+    const reversed = buildFundSeries({
+      name: 'Test Fund',
+      data: [-2, -3],
+      markers: [],
+      isLargeSeries: false,
+      color: '#34d399',
+      anchorDate: '2026-03-01',
+      gradientDirection: 'reversed',
+      isDark: false,
+    }) as { areaStyle?: unknown };
+
+    expect(normal.areaStyle).toBeUndefined();
+    expect(reversed.areaStyle).toBeUndefined();
+  });
+
+  it('uses dark transparent color in dark mode for normal gradient', () => {
+    const series = buildFundSeries({
+      name: 'Test Fund',
+      data: [2, 3],
+      markers: [],
+      isLargeSeries: false,
+      color: '#f87171',
+      isDark: true,
+    }) as { areaStyle?: { color?: { colorStops?: Array<{ offset: number; color: string }> } } };
+
+    const stops = series.areaStyle?.color?.colorStops;
+    expect(stops![1]).toEqual({ offset: 1, color: 'rgba(0,0,0,0)' });
+  });
+});
+
+describe('buildChartOption with dual line + area series', () => {
+  const dates = ['2026-03-01', '2026-03-02', '2026-03-03'];
+  const positiveLineData = [2, 0, 1];
+  const negativeLineData = [0, -1, 0];
+  const positiveAreaData = [2, 0, 1];
+  const negativeAreaData = [0, -1, 0];
+  const bmkData = [0.5, 0.8, 1.2];
+  const markers = [{ name: 'buy', coord: ['2026-03-01', 2] as [string, number] }];
+
+  const option = buildChartOption({
+    fundName: 'Test Fund',
+    dates,
+    positiveLineData,
+    negativeLineData,
+    positiveAreaData,
+    negativeAreaData,
+    bmkData,
+    markers,
+    isLargeSeries: false,
+    isDark: false,
+    shouldAnimate: false,
+    startStr: '2026-03-01',
+    endStr: '2026-03-03',
+    tooltipFormatter: () => '',
+  });
+
+  const seriesList = option.series as Array<Record<string, unknown>> | undefined;
+
+  it('creates five series: pos line, neg line, pos area, neg area, benchmark', () => {
+    expect(seriesList).toHaveLength(5);
+  });
+
+  it('positive line series is red with markers and no area fill', () => {
+    const pos = seriesList?.[0] as {
+      lineStyle?: { color?: string };
+      markPoint?: { data?: unknown[] };
+      areaStyle?: unknown;
+    };
+    expect(pos?.lineStyle?.color).toBe('#f87171');
+    expect(pos?.markPoint?.data).toHaveLength(1);
+    expect(pos?.areaStyle).toBeUndefined();
+  });
+
+  it('negative line series is green with no markers and no area fill', () => {
+    const neg = seriesList?.[1] as {
+      lineStyle?: { color?: string };
+      markPoint?: unknown;
+      areaStyle?: unknown;
+    };
+    expect(neg?.lineStyle?.color).toBe('#34d399');
+    expect(neg?.markPoint).toBeUndefined();
+    expect(neg?.areaStyle).toBeUndefined();
+  });
+
+  it('positive area series has transparent line and red solid fill', () => {
+    const posArea = seriesList?.[2] as {
+      lineStyle?: { width?: number };
+      areaStyle?: { color?: string };
+      tooltip?: { show?: boolean };
+    };
+    expect(posArea?.lineStyle?.width).toBe(0);
+    expect(posArea?.tooltip?.show).toBe(false);
+    expect(posArea?.areaStyle?.color).toBe('#f87171');
+  });
+
+  it('negative area series has transparent line and green solid fill', () => {
+    const negArea = seriesList?.[3] as {
+      lineStyle?: { width?: number };
+      areaStyle?: { color?: string };
+      tooltip?: { show?: boolean };
+    };
+    expect(negArea?.lineStyle?.width).toBe(0);
+    expect(negArea?.tooltip?.show).toBe(false);
+    expect(negArea?.areaStyle?.color).toBe('#34d399');
+  });
+
+  it('benchmark series is unchanged at the last index', () => {
+    const bmkSeries = seriesList?.[4] as {
+      name?: string;
+      lineStyle?: { color?: string; type?: string };
+      z?: number;
+    };
+    expect(bmkSeries?.name).toBe('业绩基准');
+    expect(bmkSeries?.lineStyle?.color).toBe('#fbbf24');
+    expect(bmkSeries?.lineStyle?.type).toBe('dashed');
+    expect(bmkSeries?.z).toBe(2);
+  });
+
+  it('anchor mode has only pos line, neg line and benchmark (no area series)', () => {
+    const anchorOption = buildChartOption({
+      fundName: 'Test Fund',
+      dates,
+      positiveLineData,
+      negativeLineData,
+      positiveAreaData,
+      negativeAreaData,
+      bmkData,
+      markers,
+      isLargeSeries: false,
+      anchorDate: '2026-03-01',
+      isDark: false,
+      shouldAnimate: false,
+      startStr: '2026-03-01',
+      endStr: '2026-03-03',
+      tooltipFormatter: () => '',
+    });
+    const anchorSeries = anchorOption.series as Array<unknown>;
+    expect(anchorSeries).toHaveLength(3);
+  });
 });

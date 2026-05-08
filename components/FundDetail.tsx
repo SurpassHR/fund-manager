@@ -20,6 +20,7 @@ import {
   buildLegendViewModel,
   buildTradeMarkersFromTransactions,
   normalizeGrowthSeriesToFirst,
+  splitGrowthSeriesAtZero,
 } from './fundDetailChartUtils';
 import type { MarkPointDatum } from './fundDetailChartUtils';
 import { formatPct, getSignColor, formatSignedCurrency } from '../services/financeUtils';
@@ -913,29 +914,13 @@ export const FundDetail: React.FC<FundDetailProps> = ({
     const isLargeSeries = dates.length > 260;
     const shouldAnimate = !isLargeSeries;
 
-    const validFundData = fundData.filter((v) => v != null) as number[];
-    const fundMin = validFundData.length > 0 ? Math.min(...validFundData) : 0;
-    const fundMax = validFundData.length > 0 ? Math.max(...validFundData) : 0;
-    const crossesZero = anchorDate ? fundMin < 0 && fundMax > 0 : false;
-
-    // Build line color: if anchor mode + crosses zero, use a gradient that transitions at the zero-point
-    // zeroRatio = fraction from top of chart where y=0 falls (gradient goes top→bottom)
-    let color: string | echarts.graphic.LinearGradient;
-    if (anchorDate && crossesZero) {
-      const zeroRatio = fundMax / (fundMax - fundMin); // 0→1 from top
-      color = new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-        { offset: 0, color: '#f87171' },
-        { offset: Math.max(0, zeroRatio - 0.001), color: '#f87171' },
-        { offset: Math.min(1, zeroRatio + 0.001), color: '#34d399' },
-        { offset: 1, color: '#34d399' },
-      ]);
-    } else if (anchorDate) {
-      color = fundMax <= 0 ? '#34d399' : '#f87171';
-    } else {
-      const firstVal = fundData[0] || 0;
-      const lastVal = fundData[fundData.length - 1] || 0;
-      color = lastVal >= firstVal ? '#f87171' : '#34d399';
-    }
+    // 拆分正/负数据：线数据在零轴交叉处共享 y=0 以保证曲线交汇
+    const nullSafeFundData = fundData.map((val) => (val == null || isNaN(val) ? null : val));
+    const { positive: positiveLineData, negative: negativeLineData } =
+      splitGrowthSeriesAtZero(nullSafeFundData);
+    // 面积数据用纯 max/min，保证填充区域完整贴合 0 轴
+    const positiveAreaData = nullSafeFundData.map((v) => (v == null ? null : Math.max(0, v)));
+    const negativeAreaData = nullSafeFundData.map((v) => (v == null ? null : Math.min(0, v)));
 
     const tooltipFormatter = (params: unknown) => {
       if (!Array.isArray(params) || params.length === 0) return '';
@@ -945,9 +930,18 @@ export const FundDetail: React.FC<FundDetailProps> = ({
       if (!date) return '';
       let html = `<div style="font-weight:bold; margin-bottom:4px; font-family:monospace;">${date}</div>`;
 
-      list.forEach((item) => {
-        const val = item.value;
-        if (val == null) return;
+      // 正负线 series 同名，在交汇点（共为 0）需去重
+      const seen = new Map<string, (typeof list)[0]>();
+      for (const item of list) {
+        if (item.value == null) continue;
+        const existing = seen.get(item.seriesName);
+        if (!existing || (item.value !== 0 && existing.value === 0)) {
+          seen.set(item.seriesName, item);
+        }
+      }
+
+      seen.forEach((item) => {
+        const val = item.value as number;
         const sign = val >= 0 ? '+' : '';
         const valColor = val >= 0 ? '#f87171' : '#34d399';
 
@@ -1006,11 +1000,13 @@ export const FundDetail: React.FC<FundDetailProps> = ({
     const option = buildChartOption({
       fundName: fund.name,
       dates,
-      fundData: fundData.map((val) => (val == null || isNaN(val) ? null : val)),
+      positiveLineData,
+      negativeLineData,
+      positiveAreaData,
+      negativeAreaData,
       bmkData: bmkData.map((val) => (val == null || isNaN(val) ? null : val)),
       markers,
       isLargeSeries,
-      color,
       anchorDate,
       isDark,
       shouldAnimate,
@@ -1020,7 +1016,7 @@ export const FundDetail: React.FC<FundDetailProps> = ({
     });
 
     if (chartInstance.current) {
-      chartInstance.current.clear(); // Explicitly clear the chart to force a fresh animation
+      chartInstance.current.clear();
       chartInstance.current.setOption(option);
     }
 
