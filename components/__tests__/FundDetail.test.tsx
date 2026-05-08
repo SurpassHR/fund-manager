@@ -10,6 +10,7 @@ import {
   buildTradeMarkers,
   getTradeLegendLabels,
   splitGrowthSeriesAtZero,
+  insertZeroCrossings,
 } from '../fundDetailChartUtils';
 
 it('uses unified transaction marker builder to reflect deletion changes', () => {
@@ -439,6 +440,84 @@ describe('splitGrowthSeriesAtZero', () => {
   });
 });
 
+describe('insertZeroCrossings', () => {
+  it('inserts interpolated zero points at each zero-crossing', () => {
+    const data = [2, 1, -1, -2];
+    const dates = ['03-01', '03-02', '03-03', '03-04'];
+    const { data: result, dates: resultDates, insertIndices } = insertZeroCrossings(data, dates);
+
+    expect(result).toEqual([2, 1, 0, -1, -2]);
+    expect(resultDates).toEqual(['03-01', '03-02', '', '03-03', '03-04']);
+    expect(insertIndices).toEqual([2]);
+  });
+
+  it('returns same arrays when data is all positive', () => {
+    const data = [2, 3, 5];
+    const dates = ['d1', 'd2', 'd3'];
+    const { data: result, dates: resultDates, insertIndices } = insertZeroCrossings(data, dates);
+
+    expect(result).toEqual([2, 3, 5]);
+    expect(resultDates).toEqual(['d1', 'd2', 'd3']);
+    expect(insertIndices).toEqual([]);
+  });
+
+  it('returns same arrays when data is all negative', () => {
+    const data = [-1, -2, -3];
+    const dates = ['d1', 'd2', 'd3'];
+    const { data: result, dates: resultDates, insertIndices } = insertZeroCrossings(data, dates);
+
+    expect(result).toEqual([-1, -2, -3]);
+    expect(resultDates).toEqual(['d1', 'd2', 'd3']);
+    expect(insertIndices).toEqual([]);
+  });
+
+  it('handles empty input', () => {
+    const { data: result, dates: resultDates, insertIndices } = insertZeroCrossings([], []);
+
+    expect(result).toEqual([]);
+    expect(resultDates).toEqual([]);
+    expect(insertIndices).toEqual([]);
+  });
+
+  it('skips null/NaN values in crossing detection', () => {
+    const data = [1, null, -2, NaN, 3] as Array<number | null>;
+    const dates = ['d1', 'd2', 'd3', 'd4', 'd5'];
+    const { data: result, dates: resultDates } = insertZeroCrossings(data, dates);
+
+    expect(result).toEqual([1, null, -2, NaN, 3]);
+    expect(resultDates).toEqual(['d1', 'd2', 'd3', 'd4', 'd5']);
+  });
+
+  it('returns equal-length data and dates arrays', () => {
+    const data = [5, -3, 2, -1, 4, -2, 1, -5, 3, -4];
+    const dates = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j'];
+    const { data: result, dates: resultDates } = insertZeroCrossings(data, dates);
+
+    expect(result.length).toBe(resultDates.length);
+    expect(result.length).toBeGreaterThan(data.length);
+  });
+
+  it('handles multiple consecutive crossings', () => {
+    const data = [1, -1, 2, -2];
+    const dates = ['d1', 'd2', 'd3', 'd4'];
+    const { data: result, dates: resultDates, insertIndices } = insertZeroCrossings(data, dates);
+
+    expect(result).toEqual([1, 0, -1, 0, 2, 0, -2]);
+    expect(resultDates).toEqual(['d1', '', 'd2', '', 'd3', '', 'd4']);
+    expect(insertIndices).toEqual([1, 3, 5]);
+  });
+
+  it('insertIndices are in ascending order', () => {
+    const data = [3, -1, 2, -2, 1];
+    const dates = ['a', 'b', 'c', 'd', 'e'];
+    const { insertIndices } = insertZeroCrossings(data, dates);
+
+    for (let i = 1; i < insertIndices.length; i++) {
+      expect(insertIndices[i]).toBeGreaterThan(insertIndices[i - 1]);
+    }
+  });
+});
+
 describe('buildFundSeries areaStyle gradient direction', () => {
   it('uses normal gradient by default: line color at top, transparent at bottom', () => {
     const series = buildFundSeries({
@@ -529,10 +608,13 @@ describe('buildFundSeries areaStyle gradient direction', () => {
   });
 });
 
-describe('buildChartOption with dual line + area series', () => {
+describe('buildChartOption with single line + area series', () => {
   const dates = ['2026-03-01', '2026-03-02', '2026-03-03'];
-  const positiveLineData = [2, 0, 1];
-  const negativeLineData = [0, -1, 0];
+  const fundData = [
+    { value: 2, itemStyle: { color: '#f87171' } },
+    { value: -1, itemStyle: { color: '#34d399' } },
+    { value: 1, itemStyle: { color: '#f87171' } },
+  ];
   const positiveAreaData = [2, 0, 1];
   const negativeAreaData = [0, -1, 0];
   const bmkData = [0.5, 0.8, 1.2];
@@ -541,8 +623,7 @@ describe('buildChartOption with dual line + area series', () => {
   const option = buildChartOption({
     fundName: 'Test Fund',
     dates,
-    positiveLineData,
-    negativeLineData,
+    fundData,
     positiveAreaData,
     negativeAreaData,
     bmkData,
@@ -557,34 +638,28 @@ describe('buildChartOption with dual line + area series', () => {
 
   const seriesList = option.series as Array<Record<string, unknown>> | undefined;
 
-  it('creates five series: pos line, neg line, pos area, neg area, benchmark', () => {
-    expect(seriesList).toHaveLength(5);
+  it('creates four series: fund line, pos area, neg area, benchmark', () => {
+    expect(seriesList).toHaveLength(4);
   });
 
-  it('positive line series is red with markers and no area fill', () => {
-    const pos = seriesList?.[0] as {
+  it('fund line series has markers and no area fill', () => {
+    const line = seriesList?.[0] as {
+      data?: Array<{ value: number; itemStyle?: { color?: string } }>;
       lineStyle?: { color?: string };
       markPoint?: { data?: unknown[] };
       areaStyle?: unknown;
     };
-    expect(pos?.lineStyle?.color).toBe('#f87171');
-    expect(pos?.markPoint?.data).toHaveLength(1);
-    expect(pos?.areaStyle).toBeUndefined();
-  });
-
-  it('negative line series is green with no markers and no area fill', () => {
-    const neg = seriesList?.[1] as {
-      lineStyle?: { color?: string };
-      markPoint?: unknown;
-      areaStyle?: unknown;
-    };
-    expect(neg?.lineStyle?.color).toBe('#34d399');
-    expect(neg?.markPoint).toBeUndefined();
-    expect(neg?.areaStyle).toBeUndefined();
+    expect(line?.markPoint?.data).toHaveLength(1);
+    expect(line?.areaStyle).toBeUndefined();
+    // 验证逐点颜色：正值为红，负值为绿
+    expect(line?.data).toHaveLength(3);
+    expect(line?.data?.[0].itemStyle?.color).toBe('#f87171');
+    expect(line?.data?.[1].itemStyle?.color).toBe('#34d399');
+    expect(line?.data?.[2].itemStyle?.color).toBe('#f87171');
   });
 
   it('positive area series has transparent line and red solid fill', () => {
-    const posArea = seriesList?.[2] as {
+    const posArea = seriesList?.[1] as {
       lineStyle?: { width?: number };
       areaStyle?: { color?: string };
       tooltip?: { show?: boolean };
@@ -595,7 +670,7 @@ describe('buildChartOption with dual line + area series', () => {
   });
 
   it('negative area series has transparent line and green solid fill', () => {
-    const negArea = seriesList?.[3] as {
+    const negArea = seriesList?.[2] as {
       lineStyle?: { width?: number };
       areaStyle?: { color?: string };
       tooltip?: { show?: boolean };
@@ -605,8 +680,8 @@ describe('buildChartOption with dual line + area series', () => {
     expect(negArea?.areaStyle?.color).toBe('#34d399');
   });
 
-  it('benchmark series is unchanged at the last index', () => {
-    const bmkSeries = seriesList?.[4] as {
+  it('benchmark series is at index 3', () => {
+    const bmkSeries = seriesList?.[3] as {
       name?: string;
       lineStyle?: { color?: string; type?: string };
       z?: number;
@@ -617,12 +692,11 @@ describe('buildChartOption with dual line + area series', () => {
     expect(bmkSeries?.z).toBe(2);
   });
 
-  it('anchor mode has only pos line, neg line and benchmark (no area series)', () => {
+  it('anchor mode has only fund line and benchmark (no area series)', () => {
     const anchorOption = buildChartOption({
       fundName: 'Test Fund',
       dates,
-      positiveLineData,
-      negativeLineData,
+      fundData,
       positiveAreaData,
       negativeAreaData,
       bmkData,
@@ -636,6 +710,6 @@ describe('buildChartOption with dual line + area series', () => {
       tooltipFormatter: () => '',
     });
     const anchorSeries = anchorOption.series as Array<unknown>;
-    expect(anchorSeries).toHaveLength(3);
+    expect(anchorSeries).toHaveLength(2);
   });
 });

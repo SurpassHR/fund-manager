@@ -20,7 +20,7 @@ import {
   buildLegendViewModel,
   buildTradeMarkersFromTransactions,
   normalizeGrowthSeriesToFirst,
-  splitGrowthSeriesAtZero,
+  insertZeroCrossings,
 } from './fundDetailChartUtils';
 import type { MarkPointDatum } from './fundDetailChartUtils';
 import { formatPct, getSignColor, formatSignedCurrency } from '../services/financeUtils';
@@ -914,33 +914,40 @@ export const FundDetail: React.FC<FundDetailProps> = ({
     const isLargeSeries = dates.length > 260;
     const shouldAnimate = !isLargeSeries;
 
-    // 拆分正/负数据：线数据在零轴交叉处共享 y=0 以保证曲线交汇
+    // 零轴交叉处插入插值零点，使单 series 平滑曲线在交叉处连续
     const nullSafeFundData = fundData.map((val) => (val == null || isNaN(val) ? null : val));
-    const { positive: positiveLineData, negative: negativeLineData } =
-      splitGrowthSeriesAtZero(nullSafeFundData);
-    // 面积数据用纯 max/min，保证填充区域完整贴合 0 轴
-    const positiveAreaData = nullSafeFundData.map((v) => (v == null ? null : Math.max(0, v)));
-    const negativeAreaData = nullSafeFundData.map((v) => (v == null ? null : Math.min(0, v)));
+    const {
+      data: augmentedFundData,
+      dates: augmentedDates,
+      insertIndices,
+    } = insertZeroCrossings(nullSafeFundData, dates);
+    // 构建带逐点颜色的基金数据：正值为红，负值为绿
+    const styledFundData = augmentedFundData.map((v) => {
+      if (v === null) return null;
+      return { value: v, itemStyle: { color: v >= 0 ? '#f87171' : '#34d399' } };
+    });
+    // 面积数据用增强后的数据计算（长度自动对齐）
+    const positiveAreaData = augmentedFundData.map((v) => (v == null ? null : Math.max(0, v)));
+    const negativeAreaData = augmentedFundData.map((v) => (v == null ? null : Math.min(0, v)));
+    // 基准数据在相同位置插入 null 保持对齐
+    const nullSafeBmkData = bmkData.map((val) => (val == null || isNaN(val) ? null : val));
+    const augmentedBmkData = [...nullSafeBmkData];
+    for (const idx of insertIndices.toReversed()) {
+      augmentedBmkData.splice(idx, 0, null);
+    }
 
     const tooltipFormatter = (params: unknown) => {
       if (!Array.isArray(params) || params.length === 0) return '';
 
       const list = params as TooltipSeriesParam[];
       const date = list[0]?.axisValue;
-      if (!date) return '';
+      if (!date || date === '') return '';
       let html = `<div style="font-weight:bold; margin-bottom:4px; font-family:monospace;">${date}</div>`;
 
-      // 正负线 series 同名，在交汇点（共为 0）需去重
-      const seen = new Map<string, (typeof list)[0]>();
       for (const item of list) {
         if (item.value == null) continue;
-        const existing = seen.get(item.seriesName);
-        if (!existing || (item.value !== 0 && existing.value === 0)) {
-          seen.set(item.seriesName, item);
-        }
-      }
+        if (item.seriesName === '') continue;
 
-      seen.forEach((item) => {
         const val = item.value as number;
         const sign = val >= 0 ? '+' : '';
         const valColor = val >= 0 ? '#f87171' : '#34d399';
@@ -950,18 +957,18 @@ export const FundDetail: React.FC<FundDetailProps> = ({
                             <span style="color:${isDark ? '#d1d5db' : '#4b5563'}">${item.seriesName}</span>
                             <span style="color:${valColor}; font-family:monospace; font-weight:600;">${sign}${val.toFixed(2)}%</span>
                         </div>`;
-      });
+      }
       return html;
     };
 
     const markers = (() => {
       if (anchorDate) {
-        const anchorIdx = dates.indexOf(anchorDate);
+        const anchorIdx = augmentedDates.indexOf(anchorDate);
         if (anchorIdx === -1) return [];
         return [
           {
             name: 'anchor',
-            coord: [anchorDate, fundData[anchorIdx] ?? null] as [string, number | null],
+            coord: [anchorDate, augmentedFundData[anchorIdx] ?? null] as [string, number | null],
             symbol: 'circle',
             symbolSize: 8,
             label: { show: false },
@@ -973,11 +980,11 @@ export const FundDetail: React.FC<FundDetailProps> = ({
       const points: MarkPointDatum[] = [];
 
       if (fund.buyDate) {
-        const buyIdx = dates.indexOf(fund.buyDate);
+        const buyIdx = augmentedDates.indexOf(fund.buyDate);
         if (buyIdx !== -1) {
           points.push({
             name: 'buy',
-            coord: [fund.buyDate, fundData[buyIdx] ?? null],
+            coord: [fund.buyDate, augmentedFundData[buyIdx] ?? null],
             symbol: 'circle',
             symbolSize: 8,
             label: { show: false },
@@ -988,8 +995,8 @@ export const FundDetail: React.FC<FundDetailProps> = ({
 
       points.push(
         ...buildTradeMarkersFromTransactions({
-          dates,
-          fundData,
+          dates: augmentedDates,
+          fundData: augmentedFundData,
           transactions: fund.pendingTransactions,
           holdingShares: fund.holdingShares,
         }),
@@ -999,12 +1006,11 @@ export const FundDetail: React.FC<FundDetailProps> = ({
 
     const option = buildChartOption({
       fundName: fund.name,
-      dates,
-      positiveLineData,
-      negativeLineData,
+      dates: augmentedDates,
+      fundData: styledFundData,
       positiveAreaData,
       negativeAreaData,
-      bmkData: bmkData.map((val) => (val == null || isNaN(val) ? null : val)),
+      bmkData: augmentedBmkData,
       markers,
       isLargeSeries,
       anchorDate,

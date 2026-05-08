@@ -42,8 +42,7 @@ type FundSeriesInput = {
 type ChartOptionInput = {
   fundName: string;
   dates: string[];
-  positiveLineData: Array<number | null>;
-  negativeLineData: Array<number | null>;
+  fundData: Array<{ value: number; itemStyle: { color: string } } | null>;
   positiveAreaData: Array<number | null>;
   negativeAreaData: Array<number | null>;
   bmkData: Array<number | null>;
@@ -237,35 +236,35 @@ export const buildFundSeries = ({
     !showArea || anchorDate
       ? undefined
       : (() => {
-          const transparent = isDark ? 'rgba(0,0,0,0)' : 'rgba(255,255,255,0)';
-          const isReversed = gradientDirection === 'reversed';
-          return {
-            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-              { offset: 0, color: isReversed ? transparent : (color as string) },
-              { offset: 1, color: isReversed ? (color as string) : transparent },
-            ]),
-            opacity: 0.2,
-          };
-        })(),
+        const transparent = isDark ? 'rgba(0,0,0,0)' : 'rgba(255,255,255,0)';
+        const isReversed = gradientDirection === 'reversed';
+        return {
+          color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+            { offset: 0, color: isReversed ? transparent : (color as string) },
+            { offset: 1, color: isReversed ? (color as string) : transparent },
+          ]),
+          opacity: 0.2,
+        };
+      })(),
   markLine: anchorDate
     ? {
-        silent: true,
-        symbol: 'none',
-        label: {
-          show: true,
-          position: 'insideEndTop',
-          formatter: '持仓成本',
-          color: isDark ? '#9ca3af' : '#6b7280',
-          fontSize: 10,
-          padding: [0, 4],
-        },
-        lineStyle: {
-          color: isDark ? '#6b7280' : '#9ca3af',
-          type: 'dashed',
-          width: 1,
-        },
-        data: [{ yAxis: 0 }],
-      }
+      silent: true,
+      symbol: 'none',
+      label: {
+        show: true,
+        position: 'insideEndTop',
+        formatter: '持仓成本',
+        color: isDark ? '#9ca3af' : '#6b7280',
+        fontSize: 10,
+        padding: [0, 4],
+      },
+      lineStyle: {
+        color: isDark ? '#6b7280' : '#9ca3af',
+        type: 'dashed',
+        width: 1,
+      },
+      data: [{ yAxis: 0 }],
+    }
     : undefined,
   markPoint: markers.length > 0 ? { data: markers, animation: true } : undefined,
   z: 3,
@@ -297,8 +296,7 @@ const buildAreaSeries = ({
 export const buildChartOption = ({
   fundName,
   dates,
-  positiveLineData,
-  negativeLineData,
+  fundData,
   positiveAreaData,
   negativeAreaData,
   bmkData,
@@ -379,7 +377,7 @@ export const buildChartOption = ({
   series: [
     buildFundSeries({
       name: fundName,
-      data: positiveLineData,
+      data: fundData,
       markers,
       isLargeSeries,
       color: '#f87171',
@@ -387,22 +385,12 @@ export const buildChartOption = ({
       isDark,
       showArea: false,
     }),
-    buildFundSeries({
-      name: fundName,
-      data: negativeLineData,
-      markers: [],
-      isLargeSeries,
-      color: '#34d399',
-      anchorDate,
-      isDark,
-      showArea: false,
-    }),
     ...(anchorDate
       ? []
       : [
-          buildAreaSeries({ data: positiveAreaData, color: '#f87171', isLargeSeries }),
-          buildAreaSeries({ data: negativeAreaData, color: '#34d399', isLargeSeries }),
-        ]),
+        buildAreaSeries({ data: positiveAreaData, color: '#f87171', isLargeSeries }),
+        buildAreaSeries({ data: negativeAreaData, color: '#34d399', isLargeSeries }),
+      ]),
     {
       name: '业绩基准',
       type: 'line',
@@ -471,6 +459,44 @@ export const splitGrowthSeriesAtZero = (
   }
 
   return { positive, negative };
+};
+
+export const insertZeroCrossings = (
+  data: Array<number | null>,
+  dates: string[],
+): {
+  data: Array<number | null>;
+  dates: string[];
+  insertIndices: number[];
+} => {
+  if (data.length === 0) return { data: [], dates: [], insertIndices: [] };
+
+  const newData: Array<number | null> = [];
+  const newDates: string[] = [];
+  const insertIndices: number[] = [];
+
+  for (let i = 0; i < data.length; i++) {
+    newData.push(data[i]);
+    newDates.push(dates[i]);
+
+    if (i < data.length - 1) {
+      const a = data[i];
+      const b = data[i + 1];
+      if (
+        a !== null &&
+        b !== null &&
+        !isNaN(a) &&
+        !isNaN(b) &&
+        ((a >= 0 && b < 0) || (a < 0 && b >= 0))
+      ) {
+        newData.push(0);
+        newDates.push('');
+        insertIndices.push(newData.length - 1);
+      }
+    }
+  }
+
+  return { data: newData, dates: newDates, insertIndices };
 };
 
 export const normalizeGrowthSeriesToFirst = (data: {
