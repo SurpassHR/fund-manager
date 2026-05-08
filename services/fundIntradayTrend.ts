@@ -13,18 +13,20 @@ const normalizeTicker = (ticker?: string) => (ticker ? ticker.replace(/\D/g, '')
 /**
  * 将个股分时数据按持仓权重加权合成为基金级日内走势。
  *
- * @param intradayData  — key 为 ticker（可带后缀，如 000001.SZ），value 为分时点数组
- * @param holdings      — 持仓列表，含 ticker 和 weight
- * @param lastNav       — 基金最新净值，作为估算锚点
+ * @param intradayData      — key 为 ticker（可带后缀，如 000001.SZ），value 为分时点数组
+ * @param holdings          — 持仓列表，含 ticker 和 weight
+ * @param lastNav           — 基金最新净值，作为估算锚点
+ * @param stockPrevCloseMap — 可选，normalized ticker → 前收盘价；提供时以前收盘价为基准，否则以首点价格为基准
  * @returns 按时间排序的基金估算净值序列，有效权重为 0 时返回空数组
  */
 export const calcFundIntradayTrend = (
   intradayData: Record<string, IntradayPoint[]>,
   holdings: EquityHolding[],
   lastNav: number,
+  stockPrevCloseMap?: Record<string, number>,
 ): FundIntradayPoint[] => {
   // 1. 匹配持仓与分时数据
-  const matched: { weight: number; points: IntradayPoint[] }[] = [];
+  const matched: { weight: number; points: IntradayPoint[]; basePrice: number }[] = [];
   let totalWeight = 0;
 
   const intradayKeys = new Map<string, string>(); // normalized → original key
@@ -43,7 +45,15 @@ export const calcFundIntradayTrend = (
     const points = intradayData[dataKey];
     if (!points || points.length < 2) continue;
 
-    matched.push({ weight: holding.weight, points });
+    const firstPrice = points[0].price;
+    if (firstPrice === 0 || Number.isNaN(firstPrice)) continue;
+
+    // 以前收盘价为基准（若提供且有效），否则以首点（开盘价）为基准
+    const prevClose = stockPrevCloseMap?.[nk];
+    const basePrice =
+      prevClose && prevClose > 0 && !Number.isNaN(prevClose) ? prevClose : firstPrice;
+
+    matched.push({ weight: holding.weight, points, basePrice });
     totalWeight += holding.weight;
   }
 
@@ -58,13 +68,10 @@ export const calcFundIntradayTrend = (
   }
   const allTimes = Array.from(timeSet).sort();
 
-  // 3. 为每只个股计算相对于基准（首点）的涨跌幅序列，缺失点 forward fill
+  // 3. 为每只个股计算相对于基准价的涨跌幅序列，缺失点 forward fill
   const stockChangeSeries: number[][] = [];
 
-  for (const { points } of matched) {
-    const basePrice = points[0].price;
-    if (basePrice === 0 || Number.isNaN(basePrice)) continue;
-
+  for (const { points, basePrice } of matched) {
     const changes: number[] = [];
     let lastKnownPrice = points[0].price;
     let pointIdx = 0;

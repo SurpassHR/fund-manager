@@ -51,7 +51,7 @@ const readNameFromItem = <T>(item: T): string | undefined => {
   return typeof candidate === 'string' ? candidate : undefined;
 };
 
-const calcWeightedChangePct = (
+export const calcWeightedChangePct = (
   holdings: HoldingWithWeight[],
   quotePctMap: Record<string, number>,
 ) => {

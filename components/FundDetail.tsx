@@ -12,6 +12,7 @@ import type {
 import { Icons } from './Icon';
 import { Sparkline } from './Sparkline';
 import { calcFundIntradayTrend } from '../services/fundIntradayTrend';
+import { calcWeightedChangePct } from '../services/fundQuotePipeline';
 import { TradeMarkerLegend } from './TradeMarkerLegend';
 import {
   TRADE_MARKER_COLORS,
@@ -740,6 +741,21 @@ export const FundDetail: React.FC<FundDetailProps> = ({
     fetchHoldings();
   }, [fund.code, fund.name, fund.parentEtfInfo]);
 
+  // 基于 FundDetail 自身行情数据计算当日估值涨跌幅（与图表使用同一数据源）
+  const fundDetailEstimatedPct = useMemo(() => {
+    const sourceQuotes = fund.category === 'ETF_LINK' ? parentEtfQuotes : quotes;
+    const h = fund.category === 'ETF_LINK' ? parentEtfHoldings : holdings;
+    if (!h.length || Object.keys(sourceQuotes).length === 0) return undefined;
+    const quotePctMap: Record<string, number> = {};
+    for (const [ticker, quote] of Object.entries(sourceQuotes)) {
+      if (typeof quote.pct === 'number') {
+        const nk = ticker.replace(/\D/g, '');
+        if (nk) quotePctMap[nk] = quote.pct;
+      }
+    }
+    return calcWeightedChangePct(h, quotePctMap);
+  }, [quotes, parentEtfQuotes, holdings, parentEtfHoldings, fund.category]);
+
   // Resolve Display Data
   // Priority: CommonData API -> Performance API -> Local DB
   const latestNetWorth = pingzhongData?.netWorthTrend?.[pingzhongData.netWorthTrend.length - 1];
@@ -749,9 +765,12 @@ export const FundDetail: React.FC<FundDetailProps> = ({
   const currentNav = shouldUseFundSnapshot
     ? fund.currentNav
     : (commonData?.nav ?? latestNetWorth?.y ?? fund.currentNav);
-  const dayChangePct = shouldUseFundSnapshot
-    ? fund.dayChangePct
-    : (commonData?.navChangePercent ?? latestNetWorth?.equityReturn ?? fund.dayChangePct);
+  const dayChangePct =
+    fundDetailEstimatedPct !== undefined && fundDetailEstimatedPct !== null
+      ? fundDetailEstimatedPct
+      : shouldUseFundSnapshot
+        ? fund.dayChangePct
+        : (commonData?.navChangePercent ?? latestNetWorth?.equityReturn ?? fund.dayChangePct);
   const displayDate = shouldUseFundSnapshot
     ? fund.lastUpdate
     : (commonData?.navDate ?? lastTradingDay ?? fund.lastUpdate);
@@ -778,10 +797,13 @@ export const FundDetail: React.FC<FundDetailProps> = ({
     ],
   );
   const displayDayChangePct = holdingDisplayMetrics.isInTransit ? 0 : dayChangePct;
-  const displayUsesOfficialPct =
-    !shouldUseFundSnapshot &&
-    (commonData?.navChangePercent !== undefined || latestNetWorth?.equityReturn !== undefined);
-  const displayIsEstimated = !displayUsesOfficialPct && Boolean(fund.todayChangeIsEstimated);
+  const hasLocalEstimate = fundDetailEstimatedPct !== undefined && fundDetailEstimatedPct !== null;
+  const displayUsesOfficialPct = hasLocalEstimate
+    ? false
+    : !shouldUseFundSnapshot &&
+      (commonData?.navChangePercent !== undefined || latestNetWorth?.equityReturn !== undefined);
+  const displayIsEstimated =
+    hasLocalEstimate || (!displayUsesOfficialPct && Boolean(fund.todayChangeIsEstimated));
   const displayMarketValue = currentNav * fund.holdingShares;
   const pctDecimal = displayDayChangePct / 100;
   const inferredDayGainVal =
@@ -801,13 +823,37 @@ export const FundDetail: React.FC<FundDetailProps> = ({
         ? inferredDayGainVal
         : fund.dayChangeVal;
 
+  // 构建个股前收盘价映射，用于日内走势图以前收盘价为基准计算估值
+  const stockPrevCloseMap = useMemo(() => {
+    const sourceQuotes = fund.category === 'ETF_LINK' ? parentEtfQuotes : quotes;
+    const map: Record<string, number> = {};
+    for (const [ticker, quote] of Object.entries(sourceQuotes)) {
+      const pct = quote.pct;
+      const price = parseFloat(quote.price);
+      if (price > 0 && !Number.isNaN(pct)) {
+        const prevClose = price / (1 + pct / 100);
+        const nk = ticker.replace(/\D/g, '');
+        if (nk) map[nk] = prevClose;
+      }
+    }
+    return map;
+  }, [quotes, parentEtfQuotes, fund.category]);
+
   // 计算基金级日内走势（基于持仓个股分时数据加权合成）
   const fundIntradayTrend = useMemo(() => {
     const data = fund.category === 'ETF_LINK' ? parentIntradayData : intradayData;
     const h = fund.category === 'ETF_LINK' ? parentEtfHoldings : holdings;
     if (!h.length || Object.keys(data).length === 0) return [];
-    return calcFundIntradayTrend(data, h, currentNav);
-  }, [fund.category, intradayData, parentIntradayData, holdings, parentEtfHoldings, currentNav]);
+    return calcFundIntradayTrend(data, h, currentNav, stockPrevCloseMap);
+  }, [
+    fund.category,
+    intradayData,
+    parentIntradayData,
+    holdings,
+    parentEtfHoldings,
+    currentNav,
+    stockPrevCloseMap,
+  ]);
 
   // Initialize and Update ECharts
   useEffect(() => {
@@ -1014,10 +1060,13 @@ export const FundDetail: React.FC<FundDetailProps> = ({
 
     const times = fundIntradayTrend.map((p) => p.time);
     const navs = fundIntradayTrend.map((p) => p.estimatedNav);
-    const firstNav = navs[0];
     const lastNav = navs[navs.length - 1];
-    const changePct = ((lastNav - firstNav) / firstNav) * 100;
-    const isUp = changePct >= 0;
+    // 使用整体日涨跌方向（而非日内波动方向）决定颜色，与 Hero Card 保持一致
+    const dayDirPct =
+      fundDetailEstimatedPct !== undefined && fundDetailEstimatedPct !== null
+        ? fundDetailEstimatedPct
+        : ((lastNav - currentNav) / currentNav) * 100;
+    const isUp = dayDirPct >= 0;
     const lineColor = isUp ? '#f87171' : '#34d399';
 
     const option: echarts.EChartsOption = {
@@ -1052,7 +1101,8 @@ export const FundDetail: React.FC<FundDetailProps> = ({
           const data = (params as TooltipSeriesParam[])[0];
           if (data?.value == null) return '';
           const nav = Number(data.value);
-          const pct = ((nav - firstNav) / firstNav) * 100;
+          // 显示相对于最新官方净值的日涨跌幅（与 Hero Card 一致）
+          const pct = ((nav - currentNav) / currentNav) * 100;
           const sign = pct >= 0 ? '+' : '';
           return `<div style="font-family:monospace">
                 ${data.axisValue}<br/>
@@ -1083,7 +1133,7 @@ export const FundDetail: React.FC<FundDetailProps> = ({
     const handleResize = () => intradayChartInstance.current?.resize();
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, [chartReady, fundIntradayTrend, isDark]);
+  }, [chartReady, fundIntradayTrend, isDark, currentNav, fundDetailEstimatedPct]);
 
   // Derived History Table Data based on Chart Data + Current NAV
   // Only show dates up to the authoritative lastTradingDay to avoid displaying
@@ -1354,13 +1404,19 @@ export const FundDetail: React.FC<FundDetailProps> = ({
               </h3>
               <span
                 className={`text-xs font-sans font-medium ${getSignColor(
-                  (((fundIntradayTrend[fundIntradayTrend.length - 1]?.estimatedNav ?? currentNav) -
-                    (fundIntradayTrend[0]?.estimatedNav ?? currentNav)) /
-                    (fundIntradayTrend[0]?.estimatedNav ?? currentNav)) *
-                    100,
+                  fundDetailEstimatedPct !== undefined && fundDetailEstimatedPct !== null
+                    ? fundDetailEstimatedPct
+                    : (((fundIntradayTrend[fundIntradayTrend.length - 1]?.estimatedNav ??
+                        currentNav) -
+                        (fundIntradayTrend[0]?.estimatedNav ?? currentNav)) /
+                        (fundIntradayTrend[0]?.estimatedNav ?? currentNav)) *
+                        100,
                 )}`}
               >
                 {(() => {
+                  if (fundDetailEstimatedPct !== undefined && fundDetailEstimatedPct !== null) {
+                    return formatPct(fundDetailEstimatedPct);
+                  }
                   const firstNav = fundIntradayTrend[0]?.estimatedNav ?? currentNav;
                   const lastNav =
                     fundIntradayTrend[fundIntradayTrend.length - 1]?.estimatedNav ?? currentNav;
