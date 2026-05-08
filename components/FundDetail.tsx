@@ -932,7 +932,7 @@ export const FundDetail: React.FC<FundDetailProps> = ({
     // 基准数据在相同位置线性插值，保持对齐且不打断线条
     const nullSafeBmkData = bmkData.map((val) => (val == null || isNaN(val) ? null : val));
     const augmentedBmkData = [...nullSafeBmkData];
-    for (const idx of insertIndices.toReversed()) {
+    for (const idx of insertIndices.slice().reverse()) {
       // idx 是增强数组中的插入位置，对应原始数组中 idx-1 和 idx（插入前）
       const left = nullSafeBmkData[idx - 1];
       const right = nullSafeBmkData[idx];

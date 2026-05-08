@@ -27,9 +27,11 @@ type TradeMarkerInput = {
   holdingShares: number;
 };
 
+type FundSeriesDataPoint = { value: number; itemStyle: { color: string } };
+
 type FundSeriesInput = {
   name: string;
-  data: Array<number | null>;
+  data: Array<number | null | FundSeriesDataPoint>;
   markers: MarkPointDatum[];
   isLargeSeries: boolean;
   color: string | echarts.graphic.LinearGradient;
@@ -236,35 +238,35 @@ export const buildFundSeries = ({
     !showArea || anchorDate
       ? undefined
       : (() => {
-        const transparent = isDark ? 'rgba(0,0,0,0)' : 'rgba(255,255,255,0)';
-        const isReversed = gradientDirection === 'reversed';
-        return {
-          color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-            { offset: 0, color: isReversed ? transparent : (color as string) },
-            { offset: 1, color: isReversed ? (color as string) : transparent },
-          ]),
-          opacity: 0.2,
-        };
-      })(),
+          const transparent = isDark ? 'rgba(0,0,0,0)' : 'rgba(255,255,255,0)';
+          const isReversed = gradientDirection === 'reversed';
+          return {
+            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+              { offset: 0, color: isReversed ? transparent : (color as string) },
+              { offset: 1, color: isReversed ? (color as string) : transparent },
+            ]),
+            opacity: 0.2,
+          };
+        })(),
   markLine: anchorDate
     ? {
-      silent: true,
-      symbol: 'none',
-      label: {
-        show: true,
-        position: 'insideEndTop',
-        formatter: '持仓成本',
-        color: isDark ? '#9ca3af' : '#6b7280',
-        fontSize: 10,
-        padding: [0, 4],
-      },
-      lineStyle: {
-        color: isDark ? '#6b7280' : '#9ca3af',
-        type: 'dashed',
-        width: 1,
-      },
-      data: [{ yAxis: 0 }],
-    }
+        silent: true,
+        symbol: 'none',
+        label: {
+          show: true,
+          position: 'insideEndTop',
+          formatter: '持仓成本',
+          color: isDark ? '#9ca3af' : '#6b7280',
+          fontSize: 10,
+          padding: [0, 4],
+        },
+        lineStyle: {
+          color: isDark ? '#6b7280' : '#9ca3af',
+          type: 'dashed',
+          width: 1,
+        },
+        data: [{ yAxis: 0 }],
+      }
     : undefined,
   markPoint: markers.length > 0 ? { data: markers, animation: true } : undefined,
   z: 3,
@@ -388,9 +390,9 @@ export const buildChartOption = ({
     ...(anchorDate
       ? []
       : [
-        buildAreaSeries({ data: positiveAreaData, color: '#f87171', isLargeSeries }),
-        buildAreaSeries({ data: negativeAreaData, color: '#34d399', isLargeSeries }),
-      ]),
+          buildAreaSeries({ data: positiveAreaData, color: '#f87171', isLargeSeries }),
+          buildAreaSeries({ data: negativeAreaData, color: '#34d399', isLargeSeries }),
+        ]),
     {
       name: '业绩基准',
       type: 'line',
