@@ -195,8 +195,23 @@ if (fundType === 'QDII' || fundType === 'HK' || fundType === 'ETF') {
 - Dev server runs on port 3000 and binds to `0.0.0.0`.
 - Danjuan requests rely on dev proxy `/djapi` with forced `Referer` header.
 - Vite config injects latest 5 commits into `import.meta.env.VITE_COMMITS_JSON`.
-- Optional Gemini translation happens when `GEMINI_API_KEY` exists.
+- Commit subject translation uses Gemini (`GEMINI_API_KEY`) with automatic fallback to DeepSeek (`DEEPSEEK_API_KEY`). Both unavailable → skip translation without failing the build.
 - `WelcomeModal` uses `VITE_LATEST_COMMIT_HASH` + `localStorage.lastSeenVersion` and ignores malformed commit JSON.
+
+## FundDetail Chart Domain Rules
+
+- **Cumulative return chart** uses `Data_ACWorthTrend` (not `Data_netWorthTrend`) to include dividend-adjusted returns.
+- **Time-range rebase**: switching 1M/3M/6M/1Y/3Y/5Y/ALL rebases both fund and benchmark lines to 0 at the period start using `(value / baseValue - 1) * 100`.
+- **Red-green color split**: positive return segments render in red (`#f87171`), negative in green (`#34d399`), implemented via per-point `itemStyle.color` in a single continuous series.
+- **Zero-crossing interpolation**: when data crosses the 0 axis, an interpolated anchor point is inserted into both positive and negative area series to maintain visual continuity.
+- **Benchmark interpolation**: benchmark data receives matching interpolated points at zero-crossing indices to keep alignment.
+- Chart configuration is centralized in `components/fundDetailChartUtils.ts` (`buildChartOption`, `buildFundSeries`, `buildAreaSeries`).
+- Trade markers (buy/sell/liquidation/anchor) are rendered via `markPoint`; anchor date shows a dashed `markLine` at y=0.
+
+## Dashboard Domain Rules
+
+- **已清仓组 (cleared funds group)** divider uses a crystal-jade green gradient (`linear-gradient` + `inset box-shadow`) to visually separate active holdings from cleared ones.
+- Cleared funds are collapsed by default; the divider shows fund count and acts as a toggle.
 
 ## Data + Date Handling
 
