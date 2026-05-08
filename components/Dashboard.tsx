@@ -1201,7 +1201,7 @@ export const Dashboard: React.FC = () => {
 
             {clearedFunds.length > 0 && (
               <div
-                className="group relative cursor-pointer select-none border-b border-[var(--app-shell-line)]/80 px-4 py-3 transition-colors last:border-b-0 active:bg-[var(--app-shell-panel-strong)] dark:border-border-dark dark:active:bg-white/5 md:px-5 md:py-3.5 md:hover:bg-[var(--app-shell-panel-strong)]/72 dark:md:hover:bg-white/5"
+                className="cleared-group-divider group relative cursor-pointer select-none px-4 py-3 transition-all md:px-5 md:py-3.5"
                 onClick={handleToggleClearedGroup}
                 role="button"
                 tabIndex={0}
@@ -1220,12 +1220,12 @@ export const Dashboard: React.FC = () => {
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <Icons.Archive className="h-5 w-5 text-slate-500 dark:text-gray-400" />
-                    <span className="text-sm font-medium text-slate-700 dark:text-gray-300">
+                    <Icons.Archive className="h-5 w-5 text-emerald-700/80 dark:text-emerald-300/80" />
+                    <span className="text-sm font-semibold text-emerald-800/90 dark:text-emerald-200/90">
                       {t('common.clearedFundsCount', { count: String(clearedFunds.length) })}
                     </span>
                   </div>
-                  <div className="text-slate-500 dark:text-gray-400">
+                  <div className="text-emerald-700/80 dark:text-emerald-300/80">
                     {isClearedGroupExpanded ? (
                       <Icons.ChevronUp className="h-5 w-5" />
                     ) : (

@@ -268,3 +268,91 @@ body {
 .hide-scrollbar::-webkit-scrollbar {
   display: none;
 }
+
+/* 已清仓组分界线 — 晶莹绿色水晶/翡翠质感 */
+.cleared-group-divider {
+  background: linear-gradient(
+    135deg,
+    rgba(34, 197, 94, 0.26) 0%,
+    rgba(16, 185, 129, 0.46) 30%,
+    rgba(34, 197, 94, 0.34) 60%,
+    rgba(16, 185, 129, 0.26) 100%
+  );
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.48),
+    inset 0 -1px 0 rgba(16, 185, 129, 0.18),
+    0 2px 12px rgba(16, 185, 129, 0.1);
+  border-top: 1px solid rgba(16, 185, 129, 0.28);
+  border-bottom: 1px solid rgba(16, 185, 129, 0.28);
+  backdrop-filter: blur(12px);
+}
+
+.cleared-group-divider:hover {
+  background: linear-gradient(
+    135deg,
+    rgba(34, 197, 94, 0.34) 0%,
+    rgba(16, 185, 129, 0.56) 30%,
+    rgba(34, 197, 94, 0.42) 60%,
+    rgba(16, 185, 129, 0.34) 100%
+  );
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.56),
+    inset 0 -1px 0 rgba(16, 185, 129, 0.22),
+    0 3px 16px rgba(16, 185, 129, 0.16);
+}
+
+.cleared-group-divider:active {
+  background: linear-gradient(
+    135deg,
+    rgba(34, 197, 94, 0.2) 0%,
+    rgba(16, 185, 129, 0.36) 30%,
+    rgba(34, 197, 94, 0.26) 60%,
+    rgba(16, 185, 129, 0.2) 100%
+  );
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.32),
+    inset 0 2px 4px rgba(0, 0, 0, 0.08);
+}
+
+.dark .cleared-group-divider {
+  background: linear-gradient(
+    135deg,
+    rgba(34, 197, 94, 0.16) 0%,
+    rgba(16, 185, 129, 0.3) 30%,
+    rgba(34, 197, 94, 0.2) 60%,
+    rgba(16, 185, 129, 0.16) 100%
+  );
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.16),
+    inset 0 -1px 0 rgba(16, 185, 129, 0.12),
+    0 2px 12px rgba(16, 185, 129, 0.06);
+  border-top: 1px solid rgba(16, 185, 129, 0.2);
+  border-bottom: 1px solid rgba(16, 185, 129, 0.2);
+}
+
+.dark .cleared-group-divider:hover {
+  background: linear-gradient(
+    135deg,
+    rgba(34, 197, 94, 0.22) 0%,
+    rgba(16, 185, 129, 0.4) 30%,
+    rgba(34, 197, 94, 0.28) 60%,
+    rgba(16, 185, 129, 0.22) 100%
+  );
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.22),
+    inset 0 -1px 0 rgba(16, 185, 129, 0.16),
+    0 3px 16px rgba(16, 185, 129, 0.1);
+}
+
+.dark .cleared-group-divider:active {
+  background: linear-gradient(
+    135deg,
+    rgba(34, 197, 94, 0.12) 0%,
+    rgba(16, 185, 129, 0.24) 30%,
+    rgba(34, 197, 94, 0.16) 60%,
+    rgba(16, 185, 129, 0.12) 100%
+  );
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    inset 0 2px 4px rgba(0, 0, 0, 0.2);
+}
