@@ -114,6 +114,15 @@ type CallbackWindow = Window & Record<string, (json: EastMoneyKlineResponse) => 
 const memoryCache = new Map<string, CacheEntry<unknown>>();
 const inFlightCache = new Map<string, Promise<unknown>>();
 
+const MEMORY_CACHE_MAX_ENTRIES = 200;
+
+const pruneMemoryCache = () => {
+  while (memoryCache.size > MEMORY_CACHE_MAX_ENTRIES) {
+    const oldestKey = memoryCache.keys().next().value as string;
+    memoryCache.delete(oldestKey);
+  }
+};
+
 const normalizeTicker = (ticker: string) => ticker.replace(/\D/g, '');
 
 const buildCodesKey = (codes: string[]) => codes.slice().sort().join(',');
@@ -148,6 +157,7 @@ const withCache = async <T>(params: {
         : result !== null && result !== undefined;
       if (shouldStore) {
         memoryCache.set(key, { value: result, expiresAt: Date.now() + ttlMs });
+        pruneMemoryCache();
       }
     }
     return result;

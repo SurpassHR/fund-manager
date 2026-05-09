@@ -191,7 +191,7 @@ export function useCanvasNavIndicator({
     updateTarget();
   }, [updateTarget]);
 
-  // RAF 循环
+  // RAF 循环 — 收敛后自动停止，activeIndex 变化时 effect 重启
   useLayoutEffect(() => {
     if (lerp >= 1) return;
     if (typeof requestAnimationFrame !== 'function') {
@@ -233,9 +233,8 @@ export function useCanvasNavIndicator({
         draw();
         prevDrawX = currentX.current;
         prevDrawW = currentW.current;
+        rafId.current = requestAnimationFrame(animate);
       }
-
-      rafId.current = requestAnimationFrame(animate);
     };
 
     rafId.current = requestAnimationFrame(animate);

@@ -29,7 +29,8 @@ const getOrCreateUid = (): string => {
   let uid = localStorage.getItem(KEY);
   if (!uid) {
     uid =
-      crypto.randomUUID?.() ?? `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+      crypto.randomUUID?.() ??
+      `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
     localStorage.setItem(KEY, uid);
   }
   return uid;
@@ -48,6 +49,7 @@ let uid: string | null = null;
 let timer: ReturnType<typeof setInterval> | null = null;
 let latestStats: PresenceStats = { current: 0, peak: 0, unique: 0 };
 const listeners = new Set<Listener>();
+let abortController: AbortController | null = null;
 
 const notify = () => {
   listeners.forEach((fn) => fn(latestStats));
@@ -114,15 +116,35 @@ export const startPresence = (): void => {
     void sendHeartbeat();
   }, HEARTBEAT_INTERVAL_MS);
 
-  // Clean up on page unload
-  window.addEventListener('beforeunload', sendDisconnect);
-  document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'hidden') {
-      sendDisconnect();
-    } else if (document.visibilityState === 'visible' && sid) {
-      void sendHeartbeat();
-    }
-  });
+  // Clean up previous listeners if any
+  if (abortController) abortController.abort();
+  abortController = new AbortController();
+  const { signal } = abortController;
+
+  window.addEventListener('beforeunload', sendDisconnect, { signal });
+  document.addEventListener(
+    'visibilitychange',
+    () => {
+      if (document.visibilityState === 'hidden') {
+        sendDisconnect();
+      } else if (document.visibilityState === 'visible' && sid) {
+        void sendHeartbeat();
+      }
+    },
+    { signal },
+  );
+};
+
+/** Stop heartbeat loop and clean up all listeners. */
+export const stopPresence = (): void => {
+  if (timer) {
+    clearInterval(timer);
+    timer = null;
+  }
+  if (abortController) {
+    abortController.abort();
+    abortController = null;
+  }
 };
 
 /** Subscribe to stats changes. Returns an unsubscribe function. */
