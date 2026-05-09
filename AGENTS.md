@@ -218,7 +218,7 @@ if (fundType === 'QDII' || fundType === 'HK' || fundType === 'ETF') {
 
 ## Vite/运行时假设
 
-- Vite base 为 `/fund-manager/`（GitHub Pages）。
+- Vite base 为 `/fund-manager/`（GitHub Pages），部署站点为 `https://gp.hrfuqiang.top/fund-manager/`。
 - 开发服务器运行在 3000 端口，绑定到 `0.0.0.0`。
 - 蛋卷请求依赖开发代理 `/djapi` 并强制带 `Referer` 头。
 - Vite 配置将最近 5 条 commit 注入 `import.meta.env.VITE_COMMITS_JSON`。

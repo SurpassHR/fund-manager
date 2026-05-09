@@ -160,75 +160,87 @@ export const Header: React.FC<HeaderProps> = ({
 
   return (
     <header
-      className={`glass-nav sticky top-[env(safe-area-inset-top,0px)] z-50 flex min-h-14 items-center border-b border-[var(--app-shell-line)] px-4 transition-all duration-200 sm:min-h-16 sm:px-6 ${
-        hiddenOnMobile
-          ? 'max-md:pointer-events-none max-md:-translate-y-full max-md:opacity-0'
-          : 'max-md:translate-y-0 max-md:opacity-100'
-      }`}
+      className={`glass-nav sticky top-0 z-50 flex flex-col border-b border-[var(--app-shell-line)] transition-all duration-200 ${hiddenOnMobile
+        ? 'max-md:pointer-events-none max-md:-translate-y-full max-md:opacity-0'
+        : 'max-md:translate-y-0 max-md:opacity-100'
+        }`}
+      style={{
+        // 使用负的 margin-top 把整个 header 往上提，盖住空白
+        // 然后用 padding-top 把内容顶回来
+        marginTop: '-80px',
+        paddingTop: 'calc(env(safe-area-inset-top, 0px))',
+      }}
     >
-      <div className="relative mx-auto flex w-full max-w-7xl items-center justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-2 sm:gap-2.5">
-          <a
-            href="https://github.com/SurpassHR/fund-manager"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center justify-center transition hover:opacity-80"
-            aria-label="GitHub Repository"
-          >
-            <img
-              src={
-                theme === 'dark'
-                  ? 'https://github.githubassets.com/favicons/favicon-dark.svg'
-                  : 'https://github.githubassets.com/favicons/favicon.svg'
-              }
-              alt="GitHub"
-              className="h-6 w-6"
-            />
-          </a>
-          {/* Presence / Online Users (Mobile only) */}
-          {presenceActive && (
-            <div className="sm:hidden">
-              <PresenceIndicator stats={stats} t={t} />
+      {/* 核心容器：pt 适配灵动岛，min-h 保持内容高度一致 */}
+      <div className="pt-0">
+        <div className="relative mx-auto flex min-h-14 items-center justify-between gap-3 px-4 sm:min-h-16 sm:px-6 max-w-7xl">
+
+          {/* 左侧区域：GitHub Logo & 在线状态 */}
+          <div className="z-10 flex min-w-0 items-center gap-2 sm:gap-2.5">
+            <a
+              href="https://github.com/SurpassHR/fund-manager"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center justify-center transition-opacity hover:opacity-70 active:scale-95"
+              aria-label="GitHub Repository"
+            >
+              <img
+                src={theme === 'dark' ? 'https://github.githubassets.com/favicons/favicon-dark.svg' : 'https://github.githubassets.com/favicons/favicon.svg'}
+                alt="GitHub"
+                className="h-6 w-6"
+              />
+            </a>
+            {presenceActive && (
+              <div className="sm:hidden">
+                <PresenceIndicator stats={stats} t={t} />
+              </div>
+            )}
+          </div>
+
+          {/* 中间区域：绝对居中的添加按钮 */}
+          {(activeTab === 'holding' || activeTab === 'watchlist') && (
+            <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
+              <button
+                onClick={() => {
+                  const eventType = activeTab === 'holding' ? 'open-add-fund' : 'open-add-watchlist';
+                  window.dispatchEvent(new CustomEvent(eventType));
+                }}
+                aria-label={t(activeTab === 'holding' ? 'common.addHolding' : 'common.addWatchlist')}
+                className="group inline-flex items-center gap-1.5 rounded-full border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)]/80 backdrop-blur-sm px-3.5 py-1.5 text-[11px] font-bold tracking-wider text-[var(--app-shell-accent)] transition-all hover:border-[var(--app-shell-line-strong)] hover:bg-[var(--app-shell-panel-strong)] active:scale-95"
+              >
+                <Icons.Plus size={14} className="transition-transform group-hover:rotate-90" />
+                <span className="truncate">
+                  {activeTab === 'holding' ? t('common.addHolding') : t('common.addWatchlist')}
+                </span>
+              </button>
             </div>
           )}
-        </div>
 
-        {(activeTab === 'holding' || activeTab === 'watchlist') && (
-          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
+          {/* 右侧区域：功能按钮 */}
+          <div className="z-10 flex items-center gap-2 text-[var(--app-shell-muted)] sm:gap-2.5">
+            {presenceActive && (
+              <div className="hidden sm:block">
+                <PresenceIndicator stats={stats} t={t} />
+              </div>
+            )}
+
+            {/* 更新日志 */}
             <button
-              onClick={() => {
-                const eventType = activeTab === 'holding' ? 'open-add-fund' : 'open-add-watchlist';
-                window.dispatchEvent(new CustomEvent(eventType));
-              }}
-              aria-label={t(activeTab === 'holding' ? 'common.addHolding' : 'common.addWatchlist')}
-              className="inline-flex items-center gap-1.5 rounded-full border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)]/90 px-3 py-1.5 text-[11px] font-semibold tracking-wider text-[var(--app-shell-accent)] transition hover:border-[var(--app-shell-line-strong)] hover:bg-[var(--app-shell-panel-strong)]"
+              onClick={openChangelog}
+              aria-label={t('common.changelog')}
+              className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] transition-all hover:border-[var(--app-shell-line-strong)] hover:text-[var(--app-shell-accent)] active:scale-90"
             >
-              <Icons.Plus size={14} />
-              {activeTab === 'holding' ? t('common.addHolding') : t('common.addWatchlist')}
+              <Icons.Changelog size={18} />
+            </button>
+
+            {/* 语言切换 */}
+            <button
+              onClick={toggleLanguage}
+              className="inline-flex h-9 min-w-9 items-center justify-center rounded-full border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] px-2.5 text-[10px] font-bold uppercase tracking-widest text-[var(--app-shell-ink)] transition-all hover:border-[var(--app-shell-line-strong)] hover:text-[var(--app-shell-accent)] active:scale-90"
+            >
+              {language === 'zh' ? 'EN' : '中'}
             </button>
           </div>
-        )}
-
-        <div className="flex items-center gap-2 text-[var(--app-shell-muted)] sm:gap-2.5">
-          {/* Presence / Online Users (Desktop only) */}
-          {presenceActive && (
-            <div className="hidden sm:block">
-              <PresenceIndicator stats={stats} t={t} />
-            </div>
-          )}
-          <button
-            onClick={openChangelog}
-            aria-label={t('common.changelog')}
-            className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] transition hover:border-[var(--app-shell-line-strong)] hover:text-[var(--app-shell-accent)]"
-          >
-            <Icons.Changelog size={18} />
-          </button>
-          <button
-            onClick={toggleLanguage}
-            className="inline-flex h-10 min-w-10 items-center justify-center rounded-full border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] px-3 text-[0.7rem] font-semibold uppercase tracking-[0.2em] text-[var(--app-shell-ink)] transition hover:border-[var(--app-shell-line-strong)] hover:text-[var(--app-shell-accent)]"
-          >
-            {language === 'zh' ? 'EN' : '中'}
-          </button>
         </div>
       </div>
     </header>

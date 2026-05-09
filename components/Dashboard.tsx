@@ -569,7 +569,7 @@ export const Dashboard: React.FC = () => {
   };
 
   return (
-    <div className="min-h-full pb-36 md:pb-16" onContextMenu={(e) => e.preventDefault()}>
+    <div className="min-h-full pb-22 md:pb-16" onContextMenu={(e) => e.preventDefault()}>
       {selectedFund && (
         <FundDetail key="fund-detail" fund={selectedFund} onBack={() => setSelectedFund(null)} />
       )}
@@ -648,7 +648,7 @@ export const Dashboard: React.FC = () => {
         </div>
       )}
 
-      <div className="mx-auto w-full max-w-7xl px-0 pt-20 md:px-4 md:pt-18 lg:px-6">
+      <div className="mx-auto w-full max-w-7xl px-0 pt-6 md:px-4 md:pt-2 lg:px-6">
         <div className="rounded-[1.75rem] border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)]/95 backdrop-blur-xl dark:border-border-dark dark:bg-card-dark/85 md:mt-2 md:shadow-[0_10px_30px_rgba(15,23,42,0.05)]">
           <div className="relative flex items-center gap-3 overflow-x-auto px-3 py-3 no-scrollbar md:flex-wrap md:gap-4 md:px-5 md:py-3.5">
             <div className="hidden shrink-0 md:block md:min-w-[4rem]">
@@ -674,11 +674,10 @@ export const Dashboard: React.FC = () => {
                   <button
                     key={filterKey}
                     onClick={() => setActiveFilter(filterKey)}
-                    className={`relative flex-shrink-0 overflow-hidden rounded-full border px-3 py-2 text-sm font-medium transition-all md:px-4 ${
-                      isActive
-                        ? 'border-[var(--app-shell-line-strong)] bg-[var(--app-shell-panel-strong)] text-slate-800 shadow-[0_8px_24px_rgba(82,61,37,0.10)] dark:border-blue-400 dark:bg-blue-500/15 dark:text-blue-100 dark:shadow-none'
-                        : 'border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] text-slate-600 hover:border-[var(--app-shell-line-strong)] hover:text-slate-900 dark:border-white/10 dark:bg-white/5 dark:text-gray-400 dark:hover:border-white/20 dark:hover:text-gray-100'
-                    }`}
+                    className={`relative flex-shrink-0 overflow-hidden rounded-full border px-3 py-2 text-sm font-medium transition-all md:px-4 ${isActive
+                      ? 'border-[var(--app-shell-line-strong)] bg-[var(--app-shell-panel-strong)] text-slate-800 shadow-[0_8px_24px_rgba(82,61,37,0.10)] dark:border-blue-400 dark:bg-blue-500/15 dark:text-blue-100 dark:shadow-none'
+                      : 'border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] text-slate-600 hover:border-[var(--app-shell-line-strong)] hover:text-slate-900 dark:border-white/10 dark:bg-white/5 dark:text-gray-400 dark:hover:border-white/20 dark:hover:text-gray-100'
+                      }`}
                   >
                     <span className="relative z-10">{label}</span>
                     {isActive && (
@@ -726,11 +725,10 @@ export const Dashboard: React.FC = () => {
                 <button
                   onClick={handleManualRefresh}
                   disabled={cooldown > 0 || isRefreshing}
-                  className={`relative flex h-8 w-8 items-center justify-center overflow-hidden rounded-full border transition-transform active:scale-95 ${
-                    cooldown > 0 || isRefreshing
-                      ? 'cursor-not-allowed border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] text-slate-500 dark:border-white/10 dark:bg-white/10 dark:text-gray-400'
-                      : 'cursor-pointer border-[var(--app-shell-line-strong)] bg-[var(--app-shell-panel-strong)] text-slate-800 dark:border-blue-400/30 dark:bg-blue-500/15 dark:text-blue-100'
-                  }`}
+                  className={`relative flex h-8 w-8 items-center justify-center overflow-hidden rounded-full border transition-transform active:scale-95 ${cooldown > 0 || isRefreshing
+                    ? 'cursor-not-allowed border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] text-slate-500 dark:border-white/10 dark:bg-white/10 dark:text-gray-400'
+                    : 'cursor-pointer border-[var(--app-shell-line-strong)] bg-[var(--app-shell-panel-strong)] text-slate-800 dark:border-blue-400/30 dark:bg-blue-500/15 dark:text-blue-100'
+                    }`}
                 >
                   <Icons.Refresh size={14} className={isRefreshing ? 'animate-spin' : ''} />
                   {cooldown > 0 && !isRefreshing && (
@@ -975,9 +973,9 @@ export const Dashboard: React.FC = () => {
                   : dayChangeBaseNav !== undefined
                     ? fund.todayChangeIsEstimated
                       ? (fund.holdingShares *
-                          dayChangeBaseNav *
-                          (fund.estimatedDayChangePct ?? 0)) /
-                        100
+                        dayChangeBaseNav *
+                        (fund.estimatedDayChangePct ?? 0)) /
+                      100
                       : holdingValue - fund.holdingShares * dayChangeBaseNav
                     : fund.todayChangePreOpen
                       ? 0
@@ -1016,11 +1014,10 @@ export const Dashboard: React.FC = () => {
                   onTouchMove={handleTouchMove}
                   onTouchEnd={handleTouchEnd}
                   onTouchCancel={handleTouchEnd}
-                  className={`group relative cursor-pointer select-none border-b border-[var(--app-shell-line)]/80 px-4 py-3 transition-colors last:border-b-0 active:bg-[var(--app-shell-panel-strong)] dark:border-border-dark dark:active:bg-white/5 md:px-5 md:py-3.5 md:hover:bg-[var(--app-shell-panel-strong)]/72 dark:md:hover:bg-white/5 ${
-                    contextMenu?.fundId === fund.id
-                      ? 'bg-[var(--app-shell-panel-strong)] dark:bg-white/10'
-                      : ''
-                  }`}
+                  className={`group relative cursor-pointer select-none border-b border-[var(--app-shell-line)]/80 px-4 py-3 transition-colors last:border-b-0 active:bg-[var(--app-shell-panel-strong)] dark:border-border-dark dark:active:bg-white/5 md:px-5 md:py-3.5 md:hover:bg-[var(--app-shell-panel-strong)]/72 dark:md:hover:bg-white/5 ${contextMenu?.fundId === fund.id
+                    ? 'bg-[var(--app-shell-panel-strong)] dark:bg-white/10'
+                    : ''
+                    }`}
                 >
                   <div className="flex flex-col gap-3 md:flex-row md:items-center">
                     <div className="min-w-0 flex-1 md:flex-[1.6] md:pr-4">
@@ -1236,9 +1233,9 @@ export const Dashboard: React.FC = () => {
                         : dayChangeBaseNav !== undefined
                           ? fund.todayChangeIsEstimated
                             ? (fund.holdingShares *
-                                dayChangeBaseNav *
-                                (fund.estimatedDayChangePct ?? 0)) /
-                              100
+                              dayChangeBaseNav *
+                              (fund.estimatedDayChangePct ?? 0)) /
+                            100
                             : holdingValue - fund.holdingShares * dayChangeBaseNav
                           : fund.todayChangePreOpen
                             ? 0
@@ -1277,11 +1274,10 @@ export const Dashboard: React.FC = () => {
                         onTouchMove={handleTouchMove}
                         onTouchEnd={handleTouchEnd}
                         onTouchCancel={handleTouchEnd}
-                        className={`group relative cursor-pointer select-none border-b border-[var(--app-shell-line)]/80 px-4 py-3 transition-colors last:border-b-0 active:bg-[var(--app-shell-panel-strong)] dark:border-border-dark dark:active:bg-white/5 md:px-5 md:py-3.5 md:hover:bg-[var(--app-shell-panel-strong)]/72 dark:md:hover:bg-white/5 ${
-                          contextMenu?.fundId === fund.id
-                            ? 'bg-[var(--app-shell-panel-strong)] dark:bg-white/10'
-                            : ''
-                        }`}
+                        className={`group relative cursor-pointer select-none border-b border-[var(--app-shell-line)]/80 px-4 py-3 transition-colors last:border-b-0 active:bg-[var(--app-shell-panel-strong)] dark:border-border-dark dark:active:bg-white/5 md:px-5 md:py-3.5 md:hover:bg-[var(--app-shell-panel-strong)]/72 dark:md:hover:bg-white/5 ${contextMenu?.fundId === fund.id
+                          ? 'bg-[var(--app-shell-panel-strong)] dark:bg-white/10'
+                          : ''
+                          }`}
                       >
                         <div className="flex flex-col gap-3 md:flex-row md:items-center">
                           <div className="min-w-0 flex-1 md:flex-[1.6] md:pr-4">
@@ -1436,7 +1432,7 @@ export const Dashboard: React.FC = () => {
           </div>
         </section>
 
-        <section className="mt-3 px-4 pb-8 md:mt-5 md:px-0 md:pb-2">
+        <section className="mt-3 px-4 pb-2 md:mt-5 md:px-0 md:pb-2">
           <div className="grid gap-3 md:grid-cols-[1.3fr_1fr]">
             <div className="glass-card flex flex-col justify-between rounded-[1.75rem] px-5 py-5 md:px-6 md:py-6">
               <div className="mb-4 flex items-center justify-between">

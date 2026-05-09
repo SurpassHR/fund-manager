@@ -378,7 +378,7 @@ export const Watchlist: React.FC = () => {
   }
 
   return (
-    <div className="min-h-full pb-36 md:pb-16" onContextMenu={(e) => e.preventDefault()}>
+    <div className="min-h-full pb-22 md:pb-16" onContextMenu={(e) => e.preventDefault()}>
       {contextMenu && (
         <div
           className="fixed z-[100] w-48 origin-top-left overflow-hidden rounded-xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)]/98 py-2 shadow-[var(--app-shell-shadow)] backdrop-blur-xl animate-in fade-in zoom-in-95 duration-100"
@@ -426,7 +426,7 @@ export const Watchlist: React.FC = () => {
         </div>
       )}
 
-      <div className="mx-auto w-full max-w-7xl px-0 pt-20 pb-8 md:px-4 md:pt-24 md:pb-10 lg:px-6">
+      <div className="mx-auto w-full max-w-7xl px-0 pt-4 pb-8 md:px-4 md:pt-2 md:pb-4 lg:px-6">
         <section className="relative mt-3 overflow-hidden rounded-[1.75rem] border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)]/92 px-4 pb-3 pt-3 dark:border-border-dark dark:bg-card-dark md:px-6 md:pb-4 md:pt-4 md:shadow-[0_12px_32px_rgba(15,23,42,0.05)]">
           <div className="pointer-events-none absolute inset-0">
             <div className="absolute inset-y-0 left-0 w-full bg-[radial-gradient(circle_at_top_left,_rgba(148,163,184,0.12),_transparent_34%),radial-gradient(circle_at_bottom_right,_rgba(226,232,240,0.8),_transparent_28%)] dark:bg-[radial-gradient(circle_at_top_left,_rgba(96,165,250,0.12),_transparent_35%),radial-gradient(circle_at_bottom_right,_rgba(59,130,246,0.10),_transparent_28%)]" />
@@ -450,8 +450,8 @@ export const Watchlist: React.FC = () => {
                 onClick={handleManualRefresh}
                 disabled={cooldown > 0 || isRefreshing}
                 className={`relative flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border transition-transform active:scale-95 ${cooldown > 0 || isRefreshing
-                    ? 'cursor-not-allowed border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] text-slate-500 dark:border-white/10 dark:bg-white/10 dark:text-gray-400'
-                    : 'cursor-pointer border-[var(--app-shell-line-strong)] bg-[var(--app-shell-panel-strong)] text-slate-800 dark:border-blue-400/30 dark:bg-blue-500/15 dark:text-blue-100'
+                  ? 'cursor-not-allowed border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] text-slate-500 dark:border-white/10 dark:bg-white/10 dark:text-gray-400'
+                  : 'cursor-pointer border-[var(--app-shell-line-strong)] bg-[var(--app-shell-panel-strong)] text-slate-800 dark:border-blue-400/30 dark:bg-blue-500/15 dark:text-blue-100'
                   }`}
               >
                 <Icons.Refresh size={16} className={isRefreshing ? 'animate-spin' : ''} />
@@ -617,8 +617,8 @@ export const Watchlist: React.FC = () => {
                     onTouchCancel={handleTouchEnd}
                     onClick={() => handleRowClick(item)}
                     className={`group relative cursor-pointer select-none border-b border-[var(--app-shell-line)]/80 px-4 py-3 transition-colors last:border-b-0 active:bg-[var(--app-shell-panel-strong)] dark:border-border-dark dark:active:bg-white/5 md:px-5 md:py-3.5 md:hover:bg-[var(--app-shell-panel-strong)]/72 dark:md:hover:bg-white/5 ${contextMenu?.itemId === item.id
-                        ? 'bg-[var(--app-shell-panel-strong)] dark:bg-white/10'
-                        : ''
+                      ? 'bg-[var(--app-shell-panel-strong)] dark:bg-white/10'
+                      : ''
                       }`}
                   >
                     <div className="flex flex-col gap-3 md:flex-row md:items-center">
@@ -629,8 +629,8 @@ export const Watchlist: React.FC = () => {
                           </span>
                           <span
                             className={`rounded-full border px-2 py-1 text-[10px] font-semibold tracking-[0.14em] whitespace-nowrap shrink-0 ${item.type === 'index'
-                                ? 'border-[var(--app-shell-line-strong)] bg-[var(--app-shell-panel-strong)] text-slate-700 dark:border-purple-400/20 dark:bg-purple-500/10 dark:text-purple-300'
-                                : 'border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] text-slate-500 dark:border-white/10 dark:bg-white/5 dark:text-gray-400'
+                              ? 'border-[var(--app-shell-line-strong)] bg-[var(--app-shell-panel-strong)] text-slate-700 dark:border-purple-400/20 dark:bg-purple-500/10 dark:text-purple-300'
+                              : 'border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] text-slate-500 dark:border-white/10 dark:bg-white/5 dark:text-gray-400'
                               }`}
                           >
                             {item.type === 'index' ? '指数' : '基金'}

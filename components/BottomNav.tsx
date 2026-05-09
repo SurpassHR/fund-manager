@@ -55,11 +55,10 @@ export const BottomNav: React.FC<BottomNavProps> = ({
 
   return (
     <nav
-      className={`glass-nav fixed inset-x-0 bottom-0 z-50 border-t border-[var(--app-shell-line)] pb-[env(safe-area-inset-bottom,0px)] transition-all duration-200 ${
-        hiddenOnMobile
-          ? 'max-md:pointer-events-none max-md:translate-y-[120%] max-md:opacity-0'
-          : 'max-md:translate-y-0 max-md:opacity-100'
-      }`}
+      className={`glass-nav fixed inset-x-0 bottom-0 z-50 border-t border-[var(--app-shell-line)] pb-auto transition-all duration-200 ${hiddenOnMobile
+        ? 'max-md:pointer-events-none max-md:translate-y-[120%] max-md:opacity-0'
+        : 'max-md:translate-y-0 max-md:opacity-100'
+        }`}
     >
       <div className="mx-auto w-full max-w-5xl">
         <div
@@ -78,11 +77,10 @@ export const BottomNav: React.FC<BottomNavProps> = ({
               <button
                 key={tab.id}
                 onClick={() => onTabChange(tab.id)}
-                className={`group relative flex h-full w-full flex-col items-center justify-center gap-1 overflow-hidden rounded-2xl transition-colors ${
-                  isActive
-                    ? 'text-blue-600 dark:text-blue-400'
-                    : 'text-[var(--app-shell-muted)] hover:text-[var(--app-shell-ink)]'
-                }`}
+                className={`group relative flex h-full w-full flex-col items-center justify-center gap-1 overflow-hidden rounded-2xl transition-colors ${isActive
+                  ? 'text-blue-600 dark:text-blue-400'
+                  : 'text-[var(--app-shell-muted)] hover:text-[var(--app-shell-ink)]'
+                  }`}
               >
                 <span className="absolute inset-[2px] rounded-[1rem] bg-black/5 opacity-0 transition-opacity duration-150 group-hover:opacity-100 dark:bg-white/5" />
                 {isActive && (

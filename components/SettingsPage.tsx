@@ -251,7 +251,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack, initialShowA
     if (target?.isBackupValid === false) {
       alert(
         t('common.gistSyncErrorInvalidBackup') ||
-          'Gist 文件内容不是有效备份格式，请选择包含 fund-manager-sync.json 的正确备份。',
+        'Gist 文件内容不是有效备份格式，请选择包含 fund-manager-sync.json 的正确备份。',
       );
       return;
     }
@@ -298,16 +298,16 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack, initialShowA
       const saved =
         payload.mode === 'create'
           ? await createSyncGist({
-              token: githubToken,
-              content: backupContent,
-              description: payload.description,
-            })
+            token: githubToken,
+            content: backupContent,
+            description: payload.description,
+          })
           : await overwriteSyncGist({
-              token: githubToken,
-              gistId: payload.gistId,
-              content: backupContent,
-              description: payload.description,
-            });
+            token: githubToken,
+            gistId: payload.gistId,
+            content: backupContent,
+            description: payload.description,
+          });
 
       saveDefaultTarget(saved);
       alert(t('common.gistSyncUploadSuccess') || '上传到 gist 成功。');
@@ -583,7 +583,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack, initialShowA
   const configuredProviders = getConfiguredLlmProviders(providerItems);
 
   const aiSettingsView = (
-    <div className="min-h-[60vh] pt-20 pb-44 md:pt-24 md:pb-28">
+    <div className="min-h-[60vh] pt-20 pb-22 md:pt-24 md:pb-12">
       <div className="px-4 py-4 md:px-5 md:py-5">
         <div className="rounded-[1.75rem] border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)] p-4 shadow-[var(--app-shell-shadow)] backdrop-blur-xl md:p-5">
           <div className="flex items-center gap-3">
@@ -629,11 +629,10 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack, initialShowA
                   <button
                     key={provider.id}
                     onClick={() => setSelectedProviderId(provider.id)}
-                    className={`flex w-full items-center justify-between rounded-xl border px-3 py-2 text-left text-sm transition ${
-                      selectedProviderId === provider.id
-                        ? 'border-[var(--app-shell-line-strong)] bg-[var(--app-shell-panel)]'
-                        : 'border-transparent bg-transparent hover:border-[var(--app-shell-line)]'
-                    }`}
+                    className={`flex w-full items-center justify-between rounded-xl border px-3 py-2 text-left text-sm transition ${selectedProviderId === provider.id
+                      ? 'border-[var(--app-shell-line-strong)] bg-[var(--app-shell-panel)]'
+                      : 'border-transparent bg-transparent hover:border-[var(--app-shell-line)]'
+                      }`}
                   >
                     <span className="truncate">
                       {provider.icon} {getProviderDisplayName(provider.kind)}
@@ -880,7 +879,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack, initialShowA
   );
 
   const gistSyncSettingsView = (
-    <div className="min-h-[60vh] pt-20 pb-44 md:pt-24 md:pb-28">
+    <div className="min-h-[60vh] pt-2 pb-22 md:pt-2 md:pb-22">
       <div className="px-4 py-4 md:px-5 md:py-5">
         <div className="rounded-[1.75rem] border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)] p-4 shadow-[var(--app-shell-shadow)] backdrop-blur-xl md:p-5">
           <div className="flex items-center gap-3">
@@ -1034,8 +1033,8 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack, initialShowA
         onRefreshList={
           tokenApiState === 'valid'
             ? () => {
-                void triggerGistListRefresh(true);
-              }
+              void triggerGistListRefresh(true);
+            }
             : undefined
         }
         isRefreshingList={gistListRefreshing}
@@ -1052,7 +1051,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack, initialShowA
   );
 
   const mainSettingsView = (
-    <div className="min-h-[60vh] pt-20 pb-44 md:pt-24 md:pb-28">
+    <div className="min-h-[60vh] pt-2 pb-24 md:pt-2 md:pb-22">
       <div className="px-4 py-4 md:px-5 md:py-5">
         <div className="rounded-[1.9rem] border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)] p-4 shadow-[var(--app-shell-shadow)] backdrop-blur-xl md:p-5">
           <div className="flex items-center gap-3">
@@ -1097,11 +1096,10 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack, initialShowA
               <button
                 key={opt.value}
                 onClick={() => setMode(opt.value)}
-                className={`rounded-2xl border px-4 py-4 text-left transition ${
-                  mode === opt.value
-                    ? 'border-[var(--app-shell-line-strong)] bg-[var(--app-shell-panel-strong)] text-[var(--app-shell-ink)] shadow-[0_10px_24px_rgba(15,23,42,0.08)] dark:border-blue-400/20 dark:bg-blue-500/15 dark:text-blue-100 dark:shadow-none'
-                    : 'border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] text-[var(--app-shell-ink)]'
-                }`}
+                className={`rounded-2xl border px-4 py-4 text-left transition ${mode === opt.value
+                  ? 'border-[var(--app-shell-line-strong)] bg-[var(--app-shell-panel-strong)] text-[var(--app-shell-ink)] shadow-[0_10px_24px_rgba(15,23,42,0.08)] dark:border-blue-400/20 dark:bg-blue-500/15 dark:text-blue-100 dark:shadow-none'
+                  : 'border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] text-[var(--app-shell-ink)]'
+                  }`}
               >
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex items-center gap-3">

@@ -120,6 +120,7 @@ body {
   0% {
     transform: translate(0, 0) scale(1);
   }
+
   100% {
     transform: translate(50px, 100px) scale(1.1);
   }
@@ -136,7 +137,15 @@ body {
   background-image: radial-gradient(circle, #ffffff10 1px, transparent 1px);
 }
 
+html,
+body {
+  /* 禁止整个页面的橡皮筋效果 */
+  overscroll-behavior-y: none;
+}
+
 .app-shell {
+  min-height: 100vh;
+  min-height: 100dvh;
   position: relative;
   min-height: 100vh;
   background: transparent;
@@ -144,6 +153,7 @@ body {
 }
 
 .app-shell__content {
+  padding-top: 0 !important;
   position: relative;
   z-index: 1;
   display: flex;
@@ -194,7 +204,7 @@ body {
   margin: 0;
 }
 
-.markdown-body p + p {
+.markdown-body p+p {
   margin-top: 0.5rem;
 }
 
@@ -253,19 +263,18 @@ body {
   scrollbar-width: none;
   -ms-overflow-style: none;
 }
+
 .hide-scrollbar::-webkit-scrollbar {
   display: none;
 }
 
 /* 已清仓组分界线 — 晶莹绿色水晶/翡翠质感 */
 .cleared-group-divider {
-  background: linear-gradient(
-    135deg,
-    rgba(34, 197, 94, 0.26) 0%,
-    rgba(16, 185, 129, 0.46) 30%,
-    rgba(34, 197, 94, 0.34) 60%,
-    rgba(16, 185, 129, 0.26) 100%
-  );
+  background: linear-gradient(135deg,
+      rgba(34, 197, 94, 0.26) 0%,
+      rgba(16, 185, 129, 0.46) 30%,
+      rgba(34, 197, 94, 0.34) 60%,
+      rgba(16, 185, 129, 0.26) 100%);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.48),
     inset 0 -1px 0 rgba(16, 185, 129, 0.18),
@@ -283,13 +292,11 @@ body {
 }
 
 .cleared-group-divider:hover {
-  background: linear-gradient(
-    135deg,
-    rgba(34, 197, 94, 0.34) 0%,
-    rgba(16, 185, 129, 0.56) 30%,
-    rgba(34, 197, 94, 0.42) 60%,
-    rgba(16, 185, 129, 0.34) 100%
-  );
+  background: linear-gradient(135deg,
+      rgba(34, 197, 94, 0.34) 0%,
+      rgba(16, 185, 129, 0.56) 30%,
+      rgba(34, 197, 94, 0.42) 60%,
+      rgba(16, 185, 129, 0.34) 100%);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.56),
     inset 0 -1px 0 rgba(16, 185, 129, 0.22),
@@ -297,26 +304,22 @@ body {
 }
 
 .cleared-group-divider:active {
-  background: linear-gradient(
-    135deg,
-    rgba(34, 197, 94, 0.2) 0%,
-    rgba(16, 185, 129, 0.36) 30%,
-    rgba(34, 197, 94, 0.26) 60%,
-    rgba(16, 185, 129, 0.2) 100%
-  );
+  background: linear-gradient(135deg,
+      rgba(34, 197, 94, 0.2) 0%,
+      rgba(16, 185, 129, 0.36) 30%,
+      rgba(34, 197, 94, 0.26) 60%,
+      rgba(16, 185, 129, 0.2) 100%);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.32),
     inset 0 2px 4px rgba(0, 0, 0, 0.08);
 }
 
 .dark .cleared-group-divider {
-  background: linear-gradient(
-    135deg,
-    rgba(34, 197, 94, 0.16) 0%,
-    rgba(16, 185, 129, 0.3) 30%,
-    rgba(34, 197, 94, 0.2) 60%,
-    rgba(16, 185, 129, 0.16) 100%
-  );
+  background: linear-gradient(135deg,
+      rgba(34, 197, 94, 0.16) 0%,
+      rgba(16, 185, 129, 0.3) 30%,
+      rgba(34, 197, 94, 0.2) 60%,
+      rgba(16, 185, 129, 0.16) 100%);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.16),
     inset 0 -1px 0 rgba(16, 185, 129, 0.12),
@@ -326,13 +329,11 @@ body {
 }
 
 .dark .cleared-group-divider:hover {
-  background: linear-gradient(
-    135deg,
-    rgba(34, 197, 94, 0.22) 0%,
-    rgba(16, 185, 129, 0.4) 30%,
-    rgba(34, 197, 94, 0.28) 60%,
-    rgba(16, 185, 129, 0.22) 100%
-  );
+  background: linear-gradient(135deg,
+      rgba(34, 197, 94, 0.22) 0%,
+      rgba(16, 185, 129, 0.4) 30%,
+      rgba(34, 197, 94, 0.28) 60%,
+      rgba(16, 185, 129, 0.22) 100%);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.22),
     inset 0 -1px 0 rgba(16, 185, 129, 0.16),
@@ -340,13 +341,11 @@ body {
 }
 
 .dark .cleared-group-divider:active {
-  background: linear-gradient(
-    135deg,
-    rgba(34, 197, 94, 0.12) 0%,
-    rgba(16, 185, 129, 0.24) 30%,
-    rgba(34, 197, 94, 0.16) 60%,
-    rgba(16, 185, 129, 0.12) 100%
-  );
+  background: linear-gradient(135deg,
+      rgba(34, 197, 94, 0.12) 0%,
+      rgba(16, 185, 129, 0.24) 30%,
+      rgba(34, 197, 94, 0.16) 60%,
+      rgba(16, 185, 129, 0.12) 100%);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.1),
     inset 0 2px 4px rgba(0, 0, 0, 0.2);
