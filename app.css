@@ -141,6 +141,7 @@ body {
   min-height: 100vh;
   background: transparent;
   color: var(--app-shell-ink);
+  padding-top: env(safe-area-inset-top, 0px);
 }
 
 .app-shell__content {
@@ -350,6 +351,7 @@ body {
   background: rgba(255, 255, 255, 0.85);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
+  padding-top: env(safe-area-inset-top, 0px);
 }
 
 .dark .glass-nav {
