@@ -54,10 +54,11 @@ export const Ticker: React.FC<TickerProps> = ({ hiddenOnMobile = false }) => {
       </AnimatePresence>
 
       <div
-        className={`fixed bottom-[4.5rem] left-0 right-0 z-40 px-3 transition-all duration-200 sm:bottom-[5rem] sm:px-4 ${hiddenOnMobile
-          ? 'max-md:pointer-events-none max-md:translate-y-[6rem] max-md:opacity-0'
-          : 'max-md:translate-y-0 max-md:opacity-100'
-          }`}
+        className={`fixed bottom-[calc(4.5rem+max(0px,env(safe-area-inset-bottom,0px)))] left-0 right-0 z-40 px-3 transition-all duration-200 sm:bottom-[calc(5rem+max(0px,env(safe-area-inset-bottom,0px)))] sm:px-4 ${
+          hiddenOnMobile
+            ? 'max-md:pointer-events-none max-md:translate-y-[6rem] max-md:opacity-0'
+            : 'max-md:translate-y-0 max-md:opacity-100'
+        }`}
       >
         <div className="mx-auto flex w-full max-w-2xl flex-col gap-2.5 sm:gap-3">
           <AnimatePresence>

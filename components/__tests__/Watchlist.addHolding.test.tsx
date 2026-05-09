@@ -187,8 +187,12 @@ describe('Watchlist add holding from context menu', () => {
     const { container } = render(<Watchlist />);
 
     const pageRoot = container.querySelector('div.mx-auto.w-full.max-w-7xl');
-    expect(pageRoot?.className).toContain('pt-20');
-    expect(pageRoot?.className).toContain('md:pt-24');
+    expect(pageRoot?.className).toContain(
+      'pt-[max(4.75rem,calc(5rem-env(safe-area-inset-top,0px)))]',
+    );
+    expect(pageRoot?.className).toContain(
+      'md:pt-[max(4.75rem,calc(5rem-env(safe-area-inset-top,0px)))]',
+    );
   });
 
   it('基金标签在桌面布局不换行且不截断', () => {

@@ -648,7 +648,7 @@ export const Dashboard: React.FC = () => {
         </div>
       )}
 
-      <div className="mx-auto w-full max-w-7xl px-0 pt-6 md:px-4 md:pt-2 lg:px-6">
+      <div className="mx-auto w-full max-w-7xl px-0 pt-[max(2rem,calc(6rem-env(safe-area-inset-top,0px)))] md:px-4 md:pt-[max(4.75rem,calc(5rem-env(safe-area-inset-top,0px)))] lg:px-6">
         <div className="rounded-[1.75rem] border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)]/95 backdrop-blur-xl dark:border-border-dark dark:bg-card-dark/85 md:mt-2 md:shadow-[0_10px_30px_rgba(15,23,42,0.05)]">
           <div className="relative flex items-center gap-3 overflow-x-auto px-3 py-3 no-scrollbar md:flex-wrap md:gap-4 md:px-5 md:py-3.5">
             <div className="hidden shrink-0 md:block md:min-w-[4rem]">

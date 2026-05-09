@@ -239,15 +239,17 @@ describe('SettingsPage gist sync integration', () => {
     const { container } = render(<SettingsPage />);
 
     const mainRoot = findViewRoot(container);
-    expect(mainRoot?.className).toContain('pt-20');
-    expect(mainRoot?.className).toContain('md:pt-24');
+    const expectedTop = 'pt-[max(4.75rem,calc(5rem-env(safe-area-inset-top,0px)))]';
+    const expectedTopMd = 'md:pt-[max(4.75rem,calc(5rem-env(safe-area-inset-top,0px)))]';
+    expect(mainRoot?.className).toContain(expectedTop);
+    expect(mainRoot?.className).toContain(expectedTopMd);
 
     fireEvent.click(screen.getByRole('button', { name: 'common.gistSync' }));
 
     await waitFor(() => {
       const gistRoot = findViewRoot(container);
-      expect(gistRoot?.className).toContain('pt-20');
-      expect(gistRoot?.className).toContain('md:pt-24');
+      expect(gistRoot?.className).toContain(expectedTop);
+      expect(gistRoot?.className).toContain(expectedTopMd);
     });
 
     const { container: aiContainer } = render(<SettingsPage initialShowAiSettings />);

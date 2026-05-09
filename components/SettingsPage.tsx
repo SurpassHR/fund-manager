@@ -879,7 +879,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack, initialShowA
   );
 
   const gistSyncSettingsView = (
-    <div className="min-h-[60vh] pt-2 pb-22 md:pt-2 md:pb-22">
+    <div className="min-h-[60vh] pt-[max(2rem,calc(5rem-env(safe-area-inset-top,0px)))] pb-22 md:pt-[max(4.75rem,calc(5rem-env(safe-area-inset-top,0px)))] md:pb-22">
       <div className="px-4 py-4 md:px-5 md:py-5">
         <div className="rounded-[1.75rem] border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)] p-4 shadow-[var(--app-shell-shadow)] backdrop-blur-xl md:p-5">
           <div className="flex items-center gap-3">
@@ -1051,7 +1051,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack, initialShowA
   );
 
   const mainSettingsView = (
-    <div className="min-h-[60vh] pt-2 pb-24 md:pt-2 md:pb-22">
+    <div className="min-h-[60vh] pt-[max(2rem,calc(5rem-env(safe-area-inset-top,0px)))] pb-24 md:pt-[max(4.75rem,calc(5rem-env(safe-area-inset-top,0px)))] md:pb-22">
       <div className="px-4 py-4 md:px-5 md:py-5">
         <div className="rounded-[1.9rem] border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)] p-4 shadow-[var(--app-shell-shadow)] backdrop-blur-xl md:p-5">
           <div className="flex items-center gap-3">
