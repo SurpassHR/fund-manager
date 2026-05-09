@@ -104,13 +104,13 @@ describe('App shell background layers', () => {
     const { container } = render(<App />);
 
     const shell = container.querySelector('.app-shell');
-    const backdrop = container.querySelector('.app-shell__backdrop');
+    const glowGrid = container.querySelector('.glow-grid-container');
     const noise = container.querySelector('.app-shell__noise');
     const content = container.querySelector('.app-shell__content');
 
     expect(shell).toBeInTheDocument();
-    expect(backdrop).toBeInTheDocument();
-    expect(backdrop).toHaveAttribute('aria-hidden', 'true');
+    expect(glowGrid).toBeInTheDocument();
+    expect(glowGrid).toHaveAttribute('aria-hidden', 'true');
     expect(noise).toBeInTheDocument();
     expect(noise).toHaveAttribute('aria-hidden', 'true');
     expect(content).toBeInTheDocument();

@@ -8,6 +8,7 @@ import { ScannerModal } from './components/ScannerModal';
 import { SettingsPage } from './components/SettingsPage';
 import { ServicesPanel } from './components/ServicesPanel';
 import { WelcomeModal } from './components/WelcomeModal';
+import { GlowGrid } from './components/GlowGrid';
 import { AnimatedSwitcher } from './components/transitions/AnimatedSwitcher';
 import type { TabType } from './types';
 import { Icons } from './components/Icon';
@@ -481,7 +482,7 @@ const AppContent: React.FC = () => {
 
   return (
     <div className="app-shell font-sans transition-colors">
-      <div className="app-shell__backdrop" aria-hidden="true" />
+      <GlowGrid aria-hidden="true" />
       <div className="app-shell__noise" aria-hidden="true" />
 
       <div className="app-shell__content">
