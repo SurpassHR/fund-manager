@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, refreshFundData, refreshWatchlistData } from '../services/db';
 import { getSignColor, formatPct } from '../services/financeUtils';
+import { groupFundsByInstitution, resolveInstitutions } from '../services/fundInstitution';
 import { Icons } from './Icon';
 import { useTranslation } from '../services/i18n';
 import type { WatchlistItem, Fund } from '../types';
@@ -22,6 +23,7 @@ import {
 const LONG_PRESS_DURATION_MS = 600;
 const TOUCH_MOVE_CANCEL_THRESHOLD_PX = 12;
 const WATCHLIST_SORT_STORAGE_KEY = 'watchlist.sortState.v1';
+const INSTITUTION_GROUP_STORAGE_KEY = 'watchlist.institutionGroupEnabled';
 const REFRESH_DEBOUNCE_MS = 300;
 
 type WatchlistSortKey = 'dayChangePct' | 'anchorGain';
@@ -79,6 +81,18 @@ export const Watchlist: React.FC = () => {
     anchorPrice: number;
   } | null>(null);
   const [sortState, setSortState] = useState<WatchlistSortState>(() => loadWatchlistSortState());
+  const [isInstitutionGroupEnabled, setIsInstitutionGroupEnabled] = useState<boolean>(() => {
+    try {
+      const stored = localStorage.getItem(INSTITUTION_GROUP_STORAGE_KEY);
+      return stored ? JSON.parse(stored) : false;
+    } catch {
+      return false;
+    }
+  });
+  const [collapsedInstitutionGroups, setCollapsedInstitutionGroups] = useState<Set<string>>(
+    new Set(),
+  );
+  const [institutionMap, setInstitutionMap] = useState<Map<string, string> | null>(null);
 
   const handleRowClick = (item: WatchlistItem) => {
     const fundData: Fund = {
@@ -223,6 +237,23 @@ export const Watchlist: React.FC = () => {
     }
     localStorage.setItem(WATCHLIST_SORT_STORAGE_KEY, JSON.stringify(sortState));
   }, [sortState]);
+
+  useEffect(() => {
+    localStorage.setItem(INSTITUTION_GROUP_STORAGE_KEY, JSON.stringify(isInstitutionGroupEnabled));
+  }, [isInstitutionGroupEnabled]);
+
+  useEffect(() => {
+    if (!isInstitutionGroupEnabled || institutionMap) return;
+    const codes = (watchlists ?? []).map((w) => w.code);
+    if (codes.length === 0) return;
+    resolveInstitutions(codes).then(setInstitutionMap);
+  }, [isInstitutionGroupEnabled, watchlists, institutionMap]);
+
+  useEffect(() => {
+    if (!isInstitutionGroupEnabled) {
+      setInstitutionMap(null);
+    }
+  }, [isInstitutionGroupEnabled]);
 
   const handleContextMenu = (e: React.MouseEvent, itemId: number) => {
     e.preventDefault();
@@ -373,6 +404,43 @@ export const Watchlist: React.FC = () => {
     });
   }, [sortState.direction, sortState.key, watchlists]);
 
+  const groupedWatchlists = useMemo(() => {
+    if (!isInstitutionGroupEnabled || !institutionMap) return null;
+    return groupFundsByInstitution(sortedWatchlists, institutionMap, (w) => w.code);
+  }, [sortedWatchlists, isInstitutionGroupEnabled, institutionMap]);
+
+  type RenderItem =
+    | { type: 'fund'; item: WatchlistItem }
+    | { type: 'divider'; institution: string; count: number };
+
+  const renderItems = useMemo<RenderItem[]>(() => {
+    if (!isInstitutionGroupEnabled || !groupedWatchlists) {
+      return sortedWatchlists.map((item) => ({ type: 'fund' as const, item }));
+    }
+    const items: RenderItem[] = [];
+    for (const [institution, watchlistItems] of groupedWatchlists.entries()) {
+      items.push({ type: 'divider' as const, institution, count: watchlistItems.length });
+      if (!collapsedInstitutionGroups.has(institution)) {
+        for (const item of watchlistItems) {
+          items.push({ type: 'fund' as const, item });
+        }
+      }
+    }
+    return items;
+  }, [isInstitutionGroupEnabled, groupedWatchlists, sortedWatchlists, collapsedInstitutionGroups]);
+
+  const toggleInstitutionGroupCollapse = useCallback((institution: string) => {
+    setCollapsedInstitutionGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(institution)) {
+        next.delete(institution);
+      } else {
+        next.add(institution);
+      }
+      return next;
+    });
+  }, []);
+
   if (!watchlists) {
     return <div className="p-8 text-center text-gray-500">{t('common.loading')}</div>;
   }
@@ -450,8 +518,8 @@ export const Watchlist: React.FC = () => {
                 onClick={handleManualRefresh}
                 disabled={cooldown > 0 || isRefreshing}
                 className={`relative flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border transition-transform active:scale-95 ${cooldown > 0 || isRefreshing
-                  ? 'cursor-not-allowed border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] text-slate-500 dark:border-white/10 dark:bg-white/10 dark:text-gray-400'
-                  : 'cursor-pointer border-[var(--app-shell-line-strong)] bg-[var(--app-shell-panel-strong)] text-slate-800 dark:border-blue-400/30 dark:bg-blue-500/15 dark:text-blue-100'
+                    ? 'cursor-not-allowed border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] text-slate-500 dark:border-white/10 dark:bg-white/10 dark:text-gray-400'
+                    : 'cursor-pointer border-[var(--app-shell-line-strong)] bg-[var(--app-shell-panel-strong)] text-slate-800 dark:border-blue-400/30 dark:bg-blue-500/15 dark:text-blue-100'
                   }`}
               >
                 <Icons.Refresh size={16} className={isRefreshing ? 'animate-spin' : ''} />
@@ -491,9 +559,17 @@ export const Watchlist: React.FC = () => {
           <div className="z-10 border-b border-[var(--app-shell-line)] bg-[var(--app-shell-panel)]/95 px-4 py-3 backdrop-blur-xl dark:border-border-dark dark:bg-card-dark/90 md:px-5">
             <div className="hidden items-center gap-4 md:flex">
               <div className="flex min-w-[15rem] flex-[1.5] items-center gap-2 text-slate-400">
-                <div className="rounded-full border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] p-1.5 dark:border-white/10 dark:bg-white/5">
-                  <Icons.Holdings size={14} />
-                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsInstitutionGroupEnabled((prev) => !prev)}
+                  className={`rounded-full border p-1.5 transition-colors ${isInstitutionGroupEnabled
+                      ? 'border-indigo-400 bg-indigo-50 text-indigo-600 dark:border-indigo-400/30 dark:bg-indigo-500/15 dark:text-indigo-200'
+                      : 'border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] text-slate-400 hover:text-slate-700 dark:border-white/10 dark:bg-white/5 dark:text-gray-500 dark:hover:text-gray-200'
+                    }`}
+                  aria-label={t('common.groupByInstitution')}
+                >
+                  <Icons.Layers size={14} />
+                </button>
                 <button
                   type="button"
                   onClick={handleResetSort}
@@ -537,16 +613,29 @@ export const Watchlist: React.FC = () => {
             </div>
 
             <div className="flex items-center justify-between md:hidden">
-              <div>
+              <div className="flex items-center gap-1.5">
                 <button
                   type="button"
-                  onClick={handleResetSort}
-                  className="text-[10px] font-semibold tracking-[0.2em] text-slate-400 transition-colors hover:text-slate-700 dark:text-gray-500 dark:hover:text-gray-200"
+                  onClick={() => setIsInstitutionGroupEnabled((prev) => !prev)}
+                  className={`rounded-full border p-1.5 transition-colors ${isInstitutionGroupEnabled
+                      ? 'border-indigo-400 bg-indigo-50 text-indigo-600 dark:border-indigo-400/30 dark:bg-indigo-500/15 dark:text-indigo-200'
+                      : 'border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] text-slate-400 dark:border-white/10 dark:bg-white/5 dark:text-gray-500'
+                    }`}
+                  aria-label={t('common.groupByInstitution')}
                 >
-                  自选列表
+                  <Icons.Layers size={14} />
                 </button>
-                <div className="mt-1 text-sm font-semibold text-slate-700 dark:text-gray-200">
-                  {t('common.watchlist')}
+                <div>
+                  <button
+                    type="button"
+                    onClick={handleResetSort}
+                    className="text-[10px] font-semibold tracking-[0.2em] text-slate-400 transition-colors hover:text-slate-700 dark:text-gray-500 dark:hover:text-gray-200"
+                  >
+                    自选列表
+                  </button>
+                  <div className="mt-1 text-sm font-semibold text-slate-700 dark:text-gray-200">
+                    {t('common.watchlist')}
+                  </div>
                 </div>
               </div>
               <div className="flex gap-2 text-right text-[11px] font-semibold tracking-[0.14em] text-slate-400 dark:text-gray-500">
@@ -587,7 +676,46 @@ export const Watchlist: React.FC = () => {
                 <p className="text-sm">{t('common.noWatchlistMsg')}</p>
               </div>
             ) : (
-              sortedWatchlists.map((item) => {
+              renderItems.map((renderItem) => {
+                if (renderItem.type === 'divider') {
+                  const isCollapsed = collapsedInstitutionGroups.has(renderItem.institution);
+                  return (
+                    <div
+                      key={renderItem.institution}
+                      className="institution-group-divider group relative cursor-pointer select-none px-4 py-3 transition-all md:px-5 md:py-3.5"
+                      onClick={() => toggleInstitutionGroupCollapse(renderItem.institution)}
+                      role="button"
+                      tabIndex={0}
+                      aria-expanded={!isCollapsed}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          toggleInstitutionGroupCollapse(renderItem.institution);
+                        }
+                      }}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Icons.Layers className="h-5 w-5 text-indigo-600/80 dark:text-indigo-300/80" />
+                          <span className="text-sm font-semibold text-indigo-700/90 dark:text-indigo-200/90">
+                            {renderItem.institution}
+                          </span>
+                          <span className="text-xs text-indigo-500/60 dark:text-indigo-400/60">
+                            ({renderItem.count})
+                          </span>
+                        </div>
+                        <div className="text-indigo-600/80 dark:text-indigo-300/80">
+                          {isCollapsed ? (
+                            <Icons.ChevronDown className="h-5 w-5" />
+                          ) : (
+                            <Icons.ChevronUp className="h-5 w-5" />
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                }
+                const item = renderItem.item;
                 const isFund = item.type === 'fund';
                 const anchorGainPct =
                   item.anchorPrice > 0
@@ -617,8 +745,8 @@ export const Watchlist: React.FC = () => {
                     onTouchCancel={handleTouchEnd}
                     onClick={() => handleRowClick(item)}
                     className={`group relative cursor-pointer select-none border-b border-[var(--app-shell-line)]/80 px-4 py-3 transition-colors last:border-b-0 active:bg-[var(--app-shell-panel-strong)] dark:border-border-dark dark:active:bg-white/5 md:px-5 md:py-3.5 md:hover:bg-[var(--app-shell-panel-strong)]/72 dark:md:hover:bg-white/5 ${contextMenu?.itemId === item.id
-                      ? 'bg-[var(--app-shell-panel-strong)] dark:bg-white/10'
-                      : ''
+                        ? 'bg-[var(--app-shell-panel-strong)] dark:bg-white/10'
+                        : ''
                       }`}
                   >
                     <div className="flex flex-col gap-3 md:flex-row md:items-center">
@@ -629,8 +757,8 @@ export const Watchlist: React.FC = () => {
                           </span>
                           <span
                             className={`rounded-full border px-2 py-1 text-[10px] font-semibold tracking-[0.14em] whitespace-nowrap shrink-0 ${item.type === 'index'
-                              ? 'border-[var(--app-shell-line-strong)] bg-[var(--app-shell-panel-strong)] text-slate-700 dark:border-purple-400/20 dark:bg-purple-500/10 dark:text-purple-300'
-                              : 'border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] text-slate-500 dark:border-white/10 dark:bg-white/5 dark:text-gray-400'
+                                ? 'border-[var(--app-shell-line-strong)] bg-[var(--app-shell-panel-strong)] text-slate-700 dark:border-purple-400/20 dark:bg-purple-500/10 dark:text-purple-300'
+                                : 'border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] text-slate-500 dark:border-white/10 dark:bg-white/5 dark:text-gray-400'
                               }`}
                           >
                             {item.type === 'index' ? '指数' : '基金'}

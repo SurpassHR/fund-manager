@@ -363,6 +363,100 @@ body {
     inset 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
+/* 机构分组隔条 — indigo/blue 色系 */
+.institution-group-divider {
+  background: linear-gradient(
+    135deg,
+    rgba(99, 102, 241, 0.22) 0%,
+    rgba(59, 130, 246, 0.4) 30%,
+    rgba(99, 102, 241, 0.28) 60%,
+    rgba(59, 130, 246, 0.22) 100%
+  );
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.48),
+    inset 0 -1px 0 rgba(59, 130, 246, 0.14),
+    0 2px 12px rgba(59, 130, 246, 0.08);
+  border-top: 1px solid rgba(59, 130, 246, 0.22);
+  border-bottom: 1px solid rgba(59, 130, 246, 0.22);
+  --inst-divider-blur: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+@supports (backdrop-filter: blur(1px)) {
+  .institution-group-divider {
+    backdrop-filter: var(--inst-divider-blur);
+  }
+}
+
+.institution-group-divider:hover {
+  background: linear-gradient(
+    135deg,
+    rgba(99, 102, 241, 0.3) 0%,
+    rgba(59, 130, 246, 0.5) 30%,
+    rgba(99, 102, 241, 0.36) 60%,
+    rgba(59, 130, 246, 0.3) 100%
+  );
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.56),
+    inset 0 -1px 0 rgba(59, 130, 246, 0.18),
+    0 3px 16px rgba(59, 130, 246, 0.12);
+}
+
+.institution-group-divider:active {
+  background: linear-gradient(
+    135deg,
+    rgba(99, 102, 241, 0.16) 0%,
+    rgba(59, 130, 246, 0.3) 30%,
+    rgba(99, 102, 241, 0.2) 60%,
+    rgba(59, 130, 246, 0.16) 100%
+  );
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.32),
+    inset 0 2px 4px rgba(0, 0, 0, 0.08);
+}
+
+.dark .institution-group-divider {
+  background: linear-gradient(
+    135deg,
+    rgba(99, 102, 241, 0.14) 0%,
+    rgba(59, 130, 246, 0.26) 30%,
+    rgba(99, 102, 241, 0.18) 60%,
+    rgba(59, 130, 246, 0.14) 100%
+  );
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.14),
+    inset 0 -1px 0 rgba(59, 130, 246, 0.1),
+    0 2px 12px rgba(59, 130, 246, 0.04);
+  border-top: 1px solid rgba(59, 130, 246, 0.18);
+  border-bottom: 1px solid rgba(59, 130, 246, 0.18);
+}
+
+.dark .institution-group-divider:hover {
+  background: linear-gradient(
+    135deg,
+    rgba(99, 102, 241, 0.2) 0%,
+    rgba(59, 130, 246, 0.36) 30%,
+    rgba(99, 102, 241, 0.26) 60%,
+    rgba(59, 130, 246, 0.2) 100%
+  );
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.2),
+    inset 0 -1px 0 rgba(59, 130, 246, 0.14),
+    0 3px 16px rgba(59, 130, 246, 0.08);
+}
+======= .dark .institution-group-divider:active {
+  background: linear-gradient(
+    135deg,
+    rgba(99, 102, 241, 0.1) 0%,
+    rgba(59, 130, 246, 0.2) 30%,
+    rgba(99, 102, 241, 0.14) 60%,
+    rgba(59, 130, 246, 0.1) 100%
+  );
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    inset 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
 /* Glass styles */
 .glass-nav {
   --glass-nav-blur: blur(20px);
@@ -399,7 +493,6 @@ body {
   border: 1px solid rgba(255, 255, 255, 0.08);
   box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
 }
-
 /* iOS Safari date input 重置 — 覆写 WebKit 原生渲染 */
 input[type='date'] {
   -webkit-appearance: none;

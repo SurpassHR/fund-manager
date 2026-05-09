@@ -8,6 +8,7 @@ import {
   formatPct,
 } from '../services/financeUtils';
 import { isEtfLinkFundName } from '../services/constants';
+import { groupFundsByInstitution, resolveInstitutions } from '../services/fundInstitution';
 import { Icons } from './Icon';
 import { useTranslation } from '../services/i18n';
 import type { HoldingsSnapshot } from '../services/aiAnalysis';
@@ -35,6 +36,7 @@ const LONG_PRESS_DURATION_MS = 600;
 const TOUCH_MOVE_CANCEL_THRESHOLD_PX = 12;
 const DASHBOARD_SORT_STORAGE_KEY = 'dashboard.sortState.v1';
 const CLEARED_GROUP_STORAGE_KEY = 'dashboard.clearedGroupExpanded';
+const INSTITUTION_GROUP_STORAGE_KEY = 'dashboard.institutionGroupEnabled';
 const REFRESH_DEBOUNCE_MS = 300;
 
 type DashboardSortKey =
@@ -130,6 +132,18 @@ export const Dashboard: React.FC = () => {
       return false;
     }
   });
+  const [isInstitutionGroupEnabled, setIsInstitutionGroupEnabled] = useState<boolean>(() => {
+    try {
+      const stored = localStorage.getItem(INSTITUTION_GROUP_STORAGE_KEY);
+      return stored ? JSON.parse(stored) : false;
+    } catch {
+      return false;
+    }
+  });
+  const [collapsedInstitutionGroups, setCollapsedInstitutionGroups] = useState<Set<string>>(
+    new Set(),
+  );
+  const [institutionMap, setInstitutionMap] = useState<Map<string, string> | null>(null);
   const [isAiAnalysisOpen, setIsAiAnalysisOpen] = useState(false);
   const { autoRefresh } = useSettings();
 
@@ -315,6 +329,23 @@ export const Dashboard: React.FC = () => {
     localStorage.setItem(DASHBOARD_SORT_STORAGE_KEY, JSON.stringify(sortState));
   }, [sortState]);
 
+  useEffect(() => {
+    localStorage.setItem(INSTITUTION_GROUP_STORAGE_KEY, JSON.stringify(isInstitutionGroupEnabled));
+  }, [isInstitutionGroupEnabled]);
+
+  useEffect(() => {
+    if (!isInstitutionGroupEnabled || institutionMap) return;
+    const codes = (funds ?? []).map((f) => f.code);
+    if (codes.length === 0) return;
+    resolveInstitutions(codes).then(setInstitutionMap);
+  }, [isInstitutionGroupEnabled, funds, institutionMap]);
+
+  useEffect(() => {
+    if (!isInstitutionGroupEnabled) {
+      setInstitutionMap(null);
+    }
+  }, [isInstitutionGroupEnabled]);
+
   const safeFunds = useMemo(() => funds ?? [], [funds]);
   const safeAccounts = useMemo(() => accounts ?? [], [accounts]);
 
@@ -424,6 +455,64 @@ export const Dashboard: React.FC = () => {
     () => sortedFunds.filter((fund) => fund.holdingShares <= 0.01),
     [sortedFunds],
   );
+
+  const groupedActiveFunds = useMemo(() => {
+    if (!isInstitutionGroupEnabled || !institutionMap) return null;
+    return groupFundsByInstitution(activeFunds, institutionMap, (f) => f.code);
+  }, [activeFunds, isInstitutionGroupEnabled, institutionMap]);
+
+  const groupedClearedFunds = useMemo(() => {
+    if (!isInstitutionGroupEnabled || !institutionMap) return null;
+    return groupFundsByInstitution(clearedFunds, institutionMap, (f) => f.code);
+  }, [clearedFunds, isInstitutionGroupEnabled, institutionMap]);
+
+  const toggleInstitutionGroupCollapse = useCallback((institution: string) => {
+    setCollapsedInstitutionGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(institution)) {
+        next.delete(institution);
+      } else {
+        next.add(institution);
+      }
+      return next;
+    });
+  }, []);
+
+  type RenderItem =
+    | { type: 'fund'; fund: Fund }
+    | { type: 'divider'; institution: string; count: number };
+
+  const activeRenderItems = useMemo<RenderItem[]>(() => {
+    if (!isInstitutionGroupEnabled || !groupedActiveFunds) {
+      return activeFunds.map((fund) => ({ type: 'fund' as const, fund }));
+    }
+    const items: RenderItem[] = [];
+    for (const [institution, funds] of groupedActiveFunds.entries()) {
+      items.push({ type: 'divider' as const, institution, count: funds.length });
+      if (!collapsedInstitutionGroups.has(institution)) {
+        for (const fund of funds) {
+          items.push({ type: 'fund' as const, fund });
+        }
+      }
+    }
+    return items;
+  }, [isInstitutionGroupEnabled, groupedActiveFunds, activeFunds, collapsedInstitutionGroups]);
+
+  const clearedRenderItems = useMemo<RenderItem[]>(() => {
+    if (!isInstitutionGroupEnabled || !groupedClearedFunds) {
+      return clearedFunds.map((fund) => ({ type: 'fund' as const, fund }));
+    }
+    const items: RenderItem[] = [];
+    for (const [institution, funds] of groupedClearedFunds.entries()) {
+      items.push({ type: 'divider' as const, institution, count: funds.length });
+      if (!collapsedInstitutionGroups.has(institution)) {
+        for (const fund of funds) {
+          items.push({ type: 'fund' as const, fund });
+        }
+      }
+    }
+    return items;
+  }, [isInstitutionGroupEnabled, groupedClearedFunds, clearedFunds, collapsedInstitutionGroups]);
 
   if (!funds || !accounts) {
     return <div className="p-8 text-center text-gray-500">{t('common.loading')}</div>;
@@ -679,11 +768,10 @@ export const Dashboard: React.FC = () => {
                   <button
                     key={filterKey}
                     onClick={() => setActiveFilter(filterKey)}
-                    className={`relative flex-shrink-0 overflow-hidden rounded-full border px-3 py-2 text-sm font-medium transition-all md:px-4 ${
-                      isActive
+                    className={`relative flex-shrink-0 overflow-hidden rounded-full border px-3 py-2 text-sm font-medium transition-all md:px-4 ${isActive
                         ? 'border-[var(--app-shell-line-strong)] bg-[var(--app-shell-panel-strong)] text-slate-800 shadow-[0_8px_24px_rgba(82,61,37,0.10)] dark:border-blue-400 dark:bg-blue-500/15 dark:text-blue-100 dark:shadow-none'
                         : 'border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] text-slate-600 hover:border-[var(--app-shell-line-strong)] hover:text-slate-900 dark:border-white/10 dark:bg-white/5 dark:text-gray-400 dark:hover:border-white/20 dark:hover:text-gray-100'
-                    }`}
+                      }`}
                   >
                     <span className="relative z-10">{label}</span>
                     {isActive && (
@@ -731,11 +819,10 @@ export const Dashboard: React.FC = () => {
                 <button
                   onClick={handleManualRefresh}
                   disabled={cooldown > 0 || isRefreshing}
-                  className={`relative flex h-8 w-8 items-center justify-center overflow-hidden rounded-full border transition-transform active:scale-95 ${
-                    cooldown > 0 || isRefreshing
+                  className={`relative flex h-8 w-8 items-center justify-center overflow-hidden rounded-full border transition-transform active:scale-95 ${cooldown > 0 || isRefreshing
                       ? 'cursor-not-allowed border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] text-slate-500 dark:border-white/10 dark:bg-white/10 dark:text-gray-400'
                       : 'cursor-pointer border-[var(--app-shell-line-strong)] bg-[var(--app-shell-panel-strong)] text-slate-800 dark:border-blue-400/30 dark:bg-blue-500/15 dark:text-blue-100'
-                  }`}
+                    }`}
                 >
                   <Icons.Refresh size={14} className={isRefreshing ? 'animate-spin' : ''} />
                   {cooldown > 0 && !isRefreshing && (
@@ -828,9 +915,17 @@ export const Dashboard: React.FC = () => {
           <div className="z-10 border-b border-[var(--app-shell-line)] px-4 py-3 dark:border-border-dark md:px-5">
             <div className="hidden items-center gap-4 md:flex">
               <div className="flex min-w-[15rem] flex-[1.6] items-center gap-2 text-slate-400">
-                <div className="rounded-full border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] p-1.5 dark:border-white/10 dark:bg-white/5">
-                  <Icons.Holdings size={14} />
-                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsInstitutionGroupEnabled((prev) => !prev)}
+                  className={`rounded-full border p-1.5 transition-colors ${isInstitutionGroupEnabled
+                      ? 'border-indigo-400 bg-indigo-50 text-indigo-600 dark:border-indigo-400/30 dark:bg-indigo-500/15 dark:text-indigo-200'
+                      : 'border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] text-slate-400 hover:text-slate-700 dark:border-white/10 dark:bg-white/5 dark:text-gray-500 dark:hover:text-gray-200'
+                    }`}
+                  aria-label={t('common.groupByInstitution')}
+                >
+                  <Icons.Layers size={14} />
+                </button>
                 <button
                   type="button"
                   onClick={handleResetSort}
@@ -913,16 +1008,29 @@ export const Dashboard: React.FC = () => {
             </div>
 
             <div className="flex items-center justify-between md:hidden">
-              <div>
+              <div className="flex items-center gap-1.5">
                 <button
                   type="button"
-                  onClick={handleResetSort}
-                  className="text-[10px] font-semibold tracking-[0.2em] text-slate-400 transition-colors hover:text-slate-700 dark:text-gray-500 dark:hover:text-gray-200"
+                  onClick={() => setIsInstitutionGroupEnabled((prev) => !prev)}
+                  className={`rounded-full border p-1.5 transition-colors ${isInstitutionGroupEnabled
+                      ? 'border-indigo-400 bg-indigo-50 text-indigo-600 dark:border-indigo-400/30 dark:bg-indigo-500/15 dark:text-indigo-200'
+                      : 'border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] text-slate-400 dark:border-white/10 dark:bg-white/5 dark:text-gray-500'
+                    }`}
+                  aria-label={t('common.groupByInstitution')}
                 >
-                  持仓列表
+                  <Icons.Layers size={14} />
                 </button>
-                <div className="mt-1 text-sm font-semibold text-slate-700 dark:text-gray-200">
-                  {t('common.fund')}
+                <div>
+                  <button
+                    type="button"
+                    onClick={handleResetSort}
+                    className="text-[10px] font-semibold tracking-[0.2em] text-slate-400 transition-colors hover:text-slate-700 dark:text-gray-500 dark:hover:text-gray-200"
+                  >
+                    持仓列表
+                  </button>
+                  <div className="mt-1 text-sm font-semibold text-slate-700 dark:text-gray-200">
+                    {t('common.fund')}
+                  </div>
                 </div>
               </div>
               <div className="flex gap-2 text-right text-[11px] font-semibold tracking-[0.14em] text-slate-400 dark:text-gray-500">
@@ -957,7 +1065,46 @@ export const Dashboard: React.FC = () => {
           </div>
 
           <div className="overflow-hidden">
-            {activeFunds.map((fund) => {
+            {activeRenderItems.map((item) => {
+              if (item.type === 'divider') {
+                const isCollapsed = collapsedInstitutionGroups.has(item.institution);
+                return (
+                  <div
+                    key={item.institution}
+                    className="institution-group-divider group relative cursor-pointer select-none px-4 py-3 transition-all md:px-5 md:py-3.5"
+                    onClick={() => toggleInstitutionGroupCollapse(item.institution)}
+                    role="button"
+                    tabIndex={0}
+                    aria-expanded={!isCollapsed}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        toggleInstitutionGroupCollapse(item.institution);
+                      }
+                    }}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Icons.Layers className="h-5 w-5 text-indigo-600/80 dark:text-indigo-300/80" />
+                        <span className="text-sm font-semibold text-indigo-700/90 dark:text-indigo-200/90">
+                          {item.institution}
+                        </span>
+                        <span className="text-xs text-indigo-500/60 dark:text-indigo-400/60">
+                          ({item.count})
+                        </span>
+                      </div>
+                      <div className="text-indigo-600/80 dark:text-indigo-300/80">
+                        {isCollapsed ? (
+                          <Icons.ChevronDown className="h-5 w-5" />
+                        ) : (
+                          <Icons.ChevronUp className="h-5 w-5" />
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              }
+              const fund = item.fund;
               const {
                 marketValue: holdingValue,
                 totalGain: totalReturn,
@@ -980,9 +1127,9 @@ export const Dashboard: React.FC = () => {
                   : dayChangeBaseNav !== undefined
                     ? fund.todayChangeIsEstimated
                       ? (fund.holdingShares *
-                          dayChangeBaseNav *
-                          (fund.estimatedDayChangePct ?? 0)) /
-                        100
+                        dayChangeBaseNav *
+                        (fund.estimatedDayChangePct ?? 0)) /
+                      100
                       : holdingValue - fund.holdingShares * dayChangeBaseNav
                     : fund.todayChangePreOpen
                       ? 0
@@ -1021,11 +1168,10 @@ export const Dashboard: React.FC = () => {
                   onTouchMove={handleTouchMove}
                   onTouchEnd={handleTouchEnd}
                   onTouchCancel={handleTouchEnd}
-                  className={`group relative cursor-pointer select-none border-b border-[var(--app-shell-line)]/80 px-4 py-3 transition-colors last:border-b-0 active:bg-[var(--app-shell-panel-strong)] dark:border-border-dark dark:active:bg-white/5 md:px-5 md:py-3.5 md:hover:bg-[var(--app-shell-panel-strong)]/72 dark:md:hover:bg-white/5 ${
-                    contextMenu?.fundId === fund.id
+                  className={`group relative cursor-pointer select-none border-b border-[var(--app-shell-line)]/80 px-4 py-3 transition-colors last:border-b-0 active:bg-[var(--app-shell-panel-strong)] dark:border-border-dark dark:active:bg-white/5 md:px-5 md:py-3.5 md:hover:bg-[var(--app-shell-panel-strong)]/72 dark:md:hover:bg-white/5 ${contextMenu?.fundId === fund.id
                       ? 'bg-[var(--app-shell-panel-strong)] dark:bg-white/10'
                       : ''
-                  }`}
+                    }`}
                 >
                   <div className="flex flex-col gap-3 md:flex-row md:items-center">
                     <div className="min-w-0 flex-1 md:flex-[1.6] md:pr-4">
@@ -1218,7 +1364,46 @@ export const Dashboard: React.FC = () => {
                   transition={{ duration: 0.2, ease: 'easeInOut' }}
                   style={{ overflow: 'hidden' }}
                 >
-                  {clearedFunds.map((fund) => {
+                  {clearedRenderItems.map((item) => {
+                    if (item.type === 'divider') {
+                      const isCollapsed = collapsedInstitutionGroups.has(item.institution);
+                      return (
+                        <div
+                          key={item.institution}
+                          className="institution-group-divider group relative cursor-pointer select-none px-4 py-3 transition-all md:px-5 md:py-3.5"
+                          onClick={() => toggleInstitutionGroupCollapse(item.institution)}
+                          role="button"
+                          tabIndex={0}
+                          aria-expanded={!isCollapsed}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault();
+                              toggleInstitutionGroupCollapse(item.institution);
+                            }
+                          }}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <Icons.Layers className="h-5 w-5 text-indigo-600/80 dark:text-indigo-300/80" />
+                              <span className="text-sm font-semibold text-indigo-700/90 dark:text-indigo-200/90">
+                                {item.institution}
+                              </span>
+                              <span className="text-xs text-indigo-500/60 dark:text-indigo-400/60">
+                                ({item.count})
+                              </span>
+                            </div>
+                            <div className="text-indigo-600/80 dark:text-indigo-300/80">
+                              {isCollapsed ? (
+                                <Icons.ChevronDown className="h-5 w-5" />
+                              ) : (
+                                <Icons.ChevronUp className="h-5 w-5" />
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    }
+                    const fund = item.fund;
                     const {
                       marketValue: holdingValue,
                       totalGain: totalReturn,
@@ -1241,9 +1426,9 @@ export const Dashboard: React.FC = () => {
                         : dayChangeBaseNav !== undefined
                           ? fund.todayChangeIsEstimated
                             ? (fund.holdingShares *
-                                dayChangeBaseNav *
-                                (fund.estimatedDayChangePct ?? 0)) /
-                              100
+                              dayChangeBaseNav *
+                              (fund.estimatedDayChangePct ?? 0)) /
+                            100
                             : holdingValue - fund.holdingShares * dayChangeBaseNav
                           : fund.todayChangePreOpen
                             ? 0
@@ -1282,11 +1467,10 @@ export const Dashboard: React.FC = () => {
                         onTouchMove={handleTouchMove}
                         onTouchEnd={handleTouchEnd}
                         onTouchCancel={handleTouchEnd}
-                        className={`group relative cursor-pointer select-none border-b border-[var(--app-shell-line)]/80 px-4 py-3 transition-colors last:border-b-0 active:bg-[var(--app-shell-panel-strong)] dark:border-border-dark dark:active:bg-white/5 md:px-5 md:py-3.5 md:hover:bg-[var(--app-shell-panel-strong)]/72 dark:md:hover:bg-white/5 ${
-                          contextMenu?.fundId === fund.id
+                        className={`group relative cursor-pointer select-none border-b border-[var(--app-shell-line)]/80 px-4 py-3 transition-colors last:border-b-0 active:bg-[var(--app-shell-panel-strong)] dark:border-border-dark dark:active:bg-white/5 md:px-5 md:py-3.5 md:hover:bg-[var(--app-shell-panel-strong)]/72 dark:md:hover:bg-white/5 ${contextMenu?.fundId === fund.id
                             ? 'bg-[var(--app-shell-panel-strong)] dark:bg-white/10'
                             : ''
-                        }`}
+                          }`}
                       >
                         <div className="flex flex-col gap-3 md:flex-row md:items-center">
                           <div className="min-w-0 flex-1 md:flex-[1.6] md:pr-4">

@@ -151,6 +151,7 @@ export interface FundCommonDataResponse {
     fundType: string;
     riskLevel: string;
     morningstarCategory: string;
+    companyName?: string;
   };
 }
 

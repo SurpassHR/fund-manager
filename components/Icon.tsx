@@ -41,6 +41,7 @@ export const Icons = {
   User,
   Users,
   Holdings: Layers,
+  Layers,
   Search,
   Chat: MessageCircle,
   Eye,

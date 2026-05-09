@@ -305,6 +305,8 @@ const dictionary = {
       clearedFundsCount: 'Cleared ({count})',
       expandClearedFunds: 'Expand cleared funds',
       collapseClearedFunds: 'Collapse cleared funds',
+      groupByInstitution: 'Group by Institution',
+      institutionOther: 'Other',
     },
     filters: {
       Default: 'Default',
@@ -605,6 +607,8 @@ const dictionary = {
       clearedFundsCount: '已清仓 ({count})',
       expandClearedFunds: '展开清仓基金',
       collapseClearedFunds: '收起清仓基金',
+      groupByInstitution: '按机构分组',
+      institutionOther: '其他',
     },
     filters: {
       Default: '默认',
