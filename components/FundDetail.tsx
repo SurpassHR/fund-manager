@@ -1274,7 +1274,10 @@ export const FundDetail: React.FC<FundDetailProps> = ({
       className="relative flex h-[100dvh] min-h-0 w-full flex-col overflow-hidden md:h-[calc(100dvh-2rem)] md:w-[min(72rem,calc(100vw-2rem))] md:max-w-[calc(100vw-2rem)] md:rounded-[1.75rem] md:border md:border-[var(--app-shell-line)] md:shadow-[var(--app-shell-shadow)] lg:h-[calc(100dvh-4rem)] lg:w-[min(76rem,calc(100vw-4rem))]"
     >
       {/* Header */}
-      <div className="z-10 flex h-14 shrink-0 items-center justify-between border-b border-[var(--app-shell-line)] bg-[var(--app-shell-panel)]/80 px-4 shadow-[0_8px_20px_rgba(15,23,42,0.06)] backdrop-blur-xl transition-colors">
+      <div
+        className="z-10 flex min-h-14 shrink-0 items-center justify-between border-b border-[var(--app-shell-line)] bg-[var(--app-shell-panel)]/80 px-4 shadow-[0_8px_20px_rgba(15,23,42,0.06)] backdrop-blur-xl transition-colors"
+        style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px))' }}
+      >
         <button
           onClick={handleClose}
           className="-ml-2 rounded-full p-2 text-[var(--app-shell-muted)] transition-colors hover:bg-[var(--app-shell-panel-strong)] hover:text-[var(--app-shell-ink)]"
