@@ -6,6 +6,18 @@ import { BottomNav } from '../BottomNav';
 import { LanguageProvider } from '../../services/i18n';
 
 describe('BottomNav', () => {
+  beforeEach(() => {
+    vi.stubGlobal(
+      'requestAnimationFrame',
+      vi.fn(() => 1),
+    );
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
   it('renders exactly one active animation indicator', () => {
     render(
       <LanguageProvider>
@@ -56,5 +68,15 @@ describe('BottomNav', () => {
     const nav = container.querySelector('nav');
     expect(nav?.className).toContain('max-md:translate-y-[120%]');
     expect(nav?.className).toContain('max-md:opacity-0');
+  });
+
+  it('renders a canvas element as the indicator layer', () => {
+    const { container } = render(
+      <LanguageProvider>
+        <BottomNav activeTab="holding" onTabChange={() => undefined} />
+      </LanguageProvider>,
+    );
+
+    expect(container.querySelector('nav')?.querySelector('canvas')).toBeInTheDocument();
   });
 });

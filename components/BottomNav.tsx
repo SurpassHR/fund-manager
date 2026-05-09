@@ -1,9 +1,10 @@
-import React from 'react';
-import { motion, useReducedMotion } from 'framer-motion';
+import React, { useRef, useMemo } from 'react';
 import type { TabType } from '../types';
 import { Icons } from './Icon';
 import { useTranslation } from '../services/i18n';
 import { getBottomNavAnimation } from '../services/animations/presets';
+import { useCanvasNavIndicator } from '../hooks/useCanvasNavIndicator';
+import { usePrefersReducedMotion } from '../hooks/usePrefersReducedMotion';
 
 interface BottomNavProps {
   activeTab: TabType;
@@ -23,16 +24,34 @@ export const BottomNav: React.FC<BottomNavProps> = ({
   hiddenOnMobile = false,
 }) => {
   const { t } = useTranslation();
-  const reduceMotion = useReducedMotion();
+  const reduceMotion = usePrefersReducedMotion();
   const navAnimation = getBottomNavAnimation(reduceMotion);
 
-  const tabs: { id: TabType; label: string; icon: IconComponent }[] = [
-    { id: 'holding', label: t('common.holdings'), icon: Icons.Holdings },
-    { id: 'watchlist', label: t('common.watchlist'), icon: Icons.User },
-    { id: 'services', label: t('common.services'), icon: Icons.Chart },
-    { id: 'news', label: t('common.news'), icon: Icons.News },
-    { id: 'settings', label: t('common.settings'), icon: Icons.Settings },
-  ];
+  const tabs: { id: TabType; label: string; icon: IconComponent }[] = useMemo(
+    () => [
+      { id: 'holding', label: t('common.holdings'), icon: Icons.Holdings },
+      { id: 'watchlist', label: t('common.watchlist'), icon: Icons.User },
+      { id: 'services', label: t('common.services'), icon: Icons.Chart },
+      { id: 'news', label: t('common.news'), icon: Icons.News },
+      { id: 'settings', label: t('common.settings'), icon: Icons.Settings },
+    ],
+    [t],
+  );
+
+  const navContentRef = useRef<HTMLDivElement>(null);
+  const activeIndex = tabs.findIndex((tab) => tab.id === activeTab);
+
+  const canvasRef = useCanvasNavIndicator({
+    containerRef: navContentRef,
+    activeIndex,
+    itemCount: tabs.length,
+    lerp: navAnimation.lerp,
+    fillColor: navAnimation.fillColor,
+    borderColor: navAnimation.borderColor,
+    insetX: navAnimation.insetX,
+    insetY: navAnimation.insetY,
+    borderRadius: navAnimation.borderRadius,
+  });
 
   return (
     <nav
@@ -43,7 +62,15 @@ export const BottomNav: React.FC<BottomNavProps> = ({
       }`}
     >
       <div className="mx-auto w-full max-w-5xl rounded-[1.75rem] border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)]/96 shadow-[0_24px_70px_rgba(15,23,42,0.16)] backdrop-blur-2xl">
-        <div className="grid h-[4.5rem] grid-cols-5 gap-1 px-2 py-2 sm:px-3">
+        <div
+          ref={navContentRef}
+          className="relative grid h-[4.5rem] grid-cols-5 gap-1 px-2 py-2 sm:px-3"
+        >
+          <canvas
+            ref={canvasRef}
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-0 z-[1]"
+          />
           {tabs.map((tab) => {
             const isActive = activeTab === tab.id;
             const Icon = tab.icon;
@@ -59,25 +86,18 @@ export const BottomNav: React.FC<BottomNavProps> = ({
               >
                 <span className="absolute inset-[2px] rounded-[1rem] bg-[var(--app-shell-panel-strong)]/78 opacity-0 transition-opacity duration-150 group-hover:opacity-100" />
                 {isActive && (
-                  <motion.span
-                    layoutId="bottom-nav-active-indicator"
+                  <span
                     data-testid="bottom-nav-active-indicator"
-                    className="absolute inset-[2px] rounded-[1rem] border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)]"
-                    transition={navAnimation.indicatorTransition}
+                    className="sr-only"
+                    aria-hidden="true"
                   />
                 )}
-                <motion.div
-                  animate={{
-                    scale: isActive ? navAnimation.iconScaleActive : navAnimation.iconScaleInactive,
-                  }}
-                  transition={navAnimation.iconScaleTransition}
-                  className="relative z-10 flex flex-col items-center justify-center gap-1"
-                >
+                <span className="relative z-10 flex flex-col items-center justify-center gap-1">
                   <Icon size={19} strokeWidth={isActive ? 2.4 : 2} />
                   <span className="text-[0.62rem] font-semibold uppercase tracking-[0.18em]">
                     {tab.label}
                   </span>
-                </motion.div>
+                </span>
               </button>
             );
           })}

@@ -10,10 +10,12 @@ export interface AnimationPreset {
 }
 
 export interface BottomNavAnimationConfig {
-  indicatorTransition: Transition;
-  iconScaleActive: number;
-  iconScaleInactive: number;
-  iconScaleTransition: Transition;
+  lerp: number;
+  fillColor: string;
+  borderColor: string;
+  insetX: number;
+  insetY: number;
+  borderRadius: number;
 }
 
 const REDUCED_TRANSITION: Transition = {
@@ -50,30 +52,21 @@ const PRESETS: Record<AnimationPresetName, AnimationPreset> = {
 };
 
 const BOTTOM_NAV_ANIMATION: BottomNavAnimationConfig = {
-  indicatorTransition: {
-    type: 'spring',
-    stiffness: 360,
-    damping: 34,
-  },
-  iconScaleActive: 1.03,
-  iconScaleInactive: 1,
-  iconScaleTransition: {
-    duration: 0.16,
-    ease: [0.22, 1, 0.36, 1],
-  },
+  lerp: 0.12,
+  fillColor: 'var(--app-shell-panel-strong)',
+  borderColor: 'var(--app-shell-line)',
+  insetX: 2,
+  insetY: 2,
+  borderRadius: 16,
 };
 
 const REDUCED_BOTTOM_NAV_ANIMATION: BottomNavAnimationConfig = {
-  indicatorTransition: {
-    duration: 0.12,
-    ease: 'easeOut',
-  },
-  iconScaleActive: 1,
-  iconScaleInactive: 1,
-  iconScaleTransition: {
-    duration: 0.1,
-    ease: 'easeOut',
-  },
+  lerp: 1.0,
+  fillColor: 'var(--app-shell-panel-strong)',
+  borderColor: 'var(--app-shell-line)',
+  insetX: 2,
+  insetY: 2,
+  borderRadius: 16,
 };
 
 export const getAnimationPreset = (
