@@ -138,14 +138,10 @@ body {
 
 .app-shell {
   position: relative;
-  isolation: isolate;
   min-height: 100vh;
-  overflow: hidden;
   background: transparent;
   color: var(--app-shell-ink);
 }
-
-
 
 .app-shell__content {
   position: relative;
