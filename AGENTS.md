@@ -207,6 +207,24 @@ if (fundType === 'QDII' || fundType === 'HK' || fundType === 'ETF') {
 }
 ```
 
+## PWA 与安全区域适配
+
+- 部署站点 `https://gp.hrfuqiang.top/fund-manager/`，`index.html` 中配置了 `viewport-fit=cover`、`apple-mobile-web-app-capable`、`apple-mobile-web-app-status-bar-style`（`black-translucent`）和 `theme-color`（对应浅色/深色）。
+- `public/manifest.json` 配置 PWA 为 `standalone` 模式，`start_url` 为 `/fund-manager/`。
+- **灵动岛适配核心模式**：用 CSS `max()` 结合 `env(safe-area-inset-*)` 确保普通设备有最小间距、灵动岛设备追加系统安全区。
+  - 顶部间距：`paddingTop: max(3.5rem, env(safe-area-inset-top, 0px))`（移动端至少 Header 高度）
+  - 底部间距：`pb-[env(safe-area-inset-bottom,16px)]`（回退 16px）
+  - Tailwind 任意值语法支持 `env()` 但不支持嵌套 `max()`，复杂表达式需用内联 `style` 属性
+- Header 当前使用 `sticky top-0` + 负 `marginTop` 方案适配灵动岛；不要改回 `fixed` 或重新添加 `isolation:isolate`。
+- `.glass-nav` 是 Header 和 BottomNav 的共享类，**不要在 `.glass-nav` 中添加 `padding-top: env(safe-area-inset-top)`**——那会对底栏产生副作用（向上扩展遮挡 Ticker）。
+
+## ErrorBoundary
+
+- `components/ErrorBoundary.tsx`：React class component，捕获子组件渲染错误，显示错误回退 UI（含重试按钮，匹配亮色/暗色主题）。
+- `index.tsx` 中用 `<ErrorBoundary>` 包裹 `<App />`，root 缺失时在 body 内渲染错误提示而非 `throw`。
+- 任何未捕获异常都会触发 ErrorBoundary，防止 React 18 卸载整个组件树导致白屏。
+- 新增组件或复杂逻辑时应考虑边界情况，但不需要额外包裹 ErrorBoundary（顶层已处理）。
+
 ## Modal Shell
 
 - 所有 Modal 必须使用 `ModalShell` 统一封装开关动画、backdrop、overlay 注册。

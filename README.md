@@ -2,10 +2,31 @@
 
 本地优先、隐私至上的基金管理应用，帮助用户聚合管理基金持仓、查看收益分析。
 
-<p align="center">
-  <img src="assets/screenshot-dark-mode.png" alt="暗色模式截图" width="49%" />
-  <img src="assets/screenshot-light-mode.png" alt="亮色模式截图" width="49%" />
-</p>
+<details>
+<summary>桌面端界面展示</summary>
+<img src="assets/screenshot-dark-mode.png" alt="暗色模式截图" />
+<img src="assets/screenshot-dark-fund-detail.png" alt="暗色模式基金详情截图" />
+<img src="assets/screenshot-dark-fund-share-holdings.png" alt="暗色模式基金详情截图" />
+<img src="assets/screenshot-dark-ai-analysis.png" alt="暗色模式基金详情截图" />
+
+<img src="assets/screenshot-light-mode.png" alt="浅色模式截图" />
+<img src="assets/screenshot-light-fund-detail.png" alt="浅色模式基金详情截图" />
+<img src="assets/screenshot-light-fund-share-holdings.png" alt="浅色模式基金详情截图" />
+<img src="assets/screenshot-light-ai-analysis.png" alt="浅色模式基金详情截图" />
+</details>
+
+<details>
+<summary>移动端界面展示</summary>
+<img src="assets/mobile-screenshot-dark-mode.png" alt="移动端暗色模式截图" width="60%" />
+<img src="assets/mobile-screenshot-dark-mode-fund-detail.png" alt="移动端暗色模式基金详情截图" width="60%" />
+<img src="assets/mobile-screenshot-dark-mode-fund-share-holdings.png" alt="移动端暗色模式基金持仓截图" width="60%" />
+<img src="assets/mobile-screenshot-dark-mode-index-ticker.png" alt="移动端暗色模式指数行情截图" width="60%" />
+
+<img src="assets/mobile-screenshot-light-mode.png" alt="移动端浅色模式截图" width="60%" />
+<img src="assets/mobile-screenshot-light-mode-fund-detail.png" alt="移动端浅色模式基金详情截图" width="60%" />
+<img src="assets/mobile-screenshot-light-mode-fund-share-holdings.png" alt="移动端浅色模式基金持仓截图" width="60%" />
+<img src="assets/mobile-screenshot-light-mode-index-ticker.png" alt="移动端浅色模式指数行情截图" width="60%" />
+</details>
 
 ## 功能特性
 
