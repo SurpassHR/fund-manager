@@ -48,14 +48,14 @@ const PresenceIndicator = ({
 
       document.addEventListener('mousedown', handleOutsideClick);
       document.addEventListener('touchstart', handleOutsideClick);
-      
+
       const handleScrollOrResize = () => {
         setShowPopover(false);
       };
-      
+
       window.addEventListener('scroll', handleScrollOrResize, { passive: true });
       window.addEventListener('resize', handleScrollOrResize, { passive: true });
-      
+
       return () => {
         document.removeEventListener('mousedown', handleOutsideClick);
         document.removeEventListener('touchstart', handleOutsideClick);
@@ -81,48 +81,51 @@ const PresenceIndicator = ({
         )}
       </button>
 
-      {showPopover && rect && typeof document !== 'undefined' && createPortal(
-        <div
-          ref={popoverRef}
-          className="fixed z-[100] w-52 rounded-2xl glass-card p-4 animate-in fade-in zoom-in-95 duration-100 shadow-[var(--app-shell-shadow)]"
-          style={{
-            top: rect.bottom + 8,
-            right: window.innerWidth < 640 ? 'auto' : window.innerWidth - rect.right,
-            left: window.innerWidth < 640 ? 16 : 'auto',
-          }}
-        >
-          <div className="mb-3 text-[10px] font-semibold uppercase tracking-[0.2em] text-[var(--app-shell-muted)]">
-            {t('common.userStats') || '用户统计'}
-          </div>
-          <div className="space-y-2.5">
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-[var(--app-shell-muted)]">
-                {t('common.currentOnline') || '当前在线'}
-              </span>
-              <span className="text-sm font-semibold tabular-nums text-[var(--app-shell-ink)]">
-                {stats.current}
-              </span>
+      {showPopover &&
+        rect &&
+        typeof document !== 'undefined' &&
+        createPortal(
+          <div
+            ref={popoverRef}
+            className="fixed z-[100] w-52 rounded-2xl glass-card p-4 animate-in fade-in zoom-in-95 duration-100 shadow-[var(--app-shell-shadow)]"
+            style={{
+              top: rect.bottom + 8,
+              right: window.innerWidth < 640 ? 'auto' : window.innerWidth - rect.right,
+              left: window.innerWidth < 640 ? 16 : 'auto',
+            }}
+          >
+            <div className="mb-3 text-[10px] font-semibold uppercase tracking-[0.2em] text-[var(--app-shell-muted)]">
+              {t('common.userStats') || '用户统计'}
             </div>
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-[var(--app-shell-muted)]">
-                {t('common.peakOnline') || '峰值人数'}
-              </span>
-              <span className="text-sm font-semibold tabular-nums text-[var(--app-shell-ink)]">
-                {stats.peak}
-              </span>
+            <div className="space-y-2.5">
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-[var(--app-shell-muted)]">
+                  {t('common.currentOnline') || '当前在线'}
+                </span>
+                <span className="text-sm font-semibold tabular-nums text-[var(--app-shell-ink)]">
+                  {stats.current}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-[var(--app-shell-muted)]">
+                  {t('common.peakOnline') || '峰值人数'}
+                </span>
+                <span className="text-sm font-semibold tabular-nums text-[var(--app-shell-ink)]">
+                  {stats.peak}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-[var(--app-shell-muted)]">
+                  {t('common.uniqueVisitors') || '累计访客'}
+                </span>
+                <span className="text-sm font-semibold tabular-nums text-[var(--app-shell-ink)]">
+                  {stats.unique}
+                </span>
+              </div>
             </div>
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-[var(--app-shell-muted)]">
-                {t('common.uniqueVisitors') || '累计访客'}
-              </span>
-              <span className="text-sm font-semibold tabular-nums text-[var(--app-shell-ink)]">
-                {stats.unique}
-              </span>
-            </div>
-          </div>
-        </div>,
-        document.body
-      )}
+          </div>,
+          document.body,
+        )}
     </div>
   );
 };
@@ -157,10 +160,11 @@ export const Header: React.FC<HeaderProps> = ({
 
   return (
     <header
-      className={`glass-nav fixed inset-x-0 top-0 z-50 flex h-14 items-center border-b border-[var(--app-shell-line)] px-4 transition-all duration-200 sm:h-16 sm:px-6 ${hiddenOnMobile
+      className={`glass-nav sticky top-0 z-50 flex h-14 items-center border-b border-[var(--app-shell-line)] px-4 transition-all duration-200 sm:h-16 sm:px-6 ${
+        hiddenOnMobile
           ? 'max-md:pointer-events-none max-md:-translate-y-full max-md:opacity-0'
           : 'max-md:translate-y-0 max-md:opacity-100'
-        }`}
+      }`}
     >
       <div className="relative mx-auto flex w-full max-w-7xl items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-2 sm:gap-2.5">
@@ -193,13 +197,10 @@ export const Header: React.FC<HeaderProps> = ({
           <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
             <button
               onClick={() => {
-                const eventType =
-                  activeTab === 'holding' ? 'open-add-fund' : 'open-add-watchlist';
+                const eventType = activeTab === 'holding' ? 'open-add-fund' : 'open-add-watchlist';
                 window.dispatchEvent(new CustomEvent(eventType));
               }}
-              aria-label={t(
-                activeTab === 'holding' ? 'common.addHolding' : 'common.addWatchlist',
-              )}
+              aria-label={t(activeTab === 'holding' ? 'common.addHolding' : 'common.addWatchlist')}
               className="inline-flex items-center gap-1.5 rounded-full border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)]/90 px-3 py-1.5 text-[11px] font-semibold tracking-wider text-[var(--app-shell-accent)] transition hover:border-[var(--app-shell-line-strong)] hover:bg-[var(--app-shell-panel-strong)]"
             >
               <Icons.Plus size={14} />
