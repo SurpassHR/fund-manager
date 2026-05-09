@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { fetchMarketIndices } from '../services/api';
 import type { MarketIndex } from '../types';
 import { getSignColor, formatPct } from '../services/financeUtils';
@@ -13,6 +13,11 @@ export const Ticker: React.FC<TickerProps> = ({ hiddenOnMobile = false }) => {
   const [indices, setIndices] = useState<MarketIndex[]>([]);
   const [index, setIndex] = useState(0);
   const [isExpanded, setIsExpanded] = useState(false);
+  const indicesLengthRef = useRef(indices.length);
+
+  useEffect(() => {
+    indicesLengthRef.current = indices.length;
+  }, [indices.length]);
 
   useEffect(() => {
     const loadData = async () => {
@@ -22,15 +27,23 @@ export const Ticker: React.FC<TickerProps> = ({ hiddenOnMobile = false }) => {
       }
     };
     loadData();
-    // Refresh every minute
     const refreshTimer = setInterval(loadData, 60000);
     return () => clearInterval(refreshTimer);
   }, []);
 
+  // 当 indices 数组引用变化时重置轮播 index，防止越界
+  useEffect(() => {
+    setIndex(0);
+  }, [indices]);
+
   useEffect(() => {
     if (indices.length === 0) return;
     const timer = setInterval(() => {
-      setIndex((prev) => (prev + 1) % indices.length);
+      setIndex((prev) => {
+        const len = indicesLengthRef.current;
+        if (len === 0) return 0;
+        return (prev + 1) % len;
+      });
     }, 4000);
     return () => clearInterval(timer);
   }, [indices.length]);
@@ -38,6 +51,8 @@ export const Ticker: React.FC<TickerProps> = ({ hiddenOnMobile = false }) => {
   if (indices.length === 0) return null;
 
   const current = indices[index];
+  // 兜底：current 为 undefined 时安全降级
+  if (!current) return null;
 
   return (
     <>
@@ -54,10 +69,11 @@ export const Ticker: React.FC<TickerProps> = ({ hiddenOnMobile = false }) => {
       </AnimatePresence>
 
       <div
-        className={`fixed bottom-[calc(5rem+max(0px,env(safe-area-inset-bottom,0px)))] left-0 right-0 z-40 px-3 transition-all duration-200 sm:bottom-[calc(5.5rem+max(0px,env(safe-area-inset-bottom,0px)))] sm:px-4 ${hiddenOnMobile
-          ? 'max-md:pointer-events-none max-md:translate-y-[6rem] max-md:opacity-0'
-          : 'max-md:translate-y-0 max-md:opacity-100'
-          }`}
+        className={`fixed bottom-[calc(5rem+max(0px,env(safe-area-inset-bottom,0px)))] left-0 right-0 z-40 px-3 transition-all duration-200 sm:bottom-[calc(5.5rem+max(0px,env(safe-area-inset-bottom,0px)))] sm:px-4 ${
+          hiddenOnMobile
+            ? 'max-md:pointer-events-none max-md:translate-y-[6rem] max-md:opacity-0'
+            : 'max-md:translate-y-0 max-md:opacity-100'
+        }`}
       >
         <div className="mx-auto flex w-full max-w-2xl flex-col gap-2.5 sm:gap-3">
           <AnimatePresence>
