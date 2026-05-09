@@ -160,7 +160,7 @@ export const Header: React.FC<HeaderProps> = ({
 
   return (
     <header
-      className={`glass-nav fixed inset-x-0 top-0 z-50 flex h-14 items-center border-b border-[var(--app-shell-line)] px-4 transition-all duration-200 sm:h-16 sm:px-6 ${
+      className={`glass-nav sticky top-[env(safe-area-inset-top,0px)] z-50 flex min-h-14 items-center border-b border-[var(--app-shell-line)] px-4 transition-all duration-200 sm:min-h-16 sm:px-6 ${
         hiddenOnMobile
           ? 'max-md:pointer-events-none max-md:-translate-y-full max-md:opacity-0'
           : 'max-md:translate-y-0 max-md:opacity-100'
