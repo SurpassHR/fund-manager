@@ -100,19 +100,15 @@ describe('App shell background layers', () => {
     });
   });
 
-  it('保留背景与噪点图层节点，供 fixed 背景样式挂载', () => {
+  it('保留背景图层节点，供 fixed 背景样式挂载', () => {
     const { container } = render(<App />);
 
     const shell = container.querySelector('.app-shell');
-    const glowGrid = container.querySelector('.glow-grid-container');
-    const noise = container.querySelector('.app-shell__noise');
+    const blobs = container.querySelector('.bg-blobs');
     const content = container.querySelector('.app-shell__content');
 
     expect(shell).toBeInTheDocument();
-    expect(glowGrid).toBeInTheDocument();
-    expect(glowGrid).toHaveAttribute('aria-hidden', 'true');
-    expect(noise).toBeInTheDocument();
-    expect(noise).toHaveAttribute('aria-hidden', 'true');
+    expect(blobs).toBeInTheDocument();
     expect(content).toBeInTheDocument();
   });
 });

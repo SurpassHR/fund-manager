@@ -569,7 +569,7 @@ export const Dashboard: React.FC = () => {
   };
 
   return (
-    <div className="min-h-full pb-36 md:pb-24" onContextMenu={(e) => e.preventDefault()}>
+    <div className="min-h-full pb-36 md:pb-16" onContextMenu={(e) => e.preventDefault()}>
       {selectedFund && (
         <FundDetail key="fund-detail" fund={selectedFund} onBack={() => setSelectedFund(null)} />
       )}
@@ -648,7 +648,7 @@ export const Dashboard: React.FC = () => {
         </div>
       )}
 
-      <div className="mx-auto w-full max-w-7xl px-0 pt-20 md:px-4 md:pt-24 lg:px-6">
+      <div className="mx-auto w-full max-w-7xl px-0 pt-20 md:px-4 md:pt-18 lg:px-6">
         <div className="sticky top-[4.5rem] z-20 rounded-[1.75rem] border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)]/95 backdrop-blur-xl dark:border-border-dark dark:bg-card-dark/85 md:top-[5rem] md:mt-2 md:shadow-[0_10px_30px_rgba(15,23,42,0.05)]">
           <div className="relative flex items-center gap-3 overflow-x-auto px-3 py-3 no-scrollbar md:flex-wrap md:gap-4 md:px-5 md:py-3.5">
             <div className="hidden shrink-0 md:block md:min-w-[4rem]">
@@ -674,11 +674,10 @@ export const Dashboard: React.FC = () => {
                   <button
                     key={filterKey}
                     onClick={() => setActiveFilter(filterKey)}
-                    className={`relative flex-shrink-0 overflow-hidden rounded-full border px-3 py-2 text-sm font-medium transition-all md:px-4 ${
-                      isActive
-                        ? 'border-[var(--app-shell-line-strong)] bg-[var(--app-shell-panel-strong)] text-slate-800 shadow-[0_8px_24px_rgba(82,61,37,0.10)] dark:border-blue-400 dark:bg-blue-500/15 dark:text-blue-100 dark:shadow-none'
-                        : 'border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] text-slate-600 hover:border-[var(--app-shell-line-strong)] hover:text-slate-900 dark:border-white/10 dark:bg-white/5 dark:text-gray-400 dark:hover:border-white/20 dark:hover:text-gray-100'
-                    }`}
+                    className={`relative flex-shrink-0 overflow-hidden rounded-full border px-3 py-2 text-sm font-medium transition-all md:px-4 ${isActive
+                      ? 'border-[var(--app-shell-line-strong)] bg-[var(--app-shell-panel-strong)] text-slate-800 shadow-[0_8px_24px_rgba(82,61,37,0.10)] dark:border-blue-400 dark:bg-blue-500/15 dark:text-blue-100 dark:shadow-none'
+                      : 'border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] text-slate-600 hover:border-[var(--app-shell-line-strong)] hover:text-slate-900 dark:border-white/10 dark:bg-white/5 dark:text-gray-400 dark:hover:border-white/20 dark:hover:text-gray-100'
+                      }`}
                   >
                     <span className="relative z-10">{label}</span>
                     {isActive && (
@@ -703,156 +702,123 @@ export const Dashboard: React.FC = () => {
           </div>
         </div>
 
-        <section className="relative mt-3 overflow-hidden rounded-[1.75rem] border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)]/92 px-4 pb-3 pt-3 dark:border-border-dark dark:bg-card-dark md:mt-3 md:px-6 md:pb-4 md:pt-4 md:shadow-[0_12px_32px_rgba(15,23,42,0.05)]">
-          <div className="pointer-events-none absolute inset-0">
-            <div className="absolute inset-y-0 left-0 w-full bg-[radial-gradient(circle_at_top_left,_rgba(148,163,184,0.12),_transparent_34%),radial-gradient(circle_at_bottom_right,_rgba(226,232,240,0.8),_transparent_28%)] dark:bg-[radial-gradient(circle_at_top_left,_rgba(96,165,250,0.12),_transparent_35%),radial-gradient(circle_at_bottom_right,_rgba(59,130,246,0.10),_transparent_28%)]" />
-          </div>
+        <section className="relative mt-3 grid gap-3 lg:grid-cols-[minmax(0,1fr)_24rem] xl:grid-cols-[minmax(0,1fr)_26rem] md:mt-3">
+          {/* 左侧大卡片：资产概览 */}
+          <div className="glass-card relative flex flex-col justify-center overflow-hidden rounded-[2rem] px-5 py-6 md:px-8 md:py-8 min-h-[200px]">
+            <div className="pointer-events-none absolute inset-0">
+              <div className="absolute inset-y-0 left-0 w-full bg-[radial-gradient(circle_at_top_left,_rgba(148,163,184,0.12),_transparent_34%),radial-gradient(circle_at_bottom_right,_rgba(226,232,240,0.4),_transparent_28%)] dark:bg-[radial-gradient(circle_at_top_left,_rgba(96,165,250,0.12),_transparent_35%),radial-gradient(circle_at_bottom_right,_rgba(59,130,246,0.10),_transparent_28%)]" />
+            </div>
 
-          <div className="relative flex flex-col gap-5">
-            <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_24rem] xl:grid-cols-[minmax(0,1fr)_26rem]">
-              <div className="min-w-0">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="text-[11px] font-semibold tracking-[0.24em] text-slate-400 dark:text-gray-500">
-                        资产概览
-                      </div>
-
-                      <div className="flex items-center gap-2 lg:hidden">
-                        <button
-                          onClick={handleManualRefresh}
-                          disabled={cooldown > 0 || isRefreshing}
-                          className={`relative flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border transition-transform active:scale-95 ${
-                            cooldown > 0 || isRefreshing
-                              ? 'cursor-not-allowed border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] text-slate-500 dark:border-white/10 dark:bg-white/10 dark:text-gray-400'
-                              : 'cursor-pointer border-[var(--app-shell-line-strong)] bg-[var(--app-shell-panel-strong)] text-slate-800 dark:border-blue-400/30 dark:bg-blue-500/15 dark:text-blue-100'
-                          }`}
-                        >
-                          <Icons.Refresh size={16} className={isRefreshing ? 'animate-spin' : ''} />
-                          {cooldown > 0 && !isRefreshing && (
-                            <div
-                              className="absolute inset-0 dark:hidden"
-                              style={{
-                                background: `conic-gradient(transparent ${100 - cooldown}%, rgba(0,0,0,0.18) ${100 - cooldown}%, rgba(0,0,0,0.18) 100%)`,
-                              }}
-                            />
-                          )}
-                          {cooldown > 0 && !isRefreshing && (
-                            <div
-                              className="absolute inset-0 hidden dark:block"
-                              style={{
-                                background: `conic-gradient(transparent ${100 - cooldown}%, rgba(15,23,42,0.75) ${100 - cooldown}%, rgba(15,23,42,0.75) 100%)`,
-                              }}
-                            />
-                          )}
-                        </button>
-                      </div>
-                    </div>
-                    <div className="mt-2 flex items-center gap-2 text-sm text-slate-500 dark:text-gray-400">
-                      <span>{t('common.totalAssets')}</span>
-                      <button
-                        onClick={() => setShowValues(!showValues)}
-                        className="rounded-full border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)]/90 p-1.5 text-slate-500 transition-colors hover:text-slate-800 dark:border-white/10 dark:bg-white/5 dark:text-gray-400 dark:hover:text-gray-100"
-                      >
-                        {showValues ? <Icons.Eye size={18} /> : <Icons.EyeOff size={18} />}
-                      </button>
-                    </div>
-                    <div className="text-4xl font-black tracking-[-0.04em] text-slate-900 dark:text-gray-50 md:text-5xl">
-                      {showValues ? formatCurrency(summary.totalAssets) : '****'}
-                    </div>
-                    <div
-                      className={`mt-2 text-sm font-semibold ${getSignColor(summary.holdingGain)}`}
-                    >
-                      {t('common.totalGain')} ·{' '}
-                      {showValues ? formatSignedCurrency(summary.holdingGain) : '****'}
-                      <span className="ml-1 text-xs font-medium">
-                        ({showValues ? formatPct(summary.holdingGainPct) : '****'})
-                      </span>
-                    </div>
-                  </div>
+            <div className="relative">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-[13px] font-medium tracking-wide text-slate-500 dark:text-gray-400">
+                  <span>资产概览</span>
+                  <button
+                    onClick={() => setShowValues(!showValues)}
+                    className="rounded-full bg-[var(--app-shell-panel-strong)]/50 p-1 text-slate-500 transition-colors hover:text-slate-800 dark:bg-white/5 dark:text-gray-400 dark:hover:text-gray-100"
+                  >
+                    {showValues ? <Icons.Eye size={16} /> : <Icons.EyeOff size={16} />}
+                  </button>
                 </div>
+
+                {/* Refresh button aligned right */}
+                <button
+                  onClick={handleManualRefresh}
+                  disabled={cooldown > 0 || isRefreshing}
+                  className={`relative flex h-8 w-8 items-center justify-center overflow-hidden rounded-full border transition-transform active:scale-95 ${cooldown > 0 || isRefreshing
+                    ? 'cursor-not-allowed border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] text-slate-500 dark:border-white/10 dark:bg-white/10 dark:text-gray-400'
+                    : 'cursor-pointer border-[var(--app-shell-line-strong)] bg-[var(--app-shell-panel-strong)] text-slate-800 dark:border-blue-400/30 dark:bg-blue-500/15 dark:text-blue-100'
+                    }`}
+                >
+                  <Icons.Refresh size={14} className={isRefreshing ? 'animate-spin' : ''} />
+                  {cooldown > 0 && !isRefreshing && (
+                    <div
+                      className="absolute inset-0 dark:hidden"
+                      style={{
+                        background: `conic-gradient(transparent ${100 - cooldown}%, rgba(0,0,0,0.18) ${100 - cooldown}%, rgba(0,0,0,0.18) 100%)`,
+                      }}
+                    />
+                  )}
+                  {cooldown > 0 && !isRefreshing && (
+                    <div
+                      className="absolute inset-0 hidden dark:block"
+                      style={{
+                        background: `conic-gradient(transparent ${100 - cooldown}%, rgba(15,23,42,0.75) ${100 - cooldown}%, rgba(15,23,42,0.75) 100%)`,
+                      }}
+                    />
+                  )}
+                </button>
               </div>
 
-              <div className="mt-2 flex flex-col gap-2 lg:mt-0">
-                <div className="flex flex-col gap-2 lg:flex-row lg:items-start">
-                  <div className="hidden items-center justify-center gap-2 lg:flex lg:shrink-0 lg:self-center">
-                    <button
-                      onClick={handleManualRefresh}
-                      disabled={cooldown > 0 || isRefreshing}
-                      className={`relative flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border transition-transform active:scale-95 ${
-                        cooldown > 0 || isRefreshing
-                          ? 'cursor-not-allowed border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] text-slate-500 dark:border-white/10 dark:bg-white/10 dark:text-gray-400'
-                          : 'cursor-pointer border-[var(--app-shell-line-strong)] bg-[var(--app-shell-panel-strong)] text-slate-800 dark:border-blue-400/30 dark:bg-blue-500/15 dark:text-blue-100'
-                      }`}
-                    >
-                      <Icons.Refresh size={16} className={isRefreshing ? 'animate-spin' : ''} />
-                      {cooldown > 0 && !isRefreshing && (
-                        <div
-                          className="absolute inset-0 dark:hidden"
-                          style={{
-                            background: `conic-gradient(transparent ${100 - cooldown}%, rgba(0,0,0,0.18) ${100 - cooldown}%, rgba(0,0,0,0.18) 100%)`,
-                          }}
-                        />
-                      )}
-                      {cooldown > 0 && !isRefreshing && (
-                        <div
-                          className="absolute inset-0 hidden dark:block"
-                          style={{
-                            background: `conic-gradient(transparent ${100 - cooldown}%, rgba(15,23,42,0.75) ${100 - cooldown}%, rgba(15,23,42,0.75) 100%)`,
-                          }}
-                        />
-                      )}
-                    </button>
-                  </div>
+              <div className="mt-4 text-[11px] font-semibold tracking-wide text-slate-400 dark:text-gray-500">
+                总资产 (CNY)
+              </div>
+              <div className="mt-1 text-4xl font-black tracking-[-0.04em] text-slate-900 dark:text-gray-50 md:text-[3.25rem] md:leading-tight">
+                {showValues ? formatCurrency(summary.totalAssets) : '****'}
+              </div>
 
-                  <div className="grid grid-cols-3 gap-2 lg:flex lg:min-w-0 lg:flex-1 lg:gap-2">
-                    <div className="min-w-0 flex-1 rounded-2xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)]/90 px-3.5 py-2 dark:border-white/10 dark:bg-white/5">
-                      <div className="text-[9px] font-semibold tracking-[0.12em] whitespace-nowrap text-slate-400 dark:text-gray-500">
-                        当前账户
-                      </div>
-                      <div className="mt-1 truncate text-[13px] font-semibold text-slate-800 dark:text-gray-100">
-                        {activeFilterLabel}
-                      </div>
-                    </div>
-                    <div className="min-w-0 flex-1 rounded-2xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)]/90 px-3.5 py-2 dark:border-white/10 dark:bg-white/5">
-                      <div className="text-[9px] font-semibold tracking-[0.12em] whitespace-nowrap text-slate-400 dark:text-gray-500">
-                        持仓数量
-                      </div>
-                      <div className="mt-1 truncate text-[13px] font-semibold text-slate-800 dark:text-gray-100">
-                        {sortedFunds.length}
-                      </div>
-                    </div>
-                    <div className="min-w-0 flex-1 rounded-2xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)]/90 px-3.5 py-2 dark:border-white/10 dark:bg-white/5">
-                      <div className="text-[9px] font-semibold tracking-[0.12em] whitespace-nowrap text-slate-400 dark:text-gray-500">
-                        自动刷新
-                      </div>
-                      <div className="mt-1 truncate text-[13px] font-semibold text-slate-800 dark:text-gray-100">
-                        {autoRefresh ? '已开启' : '已关闭'}
-                      </div>
-                    </div>
-                  </div>
-                </div>
+              <div className="mt-5 inline-flex items-center gap-2 rounded-full border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)]/80 px-3.5 py-1.5 transition-colors dark:border-white/5 dark:bg-white/5">
+                <span className="text-[12px] font-medium text-amber-600 dark:text-amber-500">
+                  持有收益
+                </span>
+                <span className={`text-[13px] font-bold ${getSignColor(summary.holdingGain)}`}>
+                  {showValues ? formatSignedCurrency(summary.holdingGain) : '****'}
+                  <span className="ml-1 text-xs font-medium">
+                    ({showValues ? formatPct(summary.holdingGainPct) : '****'})
+                  </span>
+                </span>
+              </div>
+            </div>
+          </div>
 
-                <div className="rounded-2xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)]/80 px-4 py-3 backdrop-blur-sm dark:border-white/10 dark:bg-white/5">
-                  <div className="text-[11px] font-semibold tracking-[0.16em] text-slate-400 dark:text-gray-500">
-                    {t('common.dayGain')}
-                  </div>
-                  <div
-                    className={`mt-2 flex items-end gap-2 text-[1.65rem] font-black tracking-[-0.03em] ${getSignColor(summary.totalDayGain)}`}
-                  >
-                    <span>{showValues ? formatSignedCurrency(summary.totalDayGain) : '****'}</span>
-                    <span className="pb-0.5 text-[13px] font-semibold tracking-[0.12em] text-slate-400 dark:text-gray-500">
-                      {showValues ? formatPct(summary.totalDayGainPct) : '****'}
-                    </span>
-                  </div>
+          {/* 右侧卡片组 */}
+          <div className="flex flex-col gap-3">
+            {/* 顶部两个小卡片 */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="glass-card flex min-w-0 flex-1 flex-col justify-center rounded-[1.25rem] px-4 py-4 md:py-5">
+                <div className="text-[10px] font-semibold tracking-[0.1em] text-slate-400 dark:text-gray-500">
+                  当前账户
                 </div>
+                <div className="mt-1.5 truncate text-[15px] font-bold text-slate-800 dark:text-gray-100">
+                  {activeFilterLabel}
+                </div>
+              </div>
+              <div className="glass-card flex min-w-0 flex-1 flex-col justify-center rounded-[1.25rem] px-4 py-4 md:py-5">
+                <div className="text-[10px] font-semibold tracking-[0.1em] text-slate-400 dark:text-gray-500">
+                  持仓数量
+                </div>
+                <div className="mt-1.5 truncate text-[15px] font-bold text-slate-800 dark:text-gray-100">
+                  {sortedFunds.length}
+                </div>
+              </div>
+            </div>
+
+            {/* 底部收益卡片 */}
+            <div className="glass-card relative flex min-w-0 flex-1 flex-col justify-center overflow-hidden rounded-[1.5rem] border-l-[3px] border-l-blue-500 px-5 py-5 dark:border-l-blue-500">
+              <div className="flex items-center justify-between">
+                <div className="text-[11px] font-semibold tracking-[0.1em] text-slate-400 dark:text-gray-500">
+                  今日收益
+                </div>
+                <div className="rounded-lg bg-blue-500/10 p-1.5 text-blue-500 dark:bg-blue-500/20 dark:text-blue-400">
+                  <Icons.TrendingUp size={16} />
+                </div>
+              </div>
+              <div className="mt-3 flex items-baseline gap-2">
+                <span
+                  className={`text-[2rem] font-black tracking-[-0.03em] ${getSignColor(summary.totalDayGain)}`}
+                >
+                  {showValues ? formatSignedCurrency(summary.totalDayGain) : '****'}
+                </span>
+                <span className="text-sm font-semibold tracking-wide text-slate-400 dark:text-gray-500">
+                  {showValues ? formatPct(summary.totalDayGainPct) : '****'}
+                </span>
               </div>
             </div>
           </div>
         </section>
 
-        <section className="mt-3 overflow-hidden rounded-[1.75rem] border border-[var(--app-shell-line)] md:mt-5 md:shadow-[0_14px_32px_rgba(15,23,42,0.05)] dark:border-border-dark">
-          <div className="z-10 border-b border-[var(--app-shell-line)] bg-[var(--app-shell-panel)]/95 px-4 py-3 backdrop-blur-xl dark:border-border-dark dark:bg-card-dark/90 md:px-5">
+        <section className="glass-card mt-3 overflow-hidden rounded-3xl md:mt-5">
+          <div className="z-10 border-b border-[var(--app-shell-line)] px-4 py-3 dark:border-border-dark md:px-5">
             <div className="hidden items-center gap-4 md:flex">
               <div className="flex min-w-[15rem] flex-[1.6] items-center gap-2 text-slate-400">
                 <div className="rounded-full border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] p-1.5 dark:border-white/10 dark:bg-white/5">
@@ -983,7 +949,7 @@ export const Dashboard: React.FC = () => {
             </div>
           </div>
 
-          <div className="overflow-hidden bg-[var(--app-shell-panel)]/92 dark:bg-card-dark">
+          <div className="overflow-hidden">
             {activeFunds.map((fund) => {
               const {
                 marketValue: holdingValue,
@@ -1007,9 +973,9 @@ export const Dashboard: React.FC = () => {
                   : dayChangeBaseNav !== undefined
                     ? fund.todayChangeIsEstimated
                       ? (fund.holdingShares *
-                          dayChangeBaseNav *
-                          (fund.estimatedDayChangePct ?? 0)) /
-                        100
+                        dayChangeBaseNav *
+                        (fund.estimatedDayChangePct ?? 0)) /
+                      100
                       : holdingValue - fund.holdingShares * dayChangeBaseNav
                     : fund.todayChangePreOpen
                       ? 0
@@ -1048,11 +1014,10 @@ export const Dashboard: React.FC = () => {
                   onTouchMove={handleTouchMove}
                   onTouchEnd={handleTouchEnd}
                   onTouchCancel={handleTouchEnd}
-                  className={`group relative cursor-pointer select-none border-b border-[var(--app-shell-line)]/80 px-4 py-3 transition-colors last:border-b-0 active:bg-[var(--app-shell-panel-strong)] dark:border-border-dark dark:active:bg-white/5 md:px-5 md:py-3.5 md:hover:bg-[var(--app-shell-panel-strong)]/72 dark:md:hover:bg-white/5 ${
-                    contextMenu?.fundId === fund.id
-                      ? 'bg-[var(--app-shell-panel-strong)] dark:bg-white/10'
-                      : ''
-                  }`}
+                  className={`group relative cursor-pointer select-none border-b border-[var(--app-shell-line)]/80 px-4 py-3 transition-colors last:border-b-0 active:bg-[var(--app-shell-panel-strong)] dark:border-border-dark dark:active:bg-white/5 md:px-5 md:py-3.5 md:hover:bg-[var(--app-shell-panel-strong)]/72 dark:md:hover:bg-white/5 ${contextMenu?.fundId === fund.id
+                    ? 'bg-[var(--app-shell-panel-strong)] dark:bg-white/10'
+                    : ''
+                    }`}
                 >
                   <div className="flex flex-col gap-3 md:flex-row md:items-center">
                     <div className="min-w-0 flex-1 md:flex-[1.6] md:pr-4">
@@ -1268,9 +1233,9 @@ export const Dashboard: React.FC = () => {
                         : dayChangeBaseNav !== undefined
                           ? fund.todayChangeIsEstimated
                             ? (fund.holdingShares *
-                                dayChangeBaseNav *
-                                (fund.estimatedDayChangePct ?? 0)) /
-                              100
+                              dayChangeBaseNav *
+                              (fund.estimatedDayChangePct ?? 0)) /
+                            100
                             : holdingValue - fund.holdingShares * dayChangeBaseNav
                           : fund.todayChangePreOpen
                             ? 0
@@ -1309,11 +1274,10 @@ export const Dashboard: React.FC = () => {
                         onTouchMove={handleTouchMove}
                         onTouchEnd={handleTouchEnd}
                         onTouchCancel={handleTouchEnd}
-                        className={`group relative cursor-pointer select-none border-b border-[var(--app-shell-line)]/80 px-4 py-3 transition-colors last:border-b-0 active:bg-[var(--app-shell-panel-strong)] dark:border-border-dark dark:active:bg-white/5 md:px-5 md:py-3.5 md:hover:bg-[var(--app-shell-panel-strong)]/72 dark:md:hover:bg-white/5 ${
-                          contextMenu?.fundId === fund.id
-                            ? 'bg-[var(--app-shell-panel-strong)] dark:bg-white/10'
-                            : ''
-                        }`}
+                        className={`group relative cursor-pointer select-none border-b border-[var(--app-shell-line)]/80 px-4 py-3 transition-colors last:border-b-0 active:bg-[var(--app-shell-panel-strong)] dark:border-border-dark dark:active:bg-white/5 md:px-5 md:py-3.5 md:hover:bg-[var(--app-shell-panel-strong)]/72 dark:md:hover:bg-white/5 ${contextMenu?.fundId === fund.id
+                          ? 'bg-[var(--app-shell-panel-strong)] dark:bg-white/10'
+                          : ''
+                          }`}
                       >
                         <div className="flex flex-col gap-3 md:flex-row md:items-center">
                           <div className="min-w-0 flex-1 md:flex-[1.6] md:pr-4">
@@ -1468,10 +1432,10 @@ export const Dashboard: React.FC = () => {
           </div>
         </section>
 
-        <section className="mt-3 px-4 pb-8 md:mt-5 md:px-0 md:pb-10">
+        <section className="mt-3 px-4 pb-8 md:mt-5 md:px-0 md:pb-2">
           <div className="grid gap-3 md:grid-cols-[1.3fr_1fr]">
-            <div className="rounded-[1.75rem] border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)]/92 p-3 shadow-[0_12px_28px_rgba(15,23,42,0.05)] dark:border-white/10 dark:bg-card-dark md:p-4">
-              <div className="mb-3 flex items-center justify-between">
+            <div className="glass-card flex flex-col justify-between rounded-[1.75rem] px-5 py-5 md:px-6 md:py-6">
+              <div className="mb-4 flex items-center justify-between">
                 <div>
                   <div className="text-[10px] font-semibold tracking-[0.2em] text-slate-400 dark:text-gray-500">
                     快捷操作
@@ -1492,12 +1456,12 @@ export const Dashboard: React.FC = () => {
                     const event = new CustomEvent('open-scanner');
                     window.dispatchEvent(event);
                   }}
-                  className="flex min-h-[4.75rem] flex-col items-start justify-between rounded-2xl border border-[var(--app-shell-line-strong)] bg-[var(--app-shell-panel-strong)] px-4 py-3 text-left text-slate-800 transition-colors hover:border-[var(--app-shell-line-strong)] hover:bg-[var(--app-shell-panel-strong)]/88 dark:border-blue-400/20 dark:bg-blue-500/15 dark:text-blue-100 dark:hover:bg-blue-500/20"
+                  className="flex min-h-[4.75rem] flex-col items-start justify-between rounded-2xl border border-[var(--app-shell-line-strong)] bg-blue-50 px-4 py-3 text-left text-slate-800 transition-colors hover:border-[var(--app-shell-line-strong)] dark:border-blue-400/20 dark:bg-blue-500/15 dark:text-blue-100 dark:hover:bg-blue-500/20"
                 >
                   <Icons.Refresh size={18} />
                   <span className="text-sm font-semibold">{t('common.sync')}</span>
                 </button>
-                <button className="flex min-h-[4.75rem] flex-col items-start justify-between rounded-2xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)]/80 px-4 py-3 text-left text-slate-700 transition-colors hover:border-[var(--app-shell-line-strong)] hover:bg-[var(--app-shell-panel-strong)] dark:border-white/10 dark:bg-white/5 dark:text-gray-200 dark:hover:border-white/20 dark:hover:bg-white/10">
+                <button className="flex min-h-[4.75rem] flex-col items-start justify-between rounded-2xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] px-4 py-3 text-left text-slate-700 transition-colors hover:border-[var(--app-shell-line-strong)] hover:bg-[var(--app-shell-panel-strong)] dark:border-white/10 dark:bg-white/5 dark:text-gray-200 dark:hover:border-white/20 dark:hover:bg-white/10">
                   <Icons.Copy size={18} />
                   <span className="text-sm font-semibold">{t('common.batch')}</span>
                 </button>
@@ -1506,28 +1470,28 @@ export const Dashboard: React.FC = () => {
 
             <button
               onClick={() => setIsAiAnalysisOpen(true)}
-              className="group rounded-[1.75rem] border border-slate-200/80 bg-[linear-gradient(135deg,rgba(248,250,252,0.98),rgba(255,255,255,0.92))] p-4 text-left shadow-[0_12px_28px_rgba(15,23,42,0.05)] transition-transform hover:-translate-y-0.5 dark:border-blue-400/20 dark:bg-[linear-gradient(135deg,rgba(30,41,59,1),rgba(15,23,42,1))]"
+              className="glass-card group flex flex-col justify-center rounded-[1.75rem] px-5 py-5 text-left transition-transform hover:-translate-y-0.5 md:px-6 md:py-6"
             >
-              <div className="flex h-full items-center justify-between gap-4">
+              <div className="flex w-full items-center justify-between gap-4">
                 <div className="flex items-center gap-4">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--app-shell-panel-strong)] text-slate-700 shadow-none dark:bg-blue-500/20 dark:text-blue-200 dark:shadow-none">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-blue-100 bg-blue-50 text-blue-600 shadow-none dark:border-transparent dark:bg-blue-500/15 dark:text-blue-200">
                     <Icons.Chat size={22} />
                   </div>
                   <div>
-                    <div className="text-[10px] font-semibold tracking-[0.2em] text-slate-400 dark:text-blue-300/70">
+                    <div className="text-[10px] font-semibold tracking-[0.2em] text-slate-400 dark:text-gray-500">
                       智能分析
                     </div>
                     <div className="mt-1 text-base font-semibold text-slate-900 dark:text-gray-50">
                       {t('common.aiHoldingAnalysis') || 'AI 持仓分析'}
                     </div>
-                    <div className="mt-1 text-sm text-slate-500 dark:text-gray-400">
+                    <div className="mt-1 text-[13px] text-slate-500 dark:text-gray-400">
                       {t('common.aiHoldingAnalysisDesc') || '一键分析持仓表现与风险'}
                     </div>
                   </div>
                 </div>
                 <Icons.ArrowUp
                   size={18}
-                  className="rotate-90 text-slate-500 transition-transform group-hover:translate-x-1 dark:text-blue-300"
+                  className="rotate-90 text-slate-400 transition-transform group-hover:translate-x-1 dark:text-gray-500"
                 />
               </div>
             </button>

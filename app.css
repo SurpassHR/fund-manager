@@ -29,8 +29,8 @@
   --color-terminal-line-strong-dark: rgba(244, 239, 229, 0.2);
   --color-terminal-accent-dark: #d8a64f;
   --color-terminal-accent-soft-dark: rgba(216, 166, 79, 0.2);
-  --color-terminal-panel-dark: rgba(17, 20, 28, 0.8);
-  --color-terminal-panel-strong-dark: rgba(20, 24, 34, 0.92);
+  --color-terminal-panel-dark: rgba(255, 255, 255, 0.03);
+  --color-terminal-panel-strong-dark: rgba(255, 255, 255, 0.08);
   --color-terminal-shadow-dark: 0 32px 100px rgba(0, 0, 0, 0.42);
 }
 
@@ -66,20 +66,74 @@
 }
 
 body {
-  background:
-    radial-gradient(circle at top left, rgba(194, 139, 44, 0.14), transparent 24%),
-    radial-gradient(circle at top right, rgba(17, 19, 24, 0.08), transparent 22%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.72), rgba(243, 238, 229, 0.96));
-  background-attachment: fixed;
+  background-color: var(--color-app-bg, #f5f7fa);
   color: var(--app-shell-ink);
 }
 
 .dark body {
-  background:
-    radial-gradient(circle at top left, rgba(216, 166, 79, 0.12), transparent 24%),
-    radial-gradient(circle at top right, rgba(255, 255, 255, 0.06), transparent 20%),
-    linear-gradient(180deg, rgba(8, 10, 15, 0.96), rgba(13, 16, 22, 1));
-  background-attachment: fixed;
+  background-color: #050608;
+}
+
+.bg-blobs {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.blob {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  opacity: 0.15;
+  animation: float 20s infinite alternate;
+}
+
+.blob-1 {
+  width: 500px;
+  height: 500px;
+  background: radial-gradient(circle, #3b82f6 0%, transparent 70%);
+  top: -100px;
+  left: -100px;
+}
+
+.blob-2 {
+  width: 600px;
+  height: 600px;
+  background: radial-gradient(circle, #f97316 0%, transparent 70%);
+  bottom: -150px;
+  right: -100px;
+  animation-delay: -5s;
+}
+
+.blob-3 {
+  width: 400px;
+  height: 400px;
+  background: radial-gradient(circle, #8b5cf6 0%, transparent 70%);
+  top: 40%;
+  left: 30%;
+  animation-delay: -10s;
+}
+
+@keyframes float {
+  0% {
+    transform: translate(0, 0) scale(1);
+  }
+  100% {
+    transform: translate(50px, 100px) scale(1.1);
+  }
+}
+
+.bg-grid-pattern {
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(circle, rgba(0, 0, 0, 0.06) 1px, transparent 1px);
+  background-size: 30px 30px;
+}
+
+.dark .bg-grid-pattern {
+  background-image: radial-gradient(circle, #ffffff10 1px, transparent 1px);
 }
 
 .app-shell {
@@ -91,122 +145,7 @@ body {
   color: var(--app-shell-ink);
 }
 
-/* 交互式发光网格容器 — 替代旧 .app-shell__backdrop */
-.glow-grid-container {
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
-}
 
-/* 渐变叠加层 (原 .app-shell__backdrop::before) */
-.glow-grid-container::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background:
-    linear-gradient(130deg, rgba(194, 139, 44, 0.14), transparent 30%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.52) 0%, rgba(243, 238, 229, 0.12) 100%);
-  opacity: 0.95;
-}
-
-.dark .glow-grid-container::before {
-  background:
-    linear-gradient(130deg, rgba(216, 166, 79, 0.12), transparent 30%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.03) 0%, rgba(13, 16, 22, 0.08) 100%);
-}
-
-/* 发光网格层 */
-.glow-grid-layer {
-  --mouse-x: -100%;
-  --mouse-y: -100%;
-  width: 100%;
-  height: 100%;
-}
-
-/* 基础暗淡点阵 — 极淡，仅提供微弱纹理 */
-.glow-grid-layer::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background-image: radial-gradient(
-    circle,
-    var(--base-dot-color, rgba(17, 19, 24, 0.05)) var(--dot-size, 1.2px),
-    transparent calc(var(--dot-size, 1.2px) * 1.8)
-  );
-  background-size: var(--grid-size, 48px) var(--grid-size, 48px);
-}
-
-.dark .glow-grid-layer::before {
-  background-image: radial-gradient(
-    circle,
-    var(--base-dot-color, rgba(244, 239, 229, 0.04)) var(--dot-size, 1.2px),
-    transparent calc(var(--dot-size, 1.2px) * 1.8)
-  );
-}
-
-/* 发光点阵 — 色散柔和，中心亮、边缘渐隐 */
-.glow-grid-layer::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  --dot-color: var(--glow-color, var(--app-shell-accent));
-  opacity: 0;
-  transition: opacity 1.5s cubic-bezier(0.4, 0, 0.2, 1);
-  background-image: radial-gradient(
-    circle,
-    var(--dot-color) var(--dot-size, 1.2px),
-    color-mix(in srgb, var(--dot-color) 40%, transparent) calc(var(--dot-size, 1.2px) * 2.5),
-    transparent calc(var(--dot-size, 1.2px) * 3)
-  );
-  background-size: var(--grid-size, 48px) var(--grid-size, 48px);
-  -webkit-mask-image: radial-gradient(
-    circle var(--glow-radius, 180px) at var(--mouse-x) var(--mouse-y),
-    black 0%,
-    rgba(0, 0, 0, 0.5) 35%,
-    rgba(0, 0, 0, 0.12) 70%,
-    transparent 100%
-  );
-  mask-image: radial-gradient(
-    circle var(--glow-radius, 180px) at var(--mouse-x) var(--mouse-y),
-    black 0%,
-    rgba(0, 0, 0, 0.5) 35%,
-    rgba(0, 0, 0, 0.12) 70%,
-    transparent 100%
-  );
-}
-
-/* JS 控制点亮：瞬间显现，移除类后 1.5s 消散 */
-.glow-grid-layer.glow-grid-active::after {
-  opacity: 1;
-  transition: opacity 0s;
-}
-
-.app-shell__noise {
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
-  opacity: 0.16;
-  background-image:
-    radial-gradient(circle at 20% 20%, rgba(0, 0, 0, 0.12) 0.8px, transparent 0.9px),
-    radial-gradient(circle at 80% 30%, rgba(0, 0, 0, 0.08) 0.7px, transparent 0.8px),
-    radial-gradient(circle at 60% 80%, rgba(0, 0, 0, 0.1) 0.8px, transparent 0.9px);
-  background-size:
-    18px 18px,
-    24px 24px,
-    22px 22px;
-  mix-blend-mode: multiply;
-}
-
-.dark .app-shell__noise {
-  opacity: 0.14;
-  background-image:
-    radial-gradient(circle at 20% 20%, rgba(255, 255, 255, 0.12) 0.8px, transparent 0.9px),
-    radial-gradient(circle at 80% 30%, rgba(255, 255, 255, 0.08) 0.7px, transparent 0.8px),
-    radial-gradient(circle at 60% 80%, rgba(255, 255, 255, 0.1) 0.8px, transparent 0.9px);
-  mix-blend-mode: screen;
-}
 
 .app-shell__content {
   position: relative;
@@ -408,4 +347,29 @@ body {
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.1),
     inset 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* Glass styles */
+.glass-nav {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+.dark .glass-nav {
+  background: rgba(13, 14, 18, 0.7);
+}
+
+.glass-card {
+  background: rgba(255, 252, 245, 0.6);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(17, 19, 24, 0.05);
+  box-shadow: 0 8px 32px 0 rgba(17, 19, 24, 0.08);
+}
+
+.dark .glass-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
 }

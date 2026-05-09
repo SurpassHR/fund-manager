@@ -54,13 +54,13 @@ export const Ticker: React.FC<TickerProps> = ({ hiddenOnMobile = false }) => {
       </AnimatePresence>
 
       <div
-        className={`fixed bottom-[calc(6.5rem+env(safe-area-inset-bottom,0px))] left-0 right-0 z-40 px-3 transition-all duration-200 sm:px-4 ${
+        className={`fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom,0px))] left-0 right-0 z-40 px-3 transition-all duration-200 sm:bottom-[calc(5rem+env(safe-area-inset-bottom,0px))] sm:px-4 ${
           hiddenOnMobile
             ? 'max-md:pointer-events-none max-md:translate-y-[6rem] max-md:opacity-0'
             : 'max-md:translate-y-0 max-md:opacity-100'
         }`}
       >
-        <div className="mx-auto flex w-full max-w-5xl flex-col gap-2.5 sm:gap-3">
+        <div className="mx-auto flex w-full max-w-2xl flex-col gap-2.5 sm:gap-3">
           <AnimatePresence>
             {isExpanded && (
               <motion.div
@@ -68,7 +68,7 @@ export const Ticker: React.FC<TickerProps> = ({ hiddenOnMobile = false }) => {
                 animate={{ height: 'auto', opacity: 1, y: 0 }}
                 exit={{ height: 0, opacity: 0, y: 12 }}
                 transition={{ duration: 0.22 }}
-                className="overflow-hidden rounded-[1.5rem] border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)]/95 shadow-[var(--app-shell-shadow)] backdrop-blur-2xl"
+                className="glass-card overflow-hidden rounded-[1.5rem]"
               >
                 <div className="max-h-[40vh] overflow-y-auto hide-scrollbar px-4 py-3.5 sm:px-5 sm:py-4">
                   <div className="mb-2.5 text-[0.62rem] font-semibold tracking-[0.24em] text-[var(--app-shell-muted)]">
@@ -106,10 +106,10 @@ export const Ticker: React.FC<TickerProps> = ({ hiddenOnMobile = false }) => {
 
           <button
             type="button"
-            className="group flex h-[3.125rem] w-full items-center justify-center rounded-[1.35rem] border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)]/96 shadow-[0_12px_32px_rgba(15,23,42,0.1)] backdrop-blur-2xl transition"
+            className="glass-card group flex h-[3.125rem] w-full items-center justify-center rounded-2xl shadow-2xl transition"
             onClick={() => setIsExpanded(!isExpanded)}
           >
-            <div className="flex w-full max-w-5xl items-center justify-between px-4 text-sm sm:px-5">
+            <div className="flex w-full items-center justify-between px-4 text-sm sm:px-5">
               <div className="flex min-w-0 items-center gap-4 overflow-hidden">
                 <span className="text-[0.62rem] font-semibold tracking-[0.2em] text-[var(--app-shell-muted)]">
                   指数

@@ -378,7 +378,7 @@ export const Watchlist: React.FC = () => {
   }
 
   return (
-    <div className="min-h-full pb-36 md:pb-24" onContextMenu={(e) => e.preventDefault()}>
+    <div className="min-h-full pb-36 md:pb-16" onContextMenu={(e) => e.preventDefault()}>
       {contextMenu && (
         <div
           className="fixed z-[100] w-48 origin-top-left overflow-hidden rounded-xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)]/98 py-2 shadow-[var(--app-shell-shadow)] backdrop-blur-xl animate-in fade-in zoom-in-95 duration-100"
@@ -449,11 +449,10 @@ export const Watchlist: React.FC = () => {
               <button
                 onClick={handleManualRefresh}
                 disabled={cooldown > 0 || isRefreshing}
-                className={`relative flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border transition-transform active:scale-95 ${
-                  cooldown > 0 || isRefreshing
+                className={`relative flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border transition-transform active:scale-95 ${cooldown > 0 || isRefreshing
                     ? 'cursor-not-allowed border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] text-slate-500 dark:border-white/10 dark:bg-white/10 dark:text-gray-400'
                     : 'cursor-pointer border-[var(--app-shell-line-strong)] bg-[var(--app-shell-panel-strong)] text-slate-800 dark:border-blue-400/30 dark:bg-blue-500/15 dark:text-blue-100'
-                }`}
+                  }`}
               >
                 <Icons.Refresh size={16} className={isRefreshing ? 'animate-spin' : ''} />
                 {cooldown > 0 && !isRefreshing && (
@@ -617,11 +616,10 @@ export const Watchlist: React.FC = () => {
                     onTouchEnd={handleTouchEnd}
                     onTouchCancel={handleTouchEnd}
                     onClick={() => handleRowClick(item)}
-                    className={`group relative cursor-pointer select-none border-b border-[var(--app-shell-line)]/80 px-4 py-3 transition-colors last:border-b-0 active:bg-[var(--app-shell-panel-strong)] dark:border-border-dark dark:active:bg-white/5 md:px-5 md:py-3.5 md:hover:bg-[var(--app-shell-panel-strong)]/72 dark:md:hover:bg-white/5 ${
-                      contextMenu?.itemId === item.id
+                    className={`group relative cursor-pointer select-none border-b border-[var(--app-shell-line)]/80 px-4 py-3 transition-colors last:border-b-0 active:bg-[var(--app-shell-panel-strong)] dark:border-border-dark dark:active:bg-white/5 md:px-5 md:py-3.5 md:hover:bg-[var(--app-shell-panel-strong)]/72 dark:md:hover:bg-white/5 ${contextMenu?.itemId === item.id
                         ? 'bg-[var(--app-shell-panel-strong)] dark:bg-white/10'
                         : ''
-                    }`}
+                      }`}
                   >
                     <div className="flex flex-col gap-3 md:flex-row md:items-center">
                       <div className="min-w-0 flex-1 md:flex-[1.6] md:pr-4">
@@ -630,11 +628,10 @@ export const Watchlist: React.FC = () => {
                             {item.code}
                           </span>
                           <span
-                            className={`rounded-full border px-2 py-1 text-[10px] font-semibold tracking-[0.14em] whitespace-nowrap shrink-0 ${
-                              item.type === 'index'
+                            className={`rounded-full border px-2 py-1 text-[10px] font-semibold tracking-[0.14em] whitespace-nowrap shrink-0 ${item.type === 'index'
                                 ? 'border-[var(--app-shell-line-strong)] bg-[var(--app-shell-panel-strong)] text-slate-700 dark:border-purple-400/20 dark:bg-purple-500/10 dark:text-purple-300'
                                 : 'border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] text-slate-500 dark:border-white/10 dark:bg-white/5 dark:text-gray-400'
-                            }`}
+                              }`}
                           >
                             {item.type === 'index' ? '指数' : '基金'}
                           </span>

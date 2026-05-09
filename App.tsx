@@ -483,7 +483,6 @@ const AppContent: React.FC = () => {
   return (
     <div className="app-shell font-sans transition-colors">
       <GlowGrid aria-hidden="true" />
-      <div className="app-shell__noise" aria-hidden="true" />
 
       <div className="app-shell__content">
         <Header

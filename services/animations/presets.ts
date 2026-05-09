@@ -53,20 +53,20 @@ const PRESETS: Record<AnimationPresetName, AnimationPreset> = {
 
 const BOTTOM_NAV_ANIMATION: BottomNavAnimationConfig = {
   lerp: 0.12,
-  fillColor: 'var(--app-shell-panel-strong)',
-  borderColor: 'var(--app-shell-line)',
-  insetX: 2,
-  insetY: 2,
-  borderRadius: 16,
+  fillColor: 'rgba(59, 130, 246, 0.1)',
+  borderColor: 'rgba(59, 130, 246, 0.2)',
+  insetX: 8,
+  insetY: 8,
+  borderRadius: 12,
 };
 
 const REDUCED_BOTTOM_NAV_ANIMATION: BottomNavAnimationConfig = {
   lerp: 1.0,
-  fillColor: 'var(--app-shell-panel-strong)',
-  borderColor: 'var(--app-shell-line)',
-  insetX: 2,
-  insetY: 2,
-  borderRadius: 16,
+  fillColor: 'rgba(59, 130, 246, 0.1)',
+  borderColor: 'rgba(59, 130, 246, 0.2)',
+  insetX: 8,
+  insetY: 8,
+  borderRadius: 12,
 };
 
 export const getAnimationPreset = (

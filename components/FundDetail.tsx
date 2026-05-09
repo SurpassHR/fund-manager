@@ -1227,18 +1227,18 @@ export const FundDetail: React.FC<FundDetailProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleClose]);
 
-  const RANGE_MONTHS: Record<TimeRange, number> = {
-    '1M': 1,
-    '3M': 3,
-    '6M': 6,
-    '1Y': 12,
-    '3Y': 36,
-    '5Y': 60,
-    ALL: Infinity,
-  };
-  const RANGE_ORDER: TimeRange[] = ['1M', '3M', '6M', '1Y', '3Y', '5Y', 'ALL'];
-
   const availableRanges = useMemo(() => {
+    const RANGE_MONTHS: Record<TimeRange, number> = {
+      '1M': 1,
+      '3M': 3,
+      '6M': 6,
+      '1Y': 12,
+      '3Y': 36,
+      '5Y': 60,
+      ALL: Infinity,
+    };
+    const RANGE_ORDER: TimeRange[] = ['1M', '3M', '6M', '1Y', '3Y', '5Y', 'ALL'];
+
     const acWorthTrend = pingzhongData?.acWorthTrend;
     if (!acWorthTrend?.length) return RANGE_ORDER;
 

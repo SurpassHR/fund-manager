@@ -55,16 +55,16 @@ export const BottomNav: React.FC<BottomNavProps> = ({
 
   return (
     <nav
-      className={`fixed inset-x-0 bottom-0 z-50 px-3 pb-[calc(env(safe-area-inset-bottom,0px)+0.75rem)] transition-all duration-200 sm:px-4 ${
+      className={`glass-nav fixed inset-x-0 bottom-0 z-50 border-t border-[var(--app-shell-line)] pb-[env(safe-area-inset-bottom,0px)] transition-all duration-200 ${
         hiddenOnMobile
           ? 'max-md:pointer-events-none max-md:translate-y-[120%] max-md:opacity-0'
           : 'max-md:translate-y-0 max-md:opacity-100'
       }`}
     >
-      <div className="mx-auto w-full max-w-5xl rounded-[1.75rem] border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)]/96 shadow-[0_24px_70px_rgba(15,23,42,0.16)] backdrop-blur-2xl">
+      <div className="mx-auto w-full max-w-5xl">
         <div
           ref={navContentRef}
-          className="relative grid h-[4.5rem] grid-cols-5 gap-1 px-2 py-2 sm:px-3"
+          className="relative grid h-[4rem] grid-cols-5 gap-1 px-2 py-1 sm:h-[4.5rem] sm:px-8"
         >
           <canvas
             ref={canvasRef}
@@ -80,11 +80,11 @@ export const BottomNav: React.FC<BottomNavProps> = ({
                 onClick={() => onTabChange(tab.id)}
                 className={`group relative flex h-full w-full flex-col items-center justify-center gap-1 overflow-hidden rounded-2xl transition-colors ${
                   isActive
-                    ? 'text-[var(--app-shell-ink)]'
+                    ? 'text-blue-600 dark:text-blue-400'
                     : 'text-[var(--app-shell-muted)] hover:text-[var(--app-shell-ink)]'
                 }`}
               >
-                <span className="absolute inset-[2px] rounded-[1rem] bg-[var(--app-shell-panel-strong)]/78 opacity-0 transition-opacity duration-150 group-hover:opacity-100" />
+                <span className="absolute inset-[2px] rounded-[1rem] bg-black/5 opacity-0 transition-opacity duration-150 group-hover:opacity-100 dark:bg-white/5" />
                 {isActive && (
                   <span
                     data-testid="bottom-nav-active-indicator"
