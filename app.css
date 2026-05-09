@@ -204,7 +204,7 @@ body {
   margin: 0;
 }
 
-.markdown-body p+p {
+.markdown-body p + p {
   margin-top: 0.5rem;
 }
 
@@ -270,11 +270,13 @@ body {
 
 /* 已清仓组分界线 — 晶莹绿色水晶/翡翠质感 */
 .cleared-group-divider {
-  background: linear-gradient(135deg,
-      rgba(34, 197, 94, 0.26) 0%,
-      rgba(16, 185, 129, 0.46) 30%,
-      rgba(34, 197, 94, 0.34) 60%,
-      rgba(16, 185, 129, 0.26) 100%);
+  background: linear-gradient(
+    135deg,
+    rgba(34, 197, 94, 0.26) 0%,
+    rgba(16, 185, 129, 0.46) 30%,
+    rgba(34, 197, 94, 0.34) 60%,
+    rgba(16, 185, 129, 0.26) 100%
+  );
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.48),
     inset 0 -1px 0 rgba(16, 185, 129, 0.18),
@@ -292,11 +294,13 @@ body {
 }
 
 .cleared-group-divider:hover {
-  background: linear-gradient(135deg,
-      rgba(34, 197, 94, 0.34) 0%,
-      rgba(16, 185, 129, 0.56) 30%,
-      rgba(34, 197, 94, 0.42) 60%,
-      rgba(16, 185, 129, 0.34) 100%);
+  background: linear-gradient(
+    135deg,
+    rgba(34, 197, 94, 0.34) 0%,
+    rgba(16, 185, 129, 0.56) 30%,
+    rgba(34, 197, 94, 0.42) 60%,
+    rgba(16, 185, 129, 0.34) 100%
+  );
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.56),
     inset 0 -1px 0 rgba(16, 185, 129, 0.22),
@@ -304,22 +308,26 @@ body {
 }
 
 .cleared-group-divider:active {
-  background: linear-gradient(135deg,
-      rgba(34, 197, 94, 0.2) 0%,
-      rgba(16, 185, 129, 0.36) 30%,
-      rgba(34, 197, 94, 0.26) 60%,
-      rgba(16, 185, 129, 0.2) 100%);
+  background: linear-gradient(
+    135deg,
+    rgba(34, 197, 94, 0.2) 0%,
+    rgba(16, 185, 129, 0.36) 30%,
+    rgba(34, 197, 94, 0.26) 60%,
+    rgba(16, 185, 129, 0.2) 100%
+  );
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.32),
     inset 0 2px 4px rgba(0, 0, 0, 0.08);
 }
 
 .dark .cleared-group-divider {
-  background: linear-gradient(135deg,
-      rgba(34, 197, 94, 0.16) 0%,
-      rgba(16, 185, 129, 0.3) 30%,
-      rgba(34, 197, 94, 0.2) 60%,
-      rgba(16, 185, 129, 0.16) 100%);
+  background: linear-gradient(
+    135deg,
+    rgba(34, 197, 94, 0.16) 0%,
+    rgba(16, 185, 129, 0.3) 30%,
+    rgba(34, 197, 94, 0.2) 60%,
+    rgba(16, 185, 129, 0.16) 100%
+  );
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.16),
     inset 0 -1px 0 rgba(16, 185, 129, 0.12),
@@ -329,11 +337,13 @@ body {
 }
 
 .dark .cleared-group-divider:hover {
-  background: linear-gradient(135deg,
-      rgba(34, 197, 94, 0.22) 0%,
-      rgba(16, 185, 129, 0.4) 30%,
-      rgba(34, 197, 94, 0.28) 60%,
-      rgba(16, 185, 129, 0.22) 100%);
+  background: linear-gradient(
+    135deg,
+    rgba(34, 197, 94, 0.22) 0%,
+    rgba(16, 185, 129, 0.4) 30%,
+    rgba(34, 197, 94, 0.28) 60%,
+    rgba(16, 185, 129, 0.22) 100%
+  );
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.22),
     inset 0 -1px 0 rgba(16, 185, 129, 0.16),
@@ -341,11 +351,13 @@ body {
 }
 
 .dark .cleared-group-divider:active {
-  background: linear-gradient(135deg,
-      rgba(34, 197, 94, 0.12) 0%,
-      rgba(16, 185, 129, 0.24) 30%,
-      rgba(34, 197, 94, 0.16) 60%,
-      rgba(16, 185, 129, 0.12) 100%);
+  background: linear-gradient(
+    135deg,
+    rgba(34, 197, 94, 0.12) 0%,
+    rgba(16, 185, 129, 0.24) 30%,
+    rgba(34, 197, 94, 0.16) 60%,
+    rgba(16, 185, 129, 0.12) 100%
+  );
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.1),
     inset 0 2px 4px rgba(0, 0, 0, 0.2);
@@ -386,4 +398,22 @@ body {
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid rgba(255, 255, 255, 0.08);
   box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+}
+
+/* iOS Safari date input 重置 — 覆写 WebKit 原生渲染 */
+input[type='date'] {
+  -webkit-appearance: none;
+  appearance: none;
+  display: block;
+  box-sizing: border-box;
+  min-height: 40px;
+  line-height: 1.2;
+  min-width: 0;
+}
+
+input[type='date']::-webkit-inner-spin-button,
+input[type='date']::-webkit-calendar-picker-indicator {
+  margin: 0;
+  padding: 0;
+  -webkit-appearance: none;
 }
