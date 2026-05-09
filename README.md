@@ -2,6 +2,8 @@
 
 本地优先、隐私至上的基金管理应用，帮助用户聚合管理基金持仓、查看收益分析。
 
+[Github Pages 在线演示](https://gp.hrfuqiang.top/fund-manager/)
+
 <details>
 <summary>桌面端界面展示</summary>
 <img src="assets/screenshot-dark-mode.png" alt="暗色模式截图" />
@@ -118,6 +120,26 @@ npm run preview
 1. 进入 GitHub 仓库 **Settings → Pages**
 2. **Source** 选择 **GitHub Actions**
 3. 推送代码到 `main` 或 `v2` 分支即可触发部署
+
+## 添加到手机桌面（推荐）
+
+小胡养基支持 PWA，可添加到手机桌面获得类原生 App 体验：全屏运行、独立应用图标、无浏览器地址栏干扰。
+
+### iOS（Safari）
+
+1. 用 **Safari** 打开 `https://gp.hrfuqiang.top/fund-manager/`
+2. 点击底部工具栏中间的 **分享** 按钮（方框箭头图标）
+3. 在分享菜单中滑动找到 **「添加到主屏幕」**（Add to Home Screen）
+4. 确认应用名称后点击右上角 **「添加」**
+5. 桌面即出现小胡养基图标，点击即可全屏启动
+
+> **提示**：iOS 添加的 PWA 支持灵动岛/安全区域自适应，且可独立切换深色/浅色模式。
+
+### Android（Chrome / Edge）
+
+1. 用 Chrome 或 Edge 打开 `https://gp.hrfuqiang.top/fund-manager/`
+2. 点击地址栏右侧或底部菜单中的 **⋮** → **「添加到主屏幕」** 或 **「安装应用」**
+3. 按提示确认即可
 
 ## 项目结构
 
