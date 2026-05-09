@@ -1076,9 +1076,8 @@ export const FundDetail: React.FC<FundDetailProps> = ({
   useEffect(() => {
     if (!chartReady || !intradayChartRef.current || fundIntradayTrend.length === 0) return;
 
-    if (!intradayChartInstance.current) {
-      intradayChartInstance.current = echarts.init(intradayChartRef.current);
-    }
+    intradayChartInstance.current =
+      echarts.getInstanceByDom(intradayChartRef.current) ?? echarts.init(intradayChartRef.current);
 
     const times = fundIntradayTrend.map((p) => p.time);
     const navs = fundIntradayTrend.map((p) => p.estimatedNav);
@@ -1155,7 +1154,7 @@ export const FundDetail: React.FC<FundDetailProps> = ({
     const handleResize = () => intradayChartInstance.current?.resize();
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, [chartReady, fundIntradayTrend, isDark, currentNav, fundDetailEstimatedPct]);
+  }, [chartReady, fundIntradayTrend, isDark, currentNav, fundDetailEstimatedPct, isMarketTrading]);
 
   // Derived History Table Data based on Chart Data + Current NAV
   // Only show dates up to the authoritative lastTradingDay to avoid displaying
@@ -1421,7 +1420,7 @@ export const FundDetail: React.FC<FundDetailProps> = ({
         </div>
 
         {/* Intraday Trend Chart (基金级日内走势) */}
-        {isMarketTrading && fundIntradayTrend.length > 0 && (
+        {fundIntradayTrend.length > 0 && (
           <div className="mb-2 rounded-[1.5rem] border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)]/92 p-4 shadow-[0_10px_24px_rgba(15,23,42,0.05)] transition-colors">
             <div className="flex items-center justify-between mb-2">
               <h3 className="font-bold text-gray-800 dark:text-gray-100 text-sm border-l-4 border-blue-500 pl-2">

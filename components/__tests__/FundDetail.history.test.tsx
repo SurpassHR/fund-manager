@@ -1,5 +1,6 @@
 /// <reference types="vitest/globals" />
 import React from 'react';
+import * as echarts from 'echarts';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { FundDetail } from '../FundDetail';
@@ -31,6 +32,7 @@ const mockedApi = vi.hoisted(() => ({
   fetchTencentStockQuotes: vi.fn(),
   fetchTencentIntradayData: vi.fn(),
   buildTencentQuoteCodes: vi.fn(() => []),
+  checkIsMarketTrading: vi.fn(() => Promise.resolve(false)),
 }));
 
 const chartSpies = vi.hoisted(() => ({
@@ -49,6 +51,7 @@ vi.mock('../../services/api', () => ({
   fetchTencentStockQuotes: mockedApi.fetchTencentStockQuotes,
   fetchTencentIntradayData: mockedApi.fetchTencentIntradayData,
   buildTencentQuoteCodes: mockedApi.buildTencentQuoteCodes,
+  checkIsMarketTrading: mockedApi.checkIsMarketTrading,
 }));
 
 vi.mock('../../services/i18n', () => ({
@@ -100,6 +103,7 @@ vi.mock('echarts', () => ({
     resize: chartSpies.resize,
     setOption: chartSpies.setOption,
   })),
+  getInstanceByDom: vi.fn(() => undefined),
   graphic: {
     LinearGradient: vi.fn(),
   },
@@ -127,6 +131,7 @@ describe('FundDetail history performance source', () => {
     mockedApi.fetchParentETFInfo.mockResolvedValue(null);
     mockedApi.fetchTencentStockQuotes.mockResolvedValue({});
     mockedApi.fetchTencentIntradayData.mockResolvedValue({});
+    mockedApi.checkIsMarketTrading.mockResolvedValue(false);
     mockedApi.fetchFundPerformance.mockResolvedValue({
       data: {
         dayEnd: {
@@ -723,5 +728,105 @@ describe('FundDetail history performance source', () => {
     // The holdings grid should use auto-fit responsive layout
     const gridContainer = document.querySelector('[class*="grid-cols-\\[auto_1fr_auto_"]');
     expect(gridContainer).not.toBeNull();
+  });
+
+  describe('intraday trend chart', () => {
+    const setupIntradayData = () => {
+      mockedApi.fetchFundHoldings.mockResolvedValue({
+        data: {
+          equityHoldings: [
+            { ticker: '600519', name: '贵州茅台', weight: 5.5, sector: '消费', styleBox: '大盘' },
+          ],
+        },
+      });
+      mockedApi.fetchTencentStockQuotes.mockResolvedValue({
+        '600519': { price: '1800.00', pct: 2.5 },
+      });
+      mockedApi.fetchTencentIntradayData.mockResolvedValue({
+        '600519': [
+          { time: '09:30', price: 1780 },
+          { time: '09:31', price: 1790 },
+          { time: '09:32', price: 1800 },
+        ],
+      });
+      mockedApi.buildTencentQuoteCodes.mockReturnValue(['sh600519']);
+    };
+
+    it('renders intraday chart when intraday data is available', async () => {
+      setupIntradayData();
+
+      render(<FundDetail fund={fund} onBack={vi.fn()} />);
+
+      await waitFor(() => {
+        expect(screen.getByText('日内走势')).toBeInTheDocument();
+      });
+
+      // ECharts 初始化在 chartReady (50ms) 后才触发，需等待 setOption 调用
+      await waitFor(() => {
+        expect(chartSpies.setOption).toHaveBeenCalled();
+      });
+      const initCalls = vi.mocked(echarts.init).mock.calls;
+      expect(initCalls.length).toBeGreaterThanOrEqual(2); // main chart + intraday chart
+    });
+
+    it('renders intraday chart even when market is not trading', async () => {
+      mockedApi.checkIsMarketTrading.mockResolvedValue(false);
+      setupIntradayData();
+
+      render(<FundDetail fund={fund} onBack={vi.fn()} />);
+
+      // 即使 isMarketTrading=false，只要有日内数据就应该渲染图表
+      await waitFor(() => {
+        expect(screen.getByText('日内走势')).toBeInTheDocument();
+      });
+
+      await waitFor(() => {
+        expect(chartSpies.setOption).toHaveBeenCalled();
+      });
+    });
+
+    it('does not render intraday chart when intraday data is empty', async () => {
+      mockedApi.checkIsMarketTrading.mockResolvedValue(true);
+      mockedApi.fetchFundHoldings.mockResolvedValue({
+        data: {
+          equityHoldings: [
+            { ticker: '600519', name: '贵州茅台', weight: 5.5, sector: '消费', styleBox: '大盘' },
+          ],
+        },
+      });
+      mockedApi.fetchTencentStockQuotes.mockResolvedValue({
+        '600519': { price: '1800.00', pct: 2.5 },
+      });
+      mockedApi.fetchTencentIntradayData.mockResolvedValue({});
+      mockedApi.buildTencentQuoteCodes.mockReturnValue(['sh600519']);
+
+      render(<FundDetail fund={fund} onBack={vi.fn()} />);
+
+      await waitFor(() => {
+        expect(screen.getByText('贵州茅台')).toBeInTheDocument();
+      });
+
+      expect(screen.queryByText('日内走势')).not.toBeInTheDocument();
+    });
+
+    it('initializes intraday chart immediately when data arrives', async () => {
+      setupIntradayData();
+
+      render(<FundDetail fund={fund} onBack={vi.fn()} />);
+
+      // 等待持仓数据加载完成
+      await waitFor(() => {
+        expect(screen.getByText('贵州茅台')).toBeInTheDocument();
+      });
+
+      // 数据就绪后日内走势区域应立即渲染（不依赖 isMarketTrading）
+      expect(screen.getByText('日内走势')).toBeInTheDocument();
+
+      // ECharts 在 chartReady 后初始化
+      await waitFor(() => {
+        const initCalls = vi.mocked(echarts.init).mock.calls;
+        expect(initCalls.length).toBeGreaterThanOrEqual(2);
+      });
+    });
   });
 });

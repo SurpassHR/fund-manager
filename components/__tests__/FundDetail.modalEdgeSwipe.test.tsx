@@ -75,6 +75,7 @@ vi.mock('echarts', () => ({
     resize: vi.fn(),
     setOption: vi.fn(),
   })),
+  getInstanceByDom: vi.fn(() => undefined),
   graphic: {
     LinearGradient: vi.fn(),
   },
