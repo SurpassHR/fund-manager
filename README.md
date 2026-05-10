@@ -19,15 +19,20 @@
 
 <details>
 <summary>移动端界面展示</summary>
-<img src="assets/mobile-screenshot-dark-mode.png" alt="移动端暗色模式截图" width="60%" />
-<img src="assets/mobile-screenshot-dark-mode-fund-detail.png" alt="移动端暗色模式基金详情截图" width="60%" />
-<img src="assets/mobile-screenshot-dark-mode-fund-share-holdings.png" alt="移动端暗色模式基金持仓截图" width="60%" />
-<img src="assets/mobile-screenshot-dark-mode-index-ticker.png" alt="移动端暗色模式指数行情截图" width="60%" />
 
-<img src="assets/mobile-screenshot-light-mode.png" alt="移动端浅色模式截图" width="60%" />
-<img src="assets/mobile-screenshot-light-mode-fund-detail.png" alt="移动端浅色模式基金详情截图" width="60%" />
-<img src="assets/mobile-screenshot-light-mode-fund-share-holdings.png" alt="移动端浅色模式基金持仓截图" width="60%" />
-<img src="assets/mobile-screenshot-light-mode-index-ticker.png" alt="移动端浅色模式指数行情截图" width="60%" />
+<div style="display: flex; gap: 8px; justify-content: center; flex-wrap: wrap;">
+  <img src="assets/mobile-screenshot-dark-mode.png" alt="移动端暗色模式截图" width="24%" />
+  <img src="assets/mobile-screenshot-dark-mode-fund-detail.png" alt="移动端暗色模式基金详情截图" width="24%" />
+  <img src="assets/mobile-screenshot-dark-mode-fund-share-holdings.png" alt="移动端暗色模式基金持仓截图" width="24%" />
+  <img src="assets/mobile-screenshot-dark-mode-index-ticker.png" alt="移动端暗色模式指数行情截图" width="24%" />
+</div>
+
+<div style="display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-top: 8px;">
+  <img src="assets/mobile-screenshot-light-mode.png" alt="移动端浅色模式截图" width="24%" />
+  <img src="assets/mobile-screenshot-light-mode-fund-detail.png" alt="移动端浅色模式基金详情截图" width="24%" />
+  <img src="assets/mobile-screenshot-light-mode-fund-share-holdings.png" alt="移动端浅色模式基金持仓截图" width="24%" />
+  <img src="assets/mobile-screenshot-light-mode-index-ticker.png" alt="移动端浅色模式指数行情截图" width="24%" />
+</div>
 </details>
 
 ## 功能特性
