@@ -22,6 +22,7 @@ import type { Fund } from '../types';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useSettings } from '../services/SettingsContext';
 import { AiHoldingsAnalysisModal } from './AiHoldingsAnalysisModal';
+import { TotalAssetsModal } from './TotalAssetsModal';
 import { hasTouchMovedBeyondThreshold } from '../services/longPressGesture';
 import {
   AUTO_REFRESH_INTERVAL_MS,
@@ -145,6 +146,7 @@ export const Dashboard: React.FC = () => {
   );
   const [institutionMap, setInstitutionMap] = useState<Map<string, string> | null>(null);
   const [isAiAnalysisOpen, setIsAiAnalysisOpen] = useState(false);
+  const [isTotalAssetsOpen, setIsTotalAssetsOpen] = useState(false);
   const { autoRefresh } = useSettings();
 
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -768,10 +770,11 @@ export const Dashboard: React.FC = () => {
                   <button
                     key={filterKey}
                     onClick={() => setActiveFilter(filterKey)}
-                    className={`relative flex-shrink-0 overflow-hidden rounded-full border px-3 py-2 text-sm font-medium transition-all md:px-4 ${isActive
+                    className={`relative flex-shrink-0 overflow-hidden rounded-full border px-3 py-2 text-sm font-medium transition-all md:px-4 ${
+                      isActive
                         ? 'border-[var(--app-shell-line-strong)] bg-[var(--app-shell-panel-strong)] text-slate-800 shadow-[0_8px_24px_rgba(82,61,37,0.10)] dark:border-blue-400 dark:bg-blue-500/15 dark:text-blue-100 dark:shadow-none'
                         : 'border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] text-slate-600 hover:border-[var(--app-shell-line-strong)] hover:text-slate-900 dark:border-white/10 dark:bg-white/5 dark:text-gray-400 dark:hover:border-white/20 dark:hover:text-gray-100'
-                      }`}
+                    }`}
                   >
                     <span className="relative z-10">{label}</span>
                     {isActive && (
@@ -819,10 +822,11 @@ export const Dashboard: React.FC = () => {
                 <button
                   onClick={handleManualRefresh}
                   disabled={cooldown > 0 || isRefreshing}
-                  className={`relative flex h-8 w-8 items-center justify-center overflow-hidden rounded-full border transition-transform active:scale-95 ${cooldown > 0 || isRefreshing
+                  className={`relative flex h-8 w-8 items-center justify-center overflow-hidden rounded-full border transition-transform active:scale-95 ${
+                    cooldown > 0 || isRefreshing
                       ? 'cursor-not-allowed border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] text-slate-500 dark:border-white/10 dark:bg-white/10 dark:text-gray-400'
                       : 'cursor-pointer border-[var(--app-shell-line-strong)] bg-[var(--app-shell-panel-strong)] text-slate-800 dark:border-blue-400/30 dark:bg-blue-500/15 dark:text-blue-100'
-                    }`}
+                  }`}
                 >
                   <Icons.Refresh size={14} className={isRefreshing ? 'animate-spin' : ''} />
                   {cooldown > 0 && !isRefreshing && (
@@ -847,9 +851,12 @@ export const Dashboard: React.FC = () => {
               <div className="mt-4 text-[11px] font-semibold tracking-wide text-slate-400 dark:text-gray-500">
                 总资产 (CNY)
               </div>
-              <div className="mt-1 text-4xl font-black tracking-[-0.04em] text-slate-900 dark:text-gray-50 md:text-[3.25rem] md:leading-tight">
+              <button
+                onClick={() => setIsTotalAssetsOpen(true)}
+                className="mt-1 text-4xl font-black tracking-[-0.04em] text-slate-900 dark:text-gray-50 md:text-[3.25rem] md:leading-tight hover:opacity-80 transition-opacity cursor-pointer text-left"
+              >
                 {showValues ? formatCurrency(summary.totalAssets) : '****'}
-              </div>
+              </button>
 
               <div className="mt-5 inline-flex items-center gap-2 rounded-full border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)]/80 px-3.5 py-1.5 transition-colors dark:border-white/5 dark:bg-white/5">
                 <span className="text-[12px] font-medium text-amber-600 dark:text-amber-500">
@@ -918,10 +925,11 @@ export const Dashboard: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setIsInstitutionGroupEnabled((prev) => !prev)}
-                  className={`rounded-full border p-1.5 transition-colors ${isInstitutionGroupEnabled
+                  className={`rounded-full border p-1.5 transition-colors ${
+                    isInstitutionGroupEnabled
                       ? 'border-indigo-400 bg-indigo-50 text-indigo-600 dark:border-indigo-400/30 dark:bg-indigo-500/15 dark:text-indigo-200'
                       : 'border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] text-slate-400 hover:text-slate-700 dark:border-white/10 dark:bg-white/5 dark:text-gray-500 dark:hover:text-gray-200'
-                    }`}
+                  }`}
                   aria-label={t('common.groupByInstitution')}
                 >
                   <Icons.Layers size={14} />
@@ -1012,10 +1020,11 @@ export const Dashboard: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setIsInstitutionGroupEnabled((prev) => !prev)}
-                  className={`rounded-full border p-1.5 transition-colors ${isInstitutionGroupEnabled
+                  className={`rounded-full border p-1.5 transition-colors ${
+                    isInstitutionGroupEnabled
                       ? 'border-indigo-400 bg-indigo-50 text-indigo-600 dark:border-indigo-400/30 dark:bg-indigo-500/15 dark:text-indigo-200'
                       : 'border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] text-slate-400 dark:border-white/10 dark:bg-white/5 dark:text-gray-500'
-                    }`}
+                  }`}
                   aria-label={t('common.groupByInstitution')}
                 >
                   <Icons.Layers size={14} />
@@ -1127,9 +1136,9 @@ export const Dashboard: React.FC = () => {
                   : dayChangeBaseNav !== undefined
                     ? fund.todayChangeIsEstimated
                       ? (fund.holdingShares *
-                        dayChangeBaseNav *
-                        (fund.estimatedDayChangePct ?? 0)) /
-                      100
+                          dayChangeBaseNav *
+                          (fund.estimatedDayChangePct ?? 0)) /
+                        100
                       : holdingValue - fund.holdingShares * dayChangeBaseNav
                     : fund.todayChangePreOpen
                       ? 0
@@ -1168,10 +1177,11 @@ export const Dashboard: React.FC = () => {
                   onTouchMove={handleTouchMove}
                   onTouchEnd={handleTouchEnd}
                   onTouchCancel={handleTouchEnd}
-                  className={`group relative cursor-pointer select-none border-b border-[var(--app-shell-line)]/80 px-4 py-3 transition-colors last:border-b-0 active:bg-[var(--app-shell-panel-strong)] dark:border-border-dark dark:active:bg-white/5 md:px-5 md:py-3.5 md:hover:bg-[var(--app-shell-panel-strong)]/72 dark:md:hover:bg-white/5 ${contextMenu?.fundId === fund.id
+                  className={`group relative cursor-pointer select-none border-b border-[var(--app-shell-line)]/80 px-4 py-3 transition-colors last:border-b-0 active:bg-[var(--app-shell-panel-strong)] dark:border-border-dark dark:active:bg-white/5 md:px-5 md:py-3.5 md:hover:bg-[var(--app-shell-panel-strong)]/72 dark:md:hover:bg-white/5 ${
+                    contextMenu?.fundId === fund.id
                       ? 'bg-[var(--app-shell-panel-strong)] dark:bg-white/10'
                       : ''
-                    }`}
+                  }`}
                 >
                   <div className="flex flex-col gap-3 md:flex-row md:items-center">
                     <div className="min-w-0 flex-1 md:flex-[1.6] md:pr-4">
@@ -1426,9 +1436,9 @@ export const Dashboard: React.FC = () => {
                         : dayChangeBaseNav !== undefined
                           ? fund.todayChangeIsEstimated
                             ? (fund.holdingShares *
-                              dayChangeBaseNav *
-                              (fund.estimatedDayChangePct ?? 0)) /
-                            100
+                                dayChangeBaseNav *
+                                (fund.estimatedDayChangePct ?? 0)) /
+                              100
                             : holdingValue - fund.holdingShares * dayChangeBaseNav
                           : fund.todayChangePreOpen
                             ? 0
@@ -1467,10 +1477,11 @@ export const Dashboard: React.FC = () => {
                         onTouchMove={handleTouchMove}
                         onTouchEnd={handleTouchEnd}
                         onTouchCancel={handleTouchEnd}
-                        className={`group relative cursor-pointer select-none border-b border-[var(--app-shell-line)]/80 px-4 py-3 transition-colors last:border-b-0 active:bg-[var(--app-shell-panel-strong)] dark:border-border-dark dark:active:bg-white/5 md:px-5 md:py-3.5 md:hover:bg-[var(--app-shell-panel-strong)]/72 dark:md:hover:bg-white/5 ${contextMenu?.fundId === fund.id
+                        className={`group relative cursor-pointer select-none border-b border-[var(--app-shell-line)]/80 px-4 py-3 transition-colors last:border-b-0 active:bg-[var(--app-shell-panel-strong)] dark:border-border-dark dark:active:bg-white/5 md:px-5 md:py-3.5 md:hover:bg-[var(--app-shell-panel-strong)]/72 dark:md:hover:bg-white/5 ${
+                          contextMenu?.fundId === fund.id
                             ? 'bg-[var(--app-shell-panel-strong)] dark:bg-white/10'
                             : ''
-                          }`}
+                        }`}
                       >
                         <div className="flex flex-col gap-3 md:flex-row md:items-center">
                           <div className="min-w-0 flex-1 md:flex-[1.6] md:pr-4">
@@ -1726,6 +1737,11 @@ export const Dashboard: React.FC = () => {
         isOpen={isAiAnalysisOpen}
         onClose={() => setIsAiAnalysisOpen(false)}
         holdingsSnapshot={holdingsSnapshot}
+      />
+      <TotalAssetsModal
+        isOpen={isTotalAssetsOpen}
+        onClose={() => setIsTotalAssetsOpen(false)}
+        funds={safeFunds}
       />
     </div>
   );

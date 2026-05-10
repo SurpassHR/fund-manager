@@ -127,7 +127,7 @@ const normalizeTicker = (ticker: string) => ticker.replace(/\D/g, '');
 
 const buildCodesKey = (codes: string[]) => codes.slice().sort().join(',');
 
-const withCache = async <T>(params: {
+export const withCache = async <T>(params: {
   key: string;
   ttlMs: number;
   force?: boolean;
