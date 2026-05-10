@@ -848,26 +848,30 @@ export const Dashboard: React.FC = () => {
                 </button>
               </div>
 
-              <div className="mt-4 text-[11px] font-semibold tracking-wide text-slate-400 dark:text-gray-500">
-                总资产 (CNY)
+              <div>
+                <div className="text-[11px] font-semibold tracking-wide text-slate-400 dark:text-gray-500">
+                  总资产 (CNY)
+                </div>
+                <button
+                  onClick={() => setIsTotalAssetsOpen(true)}
+                  className="mt-1 text-4xl font-black tracking-[-0.04em] text-slate-900 dark:text-gray-50 md:text-[3.25rem] md:leading-tight hover:opacity-80 transition-opacity cursor-pointer text-left"
+                >
+                  {showValues ? formatCurrency(summary.totalAssets) : '****'}
+                </button>
               </div>
-              <button
-                onClick={() => setIsTotalAssetsOpen(true)}
-                className="mt-1 text-4xl font-black tracking-[-0.04em] text-slate-900 dark:text-gray-50 md:text-[3.25rem] md:leading-tight hover:opacity-80 transition-opacity cursor-pointer text-left"
-              >
-                {showValues ? formatCurrency(summary.totalAssets) : '****'}
-              </button>
 
-              <div className="mt-5 inline-flex items-center gap-2 rounded-full border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)]/80 px-3.5 py-1.5 transition-colors dark:border-white/5 dark:bg-white/5">
-                <span className="text-[12px] font-medium text-amber-600 dark:text-amber-500">
-                  持有收益
-                </span>
-                <span className={`text-[13px] font-bold ${getSignColor(summary.holdingGain)}`}>
-                  {showValues ? formatSignedCurrency(summary.holdingGain) : '****'}
-                  <span className="ml-1 text-xs font-medium">
-                    ({showValues ? formatPct(summary.holdingGainPct) : '****'})
+              <div className="mt-4">
+                <div className="inline-flex items-center gap-2 rounded-full border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)]/80 px-3.5 py-1.5 transition-colors dark:border-white/5 dark:bg-white/5">
+                  <span className="text-[12px] font-medium text-amber-600 dark:text-amber-500">
+                    持有收益
                   </span>
-                </span>
+                  <span className={`text-[13px] font-bold ${getSignColor(summary.holdingGain)}`}>
+                    {showValues ? formatSignedCurrency(summary.holdingGain) : '****'}
+                    <span className="ml-1 text-xs font-medium">
+                      ({showValues ? formatPct(summary.holdingGainPct) : '****'})
+                    </span>
+                  </span>
+                </div>
               </div>
             </div>
           </div>
