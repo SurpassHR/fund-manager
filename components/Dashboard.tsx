@@ -18,6 +18,8 @@ import { AdjustPositionModal } from './AdjustPositionModal';
 import { RebalanceModal } from './RebalanceModal';
 import { TransactionHistoryModal } from './TransactionHistoryModal';
 import { FundDetail } from './FundDetail';
+import { SortDropdown } from './SortDropdown';
+import type { SortDropdownOption } from './SortDropdown';
 import type { Fund } from '../types';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useSettings } from '../services/SettingsContext';
@@ -40,6 +42,7 @@ const INSTITUTION_GROUP_STORAGE_KEY = 'dashboard.institutionGroupEnabled';
 const REFRESH_DEBOUNCE_MS = 300;
 
 type DashboardSortKey =
+  | 'name'
   | 'officialDayChangePct'
   | 'estimatedDayChangePct'
   | 'todayGain'
@@ -55,6 +58,7 @@ const DEFAULT_DASHBOARD_SORT_STATE: DashboardSortState = { key: null, direction:
 
 const isValidDashboardSortKey = (key: unknown): key is DashboardSortKey => {
   return (
+    key === 'name' ||
     key === 'officialDayChangePct' ||
     key === 'estimatedDayChangePct' ||
     key === 'todayGain' ||
@@ -400,6 +404,18 @@ export const Dashboard: React.FC = () => {
     setSortState(DEFAULT_DASHBOARD_SORT_STATE);
   };
 
+  const dashboardSortOptions: SortDropdownOption[] = useMemo(
+    () => [
+      { key: 'name', label: t('common.name') || '名称' },
+      { key: 'marketValue', label: t('common.mktVal') || '市值' },
+      { key: 'todayGain', label: t('common.dayGain') || '日收益' },
+      { key: 'totalGain', label: t('common.totalGain') || '持有收益' },
+      { key: 'officialDayChangePct', label: t('common.yesterdayChangePct') || '昨日涨幅' },
+      { key: 'estimatedDayChangePct', label: t('common.todayChangePct') || '今日涨幅' },
+    ],
+    [t],
+  );
+
   const handleToggleClearedGroup = useCallback(() => {
     const nextExpanded = !isClearedGroupExpanded;
     setIsClearedGroupExpanded(nextExpanded);
@@ -440,6 +456,9 @@ export const Dashboard: React.FC = () => {
 
     const direction = sortState.direction === 'asc' ? 1 : -1;
     return [...filteredFunds].sort((a, b) => {
+      if (sortState.key === 'name') {
+        return a.name.localeCompare(b.name, 'zh-Hans-CN') * direction;
+      }
       const diff = getSortValue(a) - getSortValue(b);
       if (diff === 0) return 0;
       return diff * direction;
@@ -768,10 +787,11 @@ export const Dashboard: React.FC = () => {
                   <button
                     key={filterKey}
                     onClick={() => setActiveFilter(filterKey)}
-                    className={`relative flex-shrink-0 overflow-hidden rounded-full border px-3 py-2 text-sm font-medium transition-all md:px-4 ${isActive
+                    className={`relative flex-shrink-0 overflow-hidden rounded-full border px-3 py-2 text-sm font-medium transition-all md:px-4 ${
+                      isActive
                         ? 'border-[var(--app-shell-line-strong)] bg-[var(--app-shell-panel-strong)] text-slate-800 shadow-[0_8px_24px_rgba(82,61,37,0.10)] dark:border-blue-400 dark:bg-blue-500/15 dark:text-blue-100 dark:shadow-none'
                         : 'border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] text-slate-600 hover:border-[var(--app-shell-line-strong)] hover:text-slate-900 dark:border-white/10 dark:bg-white/5 dark:text-gray-400 dark:hover:border-white/20 dark:hover:text-gray-100'
-                      }`}
+                    }`}
                   >
                     <span className="relative z-10">{label}</span>
                     {isActive && (
@@ -819,10 +839,11 @@ export const Dashboard: React.FC = () => {
                 <button
                   onClick={handleManualRefresh}
                   disabled={cooldown > 0 || isRefreshing}
-                  className={`relative flex h-8 w-8 items-center justify-center overflow-hidden rounded-full border transition-transform active:scale-95 ${cooldown > 0 || isRefreshing
+                  className={`relative flex h-8 w-8 items-center justify-center overflow-hidden rounded-full border transition-transform active:scale-95 ${
+                    cooldown > 0 || isRefreshing
                       ? 'cursor-not-allowed border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] text-slate-500 dark:border-white/10 dark:bg-white/10 dark:text-gray-400'
                       : 'cursor-pointer border-[var(--app-shell-line-strong)] bg-[var(--app-shell-panel-strong)] text-slate-800 dark:border-blue-400/30 dark:bg-blue-500/15 dark:text-blue-100'
-                    }`}
+                  }`}
                 >
                   <Icons.Refresh size={14} className={isRefreshing ? 'animate-spin' : ''} />
                   {cooldown > 0 && !isRefreshing && (
@@ -918,10 +939,11 @@ export const Dashboard: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setIsInstitutionGroupEnabled((prev) => !prev)}
-                  className={`rounded-full border p-1.5 transition-colors ${isInstitutionGroupEnabled
+                  className={`rounded-full border p-1.5 transition-colors ${
+                    isInstitutionGroupEnabled
                       ? 'border-indigo-400 bg-indigo-50 text-indigo-600 dark:border-indigo-400/30 dark:bg-indigo-500/15 dark:text-indigo-200'
                       : 'border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] text-slate-400 hover:text-slate-700 dark:border-white/10 dark:bg-white/5 dark:text-gray-500 dark:hover:text-gray-200'
-                    }`}
+                  }`}
                   aria-label={t('common.groupByInstitution')}
                 >
                   <Icons.Layers size={14} />
@@ -1012,10 +1034,11 @@ export const Dashboard: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setIsInstitutionGroupEnabled((prev) => !prev)}
-                  className={`rounded-full border p-1.5 transition-colors ${isInstitutionGroupEnabled
+                  className={`rounded-full border p-1.5 transition-colors ${
+                    isInstitutionGroupEnabled
                       ? 'border-indigo-400 bg-indigo-50 text-indigo-600 dark:border-indigo-400/30 dark:bg-indigo-500/15 dark:text-indigo-200'
                       : 'border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] text-slate-400 dark:border-white/10 dark:bg-white/5 dark:text-gray-500'
-                    }`}
+                  }`}
                   aria-label={t('common.groupByInstitution')}
                 >
                   <Icons.Layers size={14} />
@@ -1033,34 +1056,13 @@ export const Dashboard: React.FC = () => {
                   </div>
                 </div>
               </div>
-              <div className="flex gap-2 text-right text-[11px] font-semibold tracking-[0.14em] text-slate-400 dark:text-gray-500">
-                <button
-                  onClick={() => handleSort('officialDayChangePct')}
-                  className="flex w-[6.5rem] items-center justify-end gap-0.5"
-                  type="button"
-                >
-                  {t('common.yesterdayChangePct') || '昨日涨幅'}
-                  {sortState.key === 'officialDayChangePct' && (
-                    <Icons.ArrowUp
-                      size={12}
-                      className={sortState.direction === 'asc' ? '' : 'rotate-180'}
-                    />
-                  )}
-                </button>
-                <button
-                  onClick={() => handleSort('estimatedDayChangePct')}
-                  className="flex w-[6.5rem] items-center justify-end gap-0.5"
-                  type="button"
-                >
-                  {t('common.todayChangePct') || '今日涨幅'}
-                  {sortState.key === 'estimatedDayChangePct' && (
-                    <Icons.ArrowUp
-                      size={12}
-                      className={sortState.direction === 'asc' ? '' : 'rotate-180'}
-                    />
-                  )}
-                </button>
-              </div>
+              <SortDropdown
+                options={dashboardSortOptions}
+                activeKey={sortState.key}
+                direction={sortState.direction}
+                onSelect={(key) => handleSort(key as DashboardSortKey)}
+                onReset={handleResetSort}
+              />
             </div>
           </div>
 
@@ -1127,9 +1129,9 @@ export const Dashboard: React.FC = () => {
                   : dayChangeBaseNav !== undefined
                     ? fund.todayChangeIsEstimated
                       ? (fund.holdingShares *
-                        dayChangeBaseNav *
-                        (fund.estimatedDayChangePct ?? 0)) /
-                      100
+                          dayChangeBaseNav *
+                          (fund.estimatedDayChangePct ?? 0)) /
+                        100
                       : holdingValue - fund.holdingShares * dayChangeBaseNav
                     : fund.todayChangePreOpen
                       ? 0
@@ -1168,10 +1170,11 @@ export const Dashboard: React.FC = () => {
                   onTouchMove={handleTouchMove}
                   onTouchEnd={handleTouchEnd}
                   onTouchCancel={handleTouchEnd}
-                  className={`group relative cursor-pointer select-none border-b border-[var(--app-shell-line)]/80 px-4 py-3 transition-colors last:border-b-0 active:bg-[var(--app-shell-panel-strong)] dark:border-border-dark dark:active:bg-white/5 md:px-5 md:py-3.5 md:hover:bg-[var(--app-shell-panel-strong)]/72 dark:md:hover:bg-white/5 ${contextMenu?.fundId === fund.id
+                  className={`group relative cursor-pointer select-none border-b border-[var(--app-shell-line)]/80 px-4 py-3 transition-colors last:border-b-0 active:bg-[var(--app-shell-panel-strong)] dark:border-border-dark dark:active:bg-white/5 md:px-5 md:py-3.5 md:hover:bg-[var(--app-shell-panel-strong)]/72 dark:md:hover:bg-white/5 ${
+                    contextMenu?.fundId === fund.id
                       ? 'bg-[var(--app-shell-panel-strong)] dark:bg-white/10'
                       : ''
-                    }`}
+                  }`}
                 >
                   <div className="flex flex-col gap-3 md:flex-row md:items-center">
                     <div className="min-w-0 flex-1 md:flex-[1.6] md:pr-4">
@@ -1426,9 +1429,9 @@ export const Dashboard: React.FC = () => {
                         : dayChangeBaseNav !== undefined
                           ? fund.todayChangeIsEstimated
                             ? (fund.holdingShares *
-                              dayChangeBaseNav *
-                              (fund.estimatedDayChangePct ?? 0)) /
-                            100
+                                dayChangeBaseNav *
+                                (fund.estimatedDayChangePct ?? 0)) /
+                              100
                             : holdingValue - fund.holdingShares * dayChangeBaseNav
                           : fund.todayChangePreOpen
                             ? 0
@@ -1467,10 +1470,11 @@ export const Dashboard: React.FC = () => {
                         onTouchMove={handleTouchMove}
                         onTouchEnd={handleTouchEnd}
                         onTouchCancel={handleTouchEnd}
-                        className={`group relative cursor-pointer select-none border-b border-[var(--app-shell-line)]/80 px-4 py-3 transition-colors last:border-b-0 active:bg-[var(--app-shell-panel-strong)] dark:border-border-dark dark:active:bg-white/5 md:px-5 md:py-3.5 md:hover:bg-[var(--app-shell-panel-strong)]/72 dark:md:hover:bg-white/5 ${contextMenu?.fundId === fund.id
+                        className={`group relative cursor-pointer select-none border-b border-[var(--app-shell-line)]/80 px-4 py-3 transition-colors last:border-b-0 active:bg-[var(--app-shell-panel-strong)] dark:border-border-dark dark:active:bg-white/5 md:px-5 md:py-3.5 md:hover:bg-[var(--app-shell-panel-strong)]/72 dark:md:hover:bg-white/5 ${
+                          contextMenu?.fundId === fund.id
                             ? 'bg-[var(--app-shell-panel-strong)] dark:bg-white/10'
                             : ''
-                          }`}
+                        }`}
                       >
                         <div className="flex flex-col gap-3 md:flex-row md:items-center">
                           <div className="min-w-0 flex-1 md:flex-[1.6] md:pr-4">

@@ -125,4 +125,55 @@ describe('Watchlist sort persistence', () => {
     expect(getWatchlistOrder()).toEqual(['自选A', '自选B']);
     expect(localStorage.getItem('watchlist.sortState.v1')).toBeNull();
   });
+
+  it('sorts by name and persists across remount', () => {
+    mocked.state.watchlists = [
+      {
+        id: 1,
+        code: '000003',
+        name: '自选C',
+        type: 'fund',
+        anchorPrice: 1,
+        anchorDate: '2026-03-20',
+        currentPrice: 1.1,
+        dayChangePct: 0.1,
+        lastUpdate: '2026-03-20',
+      },
+      {
+        id: 2,
+        code: '000001',
+        name: '自选A',
+        type: 'fund',
+        anchorPrice: 1,
+        anchorDate: '2026-03-20',
+        currentPrice: 1.2,
+        dayChangePct: 0.2,
+        lastUpdate: '2026-03-20',
+      },
+      {
+        id: 3,
+        code: '000002',
+        name: '自选B',
+        type: 'fund',
+        anchorPrice: 1,
+        anchorDate: '2026-03-20',
+        currentPrice: 1.4,
+        dayChangePct: 0.4,
+        lastUpdate: '2026-03-20',
+      },
+    ];
+
+    localStorage.setItem(
+      'watchlist.sortState.v1',
+      JSON.stringify({ key: 'name', direction: 'asc' }),
+    );
+
+    const { unmount } = render(<Watchlist />);
+    expect(getWatchlistOrder()).toEqual(['自选A', '自选B', '自选C']);
+
+    unmount();
+    render(<Watchlist />);
+    expect(getWatchlistOrder()).toEqual(['自选A', '自选B', '自选C']);
+    expect(localStorage.getItem('watchlist.sortState.v1')).toContain('name');
+  });
 });

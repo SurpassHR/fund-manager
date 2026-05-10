@@ -276,4 +276,58 @@ describe('Dashboard sort persistence', () => {
     expect(row).not.toHaveTextContent('+23.45');
     expect(row).not.toHaveTextContent('+7.89');
   });
+
+  it('sorts by name and persists across remount', () => {
+    mocked.state.funds = [
+      {
+        id: 1,
+        code: '000003',
+        name: '基金C',
+        platform: '默认账户',
+        holdingShares: 100,
+        costPrice: 1,
+        currentNav: 1,
+        dayChangePct: 0.1,
+        dayChangeVal: 10,
+        lastUpdate: '2026-03-31',
+      },
+      {
+        id: 2,
+        code: '000001',
+        name: '基金A',
+        platform: '默认账户',
+        holdingShares: 100,
+        costPrice: 1,
+        currentNav: 1,
+        dayChangePct: 0.1,
+        dayChangeVal: 10,
+        lastUpdate: '2026-03-31',
+      },
+      {
+        id: 3,
+        code: '000002',
+        name: '基金B',
+        platform: '默认账户',
+        holdingShares: 100,
+        costPrice: 1,
+        currentNav: 1,
+        dayChangePct: 0.1,
+        dayChangeVal: 10,
+        lastUpdate: '2026-03-31',
+      },
+    ];
+
+    localStorage.setItem(
+      'dashboard.sortState.v1',
+      JSON.stringify({ key: 'name', direction: 'asc' }),
+    );
+
+    const { unmount } = render(<Dashboard />);
+    expect(getFundOrder()).toEqual(['基金A', '基金B', '基金C']);
+
+    unmount();
+    render(<Dashboard />);
+    expect(getFundOrder()).toEqual(['基金A', '基金B', '基金C']);
+    expect(localStorage.getItem('dashboard.sortState.v1')).toContain('name');
+  });
 });

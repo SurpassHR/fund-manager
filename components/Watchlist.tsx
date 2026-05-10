@@ -9,6 +9,8 @@ import type { WatchlistItem, Fund } from '../types';
 import { AddWatchlistModal } from './AddWatchlistModal';
 import { AddFundModal } from './AddFundModal';
 import { FundDetail } from './FundDetail';
+import { SortDropdown } from './SortDropdown';
+import type { SortDropdownOption } from './SortDropdown';
 import { AnimatePresence } from 'framer-motion';
 import { hasTouchMovedBeyondThreshold } from '../services/longPressGesture';
 import { useSettings } from '../services/SettingsContext';
@@ -26,7 +28,7 @@ const WATCHLIST_SORT_STORAGE_KEY = 'watchlist.sortState.v1';
 const INSTITUTION_GROUP_STORAGE_KEY = 'watchlist.institutionGroupEnabled';
 const REFRESH_DEBOUNCE_MS = 300;
 
-type WatchlistSortKey = 'dayChangePct' | 'anchorGain';
+type WatchlistSortKey = 'name' | 'dayChangePct' | 'anchorGain';
 
 type WatchlistSortState = {
   key: WatchlistSortKey | null;
@@ -36,7 +38,7 @@ type WatchlistSortState = {
 const DEFAULT_WATCHLIST_SORT_STATE: WatchlistSortState = { key: null, direction: 'desc' };
 
 const isValidWatchlistSortKey = (key: unknown): key is WatchlistSortKey => {
-  return key === 'dayChangePct' || key === 'anchorGain';
+  return key === 'name' || key === 'dayChangePct' || key === 'anchorGain';
 };
 
 const loadWatchlistSortState = (): WatchlistSortState => {
@@ -386,6 +388,15 @@ export const Watchlist: React.FC = () => {
     setSortState(DEFAULT_WATCHLIST_SORT_STATE);
   };
 
+  const watchlistSortOptions: SortDropdownOption[] = useMemo(
+    () => [
+      { key: 'name', label: t('common.name') || '名称' },
+      { key: 'dayChangePct', label: '当日涨跌幅' },
+      { key: 'anchorGain', label: '锚点收益' },
+    ],
+    [t],
+  );
+
   const sortedWatchlists = useMemo(() => {
     const list = watchlists ?? [];
     if (!sortState.key) return list;
@@ -398,6 +409,9 @@ export const Watchlist: React.FC = () => {
 
     const direction = sortState.direction === 'asc' ? 1 : -1;
     return [...list].sort((a, b) => {
+      if (sortState.key === 'name') {
+        return a.name.localeCompare(b.name, 'zh-Hans-CN') * direction;
+      }
       const diff = getSortValue(a) - getSortValue(b);
       if (diff === 0) return 0;
       return diff * direction;
@@ -517,10 +531,11 @@ export const Watchlist: React.FC = () => {
               <button
                 onClick={handleManualRefresh}
                 disabled={cooldown > 0 || isRefreshing}
-                className={`relative flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border transition-transform active:scale-95 ${cooldown > 0 || isRefreshing
+                className={`relative flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border transition-transform active:scale-95 ${
+                  cooldown > 0 || isRefreshing
                     ? 'cursor-not-allowed border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] text-slate-500 dark:border-white/10 dark:bg-white/10 dark:text-gray-400'
                     : 'cursor-pointer border-[var(--app-shell-line-strong)] bg-[var(--app-shell-panel-strong)] text-slate-800 dark:border-blue-400/30 dark:bg-blue-500/15 dark:text-blue-100'
-                  }`}
+                }`}
               >
                 <Icons.Refresh size={16} className={isRefreshing ? 'animate-spin' : ''} />
                 {cooldown > 0 && !isRefreshing && (
@@ -562,10 +577,11 @@ export const Watchlist: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setIsInstitutionGroupEnabled((prev) => !prev)}
-                  className={`rounded-full border p-1.5 transition-colors ${isInstitutionGroupEnabled
+                  className={`rounded-full border p-1.5 transition-colors ${
+                    isInstitutionGroupEnabled
                       ? 'border-indigo-400 bg-indigo-50 text-indigo-600 dark:border-indigo-400/30 dark:bg-indigo-500/15 dark:text-indigo-200'
                       : 'border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] text-slate-400 hover:text-slate-700 dark:border-white/10 dark:bg-white/5 dark:text-gray-500 dark:hover:text-gray-200'
-                    }`}
+                  }`}
                   aria-label={t('common.groupByInstitution')}
                 >
                   <Icons.Layers size={14} />
@@ -617,10 +633,11 @@ export const Watchlist: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setIsInstitutionGroupEnabled((prev) => !prev)}
-                  className={`rounded-full border p-1.5 transition-colors ${isInstitutionGroupEnabled
+                  className={`rounded-full border p-1.5 transition-colors ${
+                    isInstitutionGroupEnabled
                       ? 'border-indigo-400 bg-indigo-50 text-indigo-600 dark:border-indigo-400/30 dark:bg-indigo-500/15 dark:text-indigo-200'
                       : 'border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] text-slate-400 dark:border-white/10 dark:bg-white/5 dark:text-gray-500'
-                    }`}
+                  }`}
                   aria-label={t('common.groupByInstitution')}
                 >
                   <Icons.Layers size={14} />
@@ -638,34 +655,13 @@ export const Watchlist: React.FC = () => {
                   </div>
                 </div>
               </div>
-              <div className="flex gap-2 text-right text-[11px] font-semibold tracking-[0.14em] text-slate-400 dark:text-gray-500">
-                <button
-                  onClick={() => handleSort('dayChangePct')}
-                  className="flex w-[5.25rem] items-center justify-end gap-0.5"
-                  type="button"
-                >
-                  当日涨跌幅
-                  {sortState.key === 'dayChangePct' && (
-                    <Icons.ArrowUp
-                      size={12}
-                      className={sortState.direction === 'asc' ? '' : 'rotate-180'}
-                    />
-                  )}
-                </button>
-                <button
-                  onClick={() => handleSort('anchorGain')}
-                  className="flex w-[5.25rem] items-center justify-end gap-0.5"
-                  type="button"
-                >
-                  锚点收益
-                  {sortState.key === 'anchorGain' && (
-                    <Icons.ArrowUp
-                      size={12}
-                      className={sortState.direction === 'asc' ? '' : 'rotate-180'}
-                    />
-                  )}
-                </button>
-              </div>
+              <SortDropdown
+                options={watchlistSortOptions}
+                activeKey={sortState.key}
+                direction={sortState.direction}
+                onSelect={(key) => handleSort(key as WatchlistSortKey)}
+                onReset={handleResetSort}
+              />
             </div>
           </div>
 
@@ -744,10 +740,11 @@ export const Watchlist: React.FC = () => {
                     onTouchEnd={handleTouchEnd}
                     onTouchCancel={handleTouchEnd}
                     onClick={() => handleRowClick(item)}
-                    className={`group relative cursor-pointer select-none border-b border-[var(--app-shell-line)]/80 px-4 py-3 transition-colors last:border-b-0 active:bg-[var(--app-shell-panel-strong)] dark:border-border-dark dark:active:bg-white/5 md:px-5 md:py-3.5 md:hover:bg-[var(--app-shell-panel-strong)]/72 dark:md:hover:bg-white/5 ${contextMenu?.itemId === item.id
+                    className={`group relative cursor-pointer select-none border-b border-[var(--app-shell-line)]/80 px-4 py-3 transition-colors last:border-b-0 active:bg-[var(--app-shell-panel-strong)] dark:border-border-dark dark:active:bg-white/5 md:px-5 md:py-3.5 md:hover:bg-[var(--app-shell-panel-strong)]/72 dark:md:hover:bg-white/5 ${
+                      contextMenu?.itemId === item.id
                         ? 'bg-[var(--app-shell-panel-strong)] dark:bg-white/10'
                         : ''
-                      }`}
+                    }`}
                   >
                     <div className="flex flex-col gap-3 md:flex-row md:items-center">
                       <div className="min-w-0 flex-1 md:flex-[1.6] md:pr-4">
@@ -756,10 +753,11 @@ export const Watchlist: React.FC = () => {
                             {item.code}
                           </span>
                           <span
-                            className={`rounded-full border px-2 py-1 text-[10px] font-semibold tracking-[0.14em] whitespace-nowrap shrink-0 ${item.type === 'index'
+                            className={`rounded-full border px-2 py-1 text-[10px] font-semibold tracking-[0.14em] whitespace-nowrap shrink-0 ${
+                              item.type === 'index'
                                 ? 'border-[var(--app-shell-line-strong)] bg-[var(--app-shell-panel-strong)] text-slate-700 dark:border-purple-400/20 dark:bg-purple-500/10 dark:text-purple-300'
                                 : 'border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] text-slate-500 dark:border-white/10 dark:bg-white/5 dark:text-gray-400'
-                              }`}
+                            }`}
                           >
                             {item.type === 'index' ? '指数' : '基金'}
                           </span>
