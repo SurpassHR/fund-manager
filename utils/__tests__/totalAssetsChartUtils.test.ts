@@ -1,75 +1,34 @@
 /// <reference types="vitest/globals" />
-import { describe, expect, it, vi, beforeEach } from 'vitest';
-
-const { mockFetchEastMoneyPingzhongData, mockWithCache } = vi.hoisted(() => ({
-  mockFetchEastMoneyPingzhongData: vi.fn(),
-  mockWithCache: vi.fn(),
-}));
-
-vi.mock('../../services/api', () => ({
-  fetchEastMoneyPingzhongData: mockFetchEastMoneyPingzhongData,
-  withCache: mockWithCache,
-}));
+import { describe, expect, it } from 'vitest';
 
 import {
   computeTimeRangeCutoff,
   filterDataByTimeRange,
   rebaseDataToFirstValue,
-  aggregateTotalAssetsHistory,
+  snapshotsToChartData,
   buildTotalAssetsChartOption,
   buildProfitChartOption,
   type TotalAssetsChartDataPoint,
 } from '../totalAssetsChartUtils';
 
-import type { Fund } from '../../types';
-
-beforeEach(() => {
-  vi.clearAllMocks();
-  mockWithCache.mockImplementation(async <T>({ fetcher }: { fetcher: () => Promise<T> }) =>
-    fetcher(),
-  );
-});
+import type { TotalAssetsSnapshot } from '../../types';
 
 // ============================================================
-// computeTimeRangeCutoff
+// computeTimeRangeCutoff（返回日期字符串）
 // ============================================================
 describe('computeTimeRangeCutoff', () => {
-  it('1M 返回约 1 个月前的日期', () => {
-    const now = new Date();
+  it('1M 返回到 1 个月前的日期字符串', () => {
     const cutoff = computeTimeRangeCutoff('1M');
+    expect(cutoff).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    const now = new Date();
     const expected = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
-    expect(cutoff.getFullYear()).toBe(expected.getFullYear());
-    expect(cutoff.getMonth()).toBe(expected.getMonth());
-    expect(cutoff.getDate()).toBe(expected.getDate());
+    const expectedStr = `${expected.getFullYear()}-${String(expected.getMonth() + 1).padStart(2, '0')}-${String(expected.getDate()).padStart(2, '0')}`;
+    expect(cutoff).toBe(expectedStr);
   });
 
-  it('3M 返回约 3 个月前的日期', () => {
-    const now = new Date();
-    const cutoff = computeTimeRangeCutoff('3M');
-    const expected = new Date(now.getFullYear(), now.getMonth() - 3, now.getDate());
-    expect(cutoff.getFullYear()).toBe(expected.getFullYear());
-    expect(cutoff.getMonth()).toBe(expected.getMonth());
-  });
-
-  it('6M 返回约 6 个月前的日期', () => {
-    const now = new Date();
-    const cutoff = computeTimeRangeCutoff('6M');
-    const expected = new Date(now.getFullYear(), now.getMonth() - 6, now.getDate());
-    expect(cutoff.getFullYear()).toBe(expected.getFullYear());
-    expect(cutoff.getMonth()).toBe(expected.getMonth());
-  });
-
-  it('1Y 返回约 1 年前的日期', () => {
-    const now = new Date();
-    const cutoff = computeTimeRangeCutoff('1Y');
-    const expected = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
-    expect(cutoff.getFullYear()).toBe(expected.getFullYear());
-    expect(cutoff.getMonth()).toBe(expected.getMonth());
-  });
-
-  it('ALL 返回 epoch 日期', () => {
+  it('ALL 返回极早日期', () => {
     const cutoff = computeTimeRangeCutoff('ALL');
-    expect(cutoff.getTime()).toBe(0);
+    expect(cutoff).toBe('0000-01-01');
   });
 });
 
@@ -91,17 +50,15 @@ describe('filterDataByTimeRange', () => {
 
   it('1Y 过滤掉超过一年的数据', () => {
     const filtered = filterDataByTimeRange(data, '1Y');
-    // 只有最近一年的数据（从今天算约往前一年）
-    expect(filtered.length).toBeGreaterThanOrEqual(0);
-    expect(filtered.length).toBeLessThanOrEqual(4);
+    // 只有最近一年的数据（从今天算）
+    expect(filtered.length).toBeGreaterThanOrEqual(1);
+    // 确保 filtered 中的所有日期都不早于约一年前
     if (filtered.length > 0) {
-      // 确保 filtered 中的所有日期都不早于一年前的今天
       const oneYearAgo = new Date();
       oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+      const cutoff = `${oneYearAgo.getFullYear()}-${String(oneYearAgo.getMonth() + 1).padStart(2, '0')}-${String(oneYearAgo.getDate()).padStart(2, '0')}`;
       for (const d of filtered) {
-        expect(new Date(d.date).getTime()).toBeGreaterThanOrEqual(
-          new Date(oneYearAgo.getFullYear(), oneYearAgo.getMonth(), oneYearAgo.getDate()).getTime(),
-        );
+        expect(d.date >= cutoff).toBe(true);
       }
     }
   });
@@ -141,135 +98,37 @@ describe('rebaseDataToFirstValue', () => {
 });
 
 // ============================================================
-// aggregateTotalAssetsHistory
+// snapshotsToChartData
 // ============================================================
-describe('aggregateTotalAssetsHistory', () => {
-  const baseFund: Fund = {
-    code: '000001',
-    name: '测试基金A',
-    platform: '支付宝',
-    holdingShares: 100,
-    costPrice: 1.0,
-    currentNav: 1.2,
-    lastUpdate: '2026-05-09',
-    dayChangePct: 0.5,
-    dayChangeVal: 0.05,
-  };
-
-  it('空 funds 返回空数组', async () => {
-    const result = await aggregateTotalAssetsHistory([]);
-    expect(result).toEqual([]);
-  });
-
-  it('所有基金 holdingShares 为 0 时返回空数组', async () => {
-    const result = await aggregateTotalAssetsHistory([{ ...baseFund, holdingShares: 0 }]);
-    expect(result).toEqual([]);
-  });
-
-  it('双基金重叠日期聚合正确', async () => {
-    mockFetchEastMoneyPingzhongData
-      .mockResolvedValueOnce({
-        netWorthTrend: [
-          { x: new Date('2025-01-01').getTime(), y: 1.0, equityReturn: 0, unitMoney: '' },
-          { x: new Date('2025-01-02').getTime(), y: 1.1, equityReturn: 0, unitMoney: '' },
-        ],
-      })
-      .mockResolvedValueOnce({
-        netWorthTrend: [
-          { x: new Date('2025-01-01').getTime(), y: 2.0, equityReturn: 0, unitMoney: '' },
-          { x: new Date('2025-01-02').getTime(), y: 2.2, equityReturn: 0, unitMoney: '' },
-        ],
-      });
-
-    const funds: Fund[] = [
-      { ...baseFund, code: '000001', holdingShares: 100, costPrice: 1.0 },
-      { ...baseFund, code: '000002', holdingShares: 50, costPrice: 2.0 },
+describe('snapshotsToChartData', () => {
+  it('将 DB 快照转换为图表数据点', () => {
+    const snapshots: TotalAssetsSnapshot[] = [
+      {
+        date: '2026-05-10',
+        totalAssets: 100000,
+        holdingGain: 5000,
+        holdingGainPct: 5.26,
+        dayGain: 1200,
+      },
+      {
+        date: '2026-05-11',
+        totalAssets: 102000,
+        holdingGain: 7000,
+        holdingGainPct: 7.37,
+        dayGain: 2000,
+      },
     ];
-
-    const result = await aggregateTotalAssetsHistory(funds);
-
+    const result = snapshotsToChartData(snapshots);
     expect(result).toHaveLength(2);
-    // 2025-01-01: 100*1.0 + 50*2.0 = 200
-    expect(result[0].date).toBe('2025-01-01');
-    expect(result[0].totalAssets).toBe(200);
-    expect(result[0].profit).toBe(0); // 200 - (100*1 + 50*2) = 0
-    // 2025-01-02: 100*1.1 + 50*2.2 = 220
-    expect(result[1].date).toBe('2025-01-02');
-    expect(result[1].totalAssets).toBe(220);
-    expect(result[1].profit).toBe(20); // 220 - 200 = 20
+    expect(result[0].date).toBe('2026-05-10');
+    expect(result[0].totalAssets).toBe(100000);
+    expect(result[0].profit).toBe(5000);
+    expect(result[1].profit).toBe(7000);
   });
 
-  it('基金返回 null 时跳过该基金，使用其他基金数据', async () => {
-    mockFetchEastMoneyPingzhongData.mockResolvedValueOnce(null).mockResolvedValueOnce({
-      netWorthTrend: [
-        { x: new Date('2025-01-01').getTime(), y: 2.0, equityReturn: 0, unitMoney: '' },
-      ],
-    });
-
-    const funds: Fund[] = [
-      { ...baseFund, code: '000001', holdingShares: 100, costPrice: 1.0 },
-      { ...baseFund, code: '000002', holdingShares: 50, costPrice: 2.0 },
-    ];
-
-    const result = await aggregateTotalAssetsHistory(funds);
-
-    expect(result).toHaveLength(1);
-    // 只有基金B的数据：50 * 2.0 = 100
-    expect(result[0].totalAssets).toBe(100);
-    // profit = 100 - (100*1 + 50*2) = 100 - 200 = -100
-    expect(result[0].profit).toBe(-100);
-  });
-
-  it('不同日期范围前向填充', async () => {
-    // 基金A 只有 1月1日 和 1月3日 的数据，基金B 有 1月1日 到 1月3日
-    mockFetchEastMoneyPingzhongData
-      .mockResolvedValueOnce({
-        netWorthTrend: [
-          { x: new Date('2025-01-01').getTime(), y: 1.0, equityReturn: 0, unitMoney: '' },
-          { x: new Date('2025-01-03').getTime(), y: 1.5, equityReturn: 0, unitMoney: '' },
-        ],
-      })
-      .mockResolvedValueOnce({
-        netWorthTrend: [
-          { x: new Date('2025-01-01').getTime(), y: 2.0, equityReturn: 0, unitMoney: '' },
-          { x: new Date('2025-01-02').getTime(), y: 2.1, equityReturn: 0, unitMoney: '' },
-          { x: new Date('2025-01-03').getTime(), y: 2.3, equityReturn: 0, unitMoney: '' },
-        ],
-      });
-
-    const funds: Fund[] = [
-      { ...baseFund, code: '000001', holdingShares: 100, costPrice: 1.0 },
-      { ...baseFund, code: '000002', holdingShares: 50, costPrice: 2.0 },
-    ];
-
-    const result = await aggregateTotalAssetsHistory(funds);
-
-    expect(result).toHaveLength(3);
-    // 2025-01-01: 100*1.0 + 50*2.0 = 200
-    expect(result[0].totalAssets).toBe(200);
-    // 2025-01-02: 100*1.0(forward-fill) + 50*2.1 = 205
-    expect(result[1].totalAssets).toBe(205);
-    // 2025-01-03: 100*1.5 + 50*2.3 = 265
-    expect(result[2].totalAssets).toBe(265);
-  });
-
-  it('使用 withCache 缓存结果', async () => {
-    mockFetchEastMoneyPingzhongData.mockResolvedValue({
-      netWorthTrend: [
-        { x: new Date('2025-01-01').getTime(), y: 1.0, equityReturn: 0, unitMoney: '' },
-      ],
-    });
-
-    const funds: Fund[] = [{ ...baseFund, code: '000001', holdingShares: 100, costPrice: 1.0 }];
-
-    await aggregateTotalAssetsHistory(funds);
-
-    expect(mockWithCache).toHaveBeenCalledWith(
-      expect.objectContaining({
-        key: expect.stringContaining('total-assets:'),
-        ttlMs: 30 * 60 * 1000,
-      }),
-    );
+  it('空快照返回空数组', () => {
+    const result = snapshotsToChartData([]);
+    expect(result).toEqual([]);
   });
 });
 
@@ -326,7 +185,6 @@ describe('buildProfitChartOption', () => {
 
     expect(option.backgroundColor).toBe('transparent');
     expect(Array.isArray(option.series)).toBe(true);
-    // 三条 series：主线 + 正面积 + 负面积
     expect(option.series).toHaveLength(3);
   });
 

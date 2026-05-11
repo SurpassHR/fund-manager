@@ -82,6 +82,20 @@ export interface AssetSummary {
   holdingGainPct: number;
 }
 
+/** 每日总资产快照，用于总资产走势图 */
+export interface TotalAssetsSnapshot {
+  /** 日期，格式 YYYY-MM-DD */
+  date: string;
+  /** 总资产 (CNY) */
+  totalAssets: number;
+  /** 持有收益 (CNY) */
+  holdingGain: number;
+  /** 持有收益率 (%) */
+  holdingGainPct: number;
+  /** 当日收益 (CNY) */
+  dayGain: number;
+}
+
 export type TabType = 'holding' | 'watchlist' | 'services' | 'news' | 'settings';
 
 export interface MarketIndex {

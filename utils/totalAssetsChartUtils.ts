@@ -1,6 +1,5 @@
 import * as echarts from 'echarts';
-import { fetchEastMoneyPingzhongData, withCache } from '../services/api';
-import type { Fund } from '../types';
+import type { TotalAssetsSnapshot } from '../types';
 
 export type TimeRange = '1M' | '3M' | '6M' | '1Y' | 'ALL';
 
@@ -10,25 +9,26 @@ export type TotalAssetsChartDataPoint = {
   profit: number;
 };
 
-const timestampToDateStr = (ts: number): string => {
-  const d = new Date(ts);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-};
-
-export const computeTimeRangeCutoff = (range: TimeRange): Date => {
+export const computeTimeRangeCutoff = (range: TimeRange): string => {
   const now = new Date();
+  let cutoff: Date;
   switch (range) {
     case '1M':
-      return new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
+      cutoff = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
+      break;
     case '3M':
-      return new Date(now.getFullYear(), now.getMonth() - 3, now.getDate());
+      cutoff = new Date(now.getFullYear(), now.getMonth() - 3, now.getDate());
+      break;
     case '6M':
-      return new Date(now.getFullYear(), now.getMonth() - 6, now.getDate());
+      cutoff = new Date(now.getFullYear(), now.getMonth() - 6, now.getDate());
+      break;
     case '1Y':
-      return new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
+      cutoff = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
+      break;
     case 'ALL':
-      return new Date(0);
+      return '0000-01-01';
   }
+  return `${cutoff.getFullYear()}-${String(cutoff.getMonth() + 1).padStart(2, '0')}-${String(cutoff.getDate()).padStart(2, '0')}`;
 };
 
 export const filterDataByTimeRange = (
@@ -36,89 +36,19 @@ export const filterDataByTimeRange = (
   range: TimeRange,
 ): TotalAssetsChartDataPoint[] => {
   if (range === 'ALL') return data;
-  const cutoffStr = timestampToDateStr(computeTimeRangeCutoff(range).getTime());
+  const cutoffStr = computeTimeRangeCutoff(range);
   return data.filter((d) => d.date >= cutoffStr);
 };
 
-export const aggregateTotalAssetsHistory = async (
-  funds: Fund[],
-): Promise<TotalAssetsChartDataPoint[]> => {
-  const activeFunds = funds.filter((f) => f.holdingShares > 0);
-  if (activeFunds.length === 0) return [];
-
-  const totalCost = activeFunds.reduce((sum, f) => sum + f.holdingShares * f.costPrice, 0);
-
-  const codesKey = activeFunds
-    .map((f) => `${f.code}:${f.holdingShares.toFixed(2)}`)
-    .sort()
-    .join(',');
-
-  return withCache({
-    key: `total-assets:${codesKey}`,
-    ttlMs: 30 * 60 * 1000,
-    fetcher: async () => {
-      const promises = activeFunds.map((f) =>
-        fetchEastMoneyPingzhongData(f.code).then((result) => ({ fund: f, result })),
-      );
-      const results = await Promise.all(promises);
-
-      // 为每只基金建立 date → nav 的排序 Map
-      const fundNavMaps: Array<{ sortedDates: string[]; navByDate: Map<string, number> }> = [];
-      const allDatesSet = new Set<string>();
-
-      for (const { fund, result } of results) {
-        const navByDate = new Map<string, number>();
-        if (result?.netWorthTrend?.length) {
-          for (const point of result.netWorthTrend) {
-            const dateStr = timestampToDateStr(point.x);
-            navByDate.set(dateStr, point.y);
-            allDatesSet.add(dateStr);
-          }
-        } else {
-          console.warn(`无法获取 ${fund.code} ${fund.name} 的历史净值数据`);
-        }
-        const sortedDates = Array.from(navByDate.keys()).sort();
-        fundNavMaps.push({ sortedDates, navByDate });
-      }
-
-      if (allDatesSet.size === 0) return [];
-
-      const allDates = Array.from(allDatesSet).sort();
-
-      // 聚合：对每个日期，累加每只基金的持仓市值
-      const dataPoints: TotalAssetsChartDataPoint[] = [];
-
-      for (const date of allDates) {
-        let totalAssets = 0;
-        for (let fi = 0; fi < activeFunds.length; fi++) {
-          const fund = activeFunds[fi];
-          const { sortedDates, navByDate } = fundNavMaps[fi];
-
-          // 在该基金的日期列表中查找 <= 当前日期的最近日期（前向填充）
-          let nav: number | null = null;
-          for (let di = sortedDates.length - 1; di >= 0; di--) {
-            if (sortedDates[di] <= date) {
-              nav = navByDate.get(sortedDates[di]) ?? null;
-              break;
-            }
-          }
-
-          if (nav !== null) {
-            totalAssets += fund.holdingShares * nav;
-          }
-          // 基金尚未成立（当前日期前无 NAV）→ 贡献为 0
-        }
-
-        dataPoints.push({
-          date,
-          totalAssets: Math.round(totalAssets * 100) / 100,
-          profit: Math.round((totalAssets - totalCost) * 100) / 100,
-        });
-      }
-
-      return dataPoints;
-    },
-  });
+/** 将 DB 快照转换为图表数据点（profit = holdingGain） */
+export const snapshotsToChartData = (
+  snapshots: TotalAssetsSnapshot[],
+): TotalAssetsChartDataPoint[] => {
+  return snapshots.map((s) => ({
+    date: s.date,
+    totalAssets: s.totalAssets,
+    profit: s.holdingGain,
+  }));
 };
 
 export const rebaseDataToFirstValue = (

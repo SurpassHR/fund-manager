@@ -3,13 +3,13 @@ import * as echarts from 'echarts';
 import { ModalShell } from './ModalShell';
 import { Icons } from './Icon';
 import { useTheme } from '../services/ThemeContext';
-import type { Fund } from '../types';
+import { loadTotalAssetsHistory } from '../services/db';
 import {
-  aggregateTotalAssetsHistory,
   filterDataByTimeRange,
   rebaseDataToFirstValue,
   buildTotalAssetsChartOption,
   buildProfitChartOption,
+  snapshotsToChartData,
   type TimeRange,
   type TotalAssetsChartDataPoint,
 } from '../utils/totalAssetsChartUtils';
@@ -18,10 +18,9 @@ import { splitGrowthSeriesAtZero } from './fundDetailChartUtils';
 interface TotalAssetsModalProps {
   isOpen: boolean;
   onClose: () => void;
-  funds: Fund[];
 }
 
-export const TotalAssetsModal: React.FC<TotalAssetsModalProps> = ({ isOpen, onClose, funds }) => {
+export const TotalAssetsModal: React.FC<TotalAssetsModalProps> = ({ isOpen, onClose }) => {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
 
@@ -42,22 +41,22 @@ export const TotalAssetsModal: React.FC<TotalAssetsModalProps> = ({ isOpen, onCl
     return () => clearTimeout(timer);
   }, []);
 
-  // 数据获取
+  // 从 DB 加载历史快照
   useEffect(() => {
-    if (!isOpen || funds.length === 0) return;
+    if (!isOpen) return;
     setLoading(true);
     setError(null);
-    aggregateTotalAssetsHistory(funds)
-      .then((data) => {
-        setAllData(data);
+    loadTotalAssetsHistory()
+      .then((snapshots) => {
+        setAllData(snapshotsToChartData(snapshots));
         setLoading(false);
       })
       .catch((err: unknown) => {
-        console.error('Failed to aggregate total assets history', err);
+        console.error('Failed to load total assets history', err);
         setError('加载失败，请稍后重试');
         setLoading(false);
       });
-  }, [isOpen, funds]);
+  }, [isOpen]);
 
   // 图表渲染
   useEffect(() => {
@@ -155,7 +154,9 @@ export const TotalAssetsModal: React.FC<TotalAssetsModalProps> = ({ isOpen, onCl
       <div className="flex items-center justify-between px-6 pt-5 pb-3 shrink-0">
         <div>
           <h2 className="text-lg font-bold text-slate-900 dark:text-gray-50">总资产走势</h2>
-          <p className="text-xs text-slate-500 dark:text-gray-400 mt-0.5">历史总资产与收益曲线</p>
+          <p className="text-xs text-slate-500 dark:text-gray-400 mt-0.5">
+            历史总资产与收益曲线 · 每日自动记录
+          </p>
         </div>
         <button
           onClick={onClose}
@@ -200,7 +201,7 @@ export const TotalAssetsModal: React.FC<TotalAssetsModalProps> = ({ isOpen, onCl
 
         {!loading && !error && allData && allData.length === 0 && (
           <div className="flex items-center justify-center h-40 text-slate-400">
-            <span className="text-sm">暂无数据</span>
+            <span className="text-sm">暂无数据，每日打开持仓页将自动记录</span>
           </div>
         )}
 

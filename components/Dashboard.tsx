@@ -1,6 +1,12 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db, initDB, calculateSummary, refreshFundData } from '../services/db';
+import {
+  db,
+  initDB,
+  calculateSummary,
+  refreshFundData,
+  saveTotalAssetsSnapshot,
+} from '../services/db';
 import {
   formatCurrency,
   formatSignedCurrency,
@@ -360,6 +366,12 @@ export const Dashboard: React.FC = () => {
   );
 
   const summary = useMemo(() => calculateSummary(filteredFunds), [filteredFunds]);
+
+  // 每日自动记录总资产快照
+  useEffect(() => {
+    saveTotalAssetsSnapshot(summary);
+  }, [summary]);
+
   const filterList =
     safeAccounts.length > 1
       ? ['All', ...safeAccounts.map((account) => account.name)]
@@ -1742,11 +1754,7 @@ export const Dashboard: React.FC = () => {
         onClose={() => setIsAiAnalysisOpen(false)}
         holdingsSnapshot={holdingsSnapshot}
       />
-      <TotalAssetsModal
-        isOpen={isTotalAssetsOpen}
-        onClose={() => setIsTotalAssetsOpen(false)}
-        funds={safeFunds}
-      />
+      <TotalAssetsModal isOpen={isTotalAssetsOpen} onClose={() => setIsTotalAssetsOpen(false)} />
     </div>
   );
 };

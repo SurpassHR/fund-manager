@@ -1,17 +1,23 @@
 /// <reference types="vitest/globals" />
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import React from 'react';
 
-const { mockAggregate, mockFilter, mockRebase, mockBuildAssets, mockBuildProfit } = vi.hoisted(
-  () => ({
-    mockAggregate: vi.fn(),
-    mockFilter: vi.fn(),
-    mockRebase: vi.fn(),
-    mockBuildAssets: vi.fn(),
-    mockBuildProfit: vi.fn(),
-  }),
-);
+const {
+  mockLoadHistory,
+  mockSnapshotsToChartData,
+  mockFilter,
+  mockRebase,
+  mockBuildAssets,
+  mockBuildProfit,
+} = vi.hoisted(() => ({
+  mockLoadHistory: vi.fn(),
+  mockSnapshotsToChartData: vi.fn(),
+  mockFilter: vi.fn(),
+  mockRebase: vi.fn(),
+  mockBuildAssets: vi.fn(),
+  mockBuildProfit: vi.fn(),
+}));
 
 const chartSpies = vi.hoisted(() => ({
   clear: vi.fn(),
@@ -22,16 +28,16 @@ const chartSpies = vi.hoisted(() => ({
 
 const mockEchartsInit = vi.hoisted(() => vi.fn());
 
+vi.mock('../../services/db', () => ({
+  loadTotalAssetsHistory: mockLoadHistory,
+}));
+
 vi.mock('../../utils/totalAssetsChartUtils', () => ({
-  aggregateTotalAssetsHistory: mockAggregate,
   filterDataByTimeRange: mockFilter,
   rebaseDataToFirstValue: mockRebase,
   buildTotalAssetsChartOption: mockBuildAssets,
   buildProfitChartOption: mockBuildProfit,
-}));
-
-vi.mock('../../services/i18n', () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
+  snapshotsToChartData: mockSnapshotsToChartData,
 }));
 
 vi.mock('../../services/ThemeContext', () => ({
@@ -82,33 +88,16 @@ vi.mock('../Icon', () => ({
 }));
 
 import { TotalAssetsModal } from '../TotalAssetsModal';
-import type { Fund } from '../../types';
 import { resetOverlayStack } from '../../services/overlayStack';
 
-const mockFunds: Fund[] = [
-  {
-    code: '000001',
-    name: '测试基金A',
-    platform: '支付宝',
-    holdingShares: 100,
-    costPrice: 1.0,
-    currentNav: 1.2,
-    lastUpdate: '2026-05-09',
-    dayChangePct: 0.5,
-    dayChangeVal: 0.05,
-  },
-];
-
 const mockChartData = [
-  { date: '2025-01-01', totalAssets: 10000, profit: 0 },
-  { date: '2025-01-02', totalAssets: 10200, profit: 200 },
-  { date: '2025-01-03', totalAssets: 10150, profit: 150 },
+  { date: '2026-05-10', totalAssets: 100000, profit: 5000 },
+  { date: '2026-05-11', totalAssets: 102000, profit: 7000 },
 ];
 
 const defaultProps = {
   isOpen: false,
   onClose: vi.fn(),
-  funds: mockFunds,
 };
 
 const renderModal = (props = {}) => {
@@ -125,10 +114,12 @@ describe('TotalAssetsModal', () => {
       resize: chartSpies.resize,
       setOption: chartSpies.setOption,
     });
+    mockLoadHistory.mockResolvedValue([]);
+    mockSnapshotsToChartData.mockReturnValue([]);
+    mockFilter.mockReturnValue(mockChartData);
+    mockRebase.mockReturnValue({ dates: ['2026-05-10'], values: [0] });
     mockBuildAssets.mockReturnValue({});
     mockBuildProfit.mockReturnValue({});
-    mockFilter.mockReturnValue(mockChartData);
-    mockRebase.mockReturnValue({ dates: ['2025-01-01'], values: [0] });
   });
 
   afterEach(() => {
@@ -145,29 +136,39 @@ describe('TotalAssetsModal', () => {
     });
 
     it('isOpen=true 时显示加载状态', () => {
-      mockAggregate.mockReturnValue(new Promise(() => {})); // pending forever
+      mockLoadHistory.mockReturnValue(new Promise(() => {}));
       renderModal({ isOpen: true });
       expect(screen.getByText('加载中...')).toBeInTheDocument();
     });
 
     it('加载失败时显示错误提示', async () => {
-      mockAggregate.mockRejectedValue(new Error('Network error'));
+      mockLoadHistory.mockRejectedValue(new Error('DB error'));
       renderModal({ isOpen: true });
       await waitFor(() => {
         expect(screen.getByText(/加载失败/i)).toBeInTheDocument();
       });
     });
 
-    it('数据为空时显示暂无数据', async () => {
-      mockAggregate.mockResolvedValue([]);
+    it('数据为空时显示提示', async () => {
+      mockLoadHistory.mockResolvedValue([]);
+      mockSnapshotsToChartData.mockReturnValue([]);
       renderModal({ isOpen: true });
       await waitFor(() => {
-        expect(screen.getByText('暂无数据')).toBeInTheDocument();
+        expect(screen.getByText(/暂无数据/i)).toBeInTheDocument();
       });
     });
 
     it('数据就绪后显示图表区域', async () => {
-      mockAggregate.mockResolvedValue(mockChartData);
+      mockLoadHistory.mockResolvedValue([
+        {
+          date: '2026-05-10',
+          totalAssets: 100000,
+          holdingGain: 5000,
+          holdingGainPct: 5,
+          dayGain: 1000,
+        },
+      ]);
+      mockSnapshotsToChartData.mockReturnValue(mockChartData);
       renderModal({ isOpen: true });
       await waitFor(() => {
         expect(screen.getByText('总资产')).toBeInTheDocument();
@@ -181,7 +182,16 @@ describe('TotalAssetsModal', () => {
   // ============================================================
   describe('时间范围切换', () => {
     it('渲染全部时间范围按钮', async () => {
-      mockAggregate.mockResolvedValue(mockChartData);
+      mockLoadHistory.mockResolvedValue([
+        {
+          date: '2026-05-10',
+          totalAssets: 100000,
+          holdingGain: 5000,
+          holdingGainPct: 5,
+          dayGain: 1000,
+        },
+      ]);
+      mockSnapshotsToChartData.mockReturnValue(mockChartData);
       renderModal({ isOpen: true });
       await waitFor(() => {
         expect(screen.getByText('总资产')).toBeInTheDocument();
@@ -192,17 +202,24 @@ describe('TotalAssetsModal', () => {
     });
 
     it('点击时间范围按钮切换 active 样式', async () => {
-      mockAggregate.mockResolvedValue(mockChartData);
+      mockLoadHistory.mockResolvedValue([
+        {
+          date: '2026-05-10',
+          totalAssets: 100000,
+          holdingGain: 5000,
+          holdingGainPct: 5,
+          dayGain: 1000,
+        },
+      ]);
+      mockSnapshotsToChartData.mockReturnValue(mockChartData);
       renderModal({ isOpen: true });
       await waitFor(() => {
         expect(screen.getByText('总资产')).toBeInTheDocument();
       });
 
-      // 默认 '1Y' 为 active
       const btn1Y = screen.getByText('1Y');
       expect(btn1Y.className).toContain('bg-slate-900');
 
-      // 点击 1M 后，1M 变为 active
       const btn1M = screen.getByText('1M');
       fireEvent.click(btn1M);
       expect(btn1M.className).toContain('bg-slate-900');
@@ -216,7 +233,16 @@ describe('TotalAssetsModal', () => {
   describe('关闭交互', () => {
     it('点击关闭按钮调用 onClose', async () => {
       const onClose = vi.fn();
-      mockAggregate.mockResolvedValue(mockChartData);
+      mockLoadHistory.mockResolvedValue([
+        {
+          date: '2026-05-10',
+          totalAssets: 100000,
+          holdingGain: 5000,
+          holdingGainPct: 5,
+          dayGain: 1000,
+        },
+      ]);
+      mockSnapshotsToChartData.mockReturnValue(mockChartData);
       renderModal({ isOpen: true, onClose });
       await waitFor(() => {
         expect(screen.getByText('总资产')).toBeInTheDocument();
@@ -231,7 +257,16 @@ describe('TotalAssetsModal', () => {
 
     it('点击 backdrop 关闭 Modal', async () => {
       const onClose = vi.fn();
-      mockAggregate.mockResolvedValue(mockChartData);
+      mockLoadHistory.mockResolvedValue([
+        {
+          date: '2026-05-10',
+          totalAssets: 100000,
+          holdingGain: 5000,
+          holdingGainPct: 5,
+          dayGain: 1000,
+        },
+      ]);
+      mockSnapshotsToChartData.mockReturnValue(mockChartData);
       renderModal({ isOpen: true, onClose });
       await waitFor(() => {
         expect(screen.getByText('总资产')).toBeInTheDocument();
@@ -246,11 +281,20 @@ describe('TotalAssetsModal', () => {
   });
 
   // ============================================================
-  // 图表 DOM 挂载（jsdom 环境下 ECharts 不初始化，仅验证 DOM 结构）
+  // 图表 DOM 挂载
   // ============================================================
   describe('图表 DOM 挂载', () => {
     it('数据就绪后渲染两个图表容器 div', async () => {
-      mockAggregate.mockResolvedValue(mockChartData);
+      mockLoadHistory.mockResolvedValue([
+        {
+          date: '2026-05-10',
+          totalAssets: 100000,
+          holdingGain: 5000,
+          holdingGainPct: 5,
+          dayGain: 1000,
+        },
+      ]);
+      mockSnapshotsToChartData.mockReturnValue(mockChartData);
       renderModal({ isOpen: true });
       await waitFor(() => {
         expect(screen.getByText('总资产')).toBeInTheDocument();
@@ -261,7 +305,16 @@ describe('TotalAssetsModal', () => {
     });
 
     it('isOpen 变 false 后图表区域移除', async () => {
-      mockAggregate.mockResolvedValue(mockChartData);
+      mockLoadHistory.mockResolvedValue([
+        {
+          date: '2026-05-10',
+          totalAssets: 100000,
+          holdingGain: 5000,
+          holdingGainPct: 5,
+          dayGain: 1000,
+        },
+      ]);
+      mockSnapshotsToChartData.mockReturnValue(mockChartData);
       const { rerender } = renderModal({ isOpen: true });
       await waitFor(() => {
         expect(screen.getByText('总资产')).toBeInTheDocument();
@@ -276,34 +329,25 @@ describe('TotalAssetsModal', () => {
   });
 
   // ============================================================
-  // 数据聚合
+  // 数据加载
   // ============================================================
-  describe('数据聚合', () => {
-    it('isOpen 变 true 时触发 aggregateTotalAssetsHistory', async () => {
-      mockAggregate.mockResolvedValue(mockChartData);
+  describe('数据加载', () => {
+    it('isOpen 变 true 时调用 loadTotalAssetsHistory', async () => {
+      mockLoadHistory.mockResolvedValue([
+        {
+          date: '2026-05-10',
+          totalAssets: 100000,
+          holdingGain: 5000,
+          holdingGainPct: 5,
+          dayGain: 1000,
+        },
+      ]);
+      mockSnapshotsToChartData.mockReturnValue(mockChartData);
       renderModal({ isOpen: true });
 
       await waitFor(() => {
-        expect(mockAggregate).toHaveBeenCalledWith(mockFunds);
-      });
-    });
-
-    it('funds 变化时重新聚合', async () => {
-      mockAggregate.mockResolvedValue(mockChartData);
-      const { rerender } = renderModal({ isOpen: true });
-
-      const newFunds: Fund[] = [{ ...mockFunds[0], code: '000002', holdingShares: 200 }];
-
-      rerender(
-        React.createElement(TotalAssetsModal, {
-          ...defaultProps,
-          isOpen: true,
-          funds: newFunds,
-        }),
-      );
-
-      await waitFor(() => {
-        expect(mockAggregate).toHaveBeenCalledWith(newFunds);
+        expect(mockLoadHistory).toHaveBeenCalled();
+        expect(mockSnapshotsToChartData).toHaveBeenCalled();
       });
     });
   });

@@ -1,5 +1,12 @@
 import Dexie, { type Table } from 'dexie';
-import type { Fund, Account, AssetSummary, WatchlistItem, PendingTransaction } from '../types';
+import type {
+  Fund,
+  Account,
+  AssetSummary,
+  WatchlistItem,
+  PendingTransaction,
+  TotalAssetsSnapshot,
+} from '../types';
 import {
   fetchHistoricalFundNavWithDate,
   checkIsMarketTrading,
@@ -33,6 +40,7 @@ class XiaoHuYangJiDB extends Dexie {
   funds!: Table<Fund>;
   accounts!: Table<Account>;
   watchlists!: Table<WatchlistItem>;
+  totalAssetsHistory!: Table<TotalAssetsSnapshot>;
 
   constructor() {
     super('XiaoHuYangJiDB');
@@ -55,6 +63,13 @@ class XiaoHuYangJiDB extends Dexie {
       funds: '++id, code, platform, name',
       accounts: '++id, name',
       watchlists: '++id, code, type, name',
+    });
+    // Version 5: 每日总资产快照表
+    this.version(5).stores({
+      funds: '++id, code, platform, name',
+      accounts: '++id, name',
+      watchlists: '++id, code, type, name',
+      totalAssetsHistory: '++id, &date',
     });
   }
 }
@@ -827,6 +842,32 @@ export const calculateSummary = (funds: Fund[]): AssetSummary => {
     holdingGain,
     holdingGainPct,
   };
+};
+
+// === 总资产快照 ===
+
+/**
+ * 保存今日总资产快照。如果今日已有记录则跳过（每日仅一条）。
+ * 应在 calculateSummary 后调用。
+ */
+export const saveTotalAssetsSnapshot = async (summary: AssetSummary): Promise<void> => {
+  const today = getLocalDateString();
+  const existing = await db.totalAssetsHistory.where('date').equals(today).first();
+  if (existing) return; // 今日已记录
+  await db.totalAssetsHistory.put({
+    date: today,
+    totalAssets: summary.totalAssets,
+    holdingGain: summary.holdingGain,
+    holdingGainPct: summary.holdingGainPct,
+    dayGain: summary.totalDayGain,
+  });
+};
+
+/**
+ * 加载全部总资产历史快照，按日期升序排列。
+ */
+export const loadTotalAssetsHistory = async (): Promise<TotalAssetsSnapshot[]> => {
+  return db.totalAssetsHistory.orderBy('date').toArray();
 };
 
 // === 导入导出 ===

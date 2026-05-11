@@ -44,6 +44,7 @@ vi.mock('../../services/db', () => ({
   initDB: mocked.initDB,
   refreshFundData: mocked.refreshFundData,
   calculateSummary: () => mocked.calculateSummary(),
+  saveTotalAssetsSnapshot: vi.fn(),
 }));
 
 vi.mock('../../services/i18n', () => ({
