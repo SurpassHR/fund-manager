@@ -18,6 +18,7 @@ import { SettingsProvider } from './services/SettingsContext';
 import { EdgeSwipeProvider } from './services/edgeSwipeState';
 import { resetDragState, useEdgeSwipe } from './services/useEdgeSwipe';
 import { closeTopOverlay, getActiveOverlayId } from './services/overlayStack';
+import { useVersionCheck } from './services/versionCheck';
 
 const EDGE_ZONE = 20;
 
@@ -28,6 +29,7 @@ const AppContent: React.FC = () => {
   const [isMobileChromeHidden, setIsMobileChromeHidden] = useState(false);
   const { t } = useTranslation();
   const { setDragState, isDragging } = useEdgeSwipe();
+  const { newVersionAvailable, refreshApp } = useVersionCheck();
   const isDraggingRef = useRef(isDragging);
   const isMobileChromeHiddenRef = useRef(false);
 
@@ -503,6 +505,18 @@ const AppContent: React.FC = () => {
             </AnimatedSwitcher>
           </div>
         </main>
+
+        {newVersionAvailable && (
+          <div className="fixed bottom-20 left-0 right-0 z-50 flex justify-center pointer-events-none">
+            <button
+              onClick={refreshApp}
+              className="pointer-events-auto flex items-center gap-2 rounded-full border border-blue-500/30 bg-blue-600/90 px-4 py-2 text-sm font-medium text-white shadow-lg backdrop-blur-md transition-all hover:bg-blue-600 active:scale-95"
+            >
+              <Icons.Refresh className="h-4 w-4" />
+              {t('common.newVersionAvailable') || '发现新版本，点击刷新'}
+            </button>
+          </div>
+        )}
 
         <Ticker hiddenOnMobile={isMobileChromeHidden} />
         <BottomNav

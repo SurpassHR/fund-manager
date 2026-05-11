@@ -1,4 +1,5 @@
 import path from 'path';
+import { writeFileSync } from 'fs';
 import { execSync } from 'child_process';
 import { defineConfig, loadEnv, type ViteDevServer } from 'vite';
 import react from '@vitejs/plugin-react';
@@ -404,7 +405,22 @@ ${subjects}`;
         },
       },
     },
-    plugins: [react(), tailwindcss(), createLlmProxyPlugin()],
+    plugins: [
+      react(),
+      tailwindcss(),
+      createLlmProxyPlugin(),
+      {
+        name: 'generate-version-json',
+        closeBundle() {
+          const versionJson = JSON.stringify({
+            hash: commits[0]?.hash || 'unknown',
+            buildTime: Date.now(),
+          });
+          const outDir = path.resolve(__dirname, 'dist/fund-manager');
+          writeFileSync(path.resolve(outDir, 'version.json'), versionJson, 'utf-8');
+        },
+      },
+    ],
     define: {
       'process.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY),
       'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY),

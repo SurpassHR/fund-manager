@@ -310,6 +310,7 @@ const dictionary = {
       collapseClearedFunds: 'Collapse cleared funds',
       groupByInstitution: 'Group by Institution',
       institutionOther: 'Other',
+      newVersionAvailable: 'New version available, tap to refresh',
     },
     filters: {
       Default: 'Default',
@@ -622,6 +623,7 @@ const dictionary = {
       collapseClearedFunds: '收起清仓基金',
       groupByInstitution: '按机构分组',
       institutionOther: '其他',
+      newVersionAvailable: '发现新版本，点击刷新',
     },
     filters: {
       Default: '默认',
