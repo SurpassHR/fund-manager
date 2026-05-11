@@ -803,7 +803,7 @@ export const FundDetail: React.FC<FundDetailProps> = ({
   const displayUsesOfficialPct = hasLocalEstimate
     ? false
     : !shouldUseFundSnapshot &&
-      (commonData?.navChangePercent !== undefined || latestNetWorth?.equityReturn !== undefined);
+    (commonData?.navChangePercent !== undefined || latestNetWorth?.equityReturn !== undefined);
   const displayIsEstimated =
     hasLocalEstimate || (!displayUsesOfficialPct && Boolean(fund.todayChangeIsEstimated));
   const displayMarketValue = currentNav * fund.holdingShares;
@@ -817,9 +817,9 @@ export const FundDetail: React.FC<FundDetailProps> = ({
     : holdingDisplayMetrics.dayChangeBaseNav !== undefined
       ? displayIsEstimated
         ? (fund.holdingShares *
-            holdingDisplayMetrics.dayChangeBaseNav *
-            (fund.estimatedDayChangePct ?? 0)) /
-          100
+          holdingDisplayMetrics.dayChangeBaseNav *
+          (fund.estimatedDayChangePct ?? 0)) /
+        100
         : displayMarketValue - fund.holdingShares * holdingDisplayMetrics.dayChangeBaseNav
       : displayUsesOfficialPct || displayIsEstimated
         ? inferredDayGainVal
@@ -1304,7 +1304,7 @@ export const FundDetail: React.FC<FundDetailProps> = ({
 
       <div className="no-scrollbar flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-y-contain touch-pan-y">
         {/* Hero Card */}
-        <div className="mb-2 rounded-[1.5rem] border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)]/92 p-6 shadow-[0_10px_24px_rgba(15,23,42,0.05)] transition-colors">
+        <div className="border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)]/92 p-6 shadow-[0_10px_24px_rgba(15,23,42,0.05)] transition-colors">
           <div className="text-gray-500 dark:text-gray-400 text-xs mb-1">
             {t('common.nav')} ({displayDate})
           </div>
@@ -1377,7 +1377,7 @@ export const FundDetail: React.FC<FundDetailProps> = ({
         </div>
 
         {/* ECharts Section */}
-        <div className="mb-2 rounded-[1.5rem] border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)]/92 p-4 shadow-[0_10px_24px_rgba(15,23,42,0.05)] transition-colors">
+        <div className="border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)]/92 p-4 shadow-[0_10px_24px_rgba(15,23,42,0.05)] transition-colors">
           <div className="flex items-center justify-between mb-2">
             <h3 className="font-bold text-gray-800 dark:text-gray-100 text-sm border-l-4 border-blue-500 pl-2">
               累计收益走势
@@ -1387,11 +1387,10 @@ export const FundDetail: React.FC<FundDetailProps> = ({
                 <button
                   key={range}
                   onClick={() => setTimeRange(range)}
-                  className={`px-2 py-1 text-[10px] rounded-md font-medium transition-all ${
-                    timeRange === range
-                      ? 'bg-white dark:bg-card-dark text-blue-600 shadow-sm'
-                      : 'text-[var(--app-shell-muted)] hover:text-[var(--app-shell-ink)]'
-                  }`}
+                  className={`px-2 py-1 text-[10px] rounded-md font-medium transition-all ${timeRange === range
+                    ? 'bg-white dark:bg-card-dark text-blue-600 shadow-sm'
+                    : 'text-[var(--app-shell-muted)] hover:text-[var(--app-shell-ink)]'
+                    }`}
                 >
                   {range === 'ALL' ? '成立以来' : range}
                 </button>
@@ -1421,7 +1420,7 @@ export const FundDetail: React.FC<FundDetailProps> = ({
 
         {/* Intraday Trend Chart (基金级日内走势) */}
         {fundIntradayTrend.length > 0 && (
-          <div className="mb-2 rounded-[1.5rem] border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)]/92 p-4 shadow-[0_10px_24px_rgba(15,23,42,0.05)] transition-colors">
+          <div className="border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)]/92 p-4 shadow-[0_10px_24px_rgba(15,23,42,0.05)] transition-colors">
             <div className="flex items-center justify-between mb-2">
               <h3 className="font-bold text-gray-800 dark:text-gray-100 text-sm border-l-4 border-blue-500 pl-2">
                 日内走势
@@ -1431,10 +1430,10 @@ export const FundDetail: React.FC<FundDetailProps> = ({
                   fundDetailEstimatedPct !== undefined && fundDetailEstimatedPct !== null
                     ? fundDetailEstimatedPct
                     : (((fundIntradayTrend[fundIntradayTrend.length - 1]?.estimatedNav ??
-                        currentNav) -
-                        (fundIntradayTrend[0]?.estimatedNav ?? currentNav)) /
-                        (fundIntradayTrend[0]?.estimatedNav ?? currentNav)) *
-                        100,
+                      currentNav) -
+                      (fundIntradayTrend[0]?.estimatedNav ?? currentNav)) /
+                      (fundIntradayTrend[0]?.estimatedNav ?? currentNav)) *
+                    100,
                 )}`}
               >
                 {(() => {
@@ -1458,7 +1457,7 @@ export const FundDetail: React.FC<FundDetailProps> = ({
 
         {/* Historical Data Grid (Performance Summary) */}
         {pingzhongData ? (
-          <div className="mb-2 rounded-[1.5rem] border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)]/92 p-4 shadow-[0_10px_24px_rgba(15,23,42,0.05)] transition-colors">
+          <div className="border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)]/92 p-4 shadow-[0_10px_24px_rgba(15,23,42,0.05)] transition-colors">
             <div className="grid grid-cols-4 gap-2 text-center">
               {[
                 {
@@ -1491,7 +1490,7 @@ export const FundDetail: React.FC<FundDetailProps> = ({
 
         {/* Holdings Section */}
         {holdings.length > 0 && (
-          <div className="mb-2 rounded-[1.5rem] border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)]/92 p-4 shadow-[0_10px_24px_rgba(15,23,42,0.05)] transition-colors">
+          <div className="border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)]/92 p-4 shadow-[0_10px_24px_rgba(15,23,42,0.05)] transition-colors">
             <h3 className="font-bold text-gray-800 dark:text-gray-100 text-sm mb-4 border-l-4 border-blue-500 pl-2">
               当前基金持仓明细{' '}
               <span className="text-xs text-gray-400 font-normal ml-1">(实时估算)</span>
@@ -1564,7 +1563,7 @@ export const FundDetail: React.FC<FundDetailProps> = ({
         )}
 
         {fund.category === 'ETF_LINK' && parentEtfInfo && parentEtfHoldings.length > 0 && (
-          <div className="mb-2 rounded-[1.5rem] border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)]/92 p-4 shadow-[0_10px_24px_rgba(15,23,42,0.05)] transition-colors">
+          <div className="border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)]/92 p-4 shadow-[0_10px_24px_rgba(15,23,42,0.05)] transition-colors">
             <h3 className="font-bold text-gray-800 dark:text-gray-100 text-sm mb-2 border-l-4 border-emerald-500 pl-2">
               母ETF持仓明细
             </h3>
@@ -1636,7 +1635,7 @@ export const FundDetail: React.FC<FundDetailProps> = ({
         )}
 
         {fund.category === 'ETF_LINK' && parentEtfInfo && parentEtfHoldings.length === 0 && (
-          <div className="mb-2 rounded-[1.5rem] border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)]/92 p-4 shadow-[0_10px_24px_rgba(15,23,42,0.05)] transition-colors">
+          <div className="border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)]/92 p-4 shadow-[0_10px_24px_rgba(15,23,42,0.05)] transition-colors">
             <h3 className="font-bold text-gray-800 dark:text-gray-100 text-sm mb-2 border-l-4 border-emerald-500 pl-2">
               母ETF持仓明细
             </h3>
@@ -1649,7 +1648,7 @@ export const FundDetail: React.FC<FundDetailProps> = ({
 
         {/* Annual Returns Table */}
         {annualReturnData.length > 0 && (
-          <div className="mb-2 rounded-[1.5rem] border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)]/92 p-4 shadow-[0_10px_24px_rgba(15,23,42,0.05)] transition-colors">
+          <div className="border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)]/92 p-4 shadow-[0_10px_24px_rgba(15,23,42,0.05)] transition-colors">
             <div
               className="flex items-center justify-between border-l-4 border-blue-500 pl-2 cursor-pointer select-none"
               onClick={() => setIsAnnualReturnsExpanded(!isAnnualReturnsExpanded)}
@@ -1708,7 +1707,7 @@ export const FundDetail: React.FC<FundDetailProps> = ({
         )}
 
         {/* History NAV Table */}
-        <div className="mb-2 rounded-[1.5rem] border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)]/92 p-4 shadow-[0_10px_24px_rgba(15,23,42,0.05)] transition-colors">
+        <div className="border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)]/92 p-4 shadow-[0_10px_24px_rgba(15,23,42,0.05)] transition-colors">
           <div
             className="flex items-center justify-between border-l-4 border-blue-500 pl-2 cursor-pointer select-none"
             onClick={() => setIsHistoryExpanded(!isHistoryExpanded)}
@@ -1779,11 +1778,6 @@ export const FundDetail: React.FC<FundDetailProps> = ({
               </motion.div>
             )}
           </AnimatePresence>
-        </div>
-
-        {/* Scrollable Area End Marker */}
-        <div className="pt-4 pb-6 w-full flex items-center justify-center text-xs text-gray-400 dark:text-gray-500 font-sans">
-          - 到底啦 -
         </div>
       </div>
 
