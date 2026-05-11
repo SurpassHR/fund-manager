@@ -43,6 +43,7 @@ vi.mock('../../services/db', () => ({
     holdingGain: 100,
     holdingGainPct: 10,
   }),
+  saveTotalAssetsSnapshot: vi.fn(),
 }));
 
 vi.mock('../../services/i18n', () => ({

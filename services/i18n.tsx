@@ -314,6 +314,13 @@ const dictionary = {
     filters: {
       Default: 'Default',
     },
+    totalAssets: {
+      title: 'Total Assets',
+      subtitle: 'Historical total assets and profit',
+      assetsChartTitle: 'Total Assets',
+      profitChartTitle: 'Profit',
+      noData: 'No data available',
+    },
   },
   zh: {
     common: {
@@ -618,6 +625,13 @@ const dictionary = {
     },
     filters: {
       Default: '默认',
+    },
+    totalAssets: {
+      title: '总资产走势',
+      subtitle: '历史总资产与收益曲线',
+      assetsChartTitle: '总资产',
+      profitChartTitle: '收益',
+      noData: '暂无数据',
     },
   },
 };
