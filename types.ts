@@ -25,6 +25,7 @@ export interface Fund {
   trackingInfo?: TrackingInfo; // 跟踪指数/标的信息
   parentEtfInfo?: ParentEtfInfo; // ETF 联接基金对应的母 ETF 信息
   underlyingMarket?: UnderlyingMarket; // 标的市场:中国/美国/香港/全球
+  fundIntradayTrend?: FundIntradayPoint[];
 }
 
 export interface PendingTransaction {
@@ -66,6 +67,7 @@ export interface WatchlistItem {
   trackingInfo?: TrackingInfo; // 跟踪指数/标的信息
   parentEtfInfo?: ParentEtfInfo; // ETF 联接基金对应的母 ETF 信息
   underlyingMarket?: UnderlyingMarket; // 标的市场:中国/美国/香港/全球
+  fundIntradayTrend?: FundIntradayPoint[];
 }
 
 export interface Account {
@@ -280,6 +282,14 @@ export interface ParentEtfInfo {
  * - HK: 香港市场(港交所)
  * - GLOBAL: 全球市场(多市场混合)
  */
+/** 基金级别日内估算净值点 */
+export interface FundIntradayPoint {
+  /** 时间字符串，HH:MM 格式 */
+  time: string;
+  /** 估算净值 */
+  estimatedNav: number;
+}
+
 export type UnderlyingMarket = 'CN' | 'US' | 'HK' | 'GLOBAL';
 
 /**

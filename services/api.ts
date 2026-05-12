@@ -685,6 +685,29 @@ export const fetchRealTimeQuotes = async (
   }
 };
 
+type USStockCode = string | { ticker: string; exchange?: string };
+
+const US_EXCHANGE_SUFFIX: Record<string, string> = {
+  NASDAQ: '.OQ',
+  NYSE: '.N',
+  AMEX: '.A',
+};
+
+/**
+ * 将美股持仓 ticker 转换为腾讯美股代码格式。
+ * 无 exchange 提示时默认 NASDAQ（覆盖大多数大型科技股持仓）。
+ */
+export const buildUSQuoteCodes = (stocks: Array<USStockCode | null | undefined>): string[] => {
+  return stocks
+    .map((stock) => {
+      if (!stock) return null;
+      if (typeof stock === 'string') return `us${stock}.OQ`;
+      const suffix = US_EXCHANGE_SUFFIX[stock.exchange ?? ''] ?? '.OQ';
+      return `us${stock.ticker}${suffix}`;
+    })
+    .filter(Boolean) as string[];
+};
+
 export const buildTencentQuoteCodes = (tickers: Array<string | null | undefined>): string[] => {
   return tickers
     .map((ticker) => {
@@ -986,6 +1009,197 @@ export const checkIsMarketTrading = async (options?: { force?: boolean }): Promi
       const isWeekday = now.getDay() >= 1 && now.getDay() <= 5;
       const isAfter920 = now.getHours() > 9 || (now.getHours() === 9 && now.getMinutes() >= 20);
       return isWeekday && isAfter920;
+    },
+    shouldCache: () => true,
+  });
+};
+
+/** 从腾讯美股代码中提取原始 ticker（如 "usAAPL.OQ" → "AAPL"） */
+const normalizeUSTicker = (code: string): string => {
+  let t = code;
+  if (t.startsWith('us')) t = t.slice(2);
+  const dotIdx = t.lastIndexOf('.');
+  if (dotIdx >= 0) t = t.slice(0, dotIdx);
+  return t;
+};
+
+/**
+ * 获取美股分钟 K 线数据。
+ * 返回 { [rawTicker]: IntradayPoint[] }，无数据的 code 不出现。
+ */
+export const fetchUSStockIntradayData = async (
+  codes: string[],
+  options?: { force?: boolean },
+): Promise<Record<string, IntradayPoint[]>> => {
+  if (!codes || codes.length === 0) return {};
+
+  const key = `us-intraday:${buildCodesKey(codes)}`;
+  return await withCache({
+    key,
+    ttlMs: 60000,
+    force: options?.force,
+    fetcher: async () => {
+      const parseMinuteLine = (line: string): IntradayPoint | null => {
+        const parts = line.split(' ');
+        if (parts.length < 2) return null;
+        const rawTime = parts[0];
+        const price = parseFloat(parts[1]);
+        if (rawTime.length < 4 || isNaN(price)) return null;
+        const time = `${rawTime.slice(0, 2)}:${rawTime.slice(2, 4)}`;
+        return { time, price };
+      };
+
+      const results = await Promise.all(
+        codes.map(async (code) => {
+          try {
+            const url = `https://web.ifzq.gtimg.cn/appstock/app/UsMinute/query?_var=min_data_${code.replace(/\./g, '')}&code=${encodeURIComponent(code)}&r=${Math.random()}`;
+            const res = await fetch(url);
+            if (!res.ok) return { code, points: [] as IntradayPoint[] };
+            const rawText = await res.text();
+            const jsonStart = rawText.indexOf('{');
+            if (jsonStart < 0) return { code, points: [] as IntradayPoint[] };
+            const json: unknown = JSON.parse(rawText.slice(jsonStart));
+            const data = json as {
+              code?: number;
+              data?: Record<string, { data?: { data?: string[] } }>;
+            };
+            const rawList = data?.data?.[code]?.data?.data;
+            if (!rawList || !Array.isArray(rawList)) return { code, points: [] as IntradayPoint[] };
+            const points = rawList
+              .map(parseMinuteLine)
+              .filter((p): p is IntradayPoint => p !== null);
+            return { code, points };
+          } catch (err) {
+            console.warn('Failed to fetch US intraday data for', code, err);
+            return { code, points: [] as IntradayPoint[] };
+          }
+        }),
+      );
+
+      const map: Record<string, IntradayPoint[]> = {};
+      results.forEach(({ code, points }) => {
+        if (points.length === 0) return;
+        const rawTicker = normalizeUSTicker(code);
+        if (rawTicker) {
+          map[rawTicker] = points;
+        }
+      });
+      return map;
+    },
+  });
+};
+
+/**
+ * 获取美股实时行情快照。
+ * qt.gtimg.cn 不支持美股，因此从分钟数据中提取最新价和相对开盘价的涨跌幅。
+ * 返回格式与 fetchTencentStockQuotes 一致：{ [rawTicker]: { price: string; pct: number } }
+ */
+export const fetchUSStockQuotes = async (
+  codes: string[],
+  options?: { force?: boolean },
+): Promise<Record<string, { price: string; pct: number }>> => {
+  if (!codes || codes.length === 0) return {};
+
+  const intradayData = await fetchUSStockIntradayData(codes, options);
+
+  const quoteMap: Record<string, { price: string; pct: number }> = {};
+  for (const [ticker, points] of Object.entries(intradayData)) {
+    if (!points || points.length === 0) continue;
+    const firstPrice = points[0].price;
+    const lastPrice = points[points.length - 1].price;
+    const pct = firstPrice > 0 ? (lastPrice / firstPrice - 1) * 100 : 0;
+    quoteMap[ticker] = {
+      price: lastPrice.toFixed(2),
+      pct: Math.round(pct * 100) / 100,
+    };
+  }
+  return quoteMap;
+};
+
+const US_MINUTE_API = 'https://web.ifzq.gtimg.cn/appstock/app/UsMinute/query';
+
+/** 判断当前日期是否处于美国东部夏令时（EDT, UTC-4）。
+ *  夏令时：3 月第二个周日 02:00 至 11 月第一个周日 02:00。 */
+const isUSEasternDST = (d: Date): boolean => {
+  const year = d.getFullYear();
+  // 11 月第一个周日
+  const novFirst = new Date(year, 10, 1);
+  const novFirstSun = novFirst.getDate() + ((7 - novFirst.getDay()) % 7);
+  const dstEnd = new Date(year, 10, novFirstSun, 2, 0, 0);
+  // 3 月第二个周日
+  const marFirst = new Date(year, 2, 1);
+  const marFirstSun = marFirst.getDate() + ((7 - marFirst.getDay()) % 7);
+  const marSecondSun = marFirstSun + 7;
+  const dstStart = new Date(year, 2, marSecondSun, 2, 0, 0);
+  return d >= dstStart && d < dstEnd;
+};
+
+/** 基于时间范围判断美股是否在交易时段。不依赖 API，纯本地计算。 */
+const isUSMarketHoursByTime = (now: Date): boolean => {
+  const day = now.getDay();
+  if (day === 0 || day === 6) return false;
+  const etOffset = isUSEasternDST(now) ? -4 : -5;
+  // 将本地时间转换为美东时间的分钟数
+  const utcHours = now.getUTCHours();
+  const utcMinutes = now.getUTCMinutes();
+  const etMinutes = (utcHours + etOffset) * 60 + utcMinutes;
+  const openMinutes = 9 * 60 + 30; // 09:30
+  const closeMinutes = 16 * 60; // 16:00
+  return etMinutes >= openMinutes && etMinutes < closeMinutes;
+};
+
+/**
+ * 判断美股是否处于交易时段。
+ * 优先使用腾讯美股分钟 API 的最新数据时间戳；API 失败时回退到本地美东时间范围判断。
+ */
+export const checkIsUSMarketTrading = async (options?: { force?: boolean }): Promise<boolean> => {
+  return withCache({
+    key: 'us-market-trading',
+    ttlMs: 10000,
+    force: options?.force,
+    fetcher: async () => {
+      try {
+        const url = `${US_MINUTE_API}?_var=min_data_usAAPLOQ&code=usAAPL.OQ&r=${Math.random()}`;
+        const res = await fetch(url);
+        if (!res.ok) throw new Error('API not ok');
+        const rawText = await res.text();
+        // JSONP 格式: min_data_usAAPLOQ={...}
+        const jsonStart = rawText.indexOf('{');
+        if (jsonStart < 0) throw new Error('No JSON in response');
+        const jsonStr = rawText.slice(jsonStart);
+        const json: unknown = JSON.parse(jsonStr);
+        const data = json as {
+          data?: Record<string, { data?: { data?: string[] } }>;
+        };
+        const rawList = data?.data?.['usAAPL.OQ']?.data?.data;
+        if (!rawList || !Array.isArray(rawList) || rawList.length === 0) throw new Error('No data');
+
+        // 取最后一条记录的时间
+        const lastPoint = rawList[rawList.length - 1];
+        const parts = String(lastPoint).split(' ');
+        if (parts.length < 2) throw new Error('Parse failed');
+        const rawTime = parts[0]; // e.g., "0930" or "1600"
+        const pointHour = parseInt(rawTime.slice(0, 2), 10);
+        const pointMinute = parseInt(rawTime.slice(2, 4), 10);
+
+        const now = new Date();
+        const etOffset = isUSEasternDST(now) ? -4 : -5;
+        const etMinutes = (now.getUTCHours() + etOffset) * 60 + now.getUTCMinutes();
+
+        // 计算数据点对应的美东分钟数
+        const pointEtMinutes = pointHour * 60 + pointMinute;
+        // 允许 15 分钟的延迟容忍
+        const tolerance = 15;
+
+        // 如果最新数据点时间在当前时间的 15 分钟内，认为市场在交易
+        // 但也要确保我们在市场时段内（避免盘前/盘后数据误判）
+        const isMarketOpen = etMinutes >= 9 * 60 + 30 && etMinutes < 16 * 60;
+        const isRecent = Math.abs(etMinutes - pointEtMinutes) <= tolerance;
+        return isMarketOpen && isRecent;
+      } catch (e) {
+        console.error('Failed to check US market status via API', e);
+      }
+      return isUSMarketHoursByTime(new Date());
     },
     shouldCache: () => true,
   });

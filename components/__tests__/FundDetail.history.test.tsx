@@ -32,7 +32,11 @@ const mockedApi = vi.hoisted(() => ({
   fetchTencentStockQuotes: vi.fn(),
   fetchTencentIntradayData: vi.fn(),
   buildTencentQuoteCodes: vi.fn(() => []),
+  buildUSQuoteCodes: vi.fn(() => []),
+  fetchUSStockIntradayData: vi.fn(),
+  fetchUSStockQuotes: vi.fn(),
   checkIsMarketTrading: vi.fn(() => Promise.resolve(false)),
+  checkIsUSMarketTrading: vi.fn(() => Promise.resolve(false)),
 }));
 
 const chartSpies = vi.hoisted(() => ({
@@ -51,7 +55,15 @@ vi.mock('../../services/api', () => ({
   fetchTencentStockQuotes: mockedApi.fetchTencentStockQuotes,
   fetchTencentIntradayData: mockedApi.fetchTencentIntradayData,
   buildTencentQuoteCodes: mockedApi.buildTencentQuoteCodes,
+  buildUSQuoteCodes: mockedApi.buildUSQuoteCodes,
+  fetchUSStockIntradayData: mockedApi.fetchUSStockIntradayData,
+  fetchUSStockQuotes: mockedApi.fetchUSStockQuotes,
   checkIsMarketTrading: mockedApi.checkIsMarketTrading,
+  checkIsUSMarketTrading: mockedApi.checkIsUSMarketTrading,
+}));
+
+vi.mock('../../services/fundTypeIdentifier', () => ({
+  identifyFundType: vi.fn(() => ({ category: 'DOMESTIC', underlyingMarket: 'CN' })),
 }));
 
 vi.mock('../../services/i18n', () => ({
@@ -131,7 +143,10 @@ describe('FundDetail history performance source', () => {
     mockedApi.fetchParentETFInfo.mockResolvedValue(null);
     mockedApi.fetchTencentStockQuotes.mockResolvedValue({});
     mockedApi.fetchTencentIntradayData.mockResolvedValue({});
+    mockedApi.fetchUSStockIntradayData.mockResolvedValue({});
+    mockedApi.fetchUSStockQuotes.mockResolvedValue({});
     mockedApi.checkIsMarketTrading.mockResolvedValue(false);
+    mockedApi.checkIsUSMarketTrading.mockResolvedValue(false);
     mockedApi.fetchFundPerformance.mockResolvedValue({
       data: {
         dayEnd: {

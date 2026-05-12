@@ -13,6 +13,7 @@ import { Icons } from './Icon';
 import { Sparkline } from './Sparkline';
 import { calcFundIntradayTrend } from '../services/fundIntradayTrend';
 import { calcWeightedChangePct } from '../services/fundQuotePipeline';
+import { identifyFundType } from '../services/fundTypeIdentifier';
 import { TradeMarkerLegend } from './TradeMarkerLegend';
 import {
   TRADE_MARKER_COLORS,
@@ -29,6 +30,7 @@ import { useTheme } from '../services/ThemeContext';
 import { ModalShell } from './ModalShell';
 import {
   buildTencentQuoteCodes,
+  buildUSQuoteCodes,
   fetchFundPerformance,
   fetchFundCommonData,
   fetchFundHoldings,
@@ -36,7 +38,10 @@ import {
   fetchParentETFInfo,
   fetchTencentStockQuotes,
   fetchTencentIntradayData,
+  fetchUSStockIntradayData,
+  fetchUSStockQuotes,
   checkIsMarketTrading,
+  checkIsUSMarketTrading,
 } from '../services/api';
 import type { IntradayPoint } from '../services/api';
 import { deriveFundHoldingDisplayMetrics } from '../services/fundDayChange';
@@ -118,8 +123,6 @@ const parseLocalDate = (dateStr: string): Date => {
   const [year, month, day] = dateStr.split('-').map(Number);
   return new Date(year, month - 1, day);
 };
-
-const normalizeTicker = (ticker?: string) => (ticker ? ticker.replace(/\D/g, '') : '');
 
 // Calculate Start Date based on Range and End Date
 const getStartDate = (range: TimeRange, endDateStr: string): string => {
@@ -660,38 +663,63 @@ export const FundDetail: React.FC<FundDetailProps> = ({
 
   // 5. Fetch Holdings
   useEffect(() => {
-    const buildHoldingQuotes = async (equity: EquityHolding[]) => {
-      const codes = buildTencentQuoteCodes(equity.map((h) => h.ticker));
-      if (codes.length === 0) return {};
+    const normalizeForMatch = (ticker: string) => {
+      // CN/HK ticker: digits-only. US ticker: raw as-is (letters only).
+      const digits = ticker.replace(/\D/g, '');
+      return digits || ticker;
+    };
 
-      const quoteMap = await fetchTencentStockQuotes(codes);
-      const nextQuotes: Record<string, { price: string; pct: number }> = {};
+    const buildHoldingQuotes = async (equity: EquityHolding[]) => {
+      const allTickers = equity.map((h) => h.ticker);
+      const cnCodes = buildTencentQuoteCodes(allTickers);
+      const usCodes = buildUSQuoteCodes(allTickers);
+
+      const [cnQuotes, usQuotes] = await Promise.all([
+        cnCodes.length > 0
+          ? fetchTencentStockQuotes(cnCodes)
+          : ({} as Record<string, { price: string; pct: number }>),
+        usCodes.length > 0
+          ? fetchUSStockQuotes(usCodes)
+          : ({} as Record<string, { price: string; pct: number }>),
+      ]);
+
+      const merged: Record<string, { price: string; pct: number }> = {};
+      // CN quotes 用 digits-only key
       equity.forEach((holding) => {
-        const key = normalizeTicker(holding.ticker);
+        const key = normalizeForMatch(holding.ticker);
         if (!key) return;
-        const quote = quoteMap[key];
+        const quote = cnQuotes[key] || usQuotes[key];
         if (quote) {
-          nextQuotes[holding.ticker] = quote;
+          merged[holding.ticker] = quote;
         }
       });
-      return nextQuotes;
+      return merged;
     };
 
     const buildHoldingIntraday = async (equity: EquityHolding[]) => {
-      const codes = buildTencentQuoteCodes(equity.map((h) => h.ticker));
-      if (codes.length === 0) return {};
+      const allTickers = equity.map((h) => h.ticker);
+      const cnCodes = buildTencentQuoteCodes(allTickers);
+      const usCodes = buildUSQuoteCodes(allTickers);
 
-      const intradayMap = await fetchTencentIntradayData(codes);
-      const nextIntraday: Record<string, IntradayPoint[]> = {};
+      const [cnIntraday, usIntraday] = await Promise.all([
+        cnCodes.length > 0
+          ? fetchTencentIntradayData(cnCodes)
+          : ({} as Record<string, IntradayPoint[]>),
+        usCodes.length > 0
+          ? fetchUSStockIntradayData(usCodes)
+          : ({} as Record<string, IntradayPoint[]>),
+      ]);
+
+      const merged: Record<string, IntradayPoint[]> = {};
       equity.forEach((holding) => {
-        const key = normalizeTicker(holding.ticker);
+        const key = normalizeForMatch(holding.ticker);
         if (!key) return;
-        const data = intradayMap[key];
+        const data = cnIntraday[key] || usIntraday[key];
         if (data && data.length >= 2) {
-          nextIntraday[holding.ticker] = data;
+          merged[holding.ticker] = data;
         }
       });
-      return nextIntraday;
+      return merged;
     };
 
     const normalizeParentCode = (raw?: string): string => {
@@ -1059,9 +1087,12 @@ export const FundDetail: React.FC<FundDetailProps> = ({
 
   // 定时检查市场交易状态
   useEffect(() => {
+    const isUS =
+      fund.underlyingMarket === 'US' ||
+      identifyFundType({ code: fund.code, name: fund.name }).underlyingMarket === 'US';
     const check = async () => {
       try {
-        const trading = await checkIsMarketTrading();
+        const trading = isUS ? await checkIsUSMarketTrading() : await checkIsMarketTrading();
         setIsMarketTrading(trading);
       } catch {
         setIsMarketTrading(false);
@@ -1070,7 +1101,7 @@ export const FundDetail: React.FC<FundDetailProps> = ({
     check();
     const timer = setInterval(check, 30000);
     return () => clearInterval(timer);
-  }, []);
+  }, [fund.code, fund.name, fund.underlyingMarket]);
 
   // 初始化日内走势 ECharts
   useEffect(() => {

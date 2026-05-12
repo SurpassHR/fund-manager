@@ -8,7 +8,11 @@ export interface FundIntradayPoint {
   estimatedNav: number;
 }
 
-const normalizeTicker = (ticker?: string) => (ticker ? ticker.replace(/\D/g, '') : '');
+const normalizeTicker = (ticker?: string) => {
+  if (!ticker) return '';
+  const digits = ticker.replace(/\D/g, '');
+  return digits || ticker;
+};
 
 /**
  * 将个股分时数据按持仓权重加权合成为基金级日内走势。

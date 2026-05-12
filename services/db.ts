@@ -10,6 +10,7 @@ import type {
 import {
   fetchHistoricalFundNavWithDate,
   checkIsMarketTrading,
+  checkIsUSMarketTrading,
   fetchParentETFInfo,
   fetchGeneralTencentQuotes,
 } from './api';
@@ -27,6 +28,7 @@ import {
 import { isEtfLinkFundName } from './constants';
 import { sanitizeWatchlistName } from './watchlistName';
 import { runFundQuotePipeline } from './fundQuotePipeline';
+import { identifyFundType } from './fundTypeIdentifier';
 import type { RefreshExecutionResult, RefreshExecutionStatus } from './refreshPolicy';
 
 export {
@@ -506,21 +508,38 @@ export const refreshFundData = (options?: RefreshOptions) => {
       }
 
       // 检查当前大盘是否已更新(真正处于开盘且在 9:20 以后)
-      const shouldUseEstimatedValue = await checkIsMarketTrading({ force: forceRefresh });
       const todayStr = getLocalDateString();
+      const [cnTrading, usTrading] = await Promise.all([
+        checkIsMarketTrading({ force: forceRefresh }),
+        checkIsUSMarketTrading({ force: forceRefresh }),
+      ]);
 
-      const { candidates, estimateMap, failedBase } = await runFundQuotePipeline(
-        allFunds.map((fund) => ({
-          item: fund,
-          code: fund.code,
-          fallbackNav: 0,
-          fallbackChangePct: 0,
-          dropOnMissingNav: true,
-        })),
+      const { candidates, estimateMap, failedBase, intradayTrends } = await runFundQuotePipeline(
+        allFunds.map((fund) => {
+          let category = fund.category;
+          let underlyingMarket = fund.underlyingMarket;
+          if (!category || !underlyingMarket) {
+            const inferred = identifyFundType({
+              code: fund.code,
+              name: fund.name,
+            });
+            if (!category) category = inferred.category;
+            if (!underlyingMarket) underlyingMarket = inferred.underlyingMarket;
+          }
+          return {
+            item: fund,
+            code: fund.code,
+            fallbackNav: 0,
+            fallbackChangePct: 0,
+            dropOnMissingNav: true,
+            underlyingMarket,
+            category,
+          };
+        }),
         {
           force: forceRefresh,
           todayStr,
-          shouldUseEstimatedValue,
+          shouldUseEstimatedValue: cnTrading || usTrading,
         },
       );
 
@@ -528,7 +547,15 @@ export const refreshFundData = (options?: RefreshOptions) => {
 
       const updateResults = await Promise.allSettled(
         candidates.map(async (candidate) => {
-          const { item: fund, nav, navDate, navChangePercent, previousNav } = candidate;
+          const {
+            item: fund,
+            nav,
+            navDate,
+            navChangePercent,
+            previousNav,
+            underlyingMarket,
+            category,
+          } = candidate;
           const estimatedChangePct = estimateMap.get(candidate.code);
           const parentEtfInfo = await fetchParentETFInfo(fund.code, fund.name);
           const isEtfLink = isEtfLinkFundName(fund.name) || Boolean(parentEtfInfo?.parentCode);
@@ -555,8 +582,8 @@ export const refreshFundData = (options?: RefreshOptions) => {
             isGainActive,
             dayChangeBaseNav,
           });
-          const todayChangePreOpen = !shouldUseEstimatedValue && navDate !== todayStr;
-
+          const isUsMarket = underlyingMarket === 'US';
+          const todayChangePreOpen = isUsMarket ? false : !cnTrading && navDate !== todayStr;
           const {
             effectivePctDate,
             dayChangePct: nextDayChangePct,
@@ -567,6 +594,8 @@ export const refreshFundData = (options?: RefreshOptions) => {
             todayChangeUnavailable,
           } = metrics;
 
+          const fundIntradayTrend = intradayTrends.get(candidate.code);
+          // 不在 shouldSkipUpdate 中检查 fundIntradayTrend（每分钟变化）
           const shouldSkipUpdate =
             isNearlyEqual(fund.currentNav, nav) &&
             fund.lastUpdate === effectivePctDate &&
@@ -582,7 +611,7 @@ export const refreshFundData = (options?: RefreshOptions) => {
             (fund.parentEtfInfo?.parentCode ?? '') === (parentEtfInfo?.parentCode ?? '') &&
             (fund.parentEtfInfo?.parentName ?? '') === (parentEtfInfo?.parentName ?? '');
 
-          if (shouldSkipUpdate) return;
+          if (shouldSkipUpdate && !fundIntradayTrend) return;
 
           await db.funds.update(fund.id!, {
             currentNav: nav,
@@ -594,8 +623,10 @@ export const refreshFundData = (options?: RefreshOptions) => {
             todayChangeIsEstimated,
             todayChangeUnavailable,
             todayChangePreOpen,
-            category: isEtfLink ? 'ETF_LINK' : fund.category,
+            category: isEtfLink ? 'ETF_LINK' : category || fund.category,
             parentEtfInfo: parentEtfInfo || undefined,
+            underlyingMarket,
+            fundIntradayTrend: fundIntradayTrend ?? undefined,
           });
         }),
       );
@@ -663,25 +694,39 @@ export const refreshWatchlistData = (options?: RefreshOptions) => {
 
       // 1. Process Funds
       if (fundItems.length > 0) {
-        const shouldUseEstimatedValue = await checkIsMarketTrading({ force: forceRefresh });
-        const { candidates, estimateMap } = await runFundQuotePipeline(
-          fundItems.map((item) => ({
-            item,
-            code: item.code,
-            fallbackNav: item.currentPrice,
-            fallbackChangePct: item.dayChangePct,
-            dropOnMissingNav: false,
-          })),
+        const [cnTrading, usTrading] = await Promise.all([
+          checkIsMarketTrading({ force: forceRefresh }),
+          checkIsUSMarketTrading({ force: forceRefresh }),
+        ]);
+        const { candidates, estimateMap, intradayTrends } = await runFundQuotePipeline(
+          fundItems.map((item) => {
+            let underlyingMarket = item.underlyingMarket;
+            if (!underlyingMarket) {
+              const inferred = identifyFundType({
+                code: item.code,
+                name: item.name,
+              });
+              underlyingMarket = inferred.underlyingMarket;
+            }
+            return {
+              item,
+              code: item.code,
+              fallbackNav: item.currentPrice,
+              fallbackChangePct: item.dayChangePct,
+              dropOnMissingNav: false,
+              underlyingMarket,
+            };
+          }),
           {
             force: forceRefresh,
             todayStr,
-            shouldUseEstimatedValue,
+            shouldUseEstimatedValue: cnTrading || usTrading,
           },
         );
 
         const fundUpdateResults = await Promise.allSettled(
           candidates.map(async (candidate) => {
-            const { item, nav, navDate, navChangePercent } = candidate;
+            const { item, nav, navDate, navChangePercent, underlyingMarket } = candidate;
             const estimatedChangePct = estimateMap.get(candidate.code);
             const parentEtfInfo = await fetchParentETFInfo(item.code, item.name);
             const isEtfLink = isEtfLinkFundName(item.name) || Boolean(parentEtfInfo?.parentCode);
@@ -689,7 +734,8 @@ export const refreshWatchlistData = (options?: RefreshOptions) => {
             const shouldTryEstimate = candidate.shouldEstimate && !hasOfficialTodayNav;
             const hasEstimate = shouldTryEstimate && estimatedChangePct !== undefined;
             const todayChangeUnavailable = shouldTryEstimate && !hasEstimate;
-            const todayChangePreOpen = !shouldUseEstimatedValue && navDate !== todayStr;
+            const isUsMarket = underlyingMarket === 'US';
+            const todayChangePreOpen = isUsMarket ? false : !cnTrading && navDate !== todayStr;
             const effectivePctDate = shouldTryEstimate ? todayStr : navDate;
             const effectiveCurrentPrice = deriveWatchlistFundEffectivePrice({
               nav,
@@ -707,6 +753,7 @@ export const refreshWatchlistData = (options?: RefreshOptions) => {
                 : navChangePercent;
             const nextLastUpdate = effectivePctDate || todayStr;
 
+            const fundIntradayTrend = intradayTrends.get(candidate.code);
             const shouldSkipUpdate =
               isNearlyEqual(item.currentPrice, effectiveCurrentPrice) &&
               isNearlyEqual(item.dayChangePct, nextDayChangePct) &&
@@ -719,7 +766,7 @@ export const refreshWatchlistData = (options?: RefreshOptions) => {
               (item.parentEtfInfo?.parentCode ?? '') === (parentEtfInfo?.parentCode ?? '') &&
               (item.parentEtfInfo?.parentName ?? '') === (parentEtfInfo?.parentName ?? '');
 
-            if (shouldSkipUpdate) return;
+            if (shouldSkipUpdate && !fundIntradayTrend) return;
 
             await db.watchlists.update(item.id!, {
               currentPrice: effectiveCurrentPrice,
@@ -730,6 +777,8 @@ export const refreshWatchlistData = (options?: RefreshOptions) => {
               todayChangePreOpen,
               category: isEtfLink ? 'ETF_LINK' : item.category,
               parentEtfInfo: parentEtfInfo || undefined,
+              underlyingMarket,
+              fundIntradayTrend: fundIntradayTrend ?? undefined,
             });
           }),
         );
