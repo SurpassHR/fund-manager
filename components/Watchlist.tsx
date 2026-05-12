@@ -456,7 +456,9 @@ export const Watchlist: React.FC = () => {
   }, []);
 
   if (!watchlists) {
-    return <div className="p-8 text-center text-gray-500">{t('common.loading')}</div>;
+    return (
+      <div className="p-8 text-center text-[var(--app-shell-muted)]">{t('common.loading')}</div>
+    );
   }
 
   return (
@@ -470,7 +472,7 @@ export const Watchlist: React.FC = () => {
           }}
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="mb-1 border-b border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)]/88 px-4 py-2 text-xs font-bold text-[var(--app-shell-muted)]">
+          <div className="mb-1 border-b border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] px-4 py-2 text-xs font-bold text-[var(--app-shell-muted)]">
             {t('common.menu')}
           </div>
           <button
@@ -478,9 +480,10 @@ export const Watchlist: React.FC = () => {
               const item = watchlists.find((entry) => entry.id === contextMenu.itemId);
               if (item) handleEdit(item);
             }}
-            className="flex w-full items-center gap-2 border-b border-[var(--app-shell-line)] px-4 py-3 text-left text-sm text-slate-700 hover:bg-[var(--app-shell-panel-strong)] dark:border-border-dark dark:text-gray-200 dark:hover:bg-blue-900/20"
+            className="flex w-full items-center gap-2 border-b border-[var(--app-shell-line)] px-4 py-3 text-left text-sm text-[var(--app-shell-ink)] hover:bg-[var(--app-shell-panel-strong)]"
           >
-            <Icons.Settings size={16} className="text-slate-500" /> {t('common.edit')}
+            <Icons.Settings size={16} className="text-[var(--app-shell-muted)]" />{' '}
+            {t('common.edit')}
           </button>
           {(() => {
             const item = watchlists.find((entry) => entry.id === contextMenu.itemId);
@@ -493,7 +496,7 @@ export const Watchlist: React.FC = () => {
             return (
               <button
                 onClick={() => handleAddHolding(item)}
-                className="flex w-full items-center gap-2 border-b border-gray-50 px-4 py-3 text-left text-sm text-green-600 hover:bg-green-50 dark:border-border-dark dark:text-green-400 dark:hover:bg-green-900/20"
+                className="flex w-full items-center gap-2 border-b border-[var(--app-shell-line)] px-4 py-3 text-left text-sm text-green-600 hover:bg-green-50 dark:text-green-400 dark:hover:bg-green-900/20"
               >
                 <Icons.Plus size={16} /> {t('common.addHoldingFromWatchlist')}
               </button>
@@ -509,20 +512,20 @@ export const Watchlist: React.FC = () => {
       )}
 
       <div className="mx-auto w-full max-w-7xl px-0 pt-[max(2rem,calc(5rem-env(safe-area-inset-top,0px)))] pb-8 md:px-4 md:pt-[max(4.75rem,calc(5rem-env(safe-area-inset-top,0px)))] md:pb-4 lg:px-6">
-        <section className="relative mt-3 overflow-hidden rounded-[1.75rem] border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)]/92 px-4 pb-3 pt-3 dark:border-border-dark dark:bg-card-dark md:px-6 md:pb-4 md:pt-4 md:shadow-[0_12px_32px_rgba(15,23,42,0.05)]">
+        <section className="glass-card relative mt-3 overflow-hidden rounded-xl px-4 pb-3 pt-3 md:px-6 md:pb-4 md:pt-4">
           <div className="pointer-events-none absolute inset-0">
             <div className="absolute inset-y-0 left-0 w-full bg-[radial-gradient(circle_at_top_left,_rgba(148,163,184,0.12),_transparent_34%),radial-gradient(circle_at_bottom_right,_rgba(226,232,240,0.8),_transparent_28%)] dark:bg-[radial-gradient(circle_at_top_left,_rgba(96,165,250,0.12),_transparent_35%),radial-gradient(circle_at_bottom_right,_rgba(59,130,246,0.10),_transparent_28%)]" />
           </div>
 
           <div className="relative flex items-start justify-between gap-3 md:items-end">
             <div>
-              <div className="text-[11px] font-semibold tracking-[0.24em] text-slate-400 dark:text-gray-500">
+              <div className="text-[11px] font-semibold tracking-[0.24em] text-[var(--app-shell-muted)]">
                 自选概览
               </div>
-              <div className="mt-2 text-3xl font-black tracking-[-0.04em] text-slate-900 dark:text-gray-50 md:text-4xl">
+              <div className="mt-2 text-3xl font-black tracking-[-0.04em] text-[var(--app-shell-ink)] md:text-4xl">
                 {watchlists.length}
               </div>
-              <div className="mt-2 text-sm text-slate-500 dark:text-gray-400">
+              <div className="mt-2 text-sm text-[var(--app-shell-muted)]">
                 {t('common.watchlist')}
               </div>
             </div>
@@ -531,11 +534,10 @@ export const Watchlist: React.FC = () => {
               <button
                 onClick={handleManualRefresh}
                 disabled={cooldown > 0 || isRefreshing}
-                className={`relative flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border transition-transform active:scale-95 ${
-                  cooldown > 0 || isRefreshing
-                    ? 'cursor-not-allowed border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] text-slate-500 dark:border-white/10 dark:bg-white/10 dark:text-gray-400'
-                    : 'cursor-pointer border-[var(--app-shell-line-strong)] bg-[var(--app-shell-panel-strong)] text-slate-800 dark:border-blue-400/30 dark:bg-blue-500/15 dark:text-blue-100'
-                }`}
+                className={`relative flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border transition-transform active:scale-95 ${cooldown > 0 || isRefreshing
+                  ? 'cursor-not-allowed border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] text-[var(--app-shell-muted)]'
+                  : 'cursor-pointer border-[var(--app-shell-line-strong)] bg-[var(--app-shell-panel-strong)] text-[var(--app-shell-ink)] dark:border-[var(--app-shell-accent-soft)] dark:bg-[var(--app-shell-accent-soft)] dark:text-[var(--app-shell-accent)]'
+                  }`}
               >
                 <Icons.Refresh size={16} className={isRefreshing ? 'animate-spin' : ''} />
                 {cooldown > 0 && !isRefreshing && (
@@ -561,7 +563,7 @@ export const Watchlist: React.FC = () => {
                   setEditingItem(undefined);
                   setIsAddModalOpen(true);
                 }}
-                className="flex min-h-10 items-center gap-2 rounded-full border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)]/90 px-4 py-2 text-sm font-semibold text-slate-700 transition-colors hover:border-[var(--app-shell-line-strong)] hover:bg-[var(--app-shell-panel-strong)] dark:border-white/10 dark:bg-white/5 dark:text-gray-200 dark:hover:border-white/20 dark:hover:bg-white/10"
+                className="flex min-h-10 items-center gap-2 rounded-full border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] px-4 py-2 text-sm font-semibold text-[var(--app-shell-ink)] transition-colors hover:border-[var(--app-shell-line-strong)] hover:bg-[var(--app-shell-panel-strong)]"
               >
                 <Icons.Plus size={16} />
                 {t('common.addWatchlist')}
@@ -570,18 +572,17 @@ export const Watchlist: React.FC = () => {
           </div>
         </section>
 
-        <section className="mt-3 overflow-hidden rounded-[1.75rem] border border-[var(--app-shell-line)] md:mt-5 md:shadow-[0_14px_32px_rgba(15,23,42,0.05)] dark:border-border-dark">
-          <div className="z-10 border-b border-[var(--app-shell-line)] bg-[var(--app-shell-panel)]/95 px-4 py-3 backdrop-blur-xl dark:border-border-dark dark:bg-card-dark/90 md:px-5">
+        <section className="glass-card mt-3 overflow-hidden rounded-xl md:mt-5">
+          <div className="z-10 border-b border-[var(--app-shell-line)] px-4 py-3 dark:border-border-dark md:px-5">
             <div className="hidden items-center gap-4 md:flex">
-              <div className="flex min-w-[15rem] flex-[1.5] items-center gap-2 text-slate-400">
+              <div className="flex min-w-[15rem] flex-[1.5] items-center gap-2 text-[var(--app-shell-muted)]">
                 <button
                   type="button"
                   onClick={() => setIsInstitutionGroupEnabled((prev) => !prev)}
-                  className={`rounded-full border p-1.5 transition-colors ${
-                    isInstitutionGroupEnabled
-                      ? 'border-indigo-400 bg-indigo-50 text-indigo-600 dark:border-indigo-400/30 dark:bg-indigo-500/15 dark:text-indigo-200'
-                      : 'border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] text-slate-400 hover:text-slate-700 dark:border-white/10 dark:bg-white/5 dark:text-gray-500 dark:hover:text-gray-200'
-                  }`}
+                  className={`rounded-full border p-1.5 transition-colors ${isInstitutionGroupEnabled
+                    ? 'border-indigo-400 bg-indigo-50 text-indigo-600 dark:border-indigo-400/30 dark:bg-indigo-500/15 dark:text-indigo-200'
+                    : 'border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] text-[var(--app-shell-muted)] hover:text-[var(--app-shell-ink)]'
+                    }`}
                   aria-label={t('common.groupByInstitution')}
                 >
                   <Icons.Layers size={14} />
@@ -589,18 +590,16 @@ export const Watchlist: React.FC = () => {
                 <button
                   type="button"
                   onClick={handleResetSort}
-                  className="text-[11px] font-semibold tracking-[0.18em] transition-colors hover:text-slate-700 dark:hover:text-gray-200"
+                  className="text-[11px] font-semibold tracking-[0.18em] text-[var(--app-shell-muted)] transition-colors hover:text-[var(--app-shell-ink)]"
                 >
                   自选列表
                 </button>
               </div>
-              <div className="grid w-full flex-[4] grid-cols-4 gap-4 text-right text-[11px] font-semibold tracking-[0.16em] text-slate-400 dark:text-gray-500">
-                <div className="text-left normal-case tracking-normal text-slate-500 dark:text-gray-400">
-                  锚点 / 现价
-                </div>
+              <div className="grid w-full flex-[4] grid-cols-4 gap-4 text-right text-[11px] font-semibold tracking-[0.16em] text-[var(--app-shell-muted)]">
+                <div className="text-left normal-case tracking-normal">锚点 / 现价</div>
                 <button
                   onClick={() => handleSort('dayChangePct')}
-                  className="flex items-center justify-end gap-1 transition-colors hover:text-slate-700 dark:hover:text-gray-200"
+                  className="flex items-center justify-end gap-1 transition-colors hover:text-[var(--app-shell-ink)]"
                   type="button"
                 >
                   当日涨跌幅
@@ -614,7 +613,7 @@ export const Watchlist: React.FC = () => {
                 <div>现价</div>
                 <button
                   onClick={() => handleSort('anchorGain')}
-                  className="flex items-center justify-end gap-1 transition-colors hover:text-slate-700 dark:hover:text-gray-200"
+                  className="flex items-center justify-end gap-1 transition-colors hover:text-[var(--app-shell-ink)]"
                   type="button"
                 >
                   锚点收益
@@ -633,11 +632,10 @@ export const Watchlist: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setIsInstitutionGroupEnabled((prev) => !prev)}
-                  className={`rounded-full border p-1.5 transition-colors ${
-                    isInstitutionGroupEnabled
-                      ? 'border-indigo-400 bg-indigo-50 text-indigo-600 dark:border-indigo-400/30 dark:bg-indigo-500/15 dark:text-indigo-200'
-                      : 'border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] text-slate-400 dark:border-white/10 dark:bg-white/5 dark:text-gray-500'
-                  }`}
+                  className={`rounded-full border p-1.5 transition-colors ${isInstitutionGroupEnabled
+                    ? 'border-indigo-400 bg-indigo-50 text-indigo-600 dark:border-indigo-400/30 dark:bg-indigo-500/15 dark:text-indigo-200'
+                    : 'border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] text-[var(--app-shell-muted)]'
+                    }`}
                   aria-label={t('common.groupByInstitution')}
                 >
                   <Icons.Layers size={14} />
@@ -646,11 +644,11 @@ export const Watchlist: React.FC = () => {
                   <button
                     type="button"
                     onClick={handleResetSort}
-                    className="text-[10px] font-semibold tracking-[0.2em] text-slate-400 transition-colors hover:text-slate-700 dark:text-gray-500 dark:hover:text-gray-200"
+                    className="text-[10px] font-semibold tracking-[0.2em] text-[var(--app-shell-muted)] transition-colors hover:text-[var(--app-shell-ink)]"
                   >
                     自选列表
                   </button>
-                  <div className="mt-1 text-sm font-semibold text-slate-700 dark:text-gray-200">
+                  <div className="mt-1 text-sm font-semibold text-[var(--app-shell-ink)]">
                     {t('common.watchlist')}
                   </div>
                 </div>
@@ -665,9 +663,9 @@ export const Watchlist: React.FC = () => {
             </div>
           </div>
 
-          <div className="overflow-hidden bg-[var(--app-shell-panel)]/92 dark:bg-card-dark">
+          <div className="overflow-hidden">
             {watchlists.length === 0 ? (
-              <div className="flex flex-col items-center justify-center gap-4 py-20 text-slate-400">
+              <div className="flex flex-col items-center justify-center gap-4 py-20 text-[var(--app-shell-muted)]">
                 <Icons.User size={48} strokeWidth={1} className="opacity-50" />
                 <p className="text-sm">{t('common.noWatchlistMsg')}</p>
               </div>
@@ -740,34 +738,30 @@ export const Watchlist: React.FC = () => {
                     onTouchEnd={handleTouchEnd}
                     onTouchCancel={handleTouchEnd}
                     onClick={() => handleRowClick(item)}
-                    className={`group relative cursor-pointer select-none border-b border-[var(--app-shell-line)]/80 px-4 py-3 transition-colors last:border-b-0 active:bg-[var(--app-shell-panel-strong)] dark:border-border-dark dark:active:bg-white/5 md:px-5 md:py-3.5 md:hover:bg-[var(--app-shell-panel-strong)]/72 dark:md:hover:bg-white/5 ${
-                      contextMenu?.itemId === item.id
-                        ? 'bg-[var(--app-shell-panel-strong)] dark:bg-white/10'
-                        : ''
-                    }`}
+                    className={`group relative cursor-pointer select-none border-b border-[var(--app-shell-line)] px-4 py-3 transition-colors last:border-b-0 active:bg-[var(--app-shell-panel-strong)] md:px-5 md:py-3.5 md:hover:bg-[var(--app-shell-panel-strong)]/72 ${contextMenu?.itemId === item.id ? 'bg-[var(--app-shell-panel-strong)]' : ''
+                      }`}
                   >
                     <div className="flex flex-col gap-3 md:flex-row md:items-center">
                       <div className="min-w-0 flex-1 md:flex-[1.6] md:pr-4">
                         <div className="flex flex-wrap items-center gap-2">
-                          <span className="rounded-full border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)]/92 px-2 py-1 text-[10px] font-semibold tracking-[0.14em] text-slate-700 dark:border-blue-400/20 dark:bg-blue-500/10 dark:text-blue-200">
+                          <span className="rounded-full border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] px-2 py-1 text-[10px] font-semibold tracking-[0.14em] text-[var(--app-shell-ink)]">
                             {item.code}
                           </span>
                           <span
-                            className={`rounded-full border px-2 py-1 text-[10px] font-semibold tracking-[0.14em] whitespace-nowrap shrink-0 ${
-                              item.type === 'index'
-                                ? 'border-[var(--app-shell-line-strong)] bg-[var(--app-shell-panel-strong)] text-slate-700 dark:border-purple-400/20 dark:bg-purple-500/10 dark:text-purple-300'
-                                : 'border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] text-slate-500 dark:border-white/10 dark:bg-white/5 dark:text-gray-400'
-                            }`}
+                            className={`rounded-full border px-2 py-1 text-[10px] font-semibold tracking-[0.14em] whitespace-nowrap shrink-0 ${item.type === 'index'
+                              ? 'border-[var(--app-shell-line-strong)] bg-[var(--app-shell-panel-strong)] text-[var(--app-shell-accent)]'
+                              : 'border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] text-[var(--app-shell-muted)]'
+                              }`}
                           >
                             {item.type === 'index' ? '指数' : '基金'}
                           </span>
                         </div>
 
                         <div className="mt-2">
-                          <h3 className="truncate text-[15px] font-semibold tracking-tight text-slate-900 dark:text-gray-50 md:text-base">
+                          <h3 className="truncate text-[15px] font-semibold tracking-tight text-[var(--app-shell-ink)] md:text-base">
                             {item.name}
                           </h3>
-                          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500 dark:text-gray-400 md:hidden">
+                          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[var(--app-shell-muted)] md:hidden">
                             <span>锚点 {item.anchorPrice.toFixed(4)}</span>
                             <span>现价 {item.currentPrice.toFixed(4)}</span>
                           </div>
@@ -775,59 +769,57 @@ export const Watchlist: React.FC = () => {
                       </div>
 
                       <div className="hidden md:grid md:flex-[4] md:grid-cols-4 md:gap-4 md:text-right">
-                        <div className="text-left text-xs text-slate-500 dark:text-gray-400">
-                          <div className="font-semibold text-slate-700 dark:text-gray-200">
+                        <div className="text-left text-xs text-[var(--app-shell-muted)]">
+                          <div className="font-semibold text-[var(--app-shell-ink)]">
                             {item.anchorPrice.toFixed(4)}
                           </div>
-                          <div className="mt-1 text-slate-400 dark:text-gray-500">
-                            {item.currentPrice.toFixed(4)}
-                          </div>
+                          <div className="mt-1">{item.currentPrice.toFixed(4)}</div>
                         </div>
                         <div
                           className={`text-sm font-semibold ${getSignColor(displayedDayChangePct)}`}
                         >
                           {formatPct(displayedDayChangePct)}
                           {isFund && (
-                            <div className="mt-1 text-[10px] font-medium tracking-[0.14em] text-slate-400 dark:text-gray-500">
+                            <div className="mt-1 text-[10px] font-medium tracking-[0.14em] text-[var(--app-shell-muted)]">
                               {dayChangeTag}
                             </div>
                           )}
                         </div>
-                        <div className="text-sm font-semibold text-slate-700 dark:text-gray-200">
+                        <div className="text-sm font-semibold text-[var(--app-shell-ink)]">
                           {item.currentPrice.toFixed(4)}
                         </div>
                         <div className="flex flex-col items-end">
                           <div className={`text-sm font-semibold ${getSignColor(anchorGainPct)}`}>
                             {formatPct(anchorGainPct)}
                           </div>
-                          <div className="mt-1 text-[10px] font-medium tracking-[0.14em] text-slate-400 dark:text-gray-500">
+                          <div className="mt-1 text-[10px] font-medium tracking-[0.14em] text-[var(--app-shell-muted)]">
                             {item.anchorDate}
                           </div>
                         </div>
                       </div>
 
                       <div className="mt-2 flex items-stretch gap-1.5 md:hidden">
-                        <div className="min-w-0 flex-1 rounded-xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)]/90 px-2 py-2 text-right dark:border-white/10 dark:bg-white/5">
+                        <div className="min-w-0 flex-1 rounded-xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] px-2 py-2 text-right">
                           <div
                             className={`truncate text-[13px] font-black leading-none tracking-[-0.02em] ${getSignColor(displayedDayChangePct)}`}
                           >
                             {formatPct(displayedDayChangePct)}
                           </div>
-                          <div className="mt-1 truncate text-[9px] font-semibold tracking-[0.1em] text-slate-400 dark:text-gray-500">
+                          <div className="mt-1 truncate text-[9px] font-semibold tracking-[0.1em] text-[var(--app-shell-muted)]">
                             {isFund ? dayChangeTag : `现价 ${item.currentPrice.toFixed(4)}`}
                           </div>
                         </div>
 
-                        <div className="min-w-0 flex-1 rounded-xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)]/80 px-2 py-2 text-right dark:border-white/10 dark:bg-white/5">
+                        <div className="min-w-0 flex-1 rounded-xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] px-2 py-2 text-right">
                           <div
                             className={`truncate text-[13px] font-black leading-none tracking-[-0.02em] ${getSignColor(anchorGainPct)}`}
                           >
                             {formatPct(anchorGainPct)}
                           </div>
-                          <div className="mt-1 truncate text-[9px] font-semibold tracking-[0.1em] text-slate-400 dark:text-gray-500">
+                          <div className="mt-1 truncate text-[9px] font-semibold tracking-[0.1em] text-[var(--app-shell-muted)]">
                             锚点 {item.anchorPrice.toFixed(4)}
                           </div>
-                          <div className="mt-0.5 truncate text-[9px] font-medium text-slate-400 dark:text-gray-500">
+                          <div className="mt-0.5 truncate text-[9px] font-medium text-[var(--app-shell-muted)]">
                             {item.anchorDate}
                           </div>
                         </div>
