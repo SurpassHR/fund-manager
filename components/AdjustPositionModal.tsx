@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { db, getSettlementDate } from '../services/db';
 import { useTranslation } from '../services/i18n';
 import { Icons } from './Icon';
+import { SelectDropdown } from './SelectDropdown';
 import type { Fund, PendingTransaction } from '../types';
 import { parseSellInputToShares } from './adjustPositionUtils';
 import { ModalShell } from './ModalShell';
@@ -185,14 +186,15 @@ export const AdjustPositionModal: React.FC<AdjustPositionModalProps> = ({
             <label className="block text-xs font-bold text-gray-500 mb-1">
               {t('common.operationTime') || '操作时间'}
             </label>
-            <select
+            <SelectDropdown
+              options={[
+                { value: 'before15', label: t('common.before15') || '15:00前' },
+                { value: 'after15', label: t('common.after15') || '15:00后' },
+              ]}
               value={opTime}
-              onChange={(e) => setOpTime(e.target.value as 'before15' | 'after15')}
+              onChange={(v) => setOpTime(v as 'before15' | 'after15')}
               className="w-full p-3 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-white/5 focus:outline-none focus:border-blue-500 text-gray-900 dark:text-gray-100 text-sm"
-            >
-              <option value="before15">{t('common.before15') || '15:00前'}</option>
-              <option value="after15">{t('common.after15') || '15:00后'}</option>
-            </select>
+            />
           </div>
         </div>
 

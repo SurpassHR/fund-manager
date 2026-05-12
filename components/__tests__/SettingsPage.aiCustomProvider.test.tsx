@@ -61,7 +61,11 @@ const mockedDeps = vi.hoisted(() => ({
     updateLlmProvider: vi.fn(),
     removeLlmProvider: vi.fn(),
     businessModelConfig: {
-      aiHoldingsAnalysis: { providerId: 'p-custom', providerKind: 'customOpenAi', model: 'qwen-plus' },
+      aiHoldingsAnalysis: {
+        providerId: 'p-custom',
+        providerKind: 'customOpenAi',
+        model: 'qwen-plus',
+      },
       syncHoldings: { providerId: 'p-custom', providerKind: 'customOpenAi', model: 'qwen-plus' },
     },
     setBusinessModelConfig: vi.fn(),
@@ -117,7 +121,7 @@ describe('SettingsPage custom openai provider', () => {
     const { container } = render(<SettingsPage initialShowAiSettings />);
 
     expect(screen.getByText('common.llmSettingsManage')).toBeTruthy();
-    fireEvent.click(screen.getAllByText('🔌 兼容接口')[0]);
+    fireEvent.click(screen.getByText('🔌').closest('button')!);
 
     expect(screen.getByDisplayValue('https://api.example.com/v1')).toBeTruthy();
     expect(container.querySelector('input[list="provider-model-options"]')).toBeNull();

@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Icons } from './Icon';
+import { SelectDropdown } from './SelectDropdown';
 import { useTranslation } from '../services/i18n';
 import { useTheme } from '../services/ThemeContext';
 import { useSettings } from '../services/SettingsContext';
@@ -251,7 +252,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack, initialShowA
     if (target?.isBackupValid === false) {
       alert(
         t('common.gistSyncErrorInvalidBackup') ||
-        'Gist 文件内容不是有效备份格式，请选择包含 fund-manager-sync.json 的正确备份。',
+          'Gist 文件内容不是有效备份格式，请选择包含 fund-manager-sync.json 的正确备份。',
       );
       return;
     }
@@ -298,16 +299,16 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack, initialShowA
       const saved =
         payload.mode === 'create'
           ? await createSyncGist({
-            token: githubToken,
-            content: backupContent,
-            description: payload.description,
-          })
+              token: githubToken,
+              content: backupContent,
+              description: payload.description,
+            })
           : await overwriteSyncGist({
-            token: githubToken,
-            gistId: payload.gistId,
-            content: backupContent,
-            description: payload.description,
-          });
+              token: githubToken,
+              gistId: payload.gistId,
+              content: backupContent,
+              description: payload.description,
+            });
 
       saveDefaultTarget(saved);
       alert(t('common.gistSyncUploadSuccess') || '上传到 gist 成功。');
@@ -571,8 +572,8 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack, initialShowA
   };
 
   const getProviderDisplayName = (kind: 'openai' | 'gemini' | 'customOpenAi') => {
-    if (kind === 'openai') return '开放模型';
-    if (kind === 'gemini') return '双子模型';
+    if (kind === 'openai') return 'OpenAI';
+    if (kind === 'gemini') return 'Gemini';
     return '兼容接口';
   };
 
@@ -629,13 +630,21 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack, initialShowA
                   <button
                     key={provider.id}
                     onClick={() => setSelectedProviderId(provider.id)}
-                    className={`flex w-full items-center justify-between rounded-xl border px-3 py-2 text-left text-sm transition ${selectedProviderId === provider.id
-                      ? 'border-[var(--app-shell-line-strong)] bg-[var(--app-shell-panel)]'
-                      : 'border-transparent bg-transparent hover:border-[var(--app-shell-line)]'
-                      }`}
+                    className={`flex w-full items-center justify-between rounded-xl border px-3 py-2 text-left text-sm transition ${
+                      selectedProviderId === provider.id
+                        ? 'border-[var(--app-shell-line-strong)] bg-[var(--app-shell-panel)]'
+                        : 'border-transparent bg-transparent hover:border-[var(--app-shell-line)]'
+                    }`}
                   >
-                    <span className="truncate">
-                      {provider.icon} {getProviderDisplayName(provider.kind)}
+                    <span className="flex items-center gap-1.5 truncate">
+                      {provider.kind === 'openai' ? (
+                        <Icons.OpenAI size={14} />
+                      ) : provider.kind === 'gemini' ? (
+                        <Icons.Gemini size={14} />
+                      ) : (
+                        <span>{provider.icon}</span>
+                      )}
+                      {getProviderDisplayName(provider.kind)}
                     </span>
                     <span className="text-[10px] uppercase tracking-[0.14em] text-[var(--app-shell-muted)]">
                       {getProviderDisplayName(provider.kind)}
@@ -664,11 +673,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack, initialShowA
                         }}
                         className="block w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-[var(--app-shell-panel-strong)]"
                       >
-                        {kind === 'openai'
-                          ? '开放模型'
-                          : kind === 'gemini'
-                            ? '双子模型'
-                            : '兼容接口'}
+                        {kind === 'openai' ? 'OpenAI' : kind === 'gemini' ? 'Gemini' : '兼容接口'}
                       </button>
                     ))}
                   </div>
@@ -830,10 +835,16 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack, initialShowA
                     {item.label}
                   </div>
                   <div className="grid gap-2 md:grid-cols-2">
-                    <select
+                    <SelectDropdown
+                      options={[
+                        { value: '', label: t('common.chooseProvider') || '请选择供应商' },
+                        ...configuredProviders.map((provider) => ({
+                          value: provider.id,
+                          label: getProviderDisplayName(provider.kind),
+                        })),
+                      ]}
                       value={selected.providerId}
-                      onChange={(e) => {
-                        const providerId = e.target.value;
+                      onChange={(providerId) => {
                         const provider = configuredProviders.find((p) => p.id === providerId);
                         updateBusinessModelConfig(item.key, {
                           providerId,
@@ -842,14 +853,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack, initialShowA
                         });
                       }}
                       className="rounded-xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)] px-3 py-2 text-sm"
-                    >
-                      <option value="">{t('common.chooseProvider') || '请选择供应商'}</option>
-                      {configuredProviders.map((provider) => (
-                        <option key={provider.id} value={provider.id}>
-                          {provider.icon} {getProviderDisplayName(provider.kind)}
-                        </option>
-                      ))}
-                    </select>
+                    />
                     <input
                       list={businessModelListId}
                       value={selected.model}
@@ -1033,8 +1037,8 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack, initialShowA
         onRefreshList={
           tokenApiState === 'valid'
             ? () => {
-              void triggerGistListRefresh(true);
-            }
+                void triggerGistListRefresh(true);
+              }
             : undefined
         }
         isRefreshingList={gistListRefreshing}
@@ -1096,10 +1100,11 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack, initialShowA
               <button
                 key={opt.value}
                 onClick={() => setMode(opt.value)}
-                className={`rounded-2xl border px-4 py-4 text-left transition ${mode === opt.value
-                  ? 'border-[var(--app-shell-line-strong)] bg-[var(--app-shell-panel-strong)] text-[var(--app-shell-ink)] shadow-[0_10px_24px_rgba(15,23,42,0.08)] dark:border-blue-400/20 dark:bg-blue-500/15 dark:text-blue-100 dark:shadow-none'
-                  : 'border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] text-[var(--app-shell-ink)]'
-                  }`}
+                className={`rounded-2xl border px-4 py-4 text-left transition ${
+                  mode === opt.value
+                    ? 'border-[var(--app-shell-line-strong)] bg-[var(--app-shell-panel-strong)] text-[var(--app-shell-ink)] shadow-[0_10px_24px_rgba(15,23,42,0.08)] dark:border-blue-400/20 dark:bg-blue-500/15 dark:text-blue-100 dark:shadow-none'
+                    : 'border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] text-[var(--app-shell-ink)]'
+                }`}
               >
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex items-center gap-3">

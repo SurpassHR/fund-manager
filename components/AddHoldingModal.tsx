@@ -7,6 +7,7 @@ import {
 } from '../services/fundDayChange';
 import { useTranslation } from '../services/i18n';
 import { Icons } from './Icon';
+import { SelectDropdown } from './SelectDropdown';
 import { FundSearchInput } from './FundSearchInput';
 import type { MorningstarFund, Fund, WatchlistItem } from '../types';
 import { fetchFundCommonData } from '../services/api';
@@ -368,19 +369,20 @@ export const AddHoldingModal: React.FC<AddHoldingModalProps> = ({
           <label className="block text-xs font-bold text-[var(--app-shell-muted)] mb-1">
             {t('common.account')}
           </label>
-          <select
+          <SelectDropdown
+            options={
+              accounts?.map((acc) => ({
+                value: acc.name,
+                label:
+                  t(`filters.${acc.name}`) === `filters.${acc.name}`
+                    ? acc.name
+                    : t(`filters.${acc.name}`),
+              })) ?? []
+            }
             value={selectedAccount}
-            onChange={(e) => setSelectedAccount(e.target.value)}
+            onChange={setSelectedAccount}
             className="w-full p-3 border border-[var(--app-shell-line)] rounded-xl bg-[var(--app-shell-panel)] focus:outline-none focus:border-blue-500 text-[var(--app-shell-ink)] text-sm"
-          >
-            {accounts?.map((acc) => (
-              <option key={acc.id} value={acc.name}>
-                {t(`filters.${acc.name}`) === `filters.${acc.name}`
-                  ? acc.name
-                  : t(`filters.${acc.name}`)}
-              </option>
-            ))}
-          </select>
+          />
         </div>
 
         {/* 买入日期 / 买入时间 */}
@@ -400,14 +402,15 @@ export const AddHoldingModal: React.FC<AddHoldingModalProps> = ({
             <label className="block text-xs font-bold text-[var(--app-shell-muted)] mb-1">
               {t('common.buyTime') || '买入时间'}
             </label>
-            <select
+            <SelectDropdown
+              options={[
+                { value: 'before15', label: t('common.before15') || '15:00前' },
+                { value: 'after15', label: t('common.after15') || '15:00后' },
+              ]}
               value={buyTime}
-              onChange={(e) => setBuyTime(e.target.value as 'before15' | 'after15')}
+              onChange={(v) => setBuyTime(v as 'before15' | 'after15')}
               className="w-full p-2.5 border border-[var(--app-shell-line)] rounded-xl bg-[var(--app-shell-panel)] focus:outline-none focus:border-blue-500 text-[var(--app-shell-ink)] text-sm font-sans"
-            >
-              <option value="before15">{t('common.before15') || '15:00前'}</option>
-              <option value="after15">{t('common.after15') || '15:00后'}</option>
-            </select>
+            />
           </div>
         </div>
 

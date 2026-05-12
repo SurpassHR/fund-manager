@@ -81,9 +81,9 @@ const createDefaultProvider = (kind: AiProvider): LlmProviderConfig => ({
   kind,
   name:
     kind === 'openai'
-      ? '开放模型'
+      ? 'OpenAI'
       : kind === 'gemini'
-        ? '双子模型'
+        ? 'Gemini'
         : '兼容接口',
   apiKey: '',
   model: getDefaultModelByKind(kind),

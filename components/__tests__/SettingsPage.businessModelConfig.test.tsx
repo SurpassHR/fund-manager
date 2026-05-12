@@ -1,6 +1,6 @@
 /// <reference types="vitest/globals" />
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { SettingsPage } from '../SettingsPage';
 import { listCustomOpenAiModels } from '../../services/aiOcr';
@@ -147,8 +147,11 @@ describe('SettingsPage business model config panel', () => {
     expect(screen.getByText('common.businessModelConfig')).toBeTruthy();
     expect(screen.getByText('common.businessAiHoldingsAnalysis')).toBeTruthy();
     expect(screen.getByText('common.businessSyncHoldings')).toBeTruthy();
-    expect(screen.getAllByRole('option', { name: '🧠 开放模型' }).length).toBeGreaterThan(0);
-    expect(screen.queryAllByRole('option', { name: '✨ 双子模型' })).toHaveLength(0);
+
+    // Open the first provider SelectDropdown to inspect its options
+    fireEvent.click(screen.getByRole('button', { name: '兼容接口' }));
+    expect(screen.getAllByRole('option', { name: 'OpenAI' }).length).toBeGreaterThan(0);
+    expect(screen.queryAllByRole('option', { name: 'Gemini' })).toHaveLength(0);
   });
 
   it('业务模型下拉候选应从业务所选 provider 的 base_url/models 获取', async () => {

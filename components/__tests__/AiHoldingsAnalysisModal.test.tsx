@@ -165,12 +165,14 @@ describe('AiHoldingsAnalysisModal', () => {
 
     fireEvent.click(screen.getByRole('button', { name: '查看分析面板' }));
     fireEvent.click(screen.getByRole('checkbox', { name: '开启定期提醒' }));
-    fireEvent.change(screen.getByRole('combobox', { name: '提醒频率' }), {
-      target: { value: 'weekly' },
-    });
+
+    // Open the custom SelectDropdown for reminder frequency
+    fireEvent.click(screen.getByRole('button', { name: '提醒频率' }));
+    fireEvent.click(screen.getByRole('option', { name: '每周' }));
 
     expect(screen.getByRole('checkbox', { name: '开启定期提醒' })).toBeChecked();
-    expect(screen.getByRole('combobox', { name: '提醒频率' })).toHaveValue('weekly');
+    // Verify the select now shows "每周" as the selected label
+    expect(screen.getByRole('button', { name: '提醒频率' })).toHaveTextContent('每周');
   });
 
   it('桌面端使用 min(90vh,980px) 的双栏工作台，并保留模糊背景层', () => {

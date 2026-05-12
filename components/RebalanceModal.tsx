@@ -5,6 +5,7 @@ import { useTranslation } from '../services/i18n';
 import { roundMoney, roundShares, getEffectiveOperationDate } from '../services/rebalanceUtils';
 import type { Fund, MorningstarFund, PendingTransaction } from '../types';
 import { Icons } from './Icon';
+import { SelectDropdown } from './SelectDropdown';
 import { ModalShell } from './ModalShell';
 
 interface RebalanceModalProps {
@@ -423,14 +424,15 @@ export const RebalanceModal: React.FC<RebalanceModalProps> = ({
             <label className="block text-xs font-bold text-gray-500 mb-1">
               {t('common.operationTime')}
             </label>
-            <select
+            <SelectDropdown
+              options={[
+                { value: 'before15', label: t('common.before15') },
+                { value: 'after15', label: t('common.after15') },
+              ]}
               value={opTime}
-              onChange={(e) => setOpTime(e.target.value as 'before15' | 'after15')}
+              onChange={(v) => setOpTime(v as 'before15' | 'after15')}
               className="w-full p-2.5 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-white/5 text-sm"
-            >
-              <option value="before15">{t('common.before15')}</option>
-              <option value="after15">{t('common.after15')}</option>
-            </select>
+            />
           </div>
         </div>
 
@@ -455,33 +457,29 @@ export const RebalanceModal: React.FC<RebalanceModalProps> = ({
             <label className="block text-xs font-bold text-gray-500 mb-1">
               {t('common.sellFeeRate')}
             </label>
-            <select
-              value={sellFeeRate}
-              onChange={(e) => setSellFeeRate(parseFloat(e.target.value))}
+            <SelectDropdown
+              options={FEE_OPTIONS.map((rate) => ({
+                value: String(rate),
+                label: formatRate(rate),
+              }))}
+              value={String(sellFeeRate)}
+              onChange={(v) => setSellFeeRate(parseFloat(v))}
               className="w-full p-2.5 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-white/5 text-sm"
-            >
-              {FEE_OPTIONS.map((rate) => (
-                <option key={`sell-${rate}`} value={rate}>
-                  {formatRate(rate)}
-                </option>
-              ))}
-            </select>
+            />
           </div>
           <div>
             <label className="block text-xs font-bold text-gray-500 mb-1">
               {t('common.buyFeeRate')}
             </label>
-            <select
-              value={buyFeeRate}
-              onChange={(e) => setBuyFeeRate(parseFloat(e.target.value))}
+            <SelectDropdown
+              options={FEE_OPTIONS.map((rate) => ({
+                value: String(rate),
+                label: formatRate(rate),
+              }))}
+              value={String(buyFeeRate)}
+              onChange={(v) => setBuyFeeRate(parseFloat(v))}
               className="w-full p-2.5 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-white/5 text-sm"
-            >
-              {FEE_OPTIONS.map((rate) => (
-                <option key={`buy-${rate}`} value={rate}>
-                  {formatRate(rate)}
-                </option>
-              ))}
-            </select>
+            />
           </div>
         </div>
 

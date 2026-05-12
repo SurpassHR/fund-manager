@@ -58,10 +58,29 @@ vi.mock('../../services/overlayRegistration', () => ({
   useOverlayRegistration: vi.fn(),
 }));
 
+vi.mock('framer-motion', () => ({
+  AnimatePresence: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  motion: {
+    div: ({
+      initial: _i,
+      animate: _a,
+      exit: _e,
+      transition: _t,
+      ...rest
+    }: Record<string, unknown>) => <div {...rest} />,
+  },
+}));
+
+vi.mock('../hooks/usePrefersReducedMotion', () => ({
+  usePrefersReducedMotion: () => false,
+}));
+
 vi.mock('../Icon', () => ({
   Icons: {
     Plus: () => <span>plus</span>,
     Search: () => <span>search</span>,
+    ChevronDown: () => <span>chevron-down</span>,
+    Check: () => <span>check</span>,
   },
 }));
 

@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Icons } from './Icon';
+import { SelectDropdown } from './SelectDropdown';
 import { ModalShell } from './ModalShell';
 import { useTranslation } from '../services/i18n';
 import { useSettings } from '../services/SettingsContext';
@@ -867,18 +868,17 @@ export const AiHoldingsAnalysisModal: React.FC<AiHoldingsAnalysisModalProps> = (
                     </label>
                     <div className="mt-3 flex items-center justify-between text-xs text-[var(--app-shell-ink)]">
                       <span>提醒频率</span>
-                      <select
-                        aria-label="提醒频率"
+                      <SelectDropdown
+                        ariaLabel="提醒频率"
+                        options={[
+                          { value: 'daily', label: '每天' },
+                          { value: 'weekly', label: '每周' },
+                          { value: 'monthly', label: '每月' },
+                        ]}
                         value={reminderFrequency}
-                        onChange={(e) =>
-                          setReminderFrequency(e.target.value as AiReminderFrequency)
-                        }
+                        onChange={(v) => setReminderFrequency(v as AiReminderFrequency)}
                         className="rounded border border-[var(--app-shell-line)] bg-transparent px-2 py-1 text-xs"
-                      >
-                        <option value="daily">每天</option>
-                        <option value="weekly">每周</option>
-                        <option value="monthly">每月</option>
-                      </select>
+                      />
                     </div>
                   </div>
                 )}
@@ -1129,18 +1129,13 @@ export const AiHoldingsAnalysisModal: React.FC<AiHoldingsAnalysisModalProps> = (
                 <span>Enter 发送 · Shift + Enter 换行</span>
                 <label className="flex items-center gap-1 md:hidden">
                   <span>模式</span>
-                  <select
-                    aria-label="选择分析模式"
+                  <SelectDropdown
+                    ariaLabel="选择分析模式"
+                    options={MODE_OPTIONS}
                     value={analysisMode}
-                    onChange={(e) => setAnalysisMode(e.target.value as AiAnalysisMode)}
+                    onChange={(v) => setAnalysisMode(v as AiAnalysisMode)}
                     className="rounded-md border border-[var(--app-shell-line)] bg-transparent px-1.5 py-0.5 text-[11px] text-[var(--app-shell-ink)] focus:border-[var(--app-shell-accent)] focus:outline-none"
-                  >
-                    {MODE_OPTIONS.map(({ value, label }) => (
-                      <option key={value} value={value}>
-                        {label}
-                      </option>
-                    ))}
-                  </select>
+                  />
                 </label>
               </div>
             </div>
@@ -1216,16 +1211,17 @@ export const AiHoldingsAnalysisModal: React.FC<AiHoldingsAnalysisModalProps> = (
                   </label>
                   <div className="mt-2 flex items-center justify-between text-xs text-[var(--app-shell-ink)]">
                     <span>提醒频率</span>
-                    <select
-                      aria-label="提醒频率"
+                    <SelectDropdown
+                      ariaLabel="提醒频率"
+                      options={[
+                        { value: 'daily', label: '每天' },
+                        { value: 'weekly', label: '每周' },
+                        { value: 'monthly', label: '每月' },
+                      ]}
                       value={reminderFrequency}
-                      onChange={(e) => setReminderFrequency(e.target.value as AiReminderFrequency)}
+                      onChange={(v) => setReminderFrequency(v as AiReminderFrequency)}
                       className="rounded border border-[var(--app-shell-line)] bg-transparent px-2 py-1 text-xs"
-                    >
-                      <option value="daily">每天</option>
-                      <option value="weekly">每周</option>
-                      <option value="monthly">每月</option>
-                    </select>
+                    />
                   </div>
                 </section>
 
