@@ -476,7 +476,7 @@ export const AddFundModal: React.FC<AddFundModalProps> = ({
               <select
                 value={buyTime}
                 onChange={(e) => setBuyTime(e.target.value as 'before15' | 'after15')}
-                className="w-full p-3 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-white/5 focus:outline-none focus:border-blue-500 text-gray-900 dark:text-gray-100 text-sm"
+                className="w-full p-2.5 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-white/5 focus:outline-none focus:border-blue-500 text-gray-900 dark:text-gray-100 text-sm font-sans"
               >
                 <option value="before15">{t('common.before15') || '15:00前'}</option>
                 <option value="after15">{t('common.after15') || '15:00后'}</option>

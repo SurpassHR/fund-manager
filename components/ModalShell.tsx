@@ -25,7 +25,7 @@ interface ModalShellProps {
 
 const ACRYLIC_CARD = 'bg-white/80 dark:bg-card-dark/10 backdrop-blur-xl';
 const STRUCTURAL_CARD =
-  'rounded-t-2xl sm:rounded-xl w-full sm:max-w-md overflow-hidden shadow-2xl flex flex-col max-h-[92vh] sm:max-h-[90vh]';
+  'rounded-t-2xl sm:rounded-xl w-full sm:max-w-md overflow-hidden shadow-2xl flex flex-col max-h-[92vh] sm:max-h-[90vh] border border-[var(--app-shell-line)]';
 
 const noopSetDragState: React.Dispatch<React.SetStateAction<DragState>> = () => {};
 

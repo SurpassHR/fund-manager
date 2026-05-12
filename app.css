@@ -204,7 +204,7 @@ body {
   margin: 0;
 }
 
-.markdown-body p + p {
+.markdown-body p+p {
   margin-top: 0.5rem;
 }
 
@@ -271,13 +271,11 @@ body {
 /* 已清仓组分界线 — 透明磨砂玻璃 + 绿色本色 */
 .cleared-group-divider {
   background:
-    linear-gradient(
-      135deg,
+    linear-gradient(135deg,
       rgba(34, 197, 94, 0.13) 0%,
       rgba(16, 185, 129, 0.23) 30%,
       rgba(34, 197, 94, 0.17) 60%,
-      rgba(16, 185, 129, 0.13) 100%
-    ),
+      rgba(16, 185, 129, 0.13) 100%),
     rgba(255, 255, 255, 0.5);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.24),
@@ -297,13 +295,11 @@ body {
 
 .cleared-group-divider:hover {
   background:
-    linear-gradient(
-      135deg,
+    linear-gradient(135deg,
       rgba(34, 197, 94, 0.17) 0%,
       rgba(16, 185, 129, 0.28) 30%,
       rgba(34, 197, 94, 0.21) 60%,
-      rgba(16, 185, 129, 0.17) 100%
-    ),
+      rgba(16, 185, 129, 0.17) 100%),
     rgba(255, 255, 255, 0.62);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.28),
@@ -313,13 +309,11 @@ body {
 
 .cleared-group-divider:active {
   background:
-    linear-gradient(
-      135deg,
+    linear-gradient(135deg,
       rgba(34, 197, 94, 0.1) 0%,
       rgba(16, 185, 129, 0.18) 30%,
       rgba(34, 197, 94, 0.13) 60%,
-      rgba(16, 185, 129, 0.1) 100%
-    ),
+      rgba(16, 185, 129, 0.1) 100%),
     rgba(255, 255, 255, 0.35);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.16),
@@ -328,13 +322,11 @@ body {
 
 .dark .cleared-group-divider {
   background:
-    linear-gradient(
-      135deg,
+    linear-gradient(135deg,
       rgba(34, 197, 94, 0.08) 0%,
       rgba(16, 185, 129, 0.15) 30%,
       rgba(34, 197, 94, 0.1) 60%,
-      rgba(16, 185, 129, 0.08) 100%
-    ),
+      rgba(16, 185, 129, 0.08) 100%),
     rgba(255, 255, 255, 0.02);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.08),
@@ -346,13 +338,11 @@ body {
 
 .dark .cleared-group-divider:hover {
   background:
-    linear-gradient(
-      135deg,
+    linear-gradient(135deg,
       rgba(34, 197, 94, 0.11) 0%,
       rgba(16, 185, 129, 0.2) 30%,
       rgba(34, 197, 94, 0.14) 60%,
-      rgba(16, 185, 129, 0.11) 100%
-    ),
+      rgba(16, 185, 129, 0.11) 100%),
     rgba(255, 255, 255, 0.04);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.11),
@@ -362,13 +352,11 @@ body {
 
 .dark .cleared-group-divider:active {
   background:
-    linear-gradient(
-      135deg,
+    linear-gradient(135deg,
       rgba(34, 197, 94, 0.06) 0%,
       rgba(16, 185, 129, 0.12) 30%,
       rgba(34, 197, 94, 0.08) 60%,
-      rgba(16, 185, 129, 0.06) 100%
-    ),
+      rgba(16, 185, 129, 0.06) 100%),
     rgba(255, 255, 255, 0.01);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.05),
@@ -378,13 +366,11 @@ body {
 /* 机构分组隔条 — 透明磨砂玻璃 + blue 本色 */
 .institution-group-divider {
   background:
-    linear-gradient(
-      135deg,
+    linear-gradient(135deg,
       rgba(99, 102, 241, 0.11) 0%,
       rgba(59, 130, 246, 0.2) 30%,
       rgba(99, 102, 241, 0.14) 60%,
-      rgba(59, 130, 246, 0.11) 100%
-    ),
+      rgba(59, 130, 246, 0.11) 100%),
     rgba(255, 255, 255, 0.5);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.24),
@@ -404,13 +390,11 @@ body {
 
 .institution-group-divider:hover {
   background:
-    linear-gradient(
-      135deg,
+    linear-gradient(135deg,
       rgba(99, 102, 241, 0.15) 0%,
       rgba(59, 130, 246, 0.25) 30%,
       rgba(99, 102, 241, 0.18) 60%,
-      rgba(59, 130, 246, 0.15) 100%
-    ),
+      rgba(59, 130, 246, 0.15) 100%),
     rgba(255, 255, 255, 0.62);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.28),
@@ -420,13 +404,11 @@ body {
 
 .institution-group-divider:active {
   background:
-    linear-gradient(
-      135deg,
+    linear-gradient(135deg,
       rgba(99, 102, 241, 0.08) 0%,
       rgba(59, 130, 246, 0.15) 30%,
       rgba(99, 102, 241, 0.1) 60%,
-      rgba(59, 130, 246, 0.08) 100%
-    ),
+      rgba(59, 130, 246, 0.08) 100%),
     rgba(255, 255, 255, 0.35);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.16),
@@ -435,13 +417,11 @@ body {
 
 .dark .institution-group-divider {
   background:
-    linear-gradient(
-      135deg,
+    linear-gradient(135deg,
       rgba(99, 102, 241, 0.07) 0%,
       rgba(59, 130, 246, 0.13) 30%,
       rgba(99, 102, 241, 0.09) 60%,
-      rgba(59, 130, 246, 0.07) 100%
-    ),
+      rgba(59, 130, 246, 0.07) 100%),
     rgba(255, 255, 255, 0.02);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.07),
@@ -453,13 +433,11 @@ body {
 
 .dark .institution-group-divider:hover {
   background:
-    linear-gradient(
-      135deg,
+    linear-gradient(135deg,
       rgba(99, 102, 241, 0.1) 0%,
       rgba(59, 130, 246, 0.18) 30%,
       rgba(99, 102, 241, 0.13) 60%,
-      rgba(59, 130, 246, 0.1) 100%
-    ),
+      rgba(59, 130, 246, 0.1) 100%),
     rgba(255, 255, 255, 0.04);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.1),
@@ -469,13 +447,11 @@ body {
 
 .dark .institution-group-divider:active {
   background:
-    linear-gradient(
-      135deg,
+    linear-gradient(135deg,
       rgba(99, 102, 241, 0.05) 0%,
       rgba(59, 130, 246, 0.1) 30%,
       rgba(99, 102, 241, 0.07) 60%,
-      rgba(59, 130, 246, 0.05) 100%
-    ),
+      rgba(59, 130, 246, 0.05) 100%),
     rgba(255, 255, 255, 0.01);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.04),
@@ -518,6 +494,13 @@ body {
   border: 1px solid rgba(255, 255, 255, 0.08);
   box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
 }
+
+/* 全局 input 重置 — 移除 WebKit 原生渲染 */
+input,
+select {
+  -webkit-appearance: none;
+}
+
 /* iOS Safari date input 重置 — 覆写 WebKit 原生渲染 */
 input[type='date'] {
   -webkit-appearance: none;
