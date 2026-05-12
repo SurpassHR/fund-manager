@@ -311,9 +311,9 @@ const AppContent: React.FC = () => {
           setDragState((prev) =>
             prev.snapBackX === snapX
               ? {
-                  ...prev,
-                  snapBackX: 0,
-                }
+                ...prev,
+                snapBackX: 0,
+              }
               : prev,
           );
         });
@@ -417,9 +417,9 @@ const AppContent: React.FC = () => {
           setDragState((prev) =>
             prev.snapBackX === snapX
               ? {
-                  ...prev,
-                  snapBackX: 0,
-                }
+                ...prev,
+                snapBackX: 0,
+              }
               : prev,
           );
         });
@@ -507,10 +507,10 @@ const AppContent: React.FC = () => {
         </main>
 
         {newVersionAvailable && (
-          <div className="fixed bottom-20 left-0 right-0 z-50 flex justify-center pointer-events-none">
+          <div className="fixed bottom-40 left-0 right-0 z-50 flex justify-center pointer-events-none">
             <button
               onClick={refreshApp}
-              className="pointer-events-auto flex items-center gap-2 rounded-full border border-blue-500/30 bg-blue-600/90 px-4 py-2 text-sm font-medium text-white shadow-lg backdrop-blur-md transition-all hover:bg-blue-600 active:scale-95"
+              className="pointer-events-auto flex items-center gap-2 rounded-xl border border-blue-400/40 bg-blue-600/40 px-4 py-2 text-sm font-medium text-white shadow-lg shadow-blue-500/25 backdrop-blur-xl transition-all hover:bg-blue-500/60 active:scale-95"
             >
               <Icons.Refresh className="h-4 w-4" />
               {t('common.newVersionAvailable') || '发现新版本，点击刷新'}
