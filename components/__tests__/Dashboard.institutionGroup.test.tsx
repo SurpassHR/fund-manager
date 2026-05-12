@@ -72,8 +72,8 @@ vi.mock('../AccountManagerModal', () => ({
   AccountManagerModal: () => null,
 }));
 
-vi.mock('../AddFundModal', () => ({
-  AddFundModal: () => null,
+vi.mock('../AddHoldingModal', () => ({
+  AddHoldingModal: () => null,
 }));
 
 vi.mock('../AdjustPositionModal', () => ({

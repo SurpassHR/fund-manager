@@ -61,8 +61,8 @@ vi.mock('../FundDetail', () => ({
   FundDetail: () => null,
 }));
 
-vi.mock('../AddFundModal', () => ({
-  AddFundModal: () => null,
+vi.mock('../AddHoldingModal', () => ({
+  AddHoldingModal: () => null,
 }));
 
 vi.mock('framer-motion', () => ({

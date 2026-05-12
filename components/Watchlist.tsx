@@ -7,7 +7,7 @@ import { Icons } from './Icon';
 import { useTranslation } from '../services/i18n';
 import type { WatchlistItem, Fund } from '../types';
 import { AddWatchlistModal } from './AddWatchlistModal';
-import { AddFundModal } from './AddFundModal';
+import { AddHoldingModal } from './AddHoldingModal';
 import { FundDetail } from './FundDetail';
 import { SortDropdown } from './SortDropdown';
 import type { SortDropdownOption } from './SortDropdown';
@@ -846,7 +846,7 @@ export const Watchlist: React.FC = () => {
         onClose={() => setIsAddModalOpen(false)}
         editItem={editingItem}
       />
-      <AddFundModal
+      <AddHoldingModal
         isOpen={isAddFundOpen}
         onClose={handleAddFundModalClose}
         prefillWatchlistItem={prefillWatchlistItem}

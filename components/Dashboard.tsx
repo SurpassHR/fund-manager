@@ -19,7 +19,7 @@ import { Icons } from './Icon';
 import { useTranslation } from '../services/i18n';
 import type { HoldingsSnapshot } from '../services/aiAnalysis';
 import { AccountManagerModal } from './AccountManagerModal';
-import { AddFundModal } from './AddFundModal';
+import { AddHoldingModal } from './AddHoldingModal';
 import { AdjustPositionModal } from './AdjustPositionModal';
 import { RebalanceModal } from './RebalanceModal';
 import { TransactionHistoryModal } from './TransactionHistoryModal';
@@ -1722,7 +1722,7 @@ export const Dashboard: React.FC = () => {
         isOpen={isAccountManagerOpen}
         onClose={() => setIsAccountManagerOpen(false)}
       />
-      <AddFundModal
+      <AddHoldingModal
         isOpen={isAddFundOpen}
         onClose={() => setIsAddFundOpen(false)}
         editFund={editingFund}

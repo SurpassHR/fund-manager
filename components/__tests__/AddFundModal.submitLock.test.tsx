@@ -2,7 +2,7 @@
 import React from 'react';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { AddFundModal } from '../AddFundModal';
+import { AddHoldingModal } from '../AddHoldingModal';
 import type { Fund, WatchlistItem } from '../../types';
 
 const mocked = vi.hoisted(() => {
@@ -128,7 +128,7 @@ const editFund: Fund = {
   settlementDays: 1,
 };
 
-describe('AddFundModal submit lock', () => {
+describe('AddHoldingModal submit lock', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -138,7 +138,7 @@ describe('AddFundModal submit lock', () => {
     mocked.fundsAdd.mockReturnValue(addDeferred.promise);
 
     render(
-      <AddFundModal
+      <AddHoldingModal
         isOpen
         onClose={vi.fn()}
         prefillWatchlistItem={prefillItem}
@@ -171,7 +171,7 @@ describe('AddFundModal submit lock', () => {
     const onClose = vi.fn();
 
     render(
-      <AddFundModal
+      <AddHoldingModal
         isOpen
         onClose={onClose}
         prefillWatchlistItem={prefillItem}
@@ -206,7 +206,7 @@ describe('AddFundModal submit lock', () => {
   });
 
   it('买入日期键盘方向键不应拦截原生行为', async () => {
-    render(<AddFundModal isOpen onClose={vi.fn()} editFund={editFund} />);
+    render(<AddHoldingModal isOpen onClose={vi.fn()} editFund={editFund} />);
 
     const buyDateInput = getBuyDateInput();
     const notCancelled = fireEvent.keyDown(buyDateInput, { key: 'ArrowDown' });
@@ -216,7 +216,11 @@ describe('AddFundModal submit lock', () => {
 
   it('买入日期变更为空字符串时应保留当前日期', async () => {
     render(
-      <AddFundModal isOpen onClose={vi.fn()} editFund={{ ...editFund, buyDate: '2026-04-01' }} />,
+      <AddHoldingModal
+        isOpen
+        onClose={vi.fn()}
+        editFund={{ ...editFund, buyDate: '2026-04-01' }}
+      />,
     );
 
     const buyDateInput = getBuyDateInput();
@@ -228,7 +232,7 @@ describe('AddFundModal submit lock', () => {
   });
 
   it('买入日期变更为合法日期时应正常更新', async () => {
-    render(<AddFundModal isOpen onClose={vi.fn()} editFund={editFund} />);
+    render(<AddHoldingModal isOpen onClose={vi.fn()} editFund={editFund} />);
 
     const buyDateInput = getBuyDateInput();
     expect(buyDateInput.value).toBe('2026-04-01');
@@ -242,7 +246,7 @@ describe('AddFundModal submit lock', () => {
     mocked.fundsUpdate.mockResolvedValue(1);
 
     render(
-      <AddFundModal
+      <AddHoldingModal
         isOpen
         onClose={vi.fn()}
         editFund={{
@@ -277,7 +281,7 @@ describe('AddFundModal submit lock', () => {
     mocked.fundsAdd.mockResolvedValue(1);
 
     render(
-      <AddFundModal
+      <AddHoldingModal
         isOpen
         onClose={vi.fn()}
         prefillWatchlistItem={{

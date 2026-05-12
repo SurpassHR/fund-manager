@@ -59,8 +59,8 @@ vi.mock('framer-motion', () => ({
   AnimatePresence: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 
-vi.mock('../AddFundModal', () => ({
-  AddFundModal: () => null,
+vi.mock('../AddHoldingModal', () => ({
+  AddHoldingModal: () => null,
 }));
 
 const getWatchlistOrder = () =>

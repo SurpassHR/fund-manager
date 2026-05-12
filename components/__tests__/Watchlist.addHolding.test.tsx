@@ -58,8 +58,8 @@ vi.mock('framer-motion', () => ({
   AnimatePresence: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 
-vi.mock('../AddFundModal', () => ({
-  AddFundModal: (props: {
+vi.mock('../AddHoldingModal', () => ({
+  AddHoldingModal: (props: {
     isOpen: boolean;
     onClose: () => void;
     prefillWatchlistItem?: WatchlistItem;
@@ -162,7 +162,7 @@ describe('Watchlist add holding from context menu', () => {
     ).not.toBeInTheDocument();
   });
 
-  it('点击后打开 AddFundModal 并预填 watchlist 信息', () => {
+  it('点击后打开 AddHoldingModal 并预填 watchlist 信息', () => {
     render(<Watchlist />);
 
     fireEvent.contextMenu(screen.getAllByText('未持有基金')[0]);
