@@ -39,7 +39,7 @@ describe('serviceStatus', () => {
       githubToken: '',
     });
 
-    expect(list).toHaveLength(8);
+    expect(list).toHaveLength(10);
     expect(list.every((item) => item.status === 'checking')).toBe(true);
   });
 
@@ -64,6 +64,14 @@ describe('serviceStatus', () => {
       if (url.includes('qt.gtimg.cn')) {
         return Promise.resolve(
           new Response('v_sh000001="1~上证指数~000001~3028.05~..."', { status: 200 }),
+        );
+      }
+      if (url.includes('ifzq.gtimg.cn')) {
+        return Promise.resolve(
+          new Response(
+            'var min_data_usAAPLOQ={"code":0,"data":{"usAAPL.OQ":{"data":{"data":["0930 185.50","0931 186.00","0932 185.80"]}}}}',
+            { status: 200 },
+          ),
         );
       }
       return Promise.resolve(new Response('{}', { status: 404 }));
@@ -92,8 +100,12 @@ describe('serviceStatus', () => {
     resolveMorningstar(new Response('{}', { status: 200 }));
     const list = await task;
 
-    expect(list).toHaveLength(8);
+    expect(list).toHaveLength(10);
     expect(list.find((item) => item.id === 'morningstar')?.status).toBe('ok');
+    expect(list.find((item) => item.id === 'tencent-quote')?.status).toBe('ok');
+    expect(list.find((item) => item.id === 'tencent-us-minute')?.status).toBe('ok');
+    expect(list.find((item) => item.id === 'tencent-us-quote')?.status).toBe('ok');
+    expect(list.find((item) => item.id === 'eastmoney-fundf10')?.status).toBe('ok');
     expect(list.find((item) => item.id === 'ths-fuyao')?.status).toBe('error');
     expect(list.find((item) => item.id === 'openai')?.status).toBe('idle');
 
@@ -116,6 +128,12 @@ describe('serviceStatus', () => {
       if (url.includes('qt.gtimg.cn')) {
         return new Response('v_sh000001="1~上证指数~000001~3028.05~..."', { status: 200 });
       }
+      if (url.includes('ifzq.gtimg.cn')) {
+        return new Response(
+          'var min_data_usAAPLOQ={"code":0,"data":{"usAAPL.OQ":{"data":{"data":["0930 185.50","0931 186.00","0932 185.80"]}}}}',
+          { status: 200 },
+        );
+      }
       return new Response('{}', { status: 404 });
     });
 
@@ -128,9 +146,11 @@ describe('serviceStatus', () => {
       githubToken: '',
     });
 
-    expect(list).toHaveLength(8);
+    expect(list).toHaveLength(10);
     expect(list.find((item) => item.id === 'morningstar')?.status).toBe('ok');
     expect(list.find((item) => item.id === 'tencent-quote')?.status).toBe('ok');
+    expect(list.find((item) => item.id === 'tencent-us-minute')?.status).toBe('ok');
+    expect(list.find((item) => item.id === 'tencent-us-quote')?.status).toBe('ok');
     expect(list.find((item) => item.id === 'eastmoney-fundf10')?.status).toBe('ok');
     expect(list.find((item) => item.id === 'openai')?.status).toBe('idle');
     expect(list.find((item) => item.id === 'gemini')?.status).toBe('idle');
@@ -154,6 +174,12 @@ describe('serviceStatus', () => {
       }
       if (url.includes('qt.gtimg.cn')) {
         return new Response('v_sh000001="1~上证指数~000001~3028.05~..."', { status: 200 });
+      }
+      if (url.includes('ifzq.gtimg.cn')) {
+        return new Response(
+          'var min_data_usAAPLOQ={"code":0,"data":{"usAAPL.OQ":{"data":{"data":["0930 185.50","0931 186.00","0932 185.80"]}}}}',
+          { status: 200 },
+        );
       }
       return new Response('{}', { status: 200 });
     });

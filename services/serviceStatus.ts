@@ -82,6 +82,20 @@ const getServiceApiBases = (config: ServiceRuntimeConfig): ServiceApiBase[] => [
     auth: 'none',
   },
   {
+    id: 'tencent-us-minute',
+    name: 'Tencent US Minute API',
+    provider: 'Tencent',
+    endpoint: 'https://web.ifzq.gtimg.cn/appstock/app/UsMinute/query',
+    auth: 'none',
+  },
+  {
+    id: 'tencent-us-quote',
+    name: 'Tencent US Quote API',
+    provider: 'Tencent',
+    endpoint: 'https://web.ifzq.gtimg.cn/appstock/app/UsMinute/query',
+    auth: 'none',
+  },
+  {
     id: 'eastmoney-fundf10',
     name: 'EastMoney FundF10 Script API',
     provider: 'EastMoney',
@@ -162,6 +176,58 @@ const runServiceApiCheckTasks = (config: ServiceRuntimeConfig): Promise<ServiceA
       const text = await res.text();
       if (!res.ok) return fail(base, `HTTP ${res.status}`);
       if (!text.includes('~')) return fail(base, '返回格式异常', 'degraded');
+      return ok(base);
+    } catch (error) {
+      return fail(base, error instanceof Error ? error.message : '请求失败');
+    }
+  })(),
+  (async () => {
+    const base = getServiceApiBases(config).find((item) => item.id === 'tencent-us-minute');
+    if (!base) throw new Error('MISSING_SERVICE_API_BASE');
+    try {
+      const url = `https://web.ifzq.gtimg.cn/appstock/app/UsMinute/query?_var=min_data_usAAPLOQ&code=usAAPL.OQ&r=${Math.random()}`;
+      const res = await fetch(url);
+      if (!res.ok) return fail(base, `HTTP ${res.status}`);
+      const rawText = await res.text();
+      const jsonStart = rawText.indexOf('{');
+      if (jsonStart < 0) return fail(base, '返回格式异常，非 JSONP', 'degraded');
+      const json = JSON.parse(rawText.slice(jsonStart));
+      if ((json as { code?: number }).code !== 0)
+        return fail(base, `接口返回错误码: ${(json as { code?: number }).code}`, 'degraded');
+      const data = (json as { data?: Record<string, { data?: { data?: unknown } }> }).data?.[
+        'usAAPL.OQ'
+      ]?.data?.data;
+      if (!data || !Array.isArray(data) || data.length === 0)
+        return fail(base, '无分钟数据', 'degraded');
+      return ok(base);
+    } catch (error) {
+      return fail(base, error instanceof Error ? error.message : '请求失败');
+    }
+  })(),
+  (async () => {
+    const base = getServiceApiBases(config).find((item) => item.id === 'tencent-us-quote');
+    if (!base) throw new Error('MISSING_SERVICE_API_BASE');
+    try {
+      const intraday = await (async () => {
+        const url = `https://web.ifzq.gtimg.cn/appstock/app/UsMinute/query?_var=min_data_usAAPLOQ&code=usAAPL.OQ&r=${Math.random()}`;
+        const res = await fetch(url);
+        if (!res.ok) return null;
+        const rawText = await res.text();
+        const jsonStart = rawText.indexOf('{');
+        if (jsonStart < 0) return null;
+        const json = JSON.parse(rawText.slice(jsonStart));
+        if ((json as { code?: number }).code !== 0) return null;
+        return (
+          (json as { data?: Record<string, { data?: { data?: string[] } }> }).data?.['usAAPL.OQ']
+            ?.data?.data ?? null
+        );
+      })();
+      if (!intraday || intraday.length === 0) return fail(base, '无行情数据', 'degraded');
+      if (intraday.length < 2) return fail(base, '分钟数据不足，无法计算涨跌幅', 'degraded');
+      const firstParts = intraday[0].split(' ');
+      const lastParts = intraday[intraday.length - 1].split(' ');
+      if (firstParts.length < 2 || lastParts.length < 2)
+        return fail(base, '分钟数据格式异常', 'degraded');
       return ok(base);
     } catch (error) {
       return fail(base, error instanceof Error ? error.message : '请求失败');
