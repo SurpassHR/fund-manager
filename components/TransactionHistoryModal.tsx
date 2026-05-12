@@ -194,51 +194,7 @@ export const TransactionHistoryModal: React.FC<TransactionHistoryModalProps> = (
             {deleteFeedback}
           </div>
         )}
-        {/* 建仓点 */}
-        {(() => {
-          const openAmount =
-            fund?.positionOpenAmount ??
-            (fund?.buyDate && fund.holdingShares > 0
-              ? fund.holdingShares * fund.costPrice
-              : undefined);
-          const openDate = fund?.positionOpenDate || fund?.buyDate;
-          if (openAmount != null && openDate && openAmount > 0) {
-            return (
-              <div className="mb-3 bg-white dark:bg-white/5 border border-blue-200 dark:border-blue-800/50 rounded-xl p-4 shadow-sm flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 bg-blue-50 text-blue-500 dark:bg-blue-900/30">
-                    <Icons.TrendingUp size={20} />
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-sm font-bold text-blue-500">
-                        {t('common.openPosition') || '建仓'}
-                      </span>
-                      <span className="text-sm font-mono font-bold text-gray-800 dark:text-gray-100">
-                        ¥{openAmount.toFixed(2)}
-                      </span>
-                    </div>
-                    <div className="text-xs text-gray-400 flex items-center gap-2">
-                      <span>
-                        {openDate} {fund?.buyTime ? t(`common.${fund.buyTime}`) : ''}
-                      </span>
-                      <span className="w-1 h-1 rounded-full bg-gray-300 dark:bg-gray-600"></span>
-                      <span className="text-gray-400">{t('common.settled') || '已确认'}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            );
-          }
-          return null;
-        })()}
-        {sortedTransactions.length === 0 &&
-        !(
-          fund?.positionOpenAmount ??
-          (fund?.buyDate && fund.holdingShares > 0
-            ? fund.holdingShares * fund.costPrice
-            : undefined)
-        ) ? (
+        {sortedTransactions.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 text-gray-400">
             <Icons.Grid size={40} className="mb-3 opacity-20" />
             <p className="text-sm">{t('common.noHistory') || '暂无交易记录'}</p>

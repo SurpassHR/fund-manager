@@ -26,7 +26,7 @@ export const FundSearchInput: React.FC<FundSearchInputProps> = ({
   const [results, setResults] = useState<MorningstarFund[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [error, setError] = useState('');
-  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   useEffect(() => {
     if (externalQuery !== undefined) {
