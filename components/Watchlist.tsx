@@ -4,6 +4,7 @@ import { db, refreshFundData, refreshWatchlistData } from '../services/db';
 import { getSignColor, formatPct } from '../services/financeUtils';
 import { groupFundsByInstitution, resolveInstitutions } from '../services/fundInstitution';
 import { Icons } from './Icon';
+import RefreshButton, { type RefreshButtonHandle } from './RefreshButton';
 import { useTranslation } from '../services/i18n';
 import type { WatchlistItem, Fund } from '../types';
 import { AddWatchlistModal } from './AddWatchlistModal';
@@ -115,10 +116,7 @@ export const Watchlist: React.FC = () => {
     });
   };
 
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [cooldown, setCooldown] = useState(0);
-  const cooldownMaxTime = 5000;
-  const cooldownRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const refreshBtnRef = useRef<RefreshButtonHandle>(null);
   const refreshInFlightRef = useRef(false);
   const lastRefreshRequestAtRef = useRef(0);
 
@@ -165,7 +163,9 @@ export const Watchlist: React.FC = () => {
       isRefreshStale(readRefreshLastSuccessAt('watchlist'), AUTO_REFRESH_STALE_MS);
 
     if (document.visibilityState === 'visible' && shouldRefreshByStale()) {
-      void requestWatchlistRefresh(false);
+      void requestWatchlistRefresh(false).then((ok) => {
+        if (ok) refreshBtnRef.current?.triggerCooldown();
+      });
     }
 
     let autoUpdateTimer: ReturnType<typeof setInterval> | null = null;
@@ -175,7 +175,9 @@ export const Watchlist: React.FC = () => {
       if (autoUpdateTimer) clearInterval(autoUpdateTimer);
       autoUpdateTimer = setInterval(() => {
         if (document.visibilityState !== 'visible') return;
-        void requestWatchlistRefresh(false);
+        void requestWatchlistRefresh(false).then((ok) => {
+          if (ok) refreshBtnRef.current?.triggerCooldown();
+        });
       }, AUTO_REFRESH_INTERVAL_MS);
     };
 
@@ -189,7 +191,9 @@ export const Watchlist: React.FC = () => {
     const maybeRefreshWhenVisible = () => {
       if (document.visibilityState !== 'visible') return;
       if (shouldRefreshByStale()) {
-        void requestWatchlistRefresh(false);
+        void requestWatchlistRefresh(false).then((ok) => {
+          if (ok) refreshBtnRef.current?.triggerCooldown();
+        });
       }
     };
 
@@ -341,38 +345,7 @@ export const Watchlist: React.FC = () => {
   };
 
   const handleManualRefresh = async () => {
-    if (cooldown > 0 || isRefreshing || refreshInFlightRef.current) return;
-
-    setIsRefreshing(true);
-    const startTime = Date.now();
-
-    try {
-      await requestWatchlistRefresh(true);
-    } finally {
-      const elapsed = Date.now() - startTime;
-      if (elapsed < 1000) {
-        await new Promise((res) => setTimeout(res, 1000 - elapsed));
-      }
-      setIsRefreshing(false);
-
-      setCooldown(100);
-      const cooldownStartTime = Date.now();
-
-      if (cooldownRef.current) clearInterval(cooldownRef.current);
-
-      cooldownRef.current = setInterval(() => {
-        const cElapsed = Date.now() - cooldownStartTime;
-        const remaining = Math.max(0, cooldownMaxTime - cElapsed);
-        const percent = (remaining / cooldownMaxTime) * 100;
-
-        if (percent <= 0) {
-          setCooldown(0);
-          if (cooldownRef.current) clearInterval(cooldownRef.current);
-        } else {
-          setCooldown(percent);
-        }
-      }, 16);
-    }
+    await requestWatchlistRefresh(true);
   };
 
   const handleSort = (key: WatchlistSortKey) => {
@@ -531,32 +504,7 @@ export const Watchlist: React.FC = () => {
             </div>
 
             <div className="flex shrink-0 items-center gap-2">
-              <button
-                onClick={handleManualRefresh}
-                disabled={cooldown > 0 || isRefreshing}
-                className={`relative flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border transition-transform active:scale-95 ${cooldown > 0 || isRefreshing
-                  ? 'cursor-not-allowed border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] text-[var(--app-shell-muted)]'
-                  : 'cursor-pointer border-[var(--app-shell-line-strong)] bg-[var(--app-shell-panel-strong)] text-[var(--app-shell-ink)] dark:border-[var(--app-shell-accent-soft)] dark:bg-[var(--app-shell-accent-soft)] dark:text-[var(--app-shell-accent)]'
-                  }`}
-              >
-                <Icons.Refresh size={16} className={isRefreshing ? 'animate-spin' : ''} />
-                {cooldown > 0 && !isRefreshing && (
-                  <div
-                    className="absolute inset-0 dark:hidden"
-                    style={{
-                      background: `conic-gradient(transparent ${100 - cooldown}%, rgba(0,0,0,0.18) ${100 - cooldown}%, rgba(0,0,0,0.18) 100%)`,
-                    }}
-                  />
-                )}
-                {cooldown > 0 && !isRefreshing && (
-                  <div
-                    className="absolute inset-0 hidden dark:block"
-                    style={{
-                      background: `conic-gradient(transparent ${100 - cooldown}%, rgba(15,23,42,0.75) ${100 - cooldown}%, rgba(15,23,42,0.75) 100%)`,
-                    }}
-                  />
-                )}
-              </button>
+              <RefreshButton ref={refreshBtnRef} onRefresh={handleManualRefresh} size="md" />
               <button
                 onClick={(e) => {
                   e.stopPropagation();
@@ -579,10 +527,11 @@ export const Watchlist: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setIsInstitutionGroupEnabled((prev) => !prev)}
-                  className={`rounded-full border p-1.5 transition-colors ${isInstitutionGroupEnabled
-                    ? 'border-indigo-400 bg-indigo-50 text-indigo-600 dark:border-indigo-400/30 dark:bg-indigo-500/15 dark:text-indigo-200'
-                    : 'border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] text-[var(--app-shell-muted)] hover:text-[var(--app-shell-ink)]'
-                    }`}
+                  className={`rounded-full border p-1.5 transition-colors ${
+                    isInstitutionGroupEnabled
+                      ? 'border-indigo-400 bg-indigo-50 text-indigo-600 dark:border-indigo-400/30 dark:bg-indigo-500/15 dark:text-indigo-200'
+                      : 'border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] text-[var(--app-shell-muted)] hover:text-[var(--app-shell-ink)]'
+                  }`}
                   aria-label={t('common.groupByInstitution')}
                 >
                   <Icons.Layers size={14} />
@@ -632,10 +581,11 @@ export const Watchlist: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setIsInstitutionGroupEnabled((prev) => !prev)}
-                  className={`rounded-full border p-1.5 transition-colors ${isInstitutionGroupEnabled
-                    ? 'border-indigo-400 bg-indigo-50 text-indigo-600 dark:border-indigo-400/30 dark:bg-indigo-500/15 dark:text-indigo-200'
-                    : 'border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] text-[var(--app-shell-muted)]'
-                    }`}
+                  className={`rounded-full border p-1.5 transition-colors ${
+                    isInstitutionGroupEnabled
+                      ? 'border-indigo-400 bg-indigo-50 text-indigo-600 dark:border-indigo-400/30 dark:bg-indigo-500/15 dark:text-indigo-200'
+                      : 'border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] text-[var(--app-shell-muted)]'
+                  }`}
                   aria-label={t('common.groupByInstitution')}
                 >
                   <Icons.Layers size={14} />
@@ -738,8 +688,9 @@ export const Watchlist: React.FC = () => {
                     onTouchEnd={handleTouchEnd}
                     onTouchCancel={handleTouchEnd}
                     onClick={() => handleRowClick(item)}
-                    className={`group relative cursor-pointer select-none border-b border-[var(--app-shell-line)] px-4 py-3 transition-colors last:border-b-0 active:bg-[var(--app-shell-panel-strong)] md:px-5 md:py-3.5 md:hover:bg-[var(--app-shell-panel-strong)]/72 ${contextMenu?.itemId === item.id ? 'bg-[var(--app-shell-panel-strong)]' : ''
-                      }`}
+                    className={`group relative cursor-pointer select-none border-b border-[var(--app-shell-line)] px-4 py-3 transition-colors last:border-b-0 active:bg-[var(--app-shell-panel-strong)] md:px-5 md:py-3.5 md:hover:bg-[var(--app-shell-panel-strong)]/72 ${
+                      contextMenu?.itemId === item.id ? 'bg-[var(--app-shell-panel-strong)]' : ''
+                    }`}
                   >
                     <div className="flex flex-col gap-3 md:flex-row md:items-center">
                       <div className="min-w-0 flex-1 md:flex-[1.6] md:pr-4">
@@ -748,10 +699,11 @@ export const Watchlist: React.FC = () => {
                             {item.code}
                           </span>
                           <span
-                            className={`rounded-full border px-2 py-1 text-[10px] font-semibold tracking-[0.14em] whitespace-nowrap shrink-0 ${item.type === 'index'
-                              ? 'border-[var(--app-shell-line-strong)] bg-[var(--app-shell-panel-strong)] text-[var(--app-shell-accent)]'
-                              : 'border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] text-[var(--app-shell-muted)]'
-                              }`}
+                            className={`rounded-full border px-2 py-1 text-[10px] font-semibold tracking-[0.14em] whitespace-nowrap shrink-0 ${
+                              item.type === 'index'
+                                ? 'border-[var(--app-shell-line-strong)] bg-[var(--app-shell-panel-strong)] text-[var(--app-shell-accent)]'
+                                : 'border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] text-[var(--app-shell-muted)]'
+                            }`}
                           >
                             {item.type === 'index' ? '指数' : '基金'}
                           </span>

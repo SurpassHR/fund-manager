@@ -16,6 +16,7 @@ import {
 import { isEtfLinkFundName } from '../services/constants';
 import { groupFundsByInstitution, resolveInstitutions } from '../services/fundInstitution';
 import { Icons } from './Icon';
+import RefreshButton, { type RefreshButtonHandle } from './RefreshButton';
 import { useTranslation } from '../services/i18n';
 import type { HoldingsSnapshot } from '../services/aiAnalysis';
 import { AccountManagerModal } from './AccountManagerModal';
@@ -159,10 +160,7 @@ export const Dashboard: React.FC = () => {
   const [isTotalAssetsOpen, setIsTotalAssetsOpen] = useState(false);
   const { autoRefresh } = useSettings();
 
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [cooldown, setCooldown] = useState(0);
-  const cooldownMaxTime = 5000;
-  const cooldownRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const refreshBtnRef = useRef<RefreshButtonHandle>(null);
   const refreshInFlightRef = useRef(false);
   const lastRefreshRequestAtRef = useRef(0);
 
@@ -266,7 +264,9 @@ export const Dashboard: React.FC = () => {
       isRefreshStale(readRefreshLastSuccessAt('fund'), AUTO_REFRESH_STALE_MS);
 
     if (document.visibilityState === 'visible' && shouldRefreshByStale()) {
-      void requestFundRefresh(false);
+      void requestFundRefresh(false).then((ok) => {
+        if (ok) refreshBtnRef.current?.triggerCooldown();
+      });
     }
 
     let autoUpdateTimer: ReturnType<typeof setInterval> | null = null;
@@ -276,7 +276,9 @@ export const Dashboard: React.FC = () => {
       if (autoUpdateTimer) clearInterval(autoUpdateTimer);
       autoUpdateTimer = setInterval(() => {
         if (document.visibilityState !== 'visible') return;
-        void requestFundRefresh(false);
+        void requestFundRefresh(false).then((ok) => {
+          if (ok) refreshBtnRef.current?.triggerCooldown();
+        });
       }, AUTO_REFRESH_INTERVAL_MS);
     };
 
@@ -290,7 +292,9 @@ export const Dashboard: React.FC = () => {
     const maybeRefreshWhenVisible = () => {
       if (document.visibilityState !== 'visible') return;
       if (shouldRefreshByStale()) {
-        void requestFundRefresh(false);
+        void requestFundRefresh(false).then((ok) => {
+          if (ok) refreshBtnRef.current?.triggerCooldown();
+        });
       }
     };
 
@@ -640,38 +644,7 @@ export const Dashboard: React.FC = () => {
   };
 
   const handleManualRefresh = async () => {
-    if (cooldown > 0 || isRefreshing || refreshInFlightRef.current) return;
-
-    setIsRefreshing(true);
-    const startTime = Date.now();
-
-    try {
-      await requestFundRefresh(true);
-    } finally {
-      const elapsed = Date.now() - startTime;
-      if (elapsed < 1000) {
-        await new Promise((res) => setTimeout(res, 1000 - elapsed));
-      }
-      setIsRefreshing(false);
-
-      setCooldown(100);
-      const cooldownStartTime = Date.now();
-
-      if (cooldownRef.current) clearInterval(cooldownRef.current);
-
-      cooldownRef.current = setInterval(() => {
-        const cElapsed = Date.now() - cooldownStartTime;
-        const remaining = Math.max(0, cooldownMaxTime - cElapsed);
-        const percent = (remaining / cooldownMaxTime) * 100;
-
-        if (percent <= 0) {
-          setCooldown(0);
-          if (cooldownRef.current) clearInterval(cooldownRef.current);
-        } else {
-          setCooldown(percent);
-        }
-      }, 16);
-    }
+    await requestFundRefresh(true);
   };
 
   const handleTransactionsDeleted = async (affectedFundIds: number[]) => {
@@ -850,34 +823,7 @@ export const Dashboard: React.FC = () => {
                   </button>
                 </div>
 
-                {/* Refresh button aligned right */}
-                <button
-                  onClick={handleManualRefresh}
-                  disabled={cooldown > 0 || isRefreshing}
-                  className={`relative flex h-8 w-8 items-center justify-center overflow-hidden rounded-full border transition-transform active:scale-95 ${
-                    cooldown > 0 || isRefreshing
-                      ? 'cursor-not-allowed border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] text-slate-500 dark:border-white/10 dark:bg-white/10 dark:text-gray-400'
-                      : 'cursor-pointer border-[var(--app-shell-line-strong)] bg-[var(--app-shell-panel-strong)] text-slate-800 dark:border-blue-400/30 dark:bg-blue-500/15 dark:text-blue-100'
-                  }`}
-                >
-                  <Icons.Refresh size={14} className={isRefreshing ? 'animate-spin' : ''} />
-                  {cooldown > 0 && !isRefreshing && (
-                    <div
-                      className="absolute inset-0 dark:hidden"
-                      style={{
-                        background: `conic-gradient(transparent ${100 - cooldown}%, rgba(0,0,0,0.18) ${100 - cooldown}%, rgba(0,0,0,0.18) 100%)`,
-                      }}
-                    />
-                  )}
-                  {cooldown > 0 && !isRefreshing && (
-                    <div
-                      className="absolute inset-0 hidden dark:block"
-                      style={{
-                        background: `conic-gradient(transparent ${100 - cooldown}%, rgba(15,23,42,0.75) ${100 - cooldown}%, rgba(15,23,42,0.75) 100%)`,
-                      }}
-                    />
-                  )}
-                </button>
+                <RefreshButton ref={refreshBtnRef} onRefresh={handleManualRefresh} size="sm" />
               </div>
 
               <div>
@@ -1728,7 +1674,8 @@ export const Dashboard: React.FC = () => {
         editFund={editingFund}
         onFundAdded={async () => {
           if (refreshInFlightRef.current) return;
-          await requestFundRefresh(true);
+          const ok = await requestFundRefresh(true);
+          if (ok) refreshBtnRef.current?.triggerCooldown();
         }}
       />
       <AdjustPositionModal
