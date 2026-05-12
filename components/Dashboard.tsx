@@ -371,8 +371,9 @@ export const Dashboard: React.FC = () => {
 
   const summary = useMemo(() => calculateSummary(filteredFunds), [filteredFunds]);
 
-  // 每日自动记录总资产快照
+  // 每日自动记录总资产快照（跳过数据未就绪的空快照）
   useEffect(() => {
+    if (summary.totalAssets <= 0) return;
     saveTotalAssetsSnapshot(summary);
   }, [summary]);
 

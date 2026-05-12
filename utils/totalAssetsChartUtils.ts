@@ -40,15 +40,17 @@ export const filterDataByTimeRange = (
   return data.filter((d) => d.date >= cutoffStr);
 };
 
-/** 将 DB 快照转换为图表数据点（profit = holdingGain） */
+/** 将 DB 快照转换为图表数据点（profit = holdingGain）。过滤 totalAssets 为 0 的无效快照。 */
 export const snapshotsToChartData = (
   snapshots: TotalAssetsSnapshot[],
 ): TotalAssetsChartDataPoint[] => {
-  return snapshots.map((s) => ({
-    date: s.date,
-    totalAssets: s.totalAssets,
-    profit: s.holdingGain,
-  }));
+  return snapshots
+    .filter((s) => s.totalAssets > 0)
+    .map((s) => ({
+      date: s.date,
+      totalAssets: s.totalAssets,
+      profit: s.holdingGain,
+    }));
 };
 
 export const rebaseDataToFirstValue = (
@@ -58,10 +60,18 @@ export const rebaseDataToFirstValue = (
   values: number[];
 } => {
   if (data.length === 0) return { dates: [], values: [] };
-  const base = data[0].totalAssets;
+
+  // 找到第一个 totalAssets > 0 的点作为基线，跳过尚未就绪的快照
+  const firstValidIdx = data.findIndex((d) => d.totalAssets > 0);
+  if (firstValidIdx === -1) {
+    // 全部为 0：原样返回日期，值全为 0
+    return { dates: data.map((d) => d.date), values: data.map(() => 0) };
+  }
+
+  const base = data[firstValidIdx].totalAssets;
   const dates = data.map((d) => d.date);
   const values = data.map((d) =>
-    base > 0 ? Math.round((d.totalAssets / base - 1) * 100 * 100) / 100 : 0,
+    d.totalAssets > 0 ? Math.round((d.totalAssets / base - 1) * 100 * 100) / 100 : 0,
   );
   return { dates, values };
 };
@@ -90,6 +100,12 @@ export const buildTotalAssetsChartOption = ({
   const startStr = dates[0] ?? '';
   const endStr = dates[dates.length - 1] ?? '';
 
+  // 构建日期→数据的索引，供 tooltip 按日期查询实际资产值
+  const assetMap = new Map<string, number>();
+  data.forEach((d, i) => {
+    assetMap.set(dates[i], d.totalAssets);
+  });
+
   return {
     title: {
       text: dates.length > 0 ? `${startStr} 至 ${endStr}` : '',
@@ -114,6 +130,20 @@ export const buildTotalAssetsChartOption = ({
       borderWidth: 1,
       padding: [8, 12],
       textStyle: { color: isDark ? '#f3f4f6' : '#333', fontSize: 12 },
+      formatter: (params: unknown) => {
+        const items = Array.isArray(params) ? params : [params];
+        return items
+          .map((p: Record<string, unknown>) => {
+            const date = String(p.axisValueLabel ?? '');
+            const assets = assetMap.get(date);
+            const pct = Number((p as { value?: number }).value ?? 0);
+            if (assets != null) {
+              return `${date}<br/>总资产: ¥${assets.toLocaleString()}<br/>涨跌: ${pct.toFixed(2)}%`;
+            }
+            return `${date}<br/>涨跌: ${pct.toFixed(2)}%`;
+          })
+          .join('<br/>');
+      },
     },
     xAxis: {
       type: 'category',

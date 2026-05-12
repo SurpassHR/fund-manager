@@ -639,6 +639,13 @@ export const refreshFundData = (options?: RefreshOptions) => {
         await runSettlementPipeline({ force: forceRefresh });
       }
 
+      // 刷新完成后立即保存总资产快照，确保使用最新数据
+      const latestFunds = await db.funds.toArray();
+      const snapshot = calculateSummary(latestFunds);
+      if (snapshot.totalAssets > 0) {
+        void saveTotalAssetsSnapshot(snapshot);
+      }
+
       const failed = failedBase + failedUpdates;
       return {
         status: buildRefreshExecutionStatus(attempted, failed),
@@ -895,21 +902,34 @@ export const calculateSummary = (funds: Fund[]): AssetSummary => {
 
 // === 总资产快照 ===
 
+let saveSnapshotQueue: Promise<void> = Promise.resolve();
+
 /**
- * 保存今日总资产快照。如果今日已有记录则跳过（每日仅一条）。
- * 应在 calculateSummary 后调用。
+ * 保存今日总资产快照。如果今日已有记录则更新，确保快照始终反映最新数据。
+ * 内部使用队列串行化并发调用以避免竞态。
  */
 export const saveTotalAssetsSnapshot = async (summary: AssetSummary): Promise<void> => {
-  const today = getLocalDateString();
-  const existing = await db.totalAssetsHistory.where('date').equals(today).first();
-  if (existing) return; // 今日已记录
-  await db.totalAssetsHistory.put({
-    date: today,
-    totalAssets: summary.totalAssets,
-    holdingGain: summary.holdingGain,
-    holdingGainPct: summary.holdingGainPct,
-    dayGain: summary.totalDayGain,
+  saveSnapshotQueue = saveSnapshotQueue.then(async () => {
+    const today = getLocalDateString();
+    const existing = await db.totalAssetsHistory.where('date').equals(today).first();
+    if (existing?.id != null) {
+      await db.totalAssetsHistory.update(existing.id, {
+        totalAssets: summary.totalAssets,
+        holdingGain: summary.holdingGain,
+        holdingGainPct: summary.holdingGainPct,
+        dayGain: summary.totalDayGain,
+      });
+    } else {
+      await db.totalAssetsHistory.put({
+        date: today,
+        totalAssets: summary.totalAssets,
+        holdingGain: summary.holdingGain,
+        holdingGainPct: summary.holdingGainPct,
+        dayGain: summary.totalDayGain,
+      });
+    }
   });
+  return saveSnapshotQueue;
 };
 
 /**
