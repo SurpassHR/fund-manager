@@ -86,6 +86,8 @@ export interface AssetSummary {
 
 /** 每日总资产快照，用于总资产走势图 */
 export interface TotalAssetsSnapshot {
+  /** Dexie 自增主键 */
+  id?: number;
   /** 日期，格式 YYYY-MM-DD */
   date: string;
   /** 总资产 (CNY) */
