@@ -16,14 +16,12 @@ import { calcWeightedChangePct } from '../services/fundQuotePipeline';
 import { identifyFundType } from '../services/fundTypeIdentifier';
 import { TradeMarkerLegend } from './TradeMarkerLegend';
 import {
-  TRADE_MARKER_COLORS,
   buildChartOption,
   buildLegendViewModel,
-  buildTradeMarkersFromTransactions,
+  buildTradeMarkers,
   normalizeGrowthSeriesToFirst,
   insertZeroCrossings,
 } from './fundDetailChartUtils';
-import type { MarkPointDatum } from './fundDetailChartUtils';
 import { formatPct, getSignColor, formatSignedCurrency } from '../services/financeUtils';
 import { useTranslation } from '../services/i18n';
 import { useTheme } from '../services/ThemeContext';
@@ -831,7 +829,7 @@ export const FundDetail: React.FC<FundDetailProps> = ({
   const displayUsesOfficialPct = hasLocalEstimate
     ? false
     : !shouldUseFundSnapshot &&
-    (commonData?.navChangePercent !== undefined || latestNetWorth?.equityReturn !== undefined);
+      (commonData?.navChangePercent !== undefined || latestNetWorth?.equityReturn !== undefined);
   const displayIsEstimated =
     hasLocalEstimate || (!displayUsesOfficialPct && Boolean(fund.todayChangeIsEstimated));
   const displayMarketValue = currentNav * fund.holdingShares;
@@ -845,9 +843,9 @@ export const FundDetail: React.FC<FundDetailProps> = ({
     : holdingDisplayMetrics.dayChangeBaseNav !== undefined
       ? displayIsEstimated
         ? (fund.holdingShares *
-          holdingDisplayMetrics.dayChangeBaseNav *
-          (fund.estimatedDayChangePct ?? 0)) /
-        100
+            holdingDisplayMetrics.dayChangeBaseNav *
+            (fund.estimatedDayChangePct ?? 0)) /
+          100
         : displayMarketValue - fund.holdingShares * holdingDisplayMetrics.dayChangeBaseNav
       : displayUsesOfficialPct || displayIsEstimated
         ? inferredDayGainVal
@@ -993,48 +991,15 @@ export const FundDetail: React.FC<FundDetailProps> = ({
       return html;
     };
 
-    const markers = (() => {
-      if (anchorDate) {
-        const anchorIdx = augmentedDates.indexOf(anchorDate);
-        if (anchorIdx === -1) return [];
-        return [
-          {
-            name: 'anchor',
-            coord: [anchorDate, augmentedFundData[anchorIdx] ?? null] as [string, number | null],
-            symbol: 'circle',
-            symbolSize: 8,
-            label: { show: false },
-            itemStyle: { color: TRADE_MARKER_COLORS.anchor },
-          },
-        ];
-      }
-
-      const points: MarkPointDatum[] = [];
-
-      if (fund.buyDate) {
-        const buyIdx = augmentedDates.indexOf(fund.buyDate);
-        if (buyIdx !== -1) {
-          points.push({
-            name: 'buy',
-            coord: [fund.buyDate, augmentedFundData[buyIdx] ?? null],
-            symbol: 'circle',
-            symbolSize: 8,
-            label: { show: false },
-            itemStyle: { color: TRADE_MARKER_COLORS.buy },
-          });
-        }
-      }
-
-      points.push(
-        ...buildTradeMarkersFromTransactions({
-          dates: augmentedDates,
-          fundData: augmentedFundData,
-          transactions: fund.pendingTransactions,
-          holdingShares: fund.holdingShares,
-        }),
-      );
-      return points;
-    })();
+    const markers = buildTradeMarkers({
+      dates: augmentedDates,
+      fundData: augmentedFundData,
+      isWatchlist: Boolean(anchorDate),
+      buyDate: fund.buyDate,
+      anchorDate,
+      pendingTransactions: fund.pendingTransactions,
+      holdingShares: fund.holdingShares,
+    });
 
     const option = buildChartOption({
       fundName: fund.name,
@@ -1418,10 +1383,11 @@ export const FundDetail: React.FC<FundDetailProps> = ({
                 <button
                   key={range}
                   onClick={() => setTimeRange(range)}
-                  className={`px-2 py-1 text-[10px] rounded-md font-medium transition-all ${timeRange === range
-                    ? 'bg-white dark:bg-card-dark text-blue-600 shadow-sm'
-                    : 'text-[var(--app-shell-muted)] hover:text-[var(--app-shell-ink)]'
-                    }`}
+                  className={`px-2 py-1 text-[10px] rounded-md font-medium transition-all ${
+                    timeRange === range
+                      ? 'bg-white dark:bg-card-dark text-blue-600 shadow-sm'
+                      : 'text-[var(--app-shell-muted)] hover:text-[var(--app-shell-ink)]'
+                  }`}
                 >
                   {range === 'ALL' ? '成立以来' : range}
                 </button>
@@ -1461,10 +1427,10 @@ export const FundDetail: React.FC<FundDetailProps> = ({
                   fundDetailEstimatedPct !== undefined && fundDetailEstimatedPct !== null
                     ? fundDetailEstimatedPct
                     : (((fundIntradayTrend[fundIntradayTrend.length - 1]?.estimatedNav ??
-                      currentNav) -
-                      (fundIntradayTrend[0]?.estimatedNav ?? currentNav)) /
-                      (fundIntradayTrend[0]?.estimatedNav ?? currentNav)) *
-                    100,
+                        currentNav) -
+                        (fundIntradayTrend[0]?.estimatedNav ?? currentNav)) /
+                        (fundIntradayTrend[0]?.estimatedNav ?? currentNav)) *
+                        100,
                 )}`}
               >
                 {(() => {

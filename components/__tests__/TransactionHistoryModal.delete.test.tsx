@@ -24,6 +24,7 @@ const mockedDeps = vi.hoisted(() => ({
       'common.linkedTransfer': '关联调仓',
       'common.inTransit': '在途',
       'common.settled': '已确认',
+      'common.openPosition': '建仓',
     };
     return dict[key] ?? key;
   },
