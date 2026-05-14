@@ -29,6 +29,7 @@ const LONG_PRESS_DURATION_MS = 600;
 const TOUCH_MOVE_CANCEL_THRESHOLD_PX = 12;
 const WATCHLIST_SORT_STORAGE_KEY = 'watchlist.sortState.v1';
 const INSTITUTION_GROUP_STORAGE_KEY = 'watchlist.institutionGroupEnabled';
+const INSTITUTION_COLLAPSE_STORAGE_KEY = 'watchlist.institutionCollapsedGroups';
 const REFRESH_DEBOUNCE_MS = 300;
 
 type WatchlistSortKey = 'name' | 'dayChangePct' | 'anchorGain';
@@ -68,6 +69,14 @@ const loadWatchlistSortState = (): WatchlistSortState => {
   }
 };
 
+const loadCollapsedInstitutionGroups = (): Set<string> => {
+  try {
+    const raw = localStorage.getItem(INSTITUTION_COLLAPSE_STORAGE_KEY);
+    if (raw) return new Set(JSON.parse(raw));
+  } catch {}
+  return new Set();
+};
+
 export const Watchlist: React.FC = () => {
   const watchlists = useLiveQuery(() => db.watchlists.toArray());
   const funds = useLiveQuery(() => db.funds.toArray());
@@ -95,7 +104,7 @@ export const Watchlist: React.FC = () => {
     }
   });
   const [collapsedInstitutionGroups, setCollapsedInstitutionGroups] = useState<Set<string>>(
-    new Set(),
+    loadCollapsedInstitutionGroups,
   );
   const [institutionMap, setInstitutionMap] = useState<Map<string, string> | null>(null);
   const [streakMap, setStreakMap] = useState<Map<string, FundStreak | null>>(new Map());
@@ -252,6 +261,14 @@ export const Watchlist: React.FC = () => {
   }, [isInstitutionGroupEnabled]);
 
   useEffect(() => {
+    if (!isInstitutionGroupEnabled) return;
+    localStorage.setItem(
+      INSTITUTION_COLLAPSE_STORAGE_KEY,
+      JSON.stringify([...collapsedInstitutionGroups]),
+    );
+  }, [collapsedInstitutionGroups, isInstitutionGroupEnabled]);
+
+  useEffect(() => {
     if (!isInstitutionGroupEnabled || institutionMap) return;
     const codes = (watchlists ?? []).map((w) => w.code);
     if (codes.length === 0) return;
@@ -404,6 +421,21 @@ export const Watchlist: React.FC = () => {
     if (!isInstitutionGroupEnabled || !institutionMap) return null;
     return groupFundsByInstitution(sortedWatchlists, institutionMap, (w) => w.code);
   }, [sortedWatchlists, isInstitutionGroupEnabled, institutionMap]);
+
+  useEffect(() => {
+    if (!isInstitutionGroupEnabled || !groupedWatchlists) return;
+    let hasSavedCollapsedState = false;
+    try {
+      const raw = localStorage.getItem(INSTITUTION_COLLAPSE_STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        hasSavedCollapsedState = Array.isArray(parsed) && parsed.length > 0;
+      }
+    } catch {}
+    if (hasSavedCollapsedState) return;
+    const allInstitutions = new Set(groupedWatchlists.keys());
+    setCollapsedInstitutionGroups(allInstitutions);
+  }, [isInstitutionGroupEnabled, groupedWatchlists]);
 
   type RenderItem =
     | { type: 'fund'; item: WatchlistItem }

@@ -75,9 +75,15 @@ const apiMock = vi.hoisted(() => ({
 
 vi.mock('../../services/api', () => ({
   fetchFundCommonData: apiMock.fetchFundCommonData,
+  fetchRecentHistoricalNavs: vi.fn().mockResolvedValue([]),
+}));
+
+vi.mock('../../services/streakCalculator', () => ({
+  getCachedFundStreaks: vi.fn().mockResolvedValue(new Map()),
 }));
 
 const STORAGE_KEY = 'watchlist.institutionGroupEnabled';
+const COLLAPSE_STORAGE_KEY = 'watchlist.institutionCollapsedGroups';
 
 describe('Watchlist institution group', () => {
   beforeEach(() => {
@@ -197,14 +203,86 @@ describe('Watchlist institution group', () => {
     expect(dividers.length).toBe(0);
   });
 
-  it('watchlist items are still rendered when grouped', async () => {
+  it('watchlist items hidden by default and visible after expanding groups', async () => {
     localStorage.setItem(STORAGE_KEY, 'true');
     render(<Watchlist />);
     await waitFor(() => {
       expect(screen.getByText('博时基金')).toBeDefined();
     });
+
+    // 默认折叠：基金名称不应出现
+    await waitFor(() => {
+      expect(screen.queryByText('博时标普500ETF联接(QDII)A')).toBeNull();
+    });
+    expect(screen.queryByText('南方中证500ETF联接A')).toBeNull();
+    expect(screen.queryByText('沪深300')).toBeNull();
+
+    // 点击博时基金分隔条展开
+    fireEvent.click(screen.getByText('博时基金').closest('.institution-group-divider')!);
+    await waitFor(() => {
+      expect(screen.getByText('博时标普500ETF联接(QDII)A')).toBeDefined();
+    });
+
+    // 南方基金和"其他"仍折叠
+    expect(screen.queryByText('南方中证500ETF联接A')).toBeNull();
+    expect(screen.queryByText('沪深300')).toBeNull();
+  });
+
+  it('persists collapsed state to localStorage on toggle', async () => {
+    localStorage.setItem(STORAGE_KEY, 'true');
+    render(<Watchlist />);
+    await waitFor(() => {
+      expect(screen.getByText('博时基金')).toBeDefined();
+    });
+
+    fireEvent.click(screen.getByText('博时基金').closest('.institution-group-divider')!);
+
+    const saved = JSON.parse(localStorage.getItem(COLLAPSE_STORAGE_KEY)!);
+    expect(saved).toBeInstanceOf(Array);
+    expect(saved).not.toContain('博时基金');
+    expect(saved).toContain('南方基金');
+    expect(saved).toContain('其他');
+  });
+
+  it('restores collapsed state from localStorage on remount', async () => {
+    localStorage.setItem(STORAGE_KEY, 'true');
+    localStorage.setItem(COLLAPSE_STORAGE_KEY, JSON.stringify(['南方基金', '其他']));
+
+    const { unmount } = render(<Watchlist />);
+    await waitFor(() => {
+      expect(screen.getByText('博时基金')).toBeDefined();
+    });
+
+    // 博时基金展开（可见），南方和"其他"折叠
     expect(screen.getByText('博时标普500ETF联接(QDII)A')).toBeDefined();
-    expect(screen.getByText('南方中证500ETF联接A')).toBeDefined();
-    expect(screen.getByText('沪深300')).toBeDefined();
+    expect(screen.queryByText('南方中证500ETF联接A')).toBeNull();
+    expect(screen.queryByText('沪深300')).toBeNull();
+
+    unmount();
+    render(<Watchlist />);
+    await waitFor(() => {
+      expect(screen.getByText('博时基金')).toBeDefined();
+    });
+
+    expect(screen.getByText('博时标普500ETF联接(QDII)A')).toBeDefined();
+    expect(screen.queryByText('南方中证500ETF联接A')).toBeNull();
+    expect(screen.queryByText('沪深300')).toBeNull();
+  });
+
+  it('collapses all groups by default when no saved state exists', async () => {
+    localStorage.setItem(STORAGE_KEY, 'true');
+    render(<Watchlist />);
+    await waitFor(() => {
+      expect(screen.getByText('博时基金')).toBeDefined();
+    });
+
+    const dividers = document.querySelectorAll('.institution-group-divider');
+    expect(dividers.length).toBeGreaterThanOrEqual(3);
+
+    await waitFor(() => {
+      expect(screen.queryByText('博时标普500ETF联接(QDII)A')).toBeNull();
+    });
+    expect(screen.queryByText('南方中证500ETF联接A')).toBeNull();
+    expect(screen.queryByText('沪深300')).toBeNull();
   });
 });
