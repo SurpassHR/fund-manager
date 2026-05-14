@@ -144,9 +144,7 @@ describe('db backup watchlist sync data flow', () => {
     const bulkAddFundsSpy = vi.spyOn(db.funds, 'bulkAdd').mockResolvedValue([1]);
     const bulkAddAccountsSpy = vi.spyOn(db.accounts, 'bulkAdd').mockResolvedValue([1]);
     const bulkAddWatchlistsSpy = vi.spyOn(db.watchlists, 'bulkAdd').mockResolvedValue([1]);
-    const bulkAddInvestmentPlansSpy = vi
-      .spyOn(db.investmentPlans, 'bulkAdd')
-      .mockResolvedValue([1]);
+    vi.spyOn(db.investmentPlans, 'bulkAdd').mockResolvedValue([1]);
 
     const incoming = {
       version: 1,

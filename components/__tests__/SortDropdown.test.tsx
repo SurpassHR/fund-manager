@@ -118,10 +118,6 @@ describe('SortDropdown', () => {
     renderDropdown({ activeKey: 'anchorGain', direction: 'asc' });
     fireEvent.click(screen.getByRole('button'));
 
-    // Find the option buttons - the active one should have arrow indicator
-    const optionButtons = screen.getAllByRole('button', { name: /锚点收益/ });
-    // The option (excluding trigger) should have arrow
-    const optionBtn = optionButtons.find((btn) => btn.getAttribute('data-testid') !== 'trigger');
     // Active option shows ArrowUp with no rotation (asc)
     const optionArrows = screen.getAllByTestId('arrow-up');
     expect(optionArrows.length).toBeGreaterThanOrEqual(2); // trigger + option

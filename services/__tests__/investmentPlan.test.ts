@@ -59,7 +59,7 @@ describe('executeInvestmentPlans', () => {
     vi.spyOn(db.investmentPlans, 'where').mockReturnValue({
       equals: () => ({ toArray: () => Promise.resolve([alreadyExecutedPlan]) }),
     } as never);
-    const fundSpy = vi.spyOn(db.funds, 'toArray').mockResolvedValue([fund]);
+    vi.spyOn(db.funds, 'toArray').mockResolvedValue([fund]);
     const fundUpdateSpy = vi.spyOn(db.funds, 'update').mockResolvedValue(1);
     const planUpdateSpy = vi.spyOn(db.investmentPlans, 'update').mockResolvedValue(1);
 

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../services/db';
-import { useTranslation } from '../services/i18n';
+
 import { Icons } from './Icon';
 import { SelectDropdown } from './SelectDropdown';
 import { ModalShell } from './ModalShell';
@@ -61,8 +61,6 @@ export const InvestmentPlanModal: React.FC<InvestmentPlanModalProps> = ({
   onClose,
   prefillFundCode,
 }) => {
-  const { t } = useTranslation();
-
   const funds = useLiveQuery(() => db.funds.toArray());
   const plans = useLiveQuery(() => getAllInvestmentPlans());
 
@@ -108,9 +106,6 @@ export const InvestmentPlanModal: React.FC<InvestmentPlanModalProps> = ({
 
   // 计划对应基金名称
   const fundNameByCode = new Map((funds || []).map((f) => [f.code, f.name]));
-
-  const selectedPlanExists =
-    !prefillFundCode && (plans || []).some((p) => p.fundCode === selectedFundCode);
 
   // 预选基金名称
   const prefillFundName = prefillFundCode
