@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import React, { lazy, Suspense, useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, refreshFundData, refreshWatchlistData } from '../services/db';
 import { getSignColor, formatPct } from '../services/financeUtils';
@@ -9,7 +9,6 @@ import { useTranslation } from '../services/i18n';
 import type { WatchlistItem, Fund } from '../types';
 import { AddWatchlistModal } from './AddWatchlistModal';
 import { AddHoldingModal } from './AddHoldingModal';
-import { FundDetail } from './FundDetail';
 import { SortDropdown } from './SortDropdown';
 import type { SortDropdownOption } from './SortDropdown';
 import { AnimatePresence } from 'framer-motion';
@@ -24,6 +23,8 @@ import {
 } from '../services/refreshPolicy';
 import { getCachedFundStreaks } from '../services/streakCalculator';
 import type { FundStreak } from '../types';
+
+const FundDetail = lazy(() => import('./FundDetail').then((m) => ({ default: m.FundDetail })));
 
 const LONG_PRESS_DURATION_MS = 600;
 const TOUCH_MOVE_CANCEL_THRESHOLD_PX = 12;
@@ -73,7 +74,7 @@ const loadCollapsedInstitutionGroups = (): Set<string> => {
   try {
     const raw = localStorage.getItem(INSTITUTION_COLLAPSE_STORAGE_KEY);
     if (raw) return new Set(JSON.parse(raw));
-  } catch { }
+  } catch {}
   return new Set();
 };
 
@@ -431,7 +432,7 @@ export const Watchlist: React.FC = () => {
         const parsed = JSON.parse(raw);
         hasSavedCollapsedState = Array.isArray(parsed) && parsed.length > 0;
       }
-    } catch { }
+    } catch {}
     if (hasSavedCollapsedState) return;
     const allInstitutions = new Set(groupedWatchlists.keys());
     setCollapsedInstitutionGroups(allInstitutions);
@@ -565,10 +566,11 @@ export const Watchlist: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setIsInstitutionGroupEnabled((prev) => !prev)}
-                  className={`rounded-full border p-1.5 transition-colors ${isInstitutionGroupEnabled
-                    ? 'border-indigo-400 bg-indigo-50 text-indigo-600 dark:border-indigo-400/30 dark:bg-indigo-500/15 dark:text-indigo-200'
-                    : 'border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] text-[var(--app-shell-muted)] hover:text-[var(--app-shell-ink)]'
-                    }`}
+                  className={`rounded-full border p-1.5 transition-colors ${
+                    isInstitutionGroupEnabled
+                      ? 'border-indigo-400 bg-indigo-50 text-indigo-600 dark:border-indigo-400/30 dark:bg-indigo-500/15 dark:text-indigo-200'
+                      : 'border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] text-[var(--app-shell-muted)] hover:text-[var(--app-shell-ink)]'
+                  }`}
                   aria-label={t('common.groupByInstitution')}
                 >
                   <Icons.Layers size={14} />
@@ -618,10 +620,11 @@ export const Watchlist: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setIsInstitutionGroupEnabled((prev) => !prev)}
-                  className={`rounded-full border p-1.5 transition-colors ${isInstitutionGroupEnabled
-                    ? 'border-indigo-400 bg-indigo-50 text-indigo-600 dark:border-indigo-400/30 dark:bg-indigo-500/15 dark:text-indigo-200'
-                    : 'border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] text-[var(--app-shell-muted)]'
-                    }`}
+                  className={`rounded-full border p-1.5 transition-colors ${
+                    isInstitutionGroupEnabled
+                      ? 'border-indigo-400 bg-indigo-50 text-indigo-600 dark:border-indigo-400/30 dark:bg-indigo-500/15 dark:text-indigo-200'
+                      : 'border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] text-[var(--app-shell-muted)]'
+                  }`}
                   aria-label={t('common.groupByInstitution')}
                 >
                   <Icons.Layers size={14} />
@@ -724,8 +727,9 @@ export const Watchlist: React.FC = () => {
                     onTouchEnd={handleTouchEnd}
                     onTouchCancel={handleTouchEnd}
                     onClick={() => handleRowClick(item)}
-                    className={`group relative cursor-pointer select-none border-b border-[var(--app-shell-line)] px-4 py-3 transition-colors last:border-b-0 active:bg-[var(--app-shell-panel-strong)] md:px-5 md:py-3.5 md:hover:bg-[var(--app-shell-panel-strong)]/72 ${contextMenu?.itemId === item.id ? 'bg-[var(--app-shell-panel-strong)]' : ''
-                      }`}
+                    className={`group relative cursor-pointer select-none border-b border-[var(--app-shell-line)] px-4 py-3 transition-colors last:border-b-0 active:bg-[var(--app-shell-panel-strong)] md:px-5 md:py-3.5 md:hover:bg-[var(--app-shell-panel-strong)]/72 ${
+                      contextMenu?.itemId === item.id ? 'bg-[var(--app-shell-panel-strong)]' : ''
+                    }`}
                   >
                     <div className="flex flex-col gap-3 md:flex-row md:items-center">
                       <div className="min-w-0 flex-1 md:flex-[1.6] md:pr-4">
@@ -734,10 +738,11 @@ export const Watchlist: React.FC = () => {
                             {item.code}
                           </span>
                           <span
-                            className={`rounded-full border px-2 py-1 text-[10px] font-semibold tracking-[0.14em] whitespace-nowrap shrink-0 ${item.type === 'index'
-                              ? 'border-[var(--app-shell-line-strong)] bg-[var(--app-shell-panel-strong)] text-[var(--app-shell-accent)]'
-                              : 'border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] text-[var(--app-shell-muted)]'
-                              }`}
+                            className={`rounded-full border px-2 py-1 text-[10px] font-semibold tracking-[0.14em] whitespace-nowrap shrink-0 ${
+                              item.type === 'index'
+                                ? 'border-[var(--app-shell-line-strong)] bg-[var(--app-shell-panel-strong)] text-[var(--app-shell-accent)]'
+                                : 'border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] text-[var(--app-shell-muted)]'
+                            }`}
                           >
                             {item.type === 'index' ? '指数' : '基金'}
                           </span>
@@ -747,10 +752,11 @@ export const Watchlist: React.FC = () => {
                               if (!streak) return null;
                               return (
                                 <span
-                                  className={`rounded-full border px-2 py-1 text-[10px] font-semibold tracking-[0.14em] ${streak.direction === 'up'
-                                    ? 'border-red-200 bg-red-50/85 text-red-700 dark:border-red-400/20 dark:bg-red-500/10 dark:text-red-300'
-                                    : 'border-green-200 bg-green-50/85 text-green-700 dark:border-green-400/20 dark:bg-green-500/10 dark:text-green-300'
-                                    }`}
+                                  className={`rounded-full border px-2 py-1 text-[10px] font-semibold tracking-[0.14em] ${
+                                    streak.direction === 'up'
+                                      ? 'border-red-200 bg-red-50/85 text-red-700 dark:border-red-400/20 dark:bg-red-500/10 dark:text-red-300'
+                                      : 'border-green-200 bg-green-50/85 text-green-700 dark:border-green-400/20 dark:bg-green-500/10 dark:text-green-300'
+                                  }`}
                                 >
                                   {streak.direction === 'up' ? '连涨' : '连跌'}
                                   {streak.days}天
@@ -852,13 +858,15 @@ export const Watchlist: React.FC = () => {
 
       <AnimatePresence>
         {selectedItemForDetail && (
-          <FundDetail
-            key={`watchlist-detail-${selectedItemForDetail.fund.code}`}
-            fund={selectedItemForDetail.fund}
-            anchorDate={selectedItemForDetail.anchorDate}
-            anchorPrice={selectedItemForDetail.anchorPrice}
-            onBack={() => setSelectedItemForDetail(null)}
-          />
+          <Suspense fallback={null}>
+            <FundDetail
+              key={`watchlist-detail-${selectedItemForDetail.fund.code}`}
+              fund={selectedItemForDetail.fund}
+              anchorDate={selectedItemForDetail.anchorDate}
+              anchorPrice={selectedItemForDetail.anchorPrice}
+              onBack={() => setSelectedItemForDetail(null)}
+            />
+          </Suspense>
         )}
       </AnimatePresence>
     </div>

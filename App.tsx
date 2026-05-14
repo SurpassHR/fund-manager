@@ -1,13 +1,9 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { Header } from './components/Header';
 import { BottomNav } from './components/BottomNav';
 import { Dashboard } from './components/Dashboard';
 import { Watchlist } from './components/Watchlist';
 import { Ticker } from './components/Ticker';
-import { ScannerModal } from './components/ScannerModal';
-import { SettingsPage } from './components/SettingsPage';
-import { ServicesPanel } from './components/ServicesPanel';
-import { WelcomeModal } from './components/WelcomeModal';
 import { GlowGrid } from './components/GlowGrid';
 import { AnimatedSwitcher } from './components/transitions/AnimatedSwitcher';
 import type { TabType } from './types';
@@ -19,6 +15,19 @@ import { EdgeSwipeProvider } from './services/edgeSwipeState';
 import { resetDragState, useEdgeSwipe } from './services/useEdgeSwipe';
 import { closeTopOverlay, getActiveOverlayId } from './services/overlayStack';
 import { useVersionCheck } from './services/versionCheck';
+
+const SettingsPage = lazy(() =>
+  import('./components/SettingsPage').then((m) => ({ default: m.SettingsPage })),
+);
+const ServicesPanel = lazy(() =>
+  import('./components/ServicesPanel').then((m) => ({ default: m.ServicesPanel })),
+);
+const ScannerModal = lazy(() =>
+  import('./components/ScannerModal').then((m) => ({ default: m.ScannerModal })),
+);
+const WelcomeModal = lazy(() =>
+  import('./components/WelcomeModal').then((m) => ({ default: m.WelcomeModal })),
+);
 
 const EDGE_ZONE = 20;
 
@@ -48,9 +57,17 @@ const AppContent: React.FC = () => {
       case 'watchlist':
         return <Watchlist />;
       case 'settings':
-        return <SettingsPage initialShowAiSettings={openAiSettingsRequested} />;
+        return (
+          <Suspense fallback={null}>
+            <SettingsPage initialShowAiSettings={openAiSettingsRequested} />
+          </Suspense>
+        );
       case 'services':
-        return <ServicesPanel />;
+        return (
+          <Suspense fallback={null}>
+            <ServicesPanel />
+          </Suspense>
+        );
       default:
         return (
           <div className="flex flex-col items-center justify-center min-h-[60vh] text-gray-400 gap-4">
@@ -311,9 +328,9 @@ const AppContent: React.FC = () => {
           setDragState((prev) =>
             prev.snapBackX === snapX
               ? {
-                ...prev,
-                snapBackX: 0,
-              }
+                  ...prev,
+                  snapBackX: 0,
+                }
               : prev,
           );
         });
@@ -417,9 +434,9 @@ const AppContent: React.FC = () => {
           setDragState((prev) =>
             prev.snapBackX === snapX
               ? {
-                ...prev,
-                snapBackX: 0,
-              }
+                  ...prev,
+                  snapBackX: 0,
+                }
               : prev,
           );
         });
@@ -531,8 +548,12 @@ const AppContent: React.FC = () => {
         />
       </div>
 
-      <ScannerModal isOpen={isScannerOpen} onClose={() => setIsScannerOpen(false)} />
-      <WelcomeModal />
+      <Suspense fallback={null}>
+        <ScannerModal isOpen={isScannerOpen} onClose={() => setIsScannerOpen(false)} />
+      </Suspense>
+      <Suspense fallback={null}>
+        <WelcomeModal />
+      </Suspense>
     </div>
   );
 };

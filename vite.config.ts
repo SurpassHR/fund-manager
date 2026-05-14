@@ -391,6 +391,27 @@ ${subjects}`;
     base: resolvedBase,
     build: {
       outDir: resolvedOutDir,
+      rollupOptions: {
+        output: {
+          manualChunks(id) {
+            if (!id.includes('node_modules')) return;
+            if (id.includes('echarts') || id.includes('zrender')) return 'vendor-echarts';
+            if (id.includes('framer-motion')) return 'vendor-framer';
+            if (id.includes('dexie')) return 'vendor-dexie';
+            if (id.includes('react') || id.includes('react-dom') || id.includes('scheduler'))
+              return 'vendor-react';
+            if (
+              id.includes('@google/generative-ai') ||
+              id.includes('openai') ||
+              id.includes('marked') ||
+              id.includes('dompurify')
+            )
+              return 'vendor-ai';
+            if (id.includes('lucide-react')) return 'vendor-icons';
+            return 'vendor-common';
+          },
+        },
+      },
     },
     server: {
       port: 3000,
