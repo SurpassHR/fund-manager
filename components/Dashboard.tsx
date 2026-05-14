@@ -41,6 +41,8 @@ import {
   writeRefreshLastSuccessAt,
 } from '../services/refreshPolicy';
 import { deriveFundHoldingDisplayMetrics } from '../services/fundDayChange';
+import { getCachedFundStreaks } from '../services/streakCalculator';
+import type { FundStreak } from '../types';
 
 const LONG_PRESS_DURATION_MS = 600;
 const TOUCH_MOVE_CANCEL_THRESHOLD_PX = 12;
@@ -156,6 +158,7 @@ export const Dashboard: React.FC = () => {
     new Set(),
   );
   const [institutionMap, setInstitutionMap] = useState<Map<string, string> | null>(null);
+  const [streakMap, setStreakMap] = useState<Map<string, FundStreak | null>>(new Map());
   const [isAiAnalysisOpen, setIsAiAnalysisOpen] = useState(false);
   const [isTotalAssetsOpen, setIsTotalAssetsOpen] = useState(false);
   const { autoRefresh } = useSettings();
@@ -361,6 +364,12 @@ export const Dashboard: React.FC = () => {
       setInstitutionMap(null);
     }
   }, [isInstitutionGroupEnabled]);
+
+  useEffect(() => {
+    const codes = (funds ?? []).map((f) => f.code).filter(Boolean);
+    if (codes.length === 0) return;
+    getCachedFundStreaks(codes).then(setStreakMap);
+  }, [funds]);
 
   const safeFunds = useMemo(() => funds ?? [], [funds]);
   const safeAccounts = useMemo(() => accounts ?? [], [accounts]);
@@ -1165,6 +1174,22 @@ export const Dashboard: React.FC = () => {
                             ETF联接
                           </span>
                         )}
+                        {(() => {
+                          const streak = streakMap.get(fund.code);
+                          if (!streak) return null;
+                          return (
+                            <span
+                              className={`rounded-full border px-2 py-1 text-[10px] font-semibold tracking-[0.14em] ${
+                                streak.direction === 'up'
+                                  ? 'border-red-200 bg-red-50/85 text-red-700 dark:border-red-400/20 dark:bg-red-500/10 dark:text-red-300'
+                                  : 'border-green-200 bg-green-50/85 text-green-700 dark:border-green-400/20 dark:bg-green-500/10 dark:text-green-300'
+                              }`}
+                            >
+                              {streak.direction === 'up' ? '连涨' : '连跌'}
+                              {streak.days}天
+                            </span>
+                          );
+                        })()}
                       </div>
 
                       <div className="mt-2 flex items-start justify-between gap-3 md:block">
@@ -1465,6 +1490,22 @@ export const Dashboard: React.FC = () => {
                                   ETF联接
                                 </span>
                               )}
+                              {(() => {
+                                const streak = streakMap.get(fund.code);
+                                if (!streak) return null;
+                                return (
+                                  <span
+                                    className={`rounded-full border px-2 py-1 text-[10px] font-semibold tracking-[0.14em] ${
+                                      streak.direction === 'up'
+                                        ? 'border-red-200 bg-red-50/85 text-red-700 dark:border-red-400/20 dark:bg-red-500/10 dark:text-red-300'
+                                        : 'border-green-200 bg-green-50/85 text-green-700 dark:border-green-400/20 dark:bg-green-500/10 dark:text-green-300'
+                                    }`}
+                                  >
+                                    {streak.direction === 'up' ? '连涨' : '连跌'}
+                                    {streak.days}天
+                                  </span>
+                                );
+                              })()}
                             </div>
 
                             <div className="mt-2 flex items-start justify-between gap-3 md:block">

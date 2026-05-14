@@ -26,6 +26,7 @@ export interface Fund {
   parentEtfInfo?: ParentEtfInfo; // ETF 联接基金对应的母 ETF 信息
   underlyingMarket?: UnderlyingMarket; // 标的市场:中国/美国/香港/全球
   fundIntradayTrend?: FundIntradayPoint[];
+  streak?: FundStreak; // 连涨/连跌信息
 }
 
 export interface PendingTransaction {
@@ -68,6 +69,7 @@ export interface WatchlistItem {
   parentEtfInfo?: ParentEtfInfo; // ETF 联接基金对应的母 ETF 信息
   underlyingMarket?: UnderlyingMarket; // 标的市场:中国/美国/香港/全球
   fundIntradayTrend?: FundIntradayPoint[];
+  streak?: FundStreak; // 连涨/连跌信息
 }
 
 export interface Account {
@@ -394,6 +396,18 @@ export interface FundMetadata {
    * 标的市场
    */
   underlyingMarket?: UnderlyingMarket;
+}
+
+// ========== 连涨连跌 ==========
+
+/**
+ * 连涨/连跌信息
+ */
+export interface FundStreak {
+  /** 连续天数（>= 2） */
+  days: number;
+  /** 方向：连涨或连跌 */
+  direction: 'up' | 'down';
 }
 
 // ========== AI 持仓分析会话与结构化输出类型 ==========

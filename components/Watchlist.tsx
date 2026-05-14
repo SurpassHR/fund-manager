@@ -22,6 +22,8 @@ import {
   readRefreshLastSuccessAt,
   writeRefreshLastSuccessAt,
 } from '../services/refreshPolicy';
+import { getCachedFundStreaks } from '../services/streakCalculator';
+import type { FundStreak } from '../types';
 
 const LONG_PRESS_DURATION_MS = 600;
 const TOUCH_MOVE_CANCEL_THRESHOLD_PX = 12;
@@ -96,6 +98,7 @@ export const Watchlist: React.FC = () => {
     new Set(),
   );
   const [institutionMap, setInstitutionMap] = useState<Map<string, string> | null>(null);
+  const [streakMap, setStreakMap] = useState<Map<string, FundStreak | null>>(new Map());
 
   const handleRowClick = (item: WatchlistItem) => {
     const fundData: Fund = {
@@ -260,6 +263,12 @@ export const Watchlist: React.FC = () => {
       setInstitutionMap(null);
     }
   }, [isInstitutionGroupEnabled]);
+
+  useEffect(() => {
+    const codes = (watchlists ?? []).map((w) => w.code).filter(Boolean);
+    if (codes.length === 0) return;
+    getCachedFundStreaks(codes).then(setStreakMap);
+  }, [watchlists]);
 
   const handleContextMenu = (e: React.MouseEvent, itemId: number) => {
     e.preventDefault();
@@ -707,6 +716,23 @@ export const Watchlist: React.FC = () => {
                           >
                             {item.type === 'index' ? '指数' : '基金'}
                           </span>
+                          {item.type === 'fund' &&
+                            (() => {
+                              const streak = streakMap.get(item.code);
+                              if (!streak) return null;
+                              return (
+                                <span
+                                  className={`rounded-full border px-2 py-1 text-[10px] font-semibold tracking-[0.14em] ${
+                                    streak.direction === 'up'
+                                      ? 'border-red-200 bg-red-50/85 text-red-700 dark:border-red-400/20 dark:bg-red-500/10 dark:text-red-300'
+                                      : 'border-green-200 bg-green-50/85 text-green-700 dark:border-green-400/20 dark:bg-green-500/10 dark:text-green-300'
+                                  }`}
+                                >
+                                  {streak.direction === 'up' ? '连涨' : '连跌'}
+                                  {streak.days}天
+                                </span>
+                              );
+                            })()}
                         </div>
 
                         <div className="mt-2">

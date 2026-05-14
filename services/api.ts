@@ -651,6 +651,54 @@ export const fetchHistoricalFundNavWithDate = async (
   });
 };
 
+/**
+ * 获取基金最近多条历史净值记录，用于计算连涨连跌等指标。
+ * 通过东方财富 F10 API 获取，返回按日期降序排列的净值数组（最近日期在前）。
+ * @param fundCode - 基金代码
+ * @param count - 需要获取的记录条数（默认 20）
+ * @returns 净值记录数组，日期降序；失败时返回空数组
+ */
+export const fetchRecentHistoricalNavs = async (
+  fundCode: string,
+  count = 20,
+): Promise<Array<{ date: string; nav: number }>> => {
+  return withCache({
+    key: `em-recent-navs:${fundCode}:${count}`,
+    ttlMs: 4 * 60 * 60 * 1000,
+    fetcher: async () => {
+      const today = new Date();
+      const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+      // 往前推足够天数覆盖 count 个交易日
+      const startDate = new Date(today);
+      startDate.setDate(startDate.getDate() - Math.max(count * 2 + 10, 60));
+      const startDateStr = `${startDate.getFullYear()}-${String(startDate.getMonth() + 1).padStart(2, '0')}-${String(startDate.getDate()).padStart(2, '0')}`;
+
+      const data = await loadEastMoneyApiData(
+        `https://fundf10.eastmoney.com/F10DataApi.aspx?type=lsjz&code=${fundCode}&page=1&per=${count}&sdate=${startDateStr}&edate=${todayStr}&rt=${Date.now()}`,
+      );
+      if (!data?.content) return [];
+
+      try {
+        const rowRegex = /<tr>\s*<td>(\d{4}-\d{2}-\d{2})<\/td>\s*<td[^>]*>([\d.]+)<\/td>/g;
+        const rows: Array<{ date: string; nav: number }> = [];
+        let match: RegExpExecArray | null;
+        while ((match = rowRegex.exec(data.content)) !== null) {
+          const nav = parseFloat(match[2]);
+          if (!isNaN(nav)) {
+            rows.push({ date: match[1], nav });
+          }
+        }
+        // API 已按日期降序返回，无需再排序
+        return rows;
+      } catch (e) {
+        console.error(`解析历史净值数据失败 (${fundCode})`, e);
+        return [];
+      }
+    },
+    shouldCache: (value) => Array.isArray(value),
+  });
+};
+
 // --- Tencent & EastMoney Stock/Index API Functions ---
 
 /**
