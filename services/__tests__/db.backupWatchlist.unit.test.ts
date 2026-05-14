@@ -29,12 +29,14 @@ describe('db backup watchlist sync data flow', () => {
         lastUpdate: '2026-03-20',
       },
     ]);
+    vi.spyOn(db.investmentPlans, 'toArray').mockResolvedValue([]);
 
     const payload = JSON.parse(await exportFundsToJsonString()) as {
       version: number;
       funds: unknown[];
       accounts?: Array<{ name: string; id?: number }>;
       watchlists?: Array<{ code: string; id?: number }>;
+      investmentPlans?: unknown[];
     };
 
     expect(payload.version).toBe(1);
@@ -45,12 +47,14 @@ describe('db backup watchlist sync data flow', () => {
     expect(payload.watchlists).toHaveLength(1);
     expect(payload.watchlists?.[0]?.code).toBe('110011');
     expect(payload.watchlists?.[0]).not.toHaveProperty('id');
+    expect(payload.investmentPlans).toHaveLength(0);
   });
 
   it('imports watchlists and accounts from gist backup content', async () => {
     vi.spyOn(db.funds, 'toArray').mockResolvedValue([]);
     vi.spyOn(db.accounts, 'toArray').mockResolvedValue([]);
     vi.spyOn(db.watchlists, 'toArray').mockResolvedValue([]);
+    vi.spyOn(db.investmentPlans, 'toArray').mockResolvedValue([]);
     const addAccountSpy = vi.spyOn(db.accounts, 'add').mockResolvedValue(1);
     const addWatchlistSpy = vi.spyOn(db.watchlists, 'add').mockResolvedValue(1);
 
@@ -91,6 +95,7 @@ describe('db backup watchlist sync data flow', () => {
       { id: 1, name: 'Default', isDefault: true },
     ]);
     vi.spyOn(db.watchlists, 'toArray').mockResolvedValue([]);
+    vi.spyOn(db.investmentPlans, 'toArray').mockResolvedValue([]);
 
     const addAccountSpy = vi.spyOn(db.accounts, 'add').mockResolvedValue(2);
     const addFundSpy = vi.spyOn(db.funds, 'add').mockResolvedValue(1);
@@ -135,9 +140,13 @@ describe('db backup watchlist sync data flow', () => {
     const clearFundsSpy = vi.spyOn(db.funds, 'clear').mockResolvedValue();
     const clearAccountsSpy = vi.spyOn(db.accounts, 'clear').mockResolvedValue();
     const clearWatchlistsSpy = vi.spyOn(db.watchlists, 'clear').mockResolvedValue();
+    const clearInvestmentPlansSpy = vi.spyOn(db.investmentPlans, 'clear').mockResolvedValue();
     const bulkAddFundsSpy = vi.spyOn(db.funds, 'bulkAdd').mockResolvedValue([1]);
     const bulkAddAccountsSpy = vi.spyOn(db.accounts, 'bulkAdd').mockResolvedValue([1]);
     const bulkAddWatchlistsSpy = vi.spyOn(db.watchlists, 'bulkAdd').mockResolvedValue([1]);
+    const bulkAddInvestmentPlansSpy = vi
+      .spyOn(db.investmentPlans, 'bulkAdd')
+      .mockResolvedValue([1]);
 
     const incoming = {
       version: 1,
@@ -179,6 +188,7 @@ describe('db backup watchlist sync data flow', () => {
     expect(clearFundsSpy).toHaveBeenCalledTimes(1);
     expect(clearAccountsSpy).toHaveBeenCalledTimes(1);
     expect(clearWatchlistsSpy).toHaveBeenCalledTimes(1);
+    expect(clearInvestmentPlansSpy).toHaveBeenCalledTimes(1);
     expect(bulkAddFundsSpy).toHaveBeenCalledWith(
       expect.arrayContaining([expect.objectContaining({ code: '000001' })]),
     );
@@ -196,6 +206,7 @@ describe('db backup watchlist sync data flow', () => {
     const clearFundsSpy = vi.spyOn(db.funds, 'clear').mockResolvedValue();
     const clearAccountsSpy = vi.spyOn(db.accounts, 'clear').mockResolvedValue();
     const clearWatchlistsSpy = vi.spyOn(db.watchlists, 'clear').mockResolvedValue();
+    const clearInvestmentPlansSpy = vi.spyOn(db.investmentPlans, 'clear').mockResolvedValue();
 
     const emptyBackup = {
       version: 1,
@@ -213,6 +224,7 @@ describe('db backup watchlist sync data flow', () => {
     expect(clearFundsSpy).not.toHaveBeenCalled();
     expect(clearAccountsSpy).not.toHaveBeenCalled();
     expect(clearWatchlistsSpy).not.toHaveBeenCalled();
+    expect(clearInvestmentPlansSpy).not.toHaveBeenCalled();
     expect(result).toEqual({ added: 0, skipped: 0 });
   });
 
@@ -220,6 +232,7 @@ describe('db backup watchlist sync data flow', () => {
     vi.spyOn(db.funds, 'toArray').mockResolvedValue([]);
     vi.spyOn(db.accounts, 'toArray').mockResolvedValue([]);
     vi.spyOn(db.watchlists, 'toArray').mockResolvedValue([]);
+    vi.spyOn(db.investmentPlans, 'toArray').mockResolvedValue([]);
     const addAccountSpy = vi.spyOn(db.accounts, 'add').mockResolvedValue(1);
     const addFundSpy = vi.spyOn(db.funds, 'add').mockResolvedValue(1);
 

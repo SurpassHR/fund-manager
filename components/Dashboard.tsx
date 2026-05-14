@@ -32,6 +32,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { useSettings } from '../services/SettingsContext';
 import { AiHoldingsAnalysisModal } from './AiHoldingsAnalysisModal';
 import { TotalAssetsModal } from './TotalAssetsModal';
+import { InvestmentPlanModal } from './InvestmentPlanModal';
 import { hasTouchMovedBeyondThreshold } from '../services/longPressGesture';
 import {
   AUTO_REFRESH_INTERVAL_MS,
@@ -170,6 +171,9 @@ export const Dashboard: React.FC = () => {
   const [streakMap, setStreakMap] = useState<Map<string, FundStreak | null>>(new Map());
   const [isAiAnalysisOpen, setIsAiAnalysisOpen] = useState(false);
   const [isTotalAssetsOpen, setIsTotalAssetsOpen] = useState(false);
+  const [investmentPlanPrefillCode, setInvestmentPlanPrefillCode] = useState<string | undefined>(
+    undefined,
+  );
   const { autoRefresh } = useSettings();
 
   const refreshBtnRef = useRef<RefreshButtonHandle>(null);
@@ -753,6 +757,18 @@ export const Dashboard: React.FC = () => {
             className="flex w-full items-center gap-2 border-b border-gray-50 px-4 py-3 text-left text-sm text-gray-700 hover:bg-indigo-50 dark:border-border-dark dark:text-gray-200 dark:hover:bg-indigo-900/20"
           >
             <Icons.ArrowDown size={16} className="text-indigo-500" /> {t('common.rebalance')}
+          </button>
+          <button
+            onClick={() => {
+              const fund = funds.find((item) => item.id === contextMenu.fundId);
+              if (fund) {
+                setInvestmentPlanPrefillCode(fund.code);
+                setContextMenu(null);
+              }
+            }}
+            className="flex w-full items-center gap-2 border-b border-gray-50 px-4 py-3 text-left text-sm text-gray-700 hover:bg-blue-50 dark:border-border-dark dark:text-gray-200 dark:hover:bg-blue-900/20"
+          >
+            <Icons.Calendar size={16} className="text-blue-500" /> 定投计划
           </button>
           <button
             onClick={() => {
@@ -1779,6 +1795,11 @@ export const Dashboard: React.FC = () => {
         holdingsSnapshot={holdingsSnapshot}
       />
       <TotalAssetsModal isOpen={isTotalAssetsOpen} onClose={() => setIsTotalAssetsOpen(false)} />
+      <InvestmentPlanModal
+        isOpen={investmentPlanPrefillCode !== undefined}
+        onClose={() => setInvestmentPlanPrefillCode(undefined)}
+        prefillFundCode={investmentPlanPrefillCode}
+      />
     </div>
   );
 };

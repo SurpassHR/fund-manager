@@ -90,6 +90,10 @@ vi.mock('../AiHoldingsAnalysisModal', () => ({
   AiHoldingsAnalysisModal: () => null,
 }));
 
+vi.mock('../InvestmentPlanModal', () => ({
+  InvestmentPlanModal: () => null,
+}));
+
 describe('Dashboard mobile long press menu', () => {
   beforeEach(() => {
     vi.clearAllMocks();

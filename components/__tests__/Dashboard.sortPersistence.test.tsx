@@ -90,6 +90,10 @@ vi.mock('../AiHoldingsAnalysisModal', () => ({
   AiHoldingsAnalysisModal: () => null,
 }));
 
+vi.mock('../InvestmentPlanModal', () => ({
+  InvestmentPlanModal: () => null,
+}));
+
 const getFundOrder = () => screen.getAllByRole('heading', { level: 3 }).map((el) => el.textContent);
 
 describe('Dashboard sort persistence', () => {

@@ -32,6 +32,7 @@ import {
   Archive,
   ChevronUp,
   ChevronDown,
+  Calendar,
 } from 'lucide-react';
 
 export const Icons = {
@@ -68,6 +69,7 @@ export const Icons = {
   Archive,
   ChevronUp,
   ChevronDown,
+  Calendar,
   Member: () => (
     <svg
       width="24"

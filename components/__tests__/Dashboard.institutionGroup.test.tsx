@@ -96,7 +96,9 @@ vi.mock('../AiHoldingsAnalysisModal', () => ({
   AiHoldingsAnalysisModal: () => null,
 }));
 
-// Mock the api layer so resolveInstitutions works synchronously in test
+vi.mock('../InvestmentPlanModal', () => ({
+  InvestmentPlanModal: () => null,
+}));
 const apiMock = vi.hoisted(() => ({
   fetchFundCommonData: vi.fn(),
 }));

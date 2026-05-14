@@ -6,6 +6,7 @@ import type {
   WatchlistItem,
   PendingTransaction,
   TotalAssetsSnapshot,
+  InvestmentPlan,
 } from '../types';
 import {
   fetchHistoricalFundNavWithDate,
@@ -29,6 +30,7 @@ import { isEtfLinkFundName } from './constants';
 import { sanitizeWatchlistName } from './watchlistName';
 import { runFundQuotePipeline } from './fundQuotePipeline';
 import { identifyFundType } from './fundTypeIdentifier';
+import { executeInvestmentPlans } from './investmentPlan';
 import type { RefreshExecutionResult, RefreshExecutionStatus } from './refreshPolicy';
 
 export {
@@ -43,6 +45,7 @@ class XiaoHuYangJiDB extends Dexie {
   accounts!: Table<Account>;
   watchlists!: Table<WatchlistItem>;
   totalAssetsHistory!: Table<TotalAssetsSnapshot>;
+  investmentPlans!: Table<InvestmentPlan>;
 
   constructor() {
     super('XiaoHuYangJiDB');
@@ -72,6 +75,14 @@ class XiaoHuYangJiDB extends Dexie {
       accounts: '++id, name',
       watchlists: '++id, code, type, name',
       totalAssetsHistory: '++id, &date',
+    });
+    // Version 6: 定投计划表
+    this.version(6).stores({
+      funds: '++id, code, platform, name',
+      accounts: '++id, name',
+      watchlists: '++id, code, type, name',
+      totalAssetsHistory: '++id, &date',
+      investmentPlans: '++id, fundCode, active',
     });
   }
 }
@@ -636,6 +647,7 @@ export const refreshFundData = (options?: RefreshOptions) => {
         console.warn(`刷新基金数据：${failedUpdates}/${allFunds.length} 个更新失败`);
 
       if (includeSettlement) {
+        await executeInvestmentPlans();
         await runSettlementPipeline({ force: forceRefresh });
       }
 
@@ -950,7 +962,14 @@ export const exportFunds = async (): Promise<void> => {
   const allFunds = await db.funds.toArray();
   const allAccounts = await db.accounts.toArray();
   const allWatchlists = await db.watchlists.toArray();
-  const data = buildFundBackupPayload(allFunds, undefined, allAccounts, allWatchlists);
+  const allInvestmentPlans = await db.investmentPlans.toArray();
+  const data = buildFundBackupPayload(
+    allFunds,
+    undefined,
+    allAccounts,
+    allWatchlists,
+    allInvestmentPlans,
+  );
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -977,8 +996,9 @@ export const exportFundsToJsonString = async (): Promise<string> => {
   const allFunds = await db.funds.toArray();
   const allAccounts = await db.accounts.toArray();
   const allWatchlists = await db.watchlists.toArray();
+  const allInvestmentPlans = await db.investmentPlans.toArray();
   return JSON.stringify(
-    buildFundBackupPayload(allFunds, undefined, allAccounts, allWatchlists),
+    buildFundBackupPayload(allFunds, undefined, allAccounts, allWatchlists, allInvestmentPlans),
     null,
     2,
   );
@@ -995,6 +1015,7 @@ export const importFundsFromBackupContent = async (
     funds: importedFunds,
     accounts: importedAccounts,
     watchlists: importedWatchlists,
+    investmentPlans: importedInvestmentPlans,
   } = parseAndNormalizeFundBackupPayload(content);
 
   const importMode = options?.importMode ?? 'merge';
@@ -1025,30 +1046,46 @@ export const importFundsFromBackupContent = async (
     const isCompletelyEmpty =
       importedFunds.length === 0 &&
       importedAccounts.length === 0 &&
-      importedWatchlists.length === 0;
+      importedWatchlists.length === 0 &&
+      importedInvestmentPlans.length === 0;
 
     if (isCompletelyEmpty) {
       return { added: 0, skipped: 0 };
     }
 
-    await db.transaction('rw', db.funds, db.accounts, db.watchlists, async () => {
-      await db.funds.clear();
-      await db.accounts.clear();
-      await db.watchlists.clear();
+    await db.transaction(
+      'rw',
+      db.funds,
+      db.accounts,
+      db.watchlists,
+      db.investmentPlans,
+      async () => {
+        await db.funds.clear();
+        await db.accounts.clear();
+        await db.watchlists.clear();
+        await db.investmentPlans.clear();
 
-      if (normalizedImportedFunds.length > 0) {
-        await db.funds.bulkAdd(normalizedImportedFunds);
-      }
-      if (importedAccounts.length > 0) {
-        await db.accounts.bulkAdd(importedAccounts);
-      }
-      if (importedWatchlists.length > 0) {
-        await db.watchlists.bulkAdd(importedWatchlists);
-      }
-    });
+        if (normalizedImportedFunds.length > 0) {
+          await db.funds.bulkAdd(normalizedImportedFunds);
+        }
+        if (importedAccounts.length > 0) {
+          await db.accounts.bulkAdd(importedAccounts);
+        }
+        if (importedWatchlists.length > 0) {
+          await db.watchlists.bulkAdd(importedWatchlists);
+        }
+        if (importedInvestmentPlans.length > 0) {
+          await db.investmentPlans.bulkAdd(importedInvestmentPlans);
+        }
+      },
+    );
 
     return {
-      added: normalizedImportedFunds.length + importedAccounts.length + importedWatchlists.length,
+      added:
+        normalizedImportedFunds.length +
+        importedAccounts.length +
+        importedWatchlists.length +
+        importedInvestmentPlans.length,
       skipped: 0,
     };
   }
@@ -1144,6 +1181,20 @@ export const importFundsFromBackupContent = async (
     await db.watchlists.add(watchlist);
     added++;
     existingWatchlistKeys.add(key);
+  }
+
+  const existingInvestmentPlans = await db.investmentPlans.toArray();
+  const existingPlanKeys = new Set(existingInvestmentPlans.map((p) => p.fundCode));
+
+  for (const plan of importedInvestmentPlans) {
+    if (existingPlanKeys.has(plan.fundCode)) {
+      skipped++;
+      continue;
+    }
+
+    await db.investmentPlans.add(plan);
+    added++;
+    existingPlanKeys.add(plan.fundCode);
   }
 
   return { added, skipped };

@@ -1,4 +1,4 @@
-import type { Account, Fund, WatchlistItem } from '../types';
+import type { Account, Fund, WatchlistItem, InvestmentPlan } from '../types';
 
 export interface FundBackupPayload {
   version: number;
@@ -6,6 +6,7 @@ export interface FundBackupPayload {
   funds: Fund[];
   accounts?: Account[];
   watchlists?: WatchlistItem[];
+  investmentPlans?: InvestmentPlan[];
 }
 
 const BACKUP_VERSION = 1;
@@ -87,11 +88,18 @@ export const findDuplicateFundBackupKeys = (funds: Array<Pick<Fund, 'code' | 'pl
   return Array.from(duplicates);
 };
 
+const stripInvestmentPlanId = (plan: InvestmentPlan): InvestmentPlan => {
+  const cleanPlan = { ...plan } as InvestmentPlan & { id?: number };
+  delete cleanPlan.id;
+  return cleanPlan as InvestmentPlan;
+};
+
 export const buildFundBackupPayload = (
   funds: Fund[],
   exportDate = new Date().toISOString(),
   accounts: Account[] = [],
   watchlists: WatchlistItem[] = [],
+  investmentPlans: InvestmentPlan[] = [],
 ): FundBackupPayload => {
   return {
     version: BACKUP_VERSION,
@@ -99,6 +107,7 @@ export const buildFundBackupPayload = (
     funds: funds.map(stripFundId),
     accounts: accounts.map(stripAccountId),
     watchlists: watchlists.map(stripWatchlistId),
+    investmentPlans: investmentPlans.map(stripInvestmentPlanId),
   };
 };
 
@@ -108,6 +117,7 @@ export const parseAndNormalizeFundBackupPayload = (
   funds: Fund[];
   accounts: Account[];
   watchlists: WatchlistItem[];
+  investmentPlans: InvestmentPlan[];
 } => {
   const parsed =
     typeof content === 'string' ? (JSON.parse(content) as Partial<FundBackupPayload>) : content;
@@ -156,10 +166,36 @@ export const parseAndNormalizeFundBackupPayload = (
     return stripWatchlistId(item as WatchlistItem);
   });
 
+  const rawInvestmentPlans = payload.investmentPlans ?? [];
+  if (!Array.isArray(rawInvestmentPlans)) {
+    throw new Error('无效的备份文件格式');
+  }
+
+  const isValidInvestmentPlan = (plan: Partial<InvestmentPlan>): plan is InvestmentPlan => {
+    return (
+      typeof plan.fundCode === 'string' &&
+      typeof plan.amount === 'number' &&
+      typeof plan.active === 'boolean' &&
+      typeof plan.createdAt === 'string'
+    );
+  };
+
+  const normalizedInvestmentPlans = rawInvestmentPlans.map((plan) => {
+    if (
+      !plan ||
+      typeof plan !== 'object' ||
+      !isValidInvestmentPlan(plan as Partial<InvestmentPlan>)
+    ) {
+      throw new Error('无效的备份文件格式');
+    }
+    return stripInvestmentPlanId(plan as InvestmentPlan);
+  });
+
   return {
     funds: normalizedFunds,
     accounts: normalizedAccounts,
     watchlists: normalizedWatchlists,
+    investmentPlans: normalizedInvestmentPlans,
   };
 };
 

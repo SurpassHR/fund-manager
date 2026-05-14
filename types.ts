@@ -72,6 +72,29 @@ export interface WatchlistItem {
   streak?: FundStreak; // 连涨/连跌信息
 }
 
+/** 定投频率类型 */
+export type InvestmentFrequency = 'daily' | 'weekly' | 'monthly';
+
+/** 定投计划 */
+export interface InvestmentPlan {
+  /** Dexie 自增主键 */
+  id?: number;
+  /** 目标基金代码 */
+  fundCode: string;
+  /** 每次定投金额 (CNY) */
+  amount: number;
+  /** 是否启用 */
+  active: boolean;
+  /** 定投频率 */
+  frequency: InvestmentFrequency;
+  /** 频率参数: weekly 时为 0-6 (周日-周六), monthly 时为 1-28 */
+  frequencyDay?: number;
+  /** 创建日期 YYYY-MM-DD */
+  createdAt: string;
+  /** 上次执行日期 YYYY-MM-DD，用于防重复执行 */
+  lastExecutedDate?: string;
+}
+
 export interface Account {
   id?: number;
   name: string;

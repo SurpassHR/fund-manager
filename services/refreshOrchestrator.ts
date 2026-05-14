@@ -1,4 +1,5 @@
 import { refreshFundData, refreshWatchlistData, runSettlementPipeline } from './db';
+import { executeInvestmentPlans } from './investmentPlan';
 
 type RefreshStage = 'funds' | 'watchlist' | 'settlement';
 
@@ -77,6 +78,7 @@ export const refreshHoldingsWithStrategy = async (params?: {
   }
 
   await runWithMetrics('funds', () => refreshFundData({ force, includeSettlement: false }));
+  await executeInvestmentPlans();
   await runWithMetrics('settlement', () => runSettlementPipeline({ force }));
 };
 
