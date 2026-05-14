@@ -777,7 +777,8 @@ export const FundDetail: React.FC<FundDetailProps> = ({
     const quotePctMap: Record<string, number> = {};
     for (const [ticker, quote] of Object.entries(sourceQuotes)) {
       if (typeof quote.pct === 'number') {
-        const nk = ticker.replace(/\D/g, '');
+        const digits = ticker.replace(/\D/g, '');
+        const nk = digits || ticker;
         if (nk) quotePctMap[nk] = quote.pct;
       }
     }
@@ -860,7 +861,8 @@ export const FundDetail: React.FC<FundDetailProps> = ({
       const price = parseFloat(quote.price);
       if (price > 0 && !Number.isNaN(pct)) {
         const prevClose = price / (1 + pct / 100);
-        const nk = ticker.replace(/\D/g, '');
+        const digits = ticker.replace(/\D/g, '');
+        const nk = digits || ticker;
         if (nk) map[nk] = prevClose;
       }
     }

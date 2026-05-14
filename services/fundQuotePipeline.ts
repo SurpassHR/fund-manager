@@ -231,6 +231,12 @@ export const runFundQuotePipeline = async <T>(
       }
 
       const isOfficialTodayNav = navDate === todayStr;
+      // 海外基金即使市场已收盘也启用估值
+      // （前一个交易时段的分时数据仍可用于估算待公布的净值，避免持仓页展示过期官方数据）
+      const isOverseas =
+        input.underlyingMarket === 'US' ||
+        input.underlyingMarket === 'HK' ||
+        input.underlyingMarket === 'GLOBAL';
 
       return {
         item: input.item,
@@ -239,7 +245,7 @@ export const runFundQuotePipeline = async <T>(
         navDate,
         navChangePercent,
         previousNav,
-        shouldEstimate: shouldUseEstimatedValue && !isOfficialTodayNav,
+        shouldEstimate: (shouldUseEstimatedValue || isOverseas) && !isOfficialTodayNav,
         underlyingMarket: input.underlyingMarket,
         category: input.category,
       } satisfies FundQuoteCandidate<T>;

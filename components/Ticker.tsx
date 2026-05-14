@@ -74,8 +74,12 @@ export const Ticker: React.FC<TickerProps> = ({ hiddenOnMobile = false }) => {
             ? 'max-md:pointer-events-none max-md:translate-y-[6rem] max-md:opacity-0'
             : 'max-md:translate-y-0 max-md:opacity-100'
         }`}
+        onClick={() => setIsExpanded(false)}
       >
-        <div className="mx-auto flex w-full max-w-2xl flex-col gap-2.5 sm:gap-3">
+        <div
+          className="mx-auto flex w-full max-w-2xl flex-col gap-2.5 sm:gap-3"
+          onClick={(e) => e.stopPropagation()}
+        >
           <AnimatePresence>
             {isExpanded && (
               <motion.div
