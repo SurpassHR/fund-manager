@@ -11,6 +11,12 @@ interface Env {
   AI_MODE?: 'quick' | 'deep' | 'risk';
   AI_QUESTION?: string;
   CRON_SECRET?: string;
+  MARKET_ANALYSIS_ENABLED?: string;
+  MARKET_INDEX_CODES?: string;
+  NEWS_ANALYSIS_ENABLED?: string;
+  NEWS_PROVIDER?: 'gdelt';
+  NEWS_LOOKBACK_HOURS?: string;
+  NEWS_MAX_ITEMS?: string;
 }
 
 interface ScheduledController {
@@ -124,6 +130,44 @@ interface HoldingsSnapshot {
   investmentProfile?: InvestmentProfileSnapshot;
 }
 
+interface MarketIndexSnapshot {
+  code: string;
+  name: string;
+  price: number;
+  changePct: number;
+  change?: number;
+  updateTime?: string;
+}
+
+interface MarketSnapshot {
+  asOf: string;
+  indices: MarketIndexSnapshot[];
+  dataStatus: 'available' | 'partial' | 'missing';
+}
+
+interface NewsItemSnapshot {
+  title: string;
+  source?: string;
+  url?: string;
+  publishedAt?: string;
+  language?: string;
+}
+
+interface NewsSnapshot {
+  asOf: string;
+  provider: 'gdelt';
+  keywords: string[];
+  lookbackHours: number;
+  items: NewsItemSnapshot[];
+  dataStatus: 'available' | 'missing' | 'failed';
+}
+
+interface AnalysisContextSnapshot {
+  holdings: HoldingsSnapshot;
+  marketSnapshot?: MarketSnapshot;
+  newsSnapshot?: NewsSnapshot;
+}
+
 interface GithubGistResponse {
   files?: Record<
     string,
@@ -138,6 +182,28 @@ const GITHUB_API_VERSION = '2022-11-28';
 const DEFAULT_GIST_FILENAME = 'fund-manager-sync.json';
 const TELEGRAM_MESSAGE_LIMIT = 3900;
 const MORNINGSTAR_API_BASE = 'https://www.morningstar.cn/cn-api';
+const TENCENT_QUOTE_API = 'https://qt.gtimg.cn/q=';
+const GDELT_DOC_API = 'https://api.gdeltproject.org/api/v2/doc/doc';
+const DEFAULT_MARKET_INDEX_CODES = [
+  'sh000001',
+  'sz399001',
+  'sz399006',
+  'sh000300',
+  'sh000016',
+  'sh000905',
+  'sh000852',
+  'sh000688',
+];
+const MARKET_INDEX_NAMES: Record<string, string> = {
+  sh000001: '上证指数',
+  sz399001: '深证成指',
+  sz399006: '创业板指',
+  sh000300: '沪深300',
+  sh000016: '上证50',
+  sh000905: '中证500',
+  sh000852: '中证1000',
+  sh000688: '科创50',
+};
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), {
@@ -154,6 +220,16 @@ const requireEnv = (env: Env, key: keyof Env): string => {
 };
 
 const round = (value: number, digits = 2) => Number(value.toFixed(digits));
+
+const isEnabled = (value: string | undefined, defaultValue = true) => {
+  if (value === undefined) return defaultValue;
+  return value.trim().toLowerCase() !== 'false';
+};
+
+const parsePositiveInt = (value: string | undefined, fallback: number) => {
+  const parsed = Number.parseInt(value || '', 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+};
 
 const fetchText = async (url: string, init: RequestInit, label: string): Promise<string> => {
   const response = await fetch(url, init);
@@ -251,6 +327,165 @@ const fetchFundHoldingsEnrichment = async (fundCode: string) => {
       sector: holding.sector,
     })),
   };
+};
+
+const parseTencentMarketLine = (line: string): MarketIndexSnapshot | null => {
+  if (!line.includes('=')) return null;
+  const [leftSide, rawRightSide] = line.split('=');
+  const code = leftSide?.match(/v_(.+)/)?.[1];
+  if (!code || !rawRightSide) return null;
+
+  const parts = rawRightSide.replace(/"/g, '').split('~');
+  const name = parts[1] || MARKET_INDEX_NAMES[code] || code;
+  const price = Number.parseFloat(parts[3] || '');
+  const changePct = Number.parseFloat(parts[32] || '');
+  const change = Number.parseFloat(parts[31] || '');
+  const updateTime = parts[30];
+  if (!Number.isFinite(price) || !Number.isFinite(changePct)) return null;
+
+  return {
+    code,
+    name,
+    price: round(price, 2),
+    changePct: round(changePct, 2),
+    change: Number.isFinite(change) ? round(change, 2) : undefined,
+    updateTime,
+  };
+};
+
+const fetchMarketSnapshot = async (env: Env): Promise<MarketSnapshot | undefined> => {
+  if (!isEnabled(env.MARKET_ANALYSIS_ENABLED, true)) return undefined;
+  const codes = (env.MARKET_INDEX_CODES || DEFAULT_MARKET_INDEX_CODES.join(','))
+    .split(',')
+    .map((code) => code.trim())
+    .filter(Boolean);
+  if (codes.length === 0) return undefined;
+
+  try {
+    const text = await fetchText(`${TENCENT_QUOTE_API}${codes.join(',')}`, {}, '读取 A 股市场指数');
+    const indices = text
+      .split(';')
+      .map(parseTencentMarketLine)
+      .filter((item): item is MarketIndexSnapshot => Boolean(item));
+    const status =
+      indices.length === 0 ? 'missing' : indices.length === codes.length ? 'available' : 'partial';
+    return {
+      asOf: new Date().toISOString(),
+      indices,
+      dataStatus: status,
+    };
+  } catch (error) {
+    console.warn('读取 A 股市场指数失败', error);
+    return {
+      asOf: new Date().toISOString(),
+      indices: [],
+      dataStatus: 'missing',
+    };
+  }
+};
+
+const buildNewsKeywords = (holdings: HoldingsSnapshot) => {
+  const keywords = new Set<string>([
+    'A股',
+    '政策',
+    '财报',
+    '公告',
+    '业绩预告',
+    '人工智能',
+    '低碳',
+    '新能源',
+  ]);
+  holdings.holdings.slice(0, 5).forEach((fund) => keywords.add(fund.name));
+  holdings.holdings.forEach((fund) => {
+    fund.topEquityHoldings?.slice(0, 5).forEach((equity) => {
+      if (equity.name.trim()) keywords.add(equity.name.trim());
+      if (equity.sector?.trim()) keywords.add(equity.sector.trim());
+    });
+  });
+  return Array.from(keywords).slice(0, 18);
+};
+
+const formatGdeltDate = (date: Date) => {
+  const pad = (value: number) => String(value).padStart(2, '0');
+  return `${date.getUTCFullYear()}${pad(date.getUTCMonth() + 1)}${pad(date.getUTCDate())}${pad(
+    date.getUTCHours(),
+  )}${pad(date.getUTCMinutes())}${pad(date.getUTCSeconds())}`;
+};
+
+interface GdeltArticle {
+  title?: string;
+  url?: string;
+  sourceCountry?: string;
+  domain?: string;
+  seendate?: string;
+  language?: string;
+}
+
+interface GdeltResponse {
+  articles?: GdeltArticle[];
+}
+
+const fetchNewsSnapshot = async (
+  env: Env,
+  holdings: HoldingsSnapshot,
+): Promise<NewsSnapshot | undefined> => {
+  if (!isEnabled(env.NEWS_ANALYSIS_ENABLED, true)) return undefined;
+  const provider = env.NEWS_PROVIDER || 'gdelt';
+  if (provider !== 'gdelt') return undefined;
+
+  const lookbackHours = parsePositiveInt(env.NEWS_LOOKBACK_HOURS, 72);
+  const maxItems = Math.min(parsePositiveInt(env.NEWS_MAX_ITEMS, 12), 25);
+  const keywords = buildNewsKeywords(holdings);
+  const end = new Date();
+  const start = new Date(end.getTime() - lookbackHours * 60 * 60 * 1000);
+  const query = `(${keywords.map((keyword) => `"${keyword}"`).join(' OR ')})`;
+  const url = new URL(GDELT_DOC_API);
+  url.searchParams.set('query', query);
+  url.searchParams.set('mode', 'ArtList');
+  url.searchParams.set('format', 'json');
+  url.searchParams.set('maxrecords', String(maxItems));
+  url.searchParams.set('sort', 'HybridRel');
+  url.searchParams.set('startdatetime', formatGdeltDate(start));
+  url.searchParams.set('enddatetime', formatGdeltDate(end));
+
+  try {
+    const response = await fetchJson<GdeltResponse>(url.toString(), {}, '读取 GDELT 新闻');
+    const seen = new Set<string>();
+    const items = (response.articles || [])
+      .map<NewsItemSnapshot | null>((article) => {
+        const title = article.title?.trim();
+        if (!title || seen.has(title)) return null;
+        seen.add(title);
+        return {
+          title,
+          source: article.domain || article.sourceCountry,
+          url: article.url,
+          publishedAt: article.seendate,
+          language: article.language,
+        };
+      })
+      .filter((item): item is NewsItemSnapshot => Boolean(item))
+      .slice(0, maxItems);
+
+    return {
+      asOf: new Date().toISOString(),
+      provider: 'gdelt',
+      keywords,
+      lookbackHours,
+      items,
+      dataStatus: items.length > 0 ? 'available' : 'missing',
+    };
+  } catch (error) {
+    console.warn('读取 GDELT 新闻失败', error);
+    return {
+      asOf: new Date().toISOString(),
+      provider: 'gdelt',
+      keywords,
+      lookbackHours,
+      items: [],
+      dataStatus: 'failed',
+    };
+  }
 };
 
 const buildEquityOverlap = (holdings: HoldingSnapshotItem[]): EquityOverlapItem[] => {
@@ -370,7 +605,8 @@ const buildHoldingsSnapshot = async (payload: FundBackupPayload): Promise<Holdin
   };
 };
 
-const buildHoldingsAnalysisPrompt = (holdings: HoldingsSnapshot, mode: string) => {
+const buildHoldingsAnalysisPrompt = (context: AnalysisContextSnapshot, mode: string) => {
+  const { holdings, marketSnapshot, newsSnapshot } = context;
   const sortedByGain = [...holdings.holdings].sort((a, b) => b.totalGainPct - a.totalGainPct);
   const sortedByValue = [...holdings.holdings].sort((a, b) => b.marketValue - a.marketValue);
   const topGain = sortedByGain[0];
@@ -403,11 +639,13 @@ const buildHoldingsAnalysisPrompt = (holdings: HoldingsSnapshot, mode: string) =
     `风险承受能力: ${holdings.dataCoverage.riskProfile}`,
     `投资期限: ${holdings.dataCoverage.investmentHorizon}`,
     `底层股票重合项数量: ${holdings.equityOverlap.length}`,
+    `A股市场数据: ${marketSnapshot?.dataStatus ?? 'missing'}`,
+    `消息面/财报/公告数据: ${newsSnapshot?.dataStatus ?? 'missing'}`,
   ]
     .filter(Boolean)
     .join('\n');
 
-  return `${modeInstruction}\n要求：\n1) 使用简体中文回答。\n2) 只基于给定持仓数据推理，不要编造不存在的数据。\n3) 如果前十大重仓股、真实行业分布、基金经理调仓、账户外资产、风险承受能力或投资期限在 dataCoverage 中标记为 missing/partial，必须明确说明“当前数据缺失/不完整”，不能当作已知事实分析。\n4) 可以基于 topEquityHoldings 和 equityOverlap 分析底层股票重合度；没有数据时必须跳过。\n5) 避免直接给出买卖指令，但可以给方向性建议。\n6) 输出适合 Telegram 阅读，标题清晰，重点用短句。\n\n组合摘要：\n${summary}\n\n以下是用户当前持仓快照(JSON)：\n${JSON.stringify(holdings, null, 2)}`;
+  return `${modeInstruction}\n要求：\n1) 使用简体中文回答。\n2) 只基于给定 JSON 数据推理，不要编造不存在的数据。\n3) 如果前十大重仓股、真实行业分布、基金经理调仓、账户外资产、风险承受能力或投资期限在 dataCoverage 中标记为 missing/partial，必须明确说明“当前数据缺失/不完整”，不能当作已知事实分析。\n4) 如果 marketSnapshot 缺失或 dataStatus 为 missing/partial，必须说明“A 股市场数据缺失/不完整”，不得假设指数涨跌。\n5) 如果 newsSnapshot 缺失、failed 或 missing，必须说明“消息面/财报/公告数据缺失”，不得编造新闻标题、财报数据或公告内容。\n6) 可以基于 topEquityHoldings 和 equityOverlap 分析底层股票重合度；没有数据时必须跳过。\n7) 必须输出“是否适合加仓”“是否需要减仓”“是否达到清仓条件”三段，结论只能是条件判断，例如“暂不适合/只适合小额分批/等待确认/未达到清仓条件”。\n8) 加仓、减仓、清仓建议必须同时给出依据和触发条件；清仓不能只因为单日涨跌，必须基于长期逻辑失效、风格偏离、风险画像冲突、重合度过高或明确止盈止损条件。\n9) 输出适合 Telegram 阅读，标题清晰，重点用短句。\n\n请按以下结构输出：\n一、A 股市场环境\n二、持仓表现\n三、消息面/财报/公告影响\n四、是否适合加仓\n五、是否需要减仓\n六、是否达到清仓条件\n七、明日观察点\n\n组合摘要：\n${summary}\n\n以下是分析上下文(JSON)：\n${JSON.stringify(context, null, 2)}`;
 };
 
 const resolveAiEndpoint = (env: Env) => {
@@ -483,8 +721,8 @@ const analyzeWithGemini = async (params: { env: Env; systemPrompt: string; quest
   return content;
 };
 
-const analyzeHoldings = async (env: Env, holdings: HoldingsSnapshot) => {
-  if (holdings.holdings.length === 0) {
+const analyzeHoldings = async (env: Env, context: AnalysisContextSnapshot) => {
+  if (context.holdings.holdings.length === 0) {
     return '当前 Gist 备份中没有有效持仓，未生成 AI 分析。';
   }
 
@@ -492,7 +730,7 @@ const analyzeHoldings = async (env: Env, holdings: HoldingsSnapshot) => {
   const question =
     env.AI_QUESTION ||
     '请基于最新持仓数据做一次收盘后持仓复盘，重点说明组合表现、主要风险、机会和下一步观察清单。';
-  const systemPrompt = buildHoldingsAnalysisPrompt(holdings, mode);
+  const systemPrompt = buildHoldingsAnalysisPrompt(context, mode);
   const endpoint = resolveAiEndpoint(env);
 
   if (endpoint.provider === 'gemini') {
@@ -542,7 +780,11 @@ const sendTelegramMessage = async (env: Env, text: string) => {
 const runReminder = async (env: Env) => {
   const payload = await readGistBackup(env);
   const snapshot = await buildHoldingsSnapshot(payload);
-  const analysis = await analyzeHoldings(env, snapshot);
+  const [marketSnapshot, newsSnapshot] = await Promise.all([
+    fetchMarketSnapshot(env),
+    fetchNewsSnapshot(env, snapshot),
+  ]);
+  const analysis = await analyzeHoldings(env, { holdings: snapshot, marketSnapshot, newsSnapshot });
   const title = `小胡养基 AI 持仓分析\n时间：${new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' })}\n`;
   const sentMessages = await sendTelegramMessage(env, `${title}\n${analysis}`);
 

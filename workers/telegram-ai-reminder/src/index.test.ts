@@ -34,6 +34,22 @@ const holdingsPayload = {
   },
 };
 
+const marketText =
+  'v_sh000001="1~上证指数~000001~3050.12~~~~~~~~~~~~~~~~~~~~~~~~~~~20260518150000~12.34~0.41";\n' +
+  'v_sz399006="51~创业板指~399006~2200.50~~~~~~~~~~~~~~~~~~~~~~~~~~~20260518150000~-8.80~-0.40";';
+
+const newsPayload = {
+  articles: [
+    {
+      title: 'A股人工智能板块午后走强',
+      domain: 'example.cn',
+      url: 'https://example.cn/news/ai',
+      seendate: '20260518T120000Z',
+      language: 'Chinese',
+    },
+  ],
+};
+
 const env = {
   TELEGRAM_BOT_TOKEN: 'telegram-token',
   TELEGRAM_CHAT_ID: '123456',
@@ -72,6 +88,8 @@ describe('telegram ai reminder worker', () => {
         }),
       )
       .mockResolvedValueOnce(jsonResponse(holdingsPayload))
+      .mockResolvedValueOnce(new Response(marketText))
+      .mockResolvedValueOnce(jsonResponse(newsPayload))
       .mockResolvedValueOnce(
         jsonResponse({
           choices: [{ message: { content: '组合整体表现良好。' } }],
@@ -93,7 +111,7 @@ describe('telegram ai reminder worker', () => {
 
     expect(response.status).toBe(200);
     expect(body).toEqual({ ok: true, holdings: 1, totalAssets: 120, sentMessages: 1 });
-    expect(fetchMock).toHaveBeenCalledTimes(4);
+    expect(fetchMock).toHaveBeenCalledTimes(6);
     expect(fetchMock).toHaveBeenNthCalledWith(
       1,
       'https://api.github.com/gists/gist-id',
@@ -108,13 +126,23 @@ describe('telegram ai reminder worker', () => {
     );
     expect(fetchMock).toHaveBeenNthCalledWith(
       3,
+      expect.stringContaining('https://qt.gtimg.cn/q='),
+      expect.any(Object),
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      4,
+      expect.stringContaining('https://api.gdeltproject.org/api/v2/doc/doc'),
+      expect.any(Object),
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      5,
       'https://example.com/v1/chat/completions',
       expect.objectContaining({
         method: 'POST',
         headers: expect.objectContaining({ Authorization: 'Bearer ai-token' }),
       }),
     );
-    const aiBody = JSON.parse(fetchMock.mock.calls[2][1].body as string) as {
+    const aiBody = JSON.parse(fetchMock.mock.calls[4][1].body as string) as {
       messages: Array<{ role: string; content: string }>;
     };
     expect(aiBody.messages[0].content).toContain('测试基金A');
@@ -122,14 +150,20 @@ describe('telegram ai reminder worker', () => {
     expect(aiBody.messages[0].content).toContain('dataCoverage');
     expect(aiBody.messages[0].content).toContain('稳健');
     expect(aiBody.messages[0].content).toContain('风险承受能力: available');
+    expect(aiBody.messages[0].content).toContain('marketSnapshot');
+    expect(aiBody.messages[0].content).toContain('newsSnapshot');
+    expect(aiBody.messages[0].content).toContain('上证指数');
+    expect(aiBody.messages[0].content).toContain('A股人工智能板块午后走强');
+    expect(aiBody.messages[0].content).toContain('是否适合加仓');
+    expect(aiBody.messages[0].content).toContain('不得编造新闻标题、财报数据或公告内容');
     expect(aiBody.messages[0].content).toContain('不要编造不存在的数据');
     expect(aiBody.messages[1].content).toBe('请分析持仓');
 
-    const telegramBody = JSON.parse(fetchMock.mock.calls[3][1].body as string) as {
+    const telegramBody = JSON.parse(fetchMock.mock.calls[5][1].body as string) as {
       chat_id: string;
       text: string;
     };
-    expect(fetchMock.mock.calls[3][0]).toBe(
+    expect(fetchMock.mock.calls[5][0]).toBe(
       'https://api.telegram.org/bottelegram-token/sendMessage',
     );
     expect(telegramBody.chat_id).toBe('123456');
@@ -166,6 +200,8 @@ describe('telegram ai reminder worker', () => {
         }),
       )
       .mockResolvedValueOnce(jsonResponse(holdingsPayload))
+      .mockResolvedValueOnce(new Response(marketText))
+      .mockResolvedValueOnce(jsonResponse({ articles: [] }))
       .mockResolvedValueOnce(jsonResponse({ choices: [{ message: { content: longText } }] }))
       .mockImplementation(() => Promise.resolve(jsonResponse({ ok: true })));
     vi.stubGlobal('fetch', fetchMock);
@@ -197,6 +233,8 @@ describe('telegram ai reminder worker', () => {
         }),
       )
       .mockResolvedValueOnce(jsonResponse(holdingsPayload))
+      .mockResolvedValueOnce(new Response(marketText))
+      .mockResolvedValueOnce(jsonResponse(newsPayload))
       .mockResolvedValueOnce(jsonResponse({ choices: [{ message: { content: 'DeepSeek 分析' } }] }))
       .mockResolvedValueOnce(jsonResponse({ ok: true }));
     vi.stubGlobal('fetch', fetchMock);
@@ -207,7 +245,7 @@ describe('telegram ai reminder worker', () => {
     );
 
     expect(response.status).toBe(200);
-    expect(fetchMock.mock.calls[2][0]).toBe('https://api.deepseek.com/v1/chat/completions');
+    expect(fetchMock.mock.calls[4][0]).toBe('https://api.deepseek.com/v1/chat/completions');
   });
 
   it('Gemini provider 使用 Gemini REST API', async () => {
@@ -223,6 +261,8 @@ describe('telegram ai reminder worker', () => {
         }),
       )
       .mockResolvedValueOnce(jsonResponse(holdingsPayload))
+      .mockResolvedValueOnce(new Response(marketText))
+      .mockResolvedValueOnce(jsonResponse(newsPayload))
       .mockResolvedValueOnce(
         jsonResponse({ candidates: [{ content: { parts: [{ text: 'Gemini 分析' }] } }] }),
       )
@@ -235,8 +275,40 @@ describe('telegram ai reminder worker', () => {
     );
 
     expect(response.status).toBe(200);
-    expect(fetchMock.mock.calls[2][0]).toBe(
+    expect(fetchMock.mock.calls[4][0]).toBe(
       'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=ai-token',
     );
+  });
+
+  it('新闻为空时在 prompt 中标记消息面缺失', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        jsonResponse({
+          files: {
+            'fund-manager-sync.json': {
+              content: JSON.stringify(backupPayload),
+            },
+          },
+        }),
+      )
+      .mockResolvedValueOnce(jsonResponse(holdingsPayload))
+      .mockResolvedValueOnce(new Response(marketText))
+      .mockResolvedValueOnce(jsonResponse({ articles: [] }))
+      .mockResolvedValueOnce(jsonResponse({ choices: [{ message: { content: '缺失分析' } }] }))
+      .mockResolvedValueOnce(jsonResponse({ ok: true }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const response = await worker.fetch(
+      new Request('https://worker.example/run', { method: 'POST' }),
+      env,
+    );
+
+    expect(response.status).toBe(200);
+    const aiBody = JSON.parse(fetchMock.mock.calls[4][1].body as string) as {
+      messages: Array<{ role: string; content: string }>;
+    };
+    expect(aiBody.messages[0].content).toContain('消息面/财报/公告数据: missing');
+    expect(aiBody.messages[0].content).toContain('消息面/财报/公告数据缺失');
   });
 });
