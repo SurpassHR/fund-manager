@@ -11,6 +11,7 @@ interface Env {
   AI_MODE?: 'quick' | 'deep' | 'risk';
   AI_QUESTION?: string;
   CRON_SECRET?: string;
+  TELEGRAM_WEBHOOK_SECRET?: string;
   MARKET_ANALYSIS_ENABLED?: string;
   MARKET_INDEX_CODES?: string;
   NEWS_ANALYSIS_ENABLED?: string;
@@ -170,6 +171,15 @@ interface AnalysisContextSnapshot {
   newsSnapshot?: NewsSnapshot;
 }
 
+interface TelegramUpdate {
+  message?: {
+    text?: string;
+    chat?: {
+      id?: number | string;
+    };
+  };
+}
+
 interface GithubGistResponse {
   files?: Record<
     string,
@@ -188,6 +198,11 @@ const TENCENT_QUOTE_API = 'https://qt.gtimg.cn/q=';
 const EASTMONEY_NEWS_API = 'https://np-listapi.eastmoney.com/comm/web/getNewsByColumns';
 const SINA_FINANCE_ROLL_API = 'https://feed.mix.sina.com.cn/api/roll/get';
 const DEFAULT_NEWS_QUERY_TIMEOUT_MS = 5000;
+const DEFAULT_AI_QUESTION =
+  '请基于当前持仓、A 股市场指数、市场情绪、中文财经新闻和投资画像，重点判断当前是否适合加仓、是否需要减仓、是否达到清仓条件。请给出明确但条件化的结论、依据、触发条件和明日观察点。';
+const TELEGRAM_ANALYSIS_COMMANDS = ['分析', '市场分析', '加仓', '减仓', '清仓'];
+const TELEGRAM_HELP_TEXT =
+  '发送“分析”即可获取市场情绪、A股市场、中文财经新闻与加仓/减仓/清仓判断。';
 const DEFAULT_MARKET_INDEX_CODES = [
   'sh000001',
   'sz399001',
@@ -856,9 +871,7 @@ const analyzeHoldings = async (env: Env, context: AnalysisContextSnapshot) => {
   }
 
   const mode = env.AI_MODE || 'deep';
-  const question =
-    env.AI_QUESTION ||
-    '请基于最新持仓数据做一次收盘后持仓复盘，重点说明组合表现、主要风险、机会和下一步观察清单。';
+  const question = env.AI_QUESTION || DEFAULT_AI_QUESTION;
   const systemPrompt = buildHoldingsAnalysisPrompt(context, mode);
   const endpoint = resolveAiEndpoint(env);
 
@@ -882,9 +895,8 @@ const splitTelegramMessage = (text: string) => {
   return chunks;
 };
 
-const sendTelegramMessage = async (env: Env, text: string) => {
+const sendTelegramMessage = async (env: Env, text: string, chatId = requireEnv(env, 'TELEGRAM_CHAT_ID')) => {
   const token = requireEnv(env, 'TELEGRAM_BOT_TOKEN');
-  const chatId = requireEnv(env, 'TELEGRAM_CHAT_ID');
   const chunks = splitTelegramMessage(text);
 
   for (const chunk of chunks) {
@@ -906,7 +918,7 @@ const sendTelegramMessage = async (env: Env, text: string) => {
   return chunks.length;
 };
 
-const runReminder = async (env: Env) => {
+const buildAnalysisMessage = async (env: Env) => {
   const payload = await readGistBackup(env);
   const snapshot = await buildHoldingsSnapshot(payload);
   const [marketSnapshot, newsSnapshot] = await Promise.all([
@@ -915,12 +927,22 @@ const runReminder = async (env: Env) => {
   ]);
   const analysis = await analyzeHoldings(env, { holdings: snapshot, marketSnapshot, newsSnapshot });
   const title = `小胡养基 AI 持仓分析\n时间：${new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' })}\n`;
-  const sentMessages = await sendTelegramMessage(env, `${title}\n${analysis}`);
+
+  return {
+    text: `${title}\n${analysis}`,
+    holdings: snapshot.holdings.length,
+    totalAssets: snapshot.totalAssets,
+  };
+};
+
+const runReminder = async (env: Env) => {
+  const analysisMessage = await buildAnalysisMessage(env);
+  const sentMessages = await sendTelegramMessage(env, analysisMessage.text);
 
   return {
     ok: true,
-    holdings: snapshot.holdings.length,
-    totalAssets: snapshot.totalAssets,
+    holdings: analysisMessage.holdings,
+    totalAssets: analysisMessage.totalAssets,
     sentMessages,
   };
 };
@@ -930,11 +952,95 @@ const isAuthorizedManualRun = (request: Request, env: Env) => {
   return request.headers.get('Authorization') === `Bearer ${env.CRON_SECRET}`;
 };
 
+const isAuthorizedTelegramWebhook = (request: Request, env: Env) => {
+  if (!env.TELEGRAM_WEBHOOK_SECRET) return true;
+  return request.headers.get('X-Telegram-Bot-Api-Secret-Token') === env.TELEGRAM_WEBHOOK_SECRET;
+};
+
+const isAnalysisCommand = (text: string) => {
+  const normalized = text.trim().replace(/^\//, '').toLowerCase();
+  return TELEGRAM_ANALYSIS_COMMANDS.some((command) => normalized === command.toLowerCase());
+};
+
+const handleTelegramWebhook = async (request: Request, env: Env) => {
+  if (!isAuthorizedTelegramWebhook(request, env)) {
+    return json({ ok: false, error: '未授权' }, 401);
+  }
+
+  const update = (await request.json().catch(() => null)) as TelegramUpdate | null;
+  const chatId = update?.message?.chat?.id;
+  const text = update?.message?.text?.trim() || '';
+  if (!chatId) return json({ ok: true, ignored: true });
+
+  const chatIdStr = String(chatId);
+  if (chatIdStr !== requireEnv(env, 'TELEGRAM_CHAT_ID')) {
+    return json({ ok: true, ignored: true });
+  }
+
+  if (!isAnalysisCommand(text)) {
+    const sentMessages = await sendTelegramMessage(env, TELEGRAM_HELP_TEXT, chatIdStr);
+    return json({ ok: true, handled: 'help', sentMessages });
+  }
+
+  const analysisMessage = await buildAnalysisMessage(env);
+  const sentMessages = await sendTelegramMessage(env, analysisMessage.text, chatIdStr);
+  return json({
+    ok: true,
+    handled: 'analysis',
+    holdings: analysisMessage.holdings,
+    totalAssets: analysisMessage.totalAssets,
+    sentMessages,
+  });
+};
+
+const setupTelegramWebhook = async (request: Request, env: Env) => {
+  if (!isAuthorizedManualRun(request, env)) {
+    return json({ ok: false, error: '未授权' }, 401);
+  }
+  const secretToken = requireEnv(env, 'TELEGRAM_WEBHOOK_SECRET');
+  const token = requireEnv(env, 'TELEGRAM_BOT_TOKEN');
+  const url = new URL(request.url);
+  const webhookUrl = `${url.origin}/telegram`;
+  const result = await fetchJson<unknown>(
+    `https://api.telegram.org/bot${token}/setWebhook`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url: webhookUrl, secret_token: secretToken }),
+    },
+    '设置 Telegram webhook',
+  );
+
+  return json({ ok: true, webhookUrl, result });
+};
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
     if (url.pathname === '/health') {
       return json({ ok: true, service: 'telegram-ai-reminder' });
+    }
+
+    if (url.pathname === '/telegram' && request.method === 'POST') {
+      try {
+        return await handleTelegramWebhook(request, env);
+      } catch (error) {
+        return json(
+          { ok: false, error: error instanceof Error ? error.message : '未知错误' },
+          500,
+        );
+      }
+    }
+
+    if (url.pathname === '/setup-telegram-webhook' && request.method === 'POST') {
+      try {
+        return await setupTelegramWebhook(request, env);
+      } catch (error) {
+        return json(
+          { ok: false, error: error instanceof Error ? error.message : '未知错误' },
+          500,
+        );
+      }
     }
 
     if (url.pathname === '/run' && request.method === 'POST') {
