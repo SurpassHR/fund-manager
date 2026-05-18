@@ -100,6 +100,14 @@ const sinaNewsPayload = {
 
 const emptyEastMoneyNewsPayload = { data: { list: [] } };
 const emptySinaNewsPayload = { result: { data: [] } };
+const eastMoneyFundFlowPayload = {
+  data: {
+    diff: [
+      { f12: 'BK0800', f14: '人工智能', f3: 2.1, f62: 3200000000, f184: 4.5 },
+      { f12: 'BK0428', f14: '新能源', f3: 1.2, f62: 1800000000, f184: 2.8 },
+    ],
+  },
+};
 
 const env = {
   TELEGRAM_BOT_TOKEN: 'telegram-token',
@@ -143,6 +151,9 @@ const mockBaseSuccessfulFetches = (
     if (url.includes('morningstar.cn')) return Promise.resolve(jsonResponse(holdingsPayload));
     if (url.includes('qt.gtimg.cn')) return Promise.resolve(new Response(marketText));
     if (url.includes('np-listapi.eastmoney.com')) return Promise.resolve(jsonResponse(eastMoneyNews));
+    if (url.includes('push2.eastmoney.com/api/qt/clist/get')) {
+      return Promise.resolve(jsonResponse(eastMoneyFundFlowPayload));
+    }
     if (url.includes('feed.mix.sina.com.cn')) return Promise.resolve(jsonResponse(sinaNews));
     if (url.includes('chat/completions')) {
       return Promise.resolve(jsonResponse({ choices: [{ message: { content: '组合整体表现良好。' } }] }));
@@ -206,10 +217,13 @@ describe('telegram ai reminder worker', () => {
     expect(aiBody.messages[0].content).toContain('风险承受能力: available');
     expect(aiBody.messages[0].content).toContain('marketSnapshot');
     expect(aiBody.messages[0].content).toContain('newsSnapshot');
+    expect(aiBody.messages[0].content).toContain('fundFlowSnapshot');
     expect(aiBody.messages[0].content).toContain('上证指数');
     expect(aiBody.messages[0].content).toContain('A股人工智能板块午后走强');
+    expect(aiBody.messages[0].content).toContain('资金流入最强方向: 人工智能');
+    expect(aiBody.messages[0].content).toContain('资金流数据: available');
     expect(aiBody.messages[0].content).toContain('今日加仓候选');
-    expect(aiBody.messages[0].content).toContain('不得编造新闻标题、财报数据或公告内容');
+    expect(aiBody.messages[0].content).toContain('不得编造新闻标题、财报数据、公告内容或资金流数据');
     expect(aiBody.messages[0].content).toContain('不要编造不存在的数据');
     expect(aiBody.messages[0].content).toContain('buildCandidates');
     expect(aiBody.messages[0].content).toContain('未持有基金B');
@@ -260,6 +274,9 @@ describe('telegram ai reminder worker', () => {
       if (url.includes('morningstar.cn')) return Promise.resolve(jsonResponse(holdingsPayload));
       if (url.includes('qt.gtimg.cn')) return Promise.resolve(new Response(marketText));
       if (url.includes('np-listapi.eastmoney.com')) return Promise.resolve(jsonResponse(emptyEastMoneyNewsPayload));
+      if (url.includes('push2.eastmoney.com/api/qt/clist/get')) {
+        return Promise.resolve(jsonResponse(eastMoneyFundFlowPayload));
+      }
       if (url.includes('feed.mix.sina.com.cn')) return Promise.resolve(jsonResponse(emptySinaNewsPayload));
       if (url.includes('api.telegram.org')) return Promise.resolve(jsonResponse({ ok: true }));
       return Promise.resolve(jsonResponse({}));
@@ -325,6 +342,9 @@ describe('telegram ai reminder worker', () => {
       if (url.includes('morningstar.cn')) return Promise.resolve(jsonResponse(holdingsPayload));
       if (url.includes('qt.gtimg.cn')) return Promise.resolve(new Response(marketText));
       if (url.includes('np-listapi.eastmoney.com')) return Promise.resolve(jsonResponse({}, 500));
+      if (url.includes('push2.eastmoney.com/api/qt/clist/get')) {
+        return Promise.resolve(jsonResponse(eastMoneyFundFlowPayload));
+      }
       if (url.includes('feed.mix.sina.com.cn')) return Promise.resolve(jsonResponse(sinaNewsPayload));
       if (url.includes('chat/completions')) {
         return Promise.resolve(jsonResponse({ choices: [{ message: { content: '部分失败分析' } }] }));
@@ -373,6 +393,9 @@ describe('telegram ai reminder worker', () => {
       if (url.includes('morningstar.cn')) return Promise.resolve(jsonResponse(holdingsPayload));
       if (url.includes('qt.gtimg.cn')) return Promise.resolve(new Response(marketText));
       if (url.includes('np-listapi.eastmoney.com')) return Promise.resolve(jsonResponse({}, 500));
+      if (url.includes('push2.eastmoney.com/api/qt/clist/get')) {
+        return Promise.resolve(jsonResponse(eastMoneyFundFlowPayload));
+      }
       if (url.includes('feed.mix.sina.com.cn')) return Promise.resolve(jsonResponse({}, 429));
       if (url.includes('chat/completions')) {
         return Promise.resolve(jsonResponse({ choices: [{ message: { content: '失败分析' } }] }));
@@ -392,6 +415,45 @@ describe('telegram ai reminder worker', () => {
     expect(aiBody.messages[0].content).toContain('消息面/财报/公告数据: failed');
     expect(aiBody.messages[0].content).toContain('中文财经新闻接口失败，消息面/财报/公告暂不可用');
     expect(aiBody.messages[0].content).toContain('不得说成近 72 小时无新闻');
+  });
+
+  it('资金流失败时要求降级且不编造资金流', async () => {
+    const fetchMock = vi.fn().mockImplementation((input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes('api.github.com/gists')) {
+        return Promise.resolve(
+          jsonResponse({ files: { 'fund-manager-sync.json': { content: JSON.stringify(backupPayload) } } }),
+        );
+      }
+      if (url.includes('morningstar.cn')) return Promise.resolve(jsonResponse(holdingsPayload));
+      if (url.includes('qt.gtimg.cn')) return Promise.resolve(new Response(marketText));
+      if (url.includes('np-listapi.eastmoney.com')) return Promise.resolve(jsonResponse(eastMoneyNewsPayload));
+      if (url.includes('push2.eastmoney.com/api/qt/clist/get')) {
+        return Promise.resolve(jsonResponse({}, 500));
+      }
+      if (url.includes('feed.mix.sina.com.cn')) return Promise.resolve(jsonResponse(sinaNewsPayload));
+      if (url.includes('chat/completions')) {
+        return Promise.resolve(jsonResponse({ choices: [{ message: { content: '资金流失败分析' } }] }));
+      }
+      if (url.includes('api.telegram.org')) return Promise.resolve(jsonResponse({ ok: true }));
+      return Promise.resolve(jsonResponse({}));
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const response = await worker.fetch(
+      new Request('https://worker.example/telegram', {
+        method: 'POST',
+        body: JSON.stringify({ message: { text: '建仓', chat: { id: 123456 } } }),
+      }),
+      env,
+    );
+
+    expect(response.status).toBe(200);
+    const aiBody = findAiRequestBody(fetchMock);
+    expect(aiBody.messages[0].content).toContain('资金流数据: failed');
+    expect(aiBody.messages[0].content).toContain('资金流数据暂不可用');
+    expect(aiBody.messages[0].content).toContain('不得编造资金流入方向或金额');
+    expect(aiBody.messages[1].content).toContain('资金流数据暂不可用，本次仅基于市场情绪和新闻利好判断');
   });
 
   it('Telegram 发送“分析”会触发短版分析并回复当前 chat', async () => {
@@ -420,6 +482,7 @@ describe('telegram ai reminder worker', () => {
     const aiBody = findAiRequestBody(fetchMock);
     expect(aiBody.messages[1].content).toContain('Telegram 短版分析');
     expect(aiBody.messages[1].content).toContain('1200 字以内');
+    expect(aiBody.messages[1].content).toContain('资金流入最强方向');
     expect(aiBody.messages[1].content).toContain('今日建仓候选');
     expect(aiBody.messages[1].content).toContain('今日加仓候选');
   });
@@ -482,6 +545,10 @@ describe('telegram ai reminder worker', () => {
     expect(aiBody.messages[1].content).toContain('今天哪只未持有基金最适合建仓');
     expect(aiBody.messages[1].content).toContain('建仓候选只能从 buildCandidates 中选择');
     expect(aiBody.messages[1].content).toContain('严禁推荐 holdings 或 heldFundCodes 中已经持有的基金');
+    expect(aiBody.messages[1].content).toContain('资金流入最强方向');
+    expect(aiBody.messages[1].content).toContain('市场情绪、今日利好方向、资金流入最强方向、未持有建仓候选、建仓方式、放弃建仓条件');
+    expect(aiBody.messages[1].content).toContain('不要输出“为什么不选已有基金”');
+    expect(aiBody.messages[1].content).not.toContain('为什么不是已有基金');
     expect(aiBody.messages[0].content).toContain('未持有基金B');
     expect(aiBody.messages[0].content).toContain('"heldFundCodes"');
     expect(aiBody.messages[1].content).toContain('不能为了回答硬选');
@@ -503,6 +570,9 @@ describe('telegram ai reminder worker', () => {
       if (url.includes('morningstar.cn')) return Promise.resolve(jsonResponse(holdingsPayload));
       if (url.includes('qt.gtimg.cn')) return Promise.resolve(new Response(marketText));
       if (url.includes('np-listapi.eastmoney.com')) return Promise.resolve(jsonResponse(eastMoneyNewsPayload));
+      if (url.includes('push2.eastmoney.com/api/qt/clist/get')) {
+        return Promise.resolve(jsonResponse(eastMoneyFundFlowPayload));
+      }
       if (url.includes('feed.mix.sina.com.cn')) return Promise.resolve(jsonResponse(sinaNewsPayload));
       if (url.includes('api.telegram.org')) return Promise.resolve(jsonResponse({ ok: true }));
       return Promise.resolve(jsonResponse({}));

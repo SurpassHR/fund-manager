@@ -192,10 +192,41 @@ interface NewsSnapshot {
   failedSources?: string[];
 }
 
+interface EastMoneyFundFlowResponse {
+  data?: {
+    diff?: Array<{
+      f12?: string;
+      f14?: string;
+      f3?: number | string;
+      f62?: number | string;
+      f184?: number | string;
+    }>;
+  };
+}
+
+interface FundFlowItemSnapshot {
+  code?: string;
+  name: string;
+  category: 'sector' | 'concept';
+  netInflow: number;
+  netInflowRank: number;
+  changePct?: number;
+  mainNetInflowPct?: number;
+}
+
+interface FundFlowSnapshot {
+  asOf: string;
+  provider: 'eastmoney';
+  items: FundFlowItemSnapshot[];
+  dataStatus: 'available' | 'partial' | 'missing' | 'failed';
+  failedSources?: string[];
+}
+
 interface AnalysisContextSnapshot {
   holdings: HoldingsSnapshot;
   marketSnapshot?: MarketSnapshot;
   newsSnapshot?: NewsSnapshot;
+  fundFlowSnapshot?: FundFlowSnapshot;
 }
 
 interface TelegramUpdate {
@@ -223,12 +254,14 @@ const TELEGRAM_MESSAGE_LIMIT = 3900;
 const MORNINGSTAR_API_BASE = 'https://www.morningstar.cn/cn-api';
 const TENCENT_QUOTE_API = 'https://qt.gtimg.cn/q=';
 const EASTMONEY_NEWS_API = 'https://np-listapi.eastmoney.com/comm/web/getNewsByColumns';
+const EASTMONEY_FUND_FLOW_API = 'https://push2.eastmoney.com/api/qt/clist/get';
 const SINA_FINANCE_ROLL_API = 'https://feed.mix.sina.com.cn/api/roll/get';
 const DEFAULT_NEWS_QUERY_TIMEOUT_MS = 5000;
+const DEFAULT_FUND_FLOW_QUERY_TIMEOUT_MS = 3000;
 const DEFAULT_AI_QUESTION =
   '请基于当前持仓、A 股市场指数、市场情绪、中文财经新闻和投资画像，重点判断当前是否适合加仓、是否需要减仓、是否达到清仓条件。请给出明确但条件化的结论、依据、触发条件和明日观察点。';
 const SHORT_ANALYSIS_QUESTION =
-  '请输出 Telegram 短版分析，控制在 1200 字以内。先给一句明确结论，再用短段落说明市场情绪、A股环境、中文财经新闻、持仓状态、今日建仓候选、今日加仓候选、是否需要减仓、是否达到清仓条件和明日观察点。不要展开长篇推理。建仓候选只能从 buildCandidates 中选择，不能推荐 holdings 中已有基金；加仓候选只能从 holdings 中选择。如果没有合适候选，分别明确写“今日暂无适合建仓的基金”或“今日暂无适合加仓的基金”。';
+  '请输出 Telegram 短版分析，控制在 1200 字以内。先给一句明确结论，再用短段落说明市场情绪、A股环境、中文财经新闻、资金流入最强方向、持仓状态、今日建仓候选、今日加仓候选、是否需要减仓、是否达到清仓条件和明日观察点。不要展开长篇推理。建仓候选只能从 buildCandidates 中选择，不能推荐 holdings 中已有基金；加仓候选只能从 holdings 中选择。如果没有合适候选，分别明确写“今日暂无适合建仓的基金”或“今日暂无适合加仓的基金”。';
 const DETAILED_ANALYSIS_QUESTION = DEFAULT_AI_QUESTION;
 const COMMAND_QUESTION_MAP: Record<string, { question: string; maxLength?: number }> = {
   分析: { question: SHORT_ANALYSIS_QUESTION, maxLength: 1600 },
@@ -241,7 +274,7 @@ const COMMAND_QUESTION_MAP: Record<string, { question: string; maxLength?: numbe
   },
   建仓: {
     question:
-      '请只回答今天哪只未持有基金最适合建仓，控制在 1000 字以内。建仓候选只能从 buildCandidates 中选择，严禁推荐 holdings 或 heldFundCodes 中已经持有的基金。如果 buildCandidates 为空或没有合适候选，必须明确写“当前自选中没有未持有基金，今日暂无适合建仓的基金”或“今日暂无适合建仓的基金”，不能为了回答硬选。选择依据必须结合 A 股市场、中文财经新闻、候选基金锚点偏离、现有持仓重合度和投资画像，并说明建议是“适合小额建仓/只适合观察/暂不适合”。',
+      '请只回答今天哪只未持有基金最适合建仓，控制在 1000 字以内。建仓候选只能从 buildCandidates 中选择，严禁推荐 holdings 或 heldFundCodes 中已经持有的基金。必须先结合 marketSnapshot 判断市场情绪，再结合 newsSnapshot 提取今日利好方向和风险方向，并结合 fundFlowSnapshot 判断资金流入最强方向。只有当候选基金与市场情绪、利好方向、资金流入方向匹配，且与现有持仓不过度重复、锚点偏离合理、符合投资画像时，才可以列为建仓候选。如果 fundFlowSnapshot 缺失或 failed，必须说明“资金流数据暂不可用，本次仅基于市场情绪和新闻利好判断”，不得编造资金流。如果 buildCandidates 为空、市场/新闻/资金流依据不足或没有匹配候选，必须明确写“今日暂无适合建仓的基金”，不能为了回答硬选。请按“市场情绪、今日利好方向、资金流入最强方向、未持有建仓候选、建仓方式、放弃建仓条件”输出，不要输出“为什么不选已有基金”。',
     maxLength: 1200,
   },
   减仓: {
@@ -481,6 +514,97 @@ const fetchMarketSnapshot = async (env: Env): Promise<MarketSnapshot | undefined
       dataStatus: 'missing',
     };
   }
+};
+
+const fetchEastMoneyFundFlowItems = async (
+  category: FundFlowItemSnapshot['category'],
+  fs: string,
+  maxItems: number,
+  timeoutMs: number,
+): Promise<FundFlowItemSnapshot[]> => {
+  const url = new URL(EASTMONEY_FUND_FLOW_API);
+  url.searchParams.set('pn', '1');
+  url.searchParams.set('pz', String(maxItems));
+  url.searchParams.set('po', '1');
+  url.searchParams.set('np', '1');
+  url.searchParams.set('ut', 'bd1d9ddb04089700cf9c27f6f7426281');
+  url.searchParams.set('fltt', '2');
+  url.searchParams.set('invt', '2');
+  url.searchParams.set('fid', 'f62');
+  url.searchParams.set('fs', fs);
+  url.searchParams.set('fields', 'f12,f14,f3,f62,f184');
+  const response = await fetchJsonWithTimeout<EastMoneyFundFlowResponse>(
+    url.toString(),
+    { headers: { Accept: 'application/json' } },
+    `读取东方财富${category === 'sector' ? '行业板块' : '概念板块'}资金流`,
+    timeoutMs,
+  );
+
+  return (response.data?.diff || [])
+    .map<FundFlowItemSnapshot | null>((item, index) => {
+      const name = item.f14?.trim();
+      const netInflow = Number(item.f62);
+      if (!name || !Number.isFinite(netInflow)) return null;
+      const changePct = Number(item.f3);
+      const mainNetInflowPct = Number(item.f184);
+
+      return {
+        code: item.f12,
+        name,
+        category,
+        netInflow: round(netInflow, 2),
+        netInflowRank: index + 1,
+        changePct: Number.isFinite(changePct) ? round(changePct, 2) : undefined,
+        mainNetInflowPct: Number.isFinite(mainNetInflowPct) ? round(mainNetInflowPct, 2) : undefined,
+      };
+    })
+    .filter((item): item is FundFlowItemSnapshot => Boolean(item));
+};
+
+const fetchFundFlowSnapshot = async (env: Env): Promise<FundFlowSnapshot | undefined> => {
+  if (!isEnabled(env.MARKET_ANALYSIS_ENABLED, true)) return undefined;
+  const timeoutMs = Math.min(
+    parsePositiveInt(env.NEWS_QUERY_TIMEOUT_MS, DEFAULT_FUND_FLOW_QUERY_TIMEOUT_MS),
+    5000,
+  );
+  const failedSources: string[] = [];
+  const items: FundFlowItemSnapshot[] = [];
+
+  try {
+    items.push(...(await fetchEastMoneyFundFlowItems('sector', 'm:90+t:2', 10, timeoutMs)));
+  } catch {
+    failedSources.push('eastmoney-sector-flow');
+  }
+
+  try {
+    items.push(...(await fetchEastMoneyFundFlowItems('concept', 'm:90+t:3', 10, timeoutMs)));
+  } catch {
+    failedSources.push('eastmoney-concept-flow');
+  }
+
+  const rankedItems = items
+    .sort((a, b) => b.netInflow - a.netInflow)
+    .slice(0, 12)
+    .map((item, index) => ({ ...item, netInflowRank: index + 1 }));
+
+  if (rankedItems.length === 0 && failedSources.length > 0) {
+    return {
+      asOf: new Date().toISOString(),
+      provider: 'eastmoney',
+      items: [],
+      dataStatus: 'failed',
+      failedSources,
+    };
+  }
+
+  return {
+    asOf: new Date().toISOString(),
+    provider: 'eastmoney',
+    items: rankedItems,
+    dataStatus:
+      rankedItems.length === 0 ? 'missing' : failedSources.length > 0 ? 'partial' : 'available',
+    failedSources: failedSources.length > 0 ? failedSources : undefined,
+  };
 };
 
 const buildNewsKeywords = (holdings: HoldingsSnapshot) => {
@@ -830,7 +954,7 @@ const buildHoldingsSnapshot = async (payload: FundBackupPayload): Promise<Holdin
 };
 
 const buildHoldingsAnalysisPrompt = (context: AnalysisContextSnapshot, mode: string) => {
-  const { holdings, marketSnapshot, newsSnapshot } = context;
+  const { holdings, marketSnapshot, newsSnapshot, fundFlowSnapshot } = context;
   const sortedByGain = [...holdings.holdings].sort((a, b) => b.totalGainPct - a.totalGainPct);
   const sortedByValue = [...holdings.holdings].sort((a, b) => b.marketValue - a.marketValue);
   const topGain = sortedByGain[0];
@@ -866,11 +990,15 @@ const buildHoldingsAnalysisPrompt = (context: AnalysisContextSnapshot, mode: str
     `未持有自选建仓候选数量: ${holdings.buildCandidates.length}`,
     `A股市场数据: ${marketSnapshot?.dataStatus ?? 'missing'}`,
     `消息面/财报/公告数据: ${newsSnapshot?.dataStatus ?? 'missing'}`,
+    `资金流数据: ${fundFlowSnapshot?.dataStatus ?? 'missing'}`,
+    fundFlowSnapshot?.items[0]
+      ? `资金流入最强方向: ${fundFlowSnapshot.items[0].name} (${fundFlowSnapshot.items[0].netInflow})`
+      : '',
   ]
     .filter(Boolean)
     .join('\n');
 
-  return `${modeInstruction}\n要求：\n1) 使用简体中文回答。\n2) 只基于给定 JSON 数据推理，不要编造不存在的数据。\n3) 如果前十大重仓股、真实行业分布、基金经理调仓、账户外资产、风险承受能力或投资期限在 dataCoverage 中标记为 missing/partial，必须明确说明“当前数据缺失/不完整”，不能当作已知事实分析。\n4) 如果 marketSnapshot 缺失或 dataStatus 为 missing/partial，必须说明“A 股市场数据缺失/不完整”，不得假设指数涨跌。\n5) 如果 newsSnapshot 缺失或 dataStatus 为 failed，必须说明“中文财经新闻接口失败，消息面/财报/公告暂不可用”，不得说成近 72 小时无新闻。\n6) 如果 newsSnapshot.dataStatus 为 missing，才可以说明“最近 ${newsSnapshot?.lookbackHours ?? 72} 小时未抓到可用中文财经新闻项”。\n7) 不得编造新闻标题、财报数据或公告内容，不得把未确认传闻当事实。\n8) 可以基于 topEquityHoldings 和 equityOverlap 分析底层股票重合度；没有数据时必须跳过。\n9) 必须分开输出“今日建仓候选”“今日加仓候选”“是否需要减仓”“是否达到清仓条件”四段，结论只能是条件判断，例如“暂不适合/只适合小额分批/等待确认/未达到清仓条件”。\n10) 今日建仓候选只能从 buildCandidates 中选择，严禁推荐 holdings 或 heldFundCodes 中已有基金；如果 buildCandidates 为空或没有合适候选，必须明确写“今日暂无适合建仓的基金”，不能硬选。\n11) 今日加仓候选只能从 holdings 中选择；如果没有合适加仓候选，必须明确写“今日暂无适合加仓的基金”。\n12) 加仓、减仓、清仓建议必须同时给出依据和触发条件；清仓不能只因为单日涨跌，必须基于长期逻辑失效、风格偏离、风险画像冲突、重合度过高或明确止盈止损条件。\n13) 输出适合 Telegram 阅读，标题清晰，重点用短句。\n\n请按以下结构输出：\n一、A 股市场环境\n二、持仓表现\n三、消息面/财报/公告影响\n四、今日建仓候选\n五、今日加仓候选\n六、是否需要减仓\n七、是否达到清仓条件\n八、明日观察点\n\n组合摘要：\n${summary}\n\n以下是分析上下文(JSON)：\n${JSON.stringify(context, null, 2)}`;
+  return `${modeInstruction}\n要求：\n1) 使用简体中文回答。\n2) 只基于给定 JSON 数据推理，不要编造不存在的数据。\n3) 如果前十大重仓股、真实行业分布、基金经理调仓、账户外资产、风险承受能力或投资期限在 dataCoverage 中标记为 missing/partial，必须明确说明“当前数据缺失/不完整”，不能当作已知事实分析。\n4) 如果 marketSnapshot 缺失或 dataStatus 为 missing/partial，必须说明“A 股市场数据缺失/不完整”，不得假设指数涨跌。\n5) 如果 newsSnapshot 缺失或 dataStatus 为 failed，必须说明“中文财经新闻接口失败，消息面/财报/公告暂不可用”，不得说成近 72 小时无新闻。\n6) 如果 newsSnapshot.dataStatus 为 missing，才可以说明“最近 ${newsSnapshot?.lookbackHours ?? 72} 小时未抓到可用中文财经新闻项”。\n7) 如果 fundFlowSnapshot 缺失、dataStatus 为 missing 或 failed，必须说明“资金流数据暂不可用”，不得编造资金流入方向或金额；如果 partial，必须说明资金流数据不完整。\n8) 不得编造新闻标题、财报数据、公告内容或资金流数据，不得把未确认传闻当事实。\n9) 可以基于 topEquityHoldings 和 equityOverlap 分析底层股票重合度；没有数据时必须跳过。\n10) 必须分开输出“今日建仓候选”“今日加仓候选”“是否需要减仓”“是否达到清仓条件”四段，结论只能是条件判断，例如“暂不适合/只适合小额分批/等待确认/未达到清仓条件”。\n11) 今日建仓候选只能从 buildCandidates 中选择，严禁推荐 holdings 或 heldFundCodes 中已有基金；建仓判断必须同时考虑 A 股市场情绪、中文财经新闻利好/风险、fundFlowSnapshot 资金流入最强方向、候选基金锚点偏离和投资画像。如果 buildCandidates 为空或没有合适候选，必须明确写“今日暂无适合建仓的基金”，不能硬选。\n12) 今日加仓候选只能从 holdings 中选择；如果没有合适加仓候选，必须明确写“今日暂无适合加仓的基金”。\n13) 加仓、减仓、清仓建议必须同时给出依据和触发条件；清仓不能只因为单日涨跌，必须基于长期逻辑失效、风格偏离、风险画像冲突、重合度过高或明确止盈止损条件。\n14) 输出适合 Telegram 阅读，标题清晰，重点用短句。\n\n请按以下结构输出：\n一、A 股市场环境\n二、持仓表现\n三、消息面/财报/公告影响\n四、资金流入最强方向\n五、今日建仓候选\n六、今日加仓候选\n七、是否需要减仓\n八、是否达到清仓条件\n九、明日观察点\n\n组合摘要：\n${summary}\n\n以下是分析上下文(JSON)：\n${JSON.stringify(context, null, 2)}`;
 };
 
 const resolveAiEndpoint = (env: Env) => {
@@ -1011,11 +1139,16 @@ const truncateForTelegram = (text: string, maxLength?: number) => {
 const buildAnalysisMessage = async (env: Env, options?: { question?: string; maxLength?: number }) => {
   const payload = await readGistBackup(env);
   const snapshot = await buildHoldingsSnapshot(payload);
-  const [marketSnapshot, newsSnapshot] = await Promise.all([
+  const [marketSnapshot, newsSnapshot, fundFlowSnapshot] = await Promise.all([
     fetchMarketSnapshot(env),
     fetchNewsSnapshot(env, snapshot),
+    fetchFundFlowSnapshot(env),
   ]);
-  const analysis = await analyzeHoldings(env, { holdings: snapshot, marketSnapshot, newsSnapshot }, options?.question);
+  const analysis = await analyzeHoldings(
+    env,
+    { holdings: snapshot, marketSnapshot, newsSnapshot, fundFlowSnapshot },
+    options?.question,
+  );
   const title = `养基AI持仓分析\n时间：${new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' })}\n`;
   const body = truncateForTelegram(analysis, options?.maxLength);
 
