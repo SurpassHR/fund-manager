@@ -148,7 +148,7 @@ export const TotalAssetsModal: React.FC<TotalAssetsModalProps> = ({ isOpen, onCl
       isOpen={isOpen}
       onClose={onClose}
       overlayId="total-assets-modal"
-      className="rounded-t-2xl sm:rounded-xl w-full h-[85vh] sm:h-auto sm:max-w-2xl overflow-hidden shadow-2xl flex flex-col max-h-[92vh] sm:max-h-[90vh]"
+      className="rounded-t-2xl sm:rounded-xl w-full h-[85vh] sm:h-auto sm:max-w-2xl overflow-hidden shadow-2xl flex flex-col max-h-[92vh] sm:max-h-[90vh] border border-slate-200 dark:border-white/10"
     >
       {/* Header */}
       <div className="flex items-center justify-between px-6 pt-5 pb-3 shrink-0">
