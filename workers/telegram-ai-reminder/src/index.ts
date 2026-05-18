@@ -76,6 +76,9 @@ interface BuildCandidateSnapshotItem {
   code: string;
   name: string;
   platform?: string;
+  source: 'watchlist' | 'fundFlowFallback';
+  matchedFlowTheme?: string;
+  reason?: string;
   currentPrice: number;
   dayChangePct: number;
   anchorPrice: number;
@@ -153,6 +156,7 @@ interface HoldingsSnapshot {
   holdingGainPct: number;
   holdings: HoldingSnapshotItem[];
   buildCandidates: BuildCandidateSnapshotItem[];
+  fallbackBuildCandidates: BuildCandidateSnapshotItem[];
   heldFundCodes: string[];
   equityOverlap: EquityOverlapItem[];
   dataCoverage: HoldingsDataCoverage;
@@ -274,7 +278,7 @@ const COMMAND_QUESTION_MAP: Record<string, { question: string; maxLength?: numbe
   },
   建仓: {
     question:
-      '请只回答今天哪只未持有基金最适合建仓，控制在 1000 字以内。建仓候选只能从 buildCandidates 中选择，严禁推荐 holdings 或 heldFundCodes 中已经持有的基金。必须先结合 marketSnapshot 判断市场情绪，再结合 newsSnapshot 提取今日利好方向和风险方向，并结合 fundFlowSnapshot 判断资金流入最强方向。只有当候选基金与市场情绪、利好方向、资金流入方向匹配，且与现有持仓不过度重复、锚点偏离合理、符合投资画像时，才可以列为建仓候选。如果 fundFlowSnapshot 缺失或 failed，必须说明“资金流数据暂不可用，本次仅基于市场情绪和新闻利好判断”，不得编造资金流。如果 buildCandidates 为空、市场/新闻/资金流依据不足或没有匹配候选，必须明确写“今日暂无适合建仓的基金”，不能为了回答硬选。请按“市场情绪、今日利好方向、资金流入最强方向、未持有建仓候选、建仓方式、放弃建仓条件”输出，不要输出“为什么不选已有基金”。',
+      '请只回答今天哪只未持有基金最适合建仓，控制在 1000 字以内。建仓候选优先从 buildCandidates 中选择，严禁推荐 holdings 或 heldFundCodes 中已经持有的基金；如果 buildCandidates 为空，可以从 fallbackBuildCandidates 中选择，但必须明确写“候选来源：资金流方向兜底，非你的自选基金”。必须先结合 marketSnapshot 判断市场情绪，再结合 newsSnapshot 提取今日利好方向和风险方向，并结合 fundFlowSnapshot 判断资金流入最强方向。只有当候选基金与市场情绪、利好方向、资金流入方向匹配，且与现有持仓不过度重复、锚点偏离合理、符合投资画像时，才可以列为建仓候选。如果 fundFlowSnapshot 缺失或 failed，必须说明“资金流数据暂不可用，本次仅基于市场情绪和新闻利好判断”，不得编造资金流。如果 buildCandidates 和 fallbackBuildCandidates 都为空、市场/新闻/资金流依据不足或没有匹配候选，必须明确写“今日暂无适合建仓的基金”，不能为了回答硬选。请按“市场情绪、今日利好方向、资金流入最强方向、未持有建仓候选、建仓方式、放弃建仓条件”输出，不要输出“为什么不选已有基金”。',
     maxLength: 1200,
   },
   减仓: {
@@ -311,6 +315,43 @@ const MARKET_INDEX_NAMES: Record<string, string> = {
   sh000852: '中证1000',
   sh000688: '科创50',
 };
+const FUND_FLOW_FALLBACK_CANDIDATES: Array<{
+  keywords: string[];
+  code: string;
+  name: string;
+  reason: string;
+}> = [
+  {
+    keywords: ['人工智能', 'ai', '软件', '计算机', '数字', '芯片', '半导体', '电子', '元件', 'pcb', '印制电路板'],
+    code: '017811',
+    name: '东方人工智能主题混合C',
+    reason: '匹配 AI/计算机/半导体方向资金流',
+  },
+  {
+    keywords: ['半导体', '芯片', '电子', '元件', 'pcb', '印制电路板', '集成电路'],
+    code: '012969',
+    name: '国泰中证半导体材料设备主题ETF联接C',
+    reason: '匹配半导体设备与电子产业链资金流',
+  },
+  {
+    keywords: ['新能源', '电池', '光伏', '锂电', '储能', '低碳', '电力设备'],
+    code: '012103',
+    name: '国寿安保低碳经济混合C',
+    reason: '匹配新能源/低碳方向资金流',
+  },
+  {
+    keywords: ['创新', '创业板', '科创', '成长', '自动化设备', '机器人', '高端制造'],
+    code: '501205',
+    name: '鹏华创新未来混合(LOF)C',
+    reason: '匹配科技成长与高端制造方向资金流',
+  },
+  {
+    keywords: ['消费', '食品饮料', '白酒', '医药', '医疗'],
+    code: '012414',
+    name: '招商中证白酒指数C',
+    reason: '匹配消费/食品饮料方向资金流',
+  },
+];
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), {
@@ -881,6 +922,7 @@ const buildBuildCandidates = (
       code: item.code,
       name: item.name,
       platform: item.platform,
+      source: 'watchlist',
       currentPrice: round(item.currentPrice, 4),
       dayChangePct: round(item.dayChangePct),
       anchorPrice: round(item.anchorPrice, 4),
@@ -891,6 +933,40 @@ const buildBuildCandidates = (
     }))
     .sort((a, b) => a.dayChangePct - b.dayChangePct || a.anchorChangePct - b.anchorChangePct)
     .slice(0, 20);
+};
+
+const buildFallbackBuildCandidates = (
+  fundFlowSnapshot: FundFlowSnapshot | undefined,
+  heldFundCodes: Set<string>,
+): BuildCandidateSnapshotItem[] => {
+  if (!fundFlowSnapshot?.items.length) return [];
+  const flowThemes = fundFlowSnapshot.items.slice(0, 6).map((item) => item.name.toLowerCase());
+  const seen = new Set<string>();
+
+  return FUND_FLOW_FALLBACK_CANDIDATES.filter((candidate) => !heldFundCodes.has(candidate.code))
+    .map<BuildCandidateSnapshotItem | null>((candidate) => {
+      const matchedTheme = flowThemes.find((theme) =>
+        candidate.keywords.some((keyword) => theme.includes(keyword.toLowerCase())),
+      );
+      if (!matchedTheme || seen.has(candidate.code)) return null;
+      seen.add(candidate.code);
+
+      return {
+        code: candidate.code,
+        name: candidate.name,
+        source: 'fundFlowFallback',
+        matchedFlowTheme: matchedTheme,
+        reason: candidate.reason,
+        currentPrice: 0,
+        dayChangePct: 0,
+        anchorPrice: 0,
+        anchorDate: '',
+        lastUpdate: fundFlowSnapshot.asOf,
+        anchorChangePct: 0,
+      };
+    })
+    .filter((item): item is BuildCandidateSnapshotItem => Boolean(item))
+    .slice(0, 5);
 };
 
 const buildHoldingsSnapshot = async (payload: FundBackupPayload): Promise<HoldingsSnapshot> => {
@@ -946,6 +1022,7 @@ const buildHoldingsSnapshot = async (payload: FundBackupPayload): Promise<Holdin
     holdingGainPct: totalCost > 0 ? round((holdingGain / totalCost) * 100) : 0,
     holdings,
     buildCandidates: buildBuildCandidates(payload.watchlists, heldFundCodeSet),
+    fallbackBuildCandidates: [],
     heldFundCodes: Array.from(heldFundCodeSet),
     equityOverlap: buildEquityOverlap(holdings),
     dataCoverage: buildHoldingsDataCoverage(holdings, payload.investmentProfile),
@@ -988,6 +1065,7 @@ const buildHoldingsAnalysisPrompt = (context: AnalysisContextSnapshot, mode: str
     `投资期限: ${holdings.dataCoverage.investmentHorizon}`,
     `底层股票重合项数量: ${holdings.equityOverlap.length}`,
     `未持有自选建仓候选数量: ${holdings.buildCandidates.length}`,
+    `资金流兜底建仓候选数量: ${holdings.fallbackBuildCandidates.length}`,
     `A股市场数据: ${marketSnapshot?.dataStatus ?? 'missing'}`,
     `消息面/财报/公告数据: ${newsSnapshot?.dataStatus ?? 'missing'}`,
     `资金流数据: ${fundFlowSnapshot?.dataStatus ?? 'missing'}`,
@@ -998,7 +1076,7 @@ const buildHoldingsAnalysisPrompt = (context: AnalysisContextSnapshot, mode: str
     .filter(Boolean)
     .join('\n');
 
-  return `${modeInstruction}\n要求：\n1) 使用简体中文回答。\n2) 只基于给定 JSON 数据推理，不要编造不存在的数据。\n3) 如果前十大重仓股、真实行业分布、基金经理调仓、账户外资产、风险承受能力或投资期限在 dataCoverage 中标记为 missing/partial，必须明确说明“当前数据缺失/不完整”，不能当作已知事实分析。\n4) 如果 marketSnapshot 缺失或 dataStatus 为 missing/partial，必须说明“A 股市场数据缺失/不完整”，不得假设指数涨跌。\n5) 如果 newsSnapshot 缺失或 dataStatus 为 failed，必须说明“中文财经新闻接口失败，消息面/财报/公告暂不可用”，不得说成近 72 小时无新闻。\n6) 如果 newsSnapshot.dataStatus 为 missing，才可以说明“最近 ${newsSnapshot?.lookbackHours ?? 72} 小时未抓到可用中文财经新闻项”。\n7) 如果 fundFlowSnapshot 缺失、dataStatus 为 missing 或 failed，必须说明“资金流数据暂不可用”，不得编造资金流入方向或金额；如果 partial，必须说明资金流数据不完整。\n8) 不得编造新闻标题、财报数据、公告内容或资金流数据，不得把未确认传闻当事实。\n9) 可以基于 topEquityHoldings 和 equityOverlap 分析底层股票重合度；没有数据时必须跳过。\n10) 必须分开输出“今日建仓候选”“今日加仓候选”“是否需要减仓”“是否达到清仓条件”四段，结论只能是条件判断，例如“暂不适合/只适合小额分批/等待确认/未达到清仓条件”。\n11) 今日建仓候选只能从 buildCandidates 中选择，严禁推荐 holdings 或 heldFundCodes 中已有基金；建仓判断必须同时考虑 A 股市场情绪、中文财经新闻利好/风险、fundFlowSnapshot 资金流入最强方向、候选基金锚点偏离和投资画像。如果 buildCandidates 为空或没有合适候选，必须明确写“今日暂无适合建仓的基金”，不能硬选。\n12) 今日加仓候选只能从 holdings 中选择；如果没有合适加仓候选，必须明确写“今日暂无适合加仓的基金”。\n13) 加仓、减仓、清仓建议必须同时给出依据和触发条件；清仓不能只因为单日涨跌，必须基于长期逻辑失效、风格偏离、风险画像冲突、重合度过高或明确止盈止损条件。\n14) 输出适合 Telegram 阅读，标题清晰，重点用短句。\n\n请按以下结构输出：\n一、A 股市场环境\n二、持仓表现\n三、消息面/财报/公告影响\n四、资金流入最强方向\n五、今日建仓候选\n六、今日加仓候选\n七、是否需要减仓\n八、是否达到清仓条件\n九、明日观察点\n\n组合摘要：\n${summary}\n\n以下是分析上下文(JSON)：\n${JSON.stringify(context, null, 2)}`;
+  return `${modeInstruction}\n要求：\n1) 使用简体中文回答。\n2) 只基于给定 JSON 数据推理，不要编造不存在的数据。\n3) 如果前十大重仓股、真实行业分布、基金经理调仓、账户外资产、风险承受能力或投资期限在 dataCoverage 中标记为 missing/partial，必须明确说明“当前数据缺失/不完整”，不能当作已知事实分析。\n4) 如果 marketSnapshot 缺失或 dataStatus 为 missing/partial，必须说明“A 股市场数据缺失/不完整”，不得假设指数涨跌。\n5) 如果 newsSnapshot 缺失或 dataStatus 为 failed，必须说明“中文财经新闻接口失败，消息面/财报/公告暂不可用”，不得说成近 72 小时无新闻。\n6) 如果 newsSnapshot.dataStatus 为 missing，才可以说明“最近 ${newsSnapshot?.lookbackHours ?? 72} 小时未抓到可用中文财经新闻项”。\n7) 如果 fundFlowSnapshot 缺失、dataStatus 为 missing 或 failed，必须说明“资金流数据暂不可用”，不得编造资金流入方向或金额；如果 partial，必须说明资金流数据不完整。\n8) 不得编造新闻标题、财报数据、公告内容或资金流数据，不得把未确认传闻当事实。\n9) 可以基于 topEquityHoldings 和 equityOverlap 分析底层股票重合度；没有数据时必须跳过。\n10) 必须分开输出“今日建仓候选”“今日加仓候选”“是否需要减仓”“是否达到清仓条件”四段，结论只能是条件判断，例如“暂不适合/只适合小额分批/等待确认/未达到清仓条件”。\n11) 今日建仓候选优先从 buildCandidates 中选择，严禁推荐 holdings 或 heldFundCodes 中已有基金。只有当 buildCandidates 为空时，才可以从 fallbackBuildCandidates 中选择；使用 fallbackBuildCandidates 时必须明确写“候选来源：资金流方向兜底，非你的自选基金”。建仓判断必须同时考虑 A 股市场情绪、中文财经新闻利好/风险、fundFlowSnapshot 资金流入最强方向、候选基金锚点偏离和投资画像。如果两个候选列表都为空或没有合适候选，必须明确写“今日暂无适合建仓的基金”，不能硬选。\n12) 今日加仓候选只能从 holdings 中选择；如果没有合适加仓候选，必须明确写“今日暂无适合加仓的基金”。\n13) 加仓、减仓、清仓建议必须同时给出依据和触发条件；清仓不能只因为单日涨跌，必须基于长期逻辑失效、风格偏离、风险画像冲突、重合度过高或明确止盈止损条件。\n14) 输出适合 Telegram 阅读，标题清晰，重点用短句。\n\n请按以下结构输出：\n一、A 股市场环境\n二、持仓表现\n三、消息面/财报/公告影响\n四、资金流入最强方向\n五、今日建仓候选\n六、今日加仓候选\n七、是否需要减仓\n八、是否达到清仓条件\n九、明日观察点\n\n组合摘要：\n${summary}\n\n以下是分析上下文(JSON)：\n${JSON.stringify(context, null, 2)}`;
 };
 
 const resolveAiEndpoint = (env: Env) => {
@@ -1144,9 +1222,14 @@ const buildAnalysisMessage = async (env: Env, options?: { question?: string; max
     fetchNewsSnapshot(env, snapshot),
     fetchFundFlowSnapshot(env),
   ]);
+  const heldFundCodeSet = new Set(snapshot.heldFundCodes);
+  const snapshotWithFallback: HoldingsSnapshot = {
+    ...snapshot,
+    fallbackBuildCandidates: buildFallbackBuildCandidates(fundFlowSnapshot, heldFundCodeSet),
+  };
   const analysis = await analyzeHoldings(
     env,
-    { holdings: snapshot, marketSnapshot, newsSnapshot, fundFlowSnapshot },
+    { holdings: snapshotWithFallback, marketSnapshot, newsSnapshot, fundFlowSnapshot },
     options?.question,
   );
   const title = `养基AI持仓分析\n时间：${new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' })}\n`;

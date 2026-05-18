@@ -58,6 +58,11 @@ const backupPayload = {
   ],
 };
 
+const backupPayloadWithoutBuildCandidates = {
+  ...backupPayload,
+  watchlists: backupPayload.watchlists.filter((item) => item.code !== '000002'),
+};
+
 const holdingsPayload = {
   data: {
     portfolioDate: '2026-03-31',
@@ -228,6 +233,7 @@ describe('telegram ai reminder worker', () => {
     expect(aiBody.messages[0].content).toContain('buildCandidates');
     expect(aiBody.messages[0].content).toContain('未持有基金B');
     expect(aiBody.messages[0].content).toContain('未持有自选建仓候选数量: 1');
+    expect(aiBody.messages[0].content).toContain('资金流兜底建仓候选数量:');
     expect(aiBody.messages[1].content).toContain('是否适合加仓');
 
     const telegramCall = fetchMock.mock.calls.find((call) => String(call[0]).includes('api.telegram.org'));
@@ -543,15 +549,64 @@ describe('telegram ai reminder worker', () => {
     expect(response.status).toBe(200);
     const aiBody = findAiRequestBody(fetchMock);
     expect(aiBody.messages[1].content).toContain('今天哪只未持有基金最适合建仓');
-    expect(aiBody.messages[1].content).toContain('建仓候选只能从 buildCandidates 中选择');
+    expect(aiBody.messages[1].content).toContain('建仓候选优先从 buildCandidates 中选择');
     expect(aiBody.messages[1].content).toContain('严禁推荐 holdings 或 heldFundCodes 中已经持有的基金');
     expect(aiBody.messages[1].content).toContain('资金流入最强方向');
     expect(aiBody.messages[1].content).toContain('市场情绪、今日利好方向、资金流入最强方向、未持有建仓候选、建仓方式、放弃建仓条件');
     expect(aiBody.messages[1].content).toContain('不要输出“为什么不选已有基金”');
+    expect(aiBody.messages[1].content).toContain('fallbackBuildCandidates');
     expect(aiBody.messages[1].content).not.toContain('为什么不是已有基金');
     expect(aiBody.messages[0].content).toContain('未持有基金B');
     expect(aiBody.messages[0].content).toContain('"heldFundCodes"');
     expect(aiBody.messages[1].content).toContain('不能为了回答硬选');
+  });
+
+  it('建仓候选为空时使用资金流方向兜底候选并标明来源', async () => {
+    const fetchMock = vi.fn().mockImplementation((input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes('api.github.com/gists')) {
+        return Promise.resolve(
+          jsonResponse({
+            files: {
+              'fund-manager-sync.json': {
+                content: JSON.stringify(backupPayloadWithoutBuildCandidates),
+              },
+            },
+          }),
+        );
+      }
+      if (url.includes('morningstar.cn')) return Promise.resolve(jsonResponse(holdingsPayload));
+      if (url.includes('qt.gtimg.cn')) return Promise.resolve(new Response(marketText));
+      if (url.includes('np-listapi.eastmoney.com')) return Promise.resolve(jsonResponse(eastMoneyNewsPayload));
+      if (url.includes('push2.eastmoney.com/api/qt/clist/get')) {
+        return Promise.resolve(jsonResponse(eastMoneyFundFlowPayload));
+      }
+      if (url.includes('feed.mix.sina.com.cn')) return Promise.resolve(jsonResponse(sinaNewsPayload));
+      if (url.includes('chat/completions')) {
+        return Promise.resolve(jsonResponse({ choices: [{ message: { content: '兜底建仓分析' } }] }));
+      }
+      if (url.includes('api.telegram.org')) return Promise.resolve(jsonResponse({ ok: true }));
+      return Promise.resolve(jsonResponse({}));
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const response = await worker.fetch(
+      new Request('https://worker.example/telegram', {
+        method: 'POST',
+        body: JSON.stringify({ message: { text: '建仓', chat: { id: 123456 } } }),
+      }),
+      env,
+    );
+
+    expect(response.status).toBe(200);
+    const aiBody = findAiRequestBody(fetchMock);
+    expect(aiBody.messages[0].content).toContain('未持有自选建仓候选数量: 0');
+    expect(aiBody.messages[0].content).toContain('资金流兜底建仓候选数量:');
+    expect(aiBody.messages[0].content).toContain('fallbackBuildCandidates');
+    expect(aiBody.messages[0].content).toContain('fundFlowFallback');
+    expect(aiBody.messages[0].content).toContain('人工智能');
+    expect(aiBody.messages[1].content).toContain('候选来源：资金流方向兜底，非你的自选基金');
+    expect(aiBody.messages[1].content).toContain('严禁推荐 holdings 或 heldFundCodes 中已经持有的基金');
   });
 
   it('Telegram 短版输出过长时会截断', async () => {
