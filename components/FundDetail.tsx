@@ -42,7 +42,7 @@ import {
   checkIsUSMarketTrading,
 } from '../services/api';
 import type { IntradayPoint } from '../services/api';
-import { deriveFundHoldingDisplayMetrics } from '../services/fundDayChange';
+import { computeRealizedGain, deriveFundHoldingDisplayMetrics } from '../services/fundDayChange';
 import * as echarts from 'echarts';
 
 interface FundDetailProps {
@@ -1333,14 +1333,19 @@ export const FundDetail: React.FC<FundDetailProps> = ({
             </div>
 
             {(() => {
-              const totalGain = holdingDisplayMetrics.totalGain;
+              const isCleared = fund.holdingShares <= 0.01;
+              const realized = isCleared ? computeRealizedGain(fund) : null;
+              const totalGain = isCleared
+                ? (realized?.realizedGain ?? 0)
+                : holdingDisplayMetrics.totalGain;
+              const totalGainLabel = isCleared ? '累计收益' : t('common.totalGain');
               const dayGainVal = displayDayGainVal;
 
               return (
                 <>
                   <div className="flex flex-col justify-between rounded-lg border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)]/78 p-2 transition-colors">
                     <div className="mb-1 text-xs text-[var(--app-shell-muted)]">
-                      {anchorPrice ? t('common.anchorGain') : t('common.totalGain')}
+                      {anchorPrice ? t('common.anchorGain') : totalGainLabel}
                     </div>
                     {anchorPrice ? (
                       <div

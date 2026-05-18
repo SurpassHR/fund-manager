@@ -107,6 +107,8 @@ export interface AssetSummary {
   totalDayGainPct: number;
   holdingGain: number;
   holdingGainPct: number;
+  cumulativeGain: number;
+  cumulativeGainPct: number;
 }
 
 /** 每日总资产快照，用于总资产走势图 */
@@ -123,6 +125,10 @@ export interface TotalAssetsSnapshot {
   holdingGainPct: number;
   /** 当日收益 (CNY) */
   dayGain: number;
+  /** 累计收益 (CNY)，含清仓基金已实现盈亏 */
+  cumulativeGain?: number;
+  /** 累计收益率 (%) */
+  cumulativeGainPct?: number;
 }
 
 export type TabType = 'holding' | 'watchlist' | 'services' | 'news' | 'settings';

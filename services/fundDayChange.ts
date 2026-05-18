@@ -1,3 +1,5 @@
+import type { Fund } from '../types';
+
 export type FundTradeTime = 'before15' | 'after15';
 
 const formatDate = (date: Date) => {
@@ -84,15 +86,8 @@ export const deriveFundHoldingDisplayMetrics = (params: {
   settlementDays?: number;
   effectiveDate: string;
 }) => {
-  const {
-    holdingShares,
-    currentNav,
-    costPrice,
-    buyDate,
-    buyTime,
-    settlementDays,
-    effectiveDate,
-  } = params;
+  const { holdingShares, currentNav, costPrice, buyDate, buyTime, settlementDays, effectiveDate } =
+    params;
 
   const marketValue = holdingShares * currentNav;
   const totalCost = holdingShares * costPrice;
@@ -158,7 +153,9 @@ export const deriveFundIntradayDisplayMetrics = (params: {
 
   let dayChangeVal = 0;
   if (isGainActive) {
-    const currentEffectiveNav = hasEstimate ? nav * (1 + (estimatedChangePct as number) / 100) : nav;
+    const currentEffectiveNav = hasEstimate
+      ? nav * (1 + (estimatedChangePct as number) / 100)
+      : nav;
 
     if (dayChangeBaseNav !== undefined) {
       dayChangeVal = holdingShares * (currentEffectiveNav - dayChangeBaseNav);
@@ -184,4 +181,35 @@ export const deriveFundIntradayDisplayMetrics = (params: {
     todayChangeIsEstimated: hasEstimate,
     todayChangeUnavailable,
   };
+};
+
+/**
+ * 从已结算交易推算清仓基金的已实现盈亏。
+ * 仅基于已结算交易计算，不依赖当前持仓。
+ */
+export const computeRealizedGain = (
+  fund: Fund,
+): { realizedGain: number; realizedGainPct: number } => {
+  const txs = fund.pendingTransactions || [];
+  let totalSellRevenue = 0;
+  let totalBuyCost = 0;
+
+  txs.forEach((tx) => {
+    if (!tx.settled) return;
+
+    if (tx.type === 'sell' && tx.netOutAmount != null) {
+      totalSellRevenue += tx.netOutAmount;
+    } else if (tx.type === 'transferOut' && tx.netOutAmount != null) {
+      totalSellRevenue += tx.netOutAmount;
+    } else if (tx.type === 'buy') {
+      totalBuyCost += tx.amount;
+    } else if (tx.type === 'transferIn' && tx.netInAmount != null) {
+      totalBuyCost += tx.netInAmount;
+    }
+  });
+
+  const realizedGain = totalSellRevenue - totalBuyCost;
+  const realizedGainPct = totalBuyCost > 0 ? (realizedGain / totalBuyCost) * 100 : 0;
+
+  return { realizedGain, realizedGainPct };
 };

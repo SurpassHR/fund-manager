@@ -22,6 +22,7 @@ import {
   parseAndNormalizeFundBackupPayload,
 } from './fundBackup';
 import {
+  computeRealizedGain,
   deriveFundGainActivationState,
   deriveFundHoldingDisplayMetrics,
   deriveFundIntradayDisplayMetrics,
@@ -34,6 +35,7 @@ import { executeInvestmentPlans } from './investmentPlan';
 import type { RefreshExecutionResult, RefreshExecutionStatus } from './refreshPolicy';
 
 export {
+  computeRealizedGain,
   deriveFundGainActivationState,
   deriveFundHoldingDisplayMetrics,
   deriveFundIntradayDisplayMetrics,
@@ -858,6 +860,7 @@ export const calculateSummary = (funds: Fund[]): AssetSummary => {
   let totalDayGain = 0;
   let totalCost = 0;
   let holdingGain = 0;
+  let clearedRealizedGain = 0;
 
   const todayStr = getLocalDateString();
 
@@ -878,8 +881,8 @@ export const calculateSummary = (funds: Fund[]): AssetSummary => {
       effectiveDate: fund.lastUpdate || todayStr,
     });
 
-    // 如果该基金的最后更新日期不是“今天”，说明它的涨跌幅停留在之前的交易日
-    // 此时它对“今日总收益”的贡献应当为 0
+    // 如果该基金的最后更新日期不是”今天”，说明它的涨跌幅停留在之前的交易日
+    // 此时它对”今日总收益”的贡献应当为 0
     const dayGain =
       !isInTransit && fund.lastUpdate === todayStr
         ? fund.todayChangeUnavailable
@@ -897,11 +900,19 @@ export const calculateSummary = (funds: Fund[]): AssetSummary => {
     totalDayGain += dayGain;
     totalCost += costValue;
     holdingGain += totalGain;
+
+    // 清仓基金：累加已实现盈亏
+    if (fund.holdingShares <= 0.01) {
+      const { realizedGain } = computeRealizedGain(fund);
+      clearedRealizedGain += realizedGain;
+    }
   });
 
   const holdingGainPct = totalCost > 0 ? (holdingGain / totalCost) * 100 : 0;
   const totalDayGainPct =
     totalAssets - totalDayGain > 0 ? (totalDayGain / (totalAssets - totalDayGain)) * 100 : 0;
+  const cumulativeGain = holdingGain + clearedRealizedGain;
+  const cumulativeGainPct = totalCost > 0 ? (cumulativeGain / totalCost) * 100 : 0;
 
   return {
     totalAssets,
@@ -909,6 +920,8 @@ export const calculateSummary = (funds: Fund[]): AssetSummary => {
     totalDayGainPct,
     holdingGain,
     holdingGainPct,
+    cumulativeGain,
+    cumulativeGainPct,
   };
 };
 
@@ -930,6 +943,8 @@ export const saveTotalAssetsSnapshot = async (summary: AssetSummary): Promise<vo
         holdingGain: summary.holdingGain,
         holdingGainPct: summary.holdingGainPct,
         dayGain: summary.totalDayGain,
+        cumulativeGain: summary.cumulativeGain,
+        cumulativeGainPct: summary.cumulativeGainPct,
       });
     } else {
       await db.totalAssetsHistory.put({
@@ -938,6 +953,8 @@ export const saveTotalAssetsSnapshot = async (summary: AssetSummary): Promise<vo
         holdingGain: summary.holdingGain,
         holdingGainPct: summary.holdingGainPct,
         dayGain: summary.totalDayGain,
+        cumulativeGain: summary.cumulativeGain,
+        cumulativeGainPct: summary.cumulativeGainPct,
       });
     }
   });

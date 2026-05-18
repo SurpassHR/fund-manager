@@ -40,7 +40,7 @@ export const filterDataByTimeRange = (
   return data.filter((d) => d.date >= cutoffStr);
 };
 
-/** 将 DB 快照转换为图表数据点（profit = holdingGain）。过滤 totalAssets 为 0 的无效快照。 */
+/** 将 DB 快照转换为图表数据点。profit 优先取 cumulativeGain，历史数据回退 holdingGain。过滤 totalAssets 为 0 的无效快照。 */
 export const snapshotsToChartData = (
   snapshots: TotalAssetsSnapshot[],
 ): TotalAssetsChartDataPoint[] => {
@@ -49,7 +49,7 @@ export const snapshotsToChartData = (
     .map((s) => ({
       date: s.date,
       totalAssets: s.totalAssets,
-      profit: s.holdingGain,
+      profit: s.cumulativeGain ?? s.holdingGain,
     }));
 };
 

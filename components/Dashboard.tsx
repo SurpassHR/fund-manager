@@ -46,7 +46,7 @@ import {
   readRefreshLastSuccessAt,
   writeRefreshLastSuccessAt,
 } from '../services/refreshPolicy';
-import { deriveFundHoldingDisplayMetrics } from '../services/fundDayChange';
+import { computeRealizedGain, deriveFundHoldingDisplayMetrics } from '../services/fundDayChange';
 import { getCachedFundStreaks } from '../services/streakCalculator';
 import type { FundStreak } from '../types';
 
@@ -904,7 +904,7 @@ export const Dashboard: React.FC = () => {
                 </button>
               </div>
 
-              <div className="mt-4">
+              <div className="mt-4 flex flex-wrap items-center gap-2">
                 <div className="inline-flex items-center gap-2 rounded-full border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)]/80 px-3.5 py-1.5 transition-colors dark:border-white/5 dark:bg-white/5">
                   <span className="text-[12px] font-medium text-amber-600 dark:text-amber-500">
                     持有收益
@@ -913,6 +913,17 @@ export const Dashboard: React.FC = () => {
                     {showValues ? formatSignedCurrency(summary.holdingGain) : '****'}
                     <span className="ml-1 text-xs font-medium">
                       ({showValues ? formatPct(summary.holdingGainPct) : '****'})
+                    </span>
+                  </span>
+                </div>
+                <div className="inline-flex items-center gap-2 rounded-full border border-indigo-200 bg-indigo-50/80 px-3.5 py-1.5 transition-colors dark:border-indigo-400/20 dark:bg-indigo-500/10">
+                  <span className="text-[12px] font-medium text-indigo-600 dark:text-indigo-400">
+                    累计收益
+                  </span>
+                  <span className={`text-[13px] font-bold ${getSignColor(summary.cumulativeGain)}`}>
+                    {showValues ? formatSignedCurrency(summary.cumulativeGain) : '****'}
+                    <span className="ml-1 text-xs font-medium">
+                      ({showValues ? formatPct(summary.cumulativeGainPct) : '****'})
                     </span>
                   </span>
                 </div>
@@ -1459,11 +1470,10 @@ export const Dashboard: React.FC = () => {
                     const fund = item.fund;
                     const {
                       marketValue: holdingValue,
-                      totalGain: totalReturn,
-                      totalGainPct: holdingGainPct,
                       isInTransit,
                       dayChangeBaseNav,
                     } = getHoldingDisplayMetrics(fund);
+                    const { realizedGain, realizedGainPct } = computeRealizedGain(fund);
                     const officialDayChangePct = fund.officialDayChangePct ?? fund.dayChangePct;
                     const todayChangePct =
                       isInTransit || fund.todayChangeUnavailable
@@ -1623,14 +1633,14 @@ export const Dashboard: React.FC = () => {
                             </div>
                             <div className="flex flex-col items-end">
                               <div
-                                className={`text-sm font-semibold ${displayMetricColor(totalReturn)}`}
+                                className={`text-sm font-semibold ${displayMetricColor(realizedGain)}`}
                               >
-                                {displayMaskedValue(formatSignedCurrency(totalReturn))}
+                                {displayMaskedValue(formatSignedCurrency(realizedGain))}
                               </div>
                               <div
-                                className={`mt-1 text-[10px] font-medium ${displayMetricColor(holdingGainPct)}`}
+                                className={`mt-1 text-[10px] font-medium ${displayMetricColor(realizedGainPct)}`}
                               >
-                                {displayMaskedValue(formatPct(holdingGainPct))}
+                                {displayMaskedValue(formatPct(realizedGainPct))}
                               </div>
                             </div>
                             <div className="text-base font-black tracking-[-0.03em] text-slate-900 dark:text-gray-50">
@@ -1671,17 +1681,17 @@ export const Dashboard: React.FC = () => {
                             </div>
                             <div className="min-w-0 flex-1 rounded-xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)]/80 px-2 py-2 text-right dark:border-white/10 dark:bg-white/5">
                               <div
-                                className={`truncate text-[12px] font-bold ${displayMetricColor(totalReturn)}`}
+                                className={`truncate text-[12px] font-bold ${displayMetricColor(realizedGain)}`}
                               >
-                                {displayMaskedValue(formatSignedCurrency(totalReturn))}
+                                {displayMaskedValue(formatSignedCurrency(realizedGain))}
                               </div>
                               <div
-                                className={`mt-0.5 truncate text-[9px] font-medium ${displayMetricColor(holdingGainPct)}`}
+                                className={`mt-0.5 truncate text-[9px] font-medium ${displayMetricColor(realizedGainPct)}`}
                               >
-                                {displayMaskedValue(formatPct(holdingGainPct))}
+                                {displayMaskedValue(formatPct(realizedGainPct))}
                               </div>
                               <div className="mt-0.5 truncate text-[9px] font-semibold tracking-[0.1em] text-slate-400 dark:text-gray-500">
-                                {t('common.totalGain')}
+                                累计收益
                               </div>
                             </div>
                           </div>
