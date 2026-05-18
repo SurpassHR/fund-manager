@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildHoldingsAnalysisPrompt,
+  buildEquityOverlap,
+  buildHoldingsDataCoverage,
   compressAiAnalysisMessages,
   buildAiAnalysisCacheKey,
   getCachedAiAnalysisResult,
@@ -30,10 +32,15 @@ const snapshot: HoldingsSnapshot = {
       totalCost: 1000,
       totalGain: 200,
       totalGainPct: 20,
-      dayChangePct: 1.2,
-      dayChangeVal: 12,
-      lastUpdate: '2026-04-18',
-    },
+        dayChangePct: 1.2,
+        dayChangeVal: 12,
+        lastUpdate: '2026-04-18',
+        topEquityHoldings: [
+          { ticker: '600519', name: '贵州茅台', weight: 8, sector: '消费' },
+          { ticker: '300750', name: '宁德时代', weight: 5, sector: '新能源' },
+        ],
+        holdingsDataStatus: 'available',
+      },
     {
       code: '110011',
       name: '易方达中小盘',
@@ -45,12 +52,22 @@ const snapshot: HoldingsSnapshot = {
       totalCost: 1600,
       totalGain: -160,
       totalGainPct: -10,
-      dayChangePct: -0.8,
-      dayChangeVal: -8,
-      lastUpdate: '2026-04-18',
-    },
+        dayChangePct: -0.8,
+        dayChangeVal: -8,
+        lastUpdate: '2026-04-18',
+        topEquityHoldings: [{ ticker: '600519', name: '贵州茅台', weight: 3, sector: '消费' }],
+        holdingsDataStatus: 'available',
+      },
   ],
 };
+
+snapshot.equityOverlap = buildEquityOverlap(snapshot.holdings);
+snapshot.investmentProfile = {
+  riskTolerance: '稳健',
+  investmentHorizon: '3-5年',
+  externalAssets: '现金 5 万',
+};
+snapshot.dataCoverage = buildHoldingsDataCoverage(snapshot.holdings, snapshot.investmentProfile);
 
 describe('buildHoldingsAnalysisPrompt', () => {
   it('根据不同分析模式生成差异化提示词', () => {
@@ -61,6 +78,38 @@ describe('buildHoldingsAnalysisPrompt', () => {
     expect(risk).toContain('风险');
     expect(quick).not.toEqual(risk);
     expect(quick).toContain('总资产');
+    expect(quick).toContain('不要编造不存在的数据');
+    expect(quick).toContain('当前数据缺失/不完整');
+    expect(quick).toContain('equityOverlap');
+    expect(quick).toContain('贵州茅台');
+  });
+
+  it('计算底层股票重合度和数据覆盖情况', () => {
+    const overlap = buildEquityOverlap(snapshot.holdings);
+    const coverage = buildHoldingsDataCoverage(snapshot.holdings);
+
+    expect(overlap).toEqual([
+      {
+        ticker: '600519',
+        name: '贵州茅台',
+        fundCount: 2,
+        funds: ['中欧医疗健康', '易方达中小盘'],
+        maxWeight: 8,
+        totalWeight: 11,
+      },
+    ]);
+    expect(coverage.topEquityHoldings).toBe('available');
+    expect(coverage.industryDistribution).toBe('available');
+    expect(coverage.managerChanges).toBe('missing');
+    expect(coverage.riskProfile).toBe('missing');
+  });
+
+  it('投资画像存在时标记风险承受能力和投资期限为 available', () => {
+    const coverage = buildHoldingsDataCoverage(snapshot.holdings, snapshot.investmentProfile);
+
+    expect(coverage.externalAssets).toBe('available');
+    expect(coverage.riskProfile).toBe('available');
+    expect(coverage.investmentHorizon).toBe('available');
   });
 });
 

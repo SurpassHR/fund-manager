@@ -1,4 +1,5 @@
 import type { Account, Fund, WatchlistItem, InvestmentPlan } from '../types';
+import type { InvestmentProfileSnapshot } from './aiAnalysis';
 
 export interface FundBackupPayload {
   version: number;
@@ -7,6 +8,7 @@ export interface FundBackupPayload {
   accounts?: Account[];
   watchlists?: WatchlistItem[];
   investmentPlans?: InvestmentPlan[];
+  investmentProfile?: InvestmentProfileSnapshot;
 }
 
 const BACKUP_VERSION = 1;
@@ -100,6 +102,7 @@ export const buildFundBackupPayload = (
   accounts: Account[] = [],
   watchlists: WatchlistItem[] = [],
   investmentPlans: InvestmentPlan[] = [],
+  investmentProfile?: InvestmentProfileSnapshot,
 ): FundBackupPayload => {
   return {
     version: BACKUP_VERSION,
@@ -108,6 +111,7 @@ export const buildFundBackupPayload = (
     accounts: accounts.map(stripAccountId),
     watchlists: watchlists.map(stripWatchlistId),
     investmentPlans: investmentPlans.map(stripInvestmentPlanId),
+    investmentProfile,
   };
 };
 
@@ -118,6 +122,7 @@ export const parseAndNormalizeFundBackupPayload = (
   accounts: Account[];
   watchlists: WatchlistItem[];
   investmentPlans: InvestmentPlan[];
+  investmentProfile?: InvestmentProfileSnapshot;
 } => {
   const parsed =
     typeof content === 'string' ? (JSON.parse(content) as Partial<FundBackupPayload>) : content;
@@ -196,6 +201,25 @@ export const parseAndNormalizeFundBackupPayload = (
     accounts: normalizedAccounts,
     watchlists: normalizedWatchlists,
     investmentPlans: normalizedInvestmentPlans,
+    investmentProfile:
+      payload.investmentProfile && typeof payload.investmentProfile === 'object'
+        ? {
+            riskTolerance:
+              typeof payload.investmentProfile.riskTolerance === 'string'
+                ? payload.investmentProfile.riskTolerance
+                : '',
+            investmentHorizon:
+              typeof payload.investmentProfile.investmentHorizon === 'string'
+                ? payload.investmentProfile.investmentHorizon
+                : '',
+            externalAssets:
+              typeof payload.investmentProfile.externalAssets === 'string'
+                ? payload.investmentProfile.externalAssets
+                : '',
+            notes:
+              typeof payload.investmentProfile.notes === 'string' ? payload.investmentProfile.notes : '',
+          }
+        : undefined,
   };
 };
 

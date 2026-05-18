@@ -8,6 +8,7 @@ import type {
   TotalAssetsSnapshot,
   InvestmentPlan,
 } from '../types';
+import type { InvestmentProfileSnapshot } from './aiAnalysis';
 import {
   fetchHistoricalFundNavWithDate,
   checkIsMarketTrading,
@@ -994,6 +995,7 @@ export const loadTotalAssetsHistory = async (): Promise<TotalAssetsSnapshot[]> =
  * @returns A promise resolving when the export is complete.
  */
 export const exportFunds = async (): Promise<void> => {
+  const investmentProfile = readStoredInvestmentProfile();
   const allFunds = await db.funds.toArray();
   const allAccounts = await db.accounts.toArray();
   const allWatchlists = await db.watchlists.toArray();
@@ -1004,6 +1006,7 @@ export const exportFunds = async (): Promise<void> => {
     allAccounts,
     allWatchlists,
     allInvestmentPlans,
+    investmentProfile,
   );
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
@@ -1027,13 +1030,34 @@ export const importFunds = async (file: File): Promise<{ added: number; skipped:
   return importFundsFromBackupContent(text);
 };
 
-export const exportFundsToJsonString = async (): Promise<string> => {
+const readStoredInvestmentProfile = (): InvestmentProfileSnapshot | undefined => {
+  if (typeof localStorage === 'undefined') return undefined;
+  try {
+    const raw = localStorage.getItem('app-settings-preference');
+    if (!raw) return undefined;
+    const parsed = JSON.parse(raw) as { investmentProfile?: InvestmentProfileSnapshot };
+    return parsed.investmentProfile;
+  } catch {
+    return undefined;
+  }
+};
+
+export const exportFundsToJsonString = async (
+  investmentProfile = readStoredInvestmentProfile(),
+): Promise<string> => {
   const allFunds = await db.funds.toArray();
   const allAccounts = await db.accounts.toArray();
   const allWatchlists = await db.watchlists.toArray();
   const allInvestmentPlans = await db.investmentPlans.toArray();
   return JSON.stringify(
-    buildFundBackupPayload(allFunds, undefined, allAccounts, allWatchlists, allInvestmentPlans),
+    buildFundBackupPayload(
+      allFunds,
+      undefined,
+      allAccounts,
+      allWatchlists,
+      allInvestmentPlans,
+      investmentProfile,
+    ),
     null,
     2,
   );

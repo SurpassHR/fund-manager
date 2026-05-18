@@ -32,7 +32,7 @@ interface SettingsPageProps {
 }
 
 type ThemeOption = 'system' | 'light' | 'dark';
-type SettingsView = 'main' | 'ai' | 'gist';
+type SettingsView = 'main' | 'ai' | 'gist' | 'profile';
 
 export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack, initialShowAiSettings }) => {
   const { t } = useTranslation();
@@ -63,6 +63,9 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack, initialShowA
     removeLlmProvider,
     businessModelConfig,
     updateBusinessModelConfig,
+    investmentProfile,
+    setInvestmentProfile,
+    updateInvestmentProfile,
   } = useSettings();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [activeView, setActiveView] = useState<SettingsView>(initialShowAiSettings ? 'ai' : 'main');
@@ -260,9 +263,13 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack, initialShowA
     setSyncBusy(true);
     try {
       const content = await downloadSyncGistContent({ token: githubToken, gistId });
+      const parsedContent = JSON.parse(content) as { investmentProfile?: unknown };
       const importResult = await importFundsFromBackupContent(content, {
         importMode: 'replaceAll',
       });
+      if (parsedContent.investmentProfile && typeof parsedContent.investmentProfile === 'object') {
+        setInvestmentProfile(parsedContent.investmentProfile);
+      }
       const selected = target ?? syncGists.find((item) => item.id === gistId);
       if (selected) {
         saveDefaultTarget(selected);
@@ -295,7 +302,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack, initialShowA
     if (!githubToken || syncBusy) return;
     setSyncBusy(true);
     try {
-      const backupContent = await exportFundsToJsonString();
+      const backupContent = await exportFundsToJsonString(investmentProfile);
       const saved =
         payload.mode === 'create'
           ? await createSyncGist({
@@ -1054,6 +1061,101 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack, initialShowA
     </div>
   );
 
+  const profileSettingsView = (
+    <div className="min-h-[60vh] pt-20 pb-22 md:pt-24 md:pb-12">
+      <div className="px-4 py-4 md:px-5 md:py-5">
+        <div className="rounded-[1.75rem] border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)] p-4 shadow-[var(--app-shell-shadow)] backdrop-blur-xl md:p-5">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setActiveView('main')}
+              className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] transition hover:border-[var(--app-shell-line-strong)] hover:text-[var(--app-shell-accent)]"
+            >
+              <Icons.ArrowUp size={18} className="-rotate-90" />
+            </button>
+            <div>
+              <div className="text-[0.62rem] font-semibold tracking-[0.14em] text-[var(--app-shell-muted)]">
+                投资画像
+              </div>
+              <h2 className="mt-1 text-lg font-semibold tracking-[-0.03em] text-[var(--app-shell-ink)]">
+                风险与账户背景
+              </h2>
+            </div>
+          </div>
+          <p className="mt-4 max-w-2xl text-sm leading-6 text-[var(--app-shell-muted)]">
+            这些信息会进入 AI 持仓分析和 Gist 备份，用来判断组合是否匹配你的风险承受能力与投资期限。
+          </p>
+        </div>
+      </div>
+
+      <div className="space-y-4 px-4 md:px-5">
+        <section className="rounded-[1.75rem] border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)] p-4 shadow-[var(--app-shell-shadow)] backdrop-blur-xl md:p-5">
+          <div className="grid gap-4 md:grid-cols-2">
+            <label className="block">
+              <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[var(--app-shell-muted)]">
+                风险承受能力
+              </span>
+              <SelectDropdown
+                options={[
+                  { value: '', label: '未填写' },
+                  { value: '保守', label: '保守' },
+                  { value: '稳健', label: '稳健' },
+                  { value: '平衡', label: '平衡' },
+                  { value: '积极', label: '积极' },
+                  { value: '激进', label: '激进' },
+                ]}
+                value={investmentProfile.riskTolerance || ''}
+                onChange={(riskTolerance) => updateInvestmentProfile({ riskTolerance })}
+                className="mt-2 rounded-2xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] px-4 py-3 text-sm"
+              />
+            </label>
+
+            <label className="block">
+              <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[var(--app-shell-muted)]">
+                投资期限
+              </span>
+              <SelectDropdown
+                options={[
+                  { value: '', label: '未填写' },
+                  { value: '半年内', label: '半年内' },
+                  { value: '1-3年', label: '1-3 年' },
+                  { value: '3-5年', label: '3-5 年' },
+                  { value: '5年以上', label: '5 年以上' },
+                ]}
+                value={investmentProfile.investmentHorizon || ''}
+                onChange={(investmentHorizon) => updateInvestmentProfile({ investmentHorizon })}
+                className="mt-2 rounded-2xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] px-4 py-3 text-sm"
+              />
+            </label>
+          </div>
+
+          <label className="mt-4 block">
+            <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[var(--app-shell-muted)]">
+              账户外资产
+            </span>
+            <textarea
+              value={investmentProfile.externalAssets || ''}
+              onChange={(event) => updateInvestmentProfile({ externalAssets: event.target.value })}
+              placeholder="例如：现金 5 万、股票 2 万、存款/理财 10 万、其他基金 3 万"
+              className="mt-2 min-h-24 w-full rounded-2xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] px-4 py-3 text-sm text-[var(--app-shell-ink)] outline-none transition focus:border-[var(--app-shell-line-strong)]"
+            />
+          </label>
+
+          <label className="mt-4 block">
+            <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[var(--app-shell-muted)]">
+              备注
+            </span>
+            <textarea
+              value={investmentProfile.notes || ''}
+              onChange={(event) => updateInvestmentProfile({ notes: event.target.value })}
+              placeholder="例如：主要目标是长期增值，可接受中等回撤，不希望频繁操作。"
+              className="mt-2 min-h-24 w-full rounded-2xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] px-4 py-3 text-sm text-[var(--app-shell-ink)] outline-none transition focus:border-[var(--app-shell-line-strong)]"
+            />
+          </label>
+        </section>
+      </div>
+    </div>
+  );
+
   const mainSettingsView = (
     <div className="min-h-[60vh] pt-[max(2rem,calc(5rem-env(safe-area-inset-top,0px)))] pb-24 md:pt-[max(4.75rem,calc(5rem-env(safe-area-inset-top,0px)))] md:pb-22">
       <div className="px-4 py-4 md:px-5 md:py-5">
@@ -1155,6 +1257,31 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack, initialShowA
         </section>
 
         <div className="grid gap-4 xl:grid-cols-2">
+          <section className="rounded-[1.75rem] border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)] p-4 shadow-[var(--app-shell-shadow)] backdrop-blur-xl md:p-5">
+            <div className="mb-4">
+              <div className="text-[0.62rem] font-semibold tracking-[0.14em] text-[var(--app-shell-muted)]">
+                投资画像
+              </div>
+              <div className="mt-1 text-base font-semibold text-[var(--app-shell-ink)]">
+                风险与账户背景
+              </div>
+            </div>
+            <button
+              onClick={() => setActiveView('profile')}
+              className="flex w-full items-center justify-between rounded-2xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] px-4 py-4 text-left transition hover:border-[var(--app-shell-line-strong)]"
+            >
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full border border-[var(--app-shell-line)]">
+                  <Icons.User size={18} />
+                </div>
+                <span className="text-sm font-semibold text-[var(--app-shell-ink)]">
+                  管理风险承受能力与投资期限
+                </span>
+              </div>
+              <Icons.ArrowDown size={16} className="-rotate-90 text-[var(--app-shell-muted)]" />
+            </button>
+          </section>
+
           <section className="rounded-[1.75rem] border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)] p-4 shadow-[var(--app-shell-shadow)] backdrop-blur-xl md:p-5">
             <div className="mb-4">
               <div className="text-[0.62rem] font-semibold tracking-[0.14em] text-[var(--app-shell-muted)]">
@@ -1263,6 +1390,8 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack, initialShowA
         ? aiSettingsView
         : activeView === 'gist'
           ? gistSyncSettingsView
+          : activeView === 'profile'
+            ? profileSettingsView
           : mainSettingsView}
     </AnimatedSwitcher>
   );

@@ -55,7 +55,13 @@ vi.mock('../../services/i18n', () => ({
 vi.mock('../../services/SettingsContext', () => ({
   useSettings: () => ({
     autoRefresh: false,
+    investmentProfile: {},
   }),
+}));
+
+vi.mock('../../services/api', () => ({
+  fetchFundHoldings: vi.fn().mockResolvedValue(null),
+  fetchRecentHistoricalNavs: vi.fn().mockResolvedValue([]),
 }));
 
 vi.mock('framer-motion', () => ({
@@ -139,7 +145,7 @@ describe('Dashboard mobile long press menu', () => {
       vi.advanceTimersByTime(700);
     });
 
-    expect(screen.queryByText('common.menu')).not.toBeInTheDocument();
+    expect(screen.queryByText('common.edit')).not.toBeInTheDocument();
     vi.useRealTimers();
   });
 
@@ -156,7 +162,7 @@ describe('Dashboard mobile long press menu', () => {
       vi.advanceTimersByTime(700);
     });
 
-    expect(screen.getByText('common.menu')).toBeInTheDocument();
+    expect(screen.getByText('common.edit')).toBeInTheDocument();
     vi.useRealTimers();
   });
 
@@ -187,7 +193,7 @@ describe('Dashboard mobile long press menu', () => {
     expect(parsed.holdingShares).toBe(100);
 
     await waitFor(() => {
-      expect(screen.queryByText('common.menu')).not.toBeInTheDocument();
+      expect(screen.queryByText('common.copyFundJson')).not.toBeInTheDocument();
     });
   });
 });

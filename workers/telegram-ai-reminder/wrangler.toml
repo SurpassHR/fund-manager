@@ -1,0 +1,18 @@
+name = "fund-manager-telegram-ai-reminder"
+main = "src/index.ts"
+compatibility_date = "2026-04-04"
+workers_dev = true
+
+# 北京时间工作日 15:30，Cloudflare Cron 使用 UTC。
+[triggers]
+crons = ["30 7 * * 1-5"]
+
+[dev]
+port = 8789
+
+# 非敏感默认配置可放在这里；密钥请使用 wrangler secret put。
+[vars]
+GIST_FILENAME = "fund-manager-sync.json"
+AI_PROVIDER = "customOpenAi"
+AI_MODE = "deep"
+AI_QUESTION = "请基于最新持仓数据做一次收盘后持仓复盘，重点说明组合表现、主要风险、机会和下一步观察清单。"

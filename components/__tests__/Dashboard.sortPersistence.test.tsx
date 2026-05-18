@@ -55,7 +55,13 @@ vi.mock('../../services/i18n', () => ({
 vi.mock('../../services/SettingsContext', () => ({
   useSettings: () => ({
     autoRefresh: false,
+    investmentProfile: {},
   }),
+}));
+
+vi.mock('../../services/api', () => ({
+  fetchFundHoldings: vi.fn().mockResolvedValue(null),
+  fetchRecentHistoricalNavs: vi.fn().mockResolvedValue([]),
 }));
 
 vi.mock('framer-motion', () => ({

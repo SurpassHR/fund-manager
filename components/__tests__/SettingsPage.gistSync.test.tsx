@@ -69,6 +69,14 @@ const mockedDeps = vi.hoisted(() => ({
     },
     setBusinessModelConfig: vi.fn(),
     updateBusinessModelConfig: vi.fn(),
+    investmentProfile: {
+      riskTolerance: '稳健',
+      investmentHorizon: '3-5年',
+      externalAssets: '现金 5 万',
+      notes: '',
+    },
+    setInvestmentProfile: vi.fn(),
+    updateInvestmentProfile: vi.fn(),
   },
 }));
 
@@ -144,7 +152,9 @@ describe('SettingsPage gist sync integration', () => {
         files: { 'fund-manager-sync.json': { filename: 'fund-manager-sync.json' } },
       },
     ]);
-    mockedDeps.downloadSyncGistContent.mockResolvedValue('{"version":1,"funds":[]}');
+    mockedDeps.downloadSyncGistContent.mockResolvedValue(
+      '{"version":1,"funds":[],"investmentProfile":{"riskTolerance":"积极"}}',
+    );
     mockedDeps.importFundsFromBackupContent.mockResolvedValue({ added: 1, skipped: 0 });
     mockedDeps.exportFundsToJsonString.mockResolvedValue('{"version":1,"funds":[]}');
     mockedDeps.createSyncGist.mockResolvedValue({
@@ -201,11 +211,16 @@ describe('SettingsPage gist sync integration', () => {
       gistId: 'g1',
     });
     expect(mockedDeps.importFundsFromBackupContent).toHaveBeenCalledWith(
-      '{"version":1,"funds":[]}',
+      '{"version":1,"funds":[],"investmentProfile":{"riskTolerance":"积极"}}',
       {
         importMode: 'replaceAll',
       },
     );
+    await waitFor(() => {
+      expect(mockedDeps.settings.setInvestmentProfile).toHaveBeenCalledWith({
+        riskTolerance: '积极',
+      });
+    });
   });
 
   it('handles upload create and overwrite branches', async () => {
@@ -223,6 +238,9 @@ describe('SettingsPage gist sync integration', () => {
         description: string;
       }) => Promise<void>
     )({ mode: 'create', description: '新建描述' });
+    expect(mockedDeps.exportFundsToJsonString).toHaveBeenCalledWith(
+      mockedDeps.settings.investmentProfile,
+    );
     expect(mockedDeps.createSyncGist).toHaveBeenCalled();
 
     await (
