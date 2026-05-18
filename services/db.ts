@@ -919,6 +919,26 @@ export const calculateSummary = (funds: Fund[]): AssetSummary => {
   const cumulativeGain = holdingGain + clearedRealizedGain;
   const cumulativeGainPct = totalCost > 0 ? (cumulativeGain / totalCost) * 100 : 0;
 
+  if (clearedRealizedGain !== 0) {
+    console.log('[calculateSummary]', {
+      holdingGain,
+      clearedRealizedGain,
+      cumulativeGain,
+      totalCost,
+      activeFundsCount: funds.filter((f) => f.holdingShares > 0.01).length,
+      clearedFundsCount: funds.filter((f) => f.holdingShares <= 0.01).length,
+      clearedFunds: funds
+        .filter((f) => f.holdingShares <= 0.01)
+        .map((f) => ({
+          code: f.code,
+          name: f.name,
+          currentNav: f.currentNav,
+          holdingShares: f.holdingShares,
+          costPrice: f.costPrice,
+        })),
+    });
+  }
+
   return {
     totalAssets,
     totalDayGain,

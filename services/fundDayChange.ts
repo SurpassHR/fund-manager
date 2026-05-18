@@ -217,5 +217,28 @@ export const computeRealizedGain = (
   const realizedGain = totalSellRevenue - totalBuyCost;
   const realizedGainPct = totalBuyCost > 0 ? (realizedGain / totalBuyCost) * 100 : 0;
 
+  if (fund.holdingShares <= 0.01) {
+    console.log('[computeRealizedGain]', {
+      fundCode: fund.code,
+      fundName: fund.name,
+      currentNav: fund.currentNav,
+      totalSellRevenue,
+      totalBuyCost,
+      realizedGain,
+      realizedGainPct,
+      txs: txs
+        .filter((t) => t.settled)
+        .map((t) => ({
+          type: t.type,
+          amount: t.amount,
+          netOutAmount: t.netOutAmount,
+          grossAmount: t.grossAmount,
+          netInAmount: t.netInAmount,
+          sellFeeRate: t.sellFeeRate,
+          settled: t.settled,
+        })),
+    });
+  }
+
   return { realizedGain, realizedGainPct };
 };
