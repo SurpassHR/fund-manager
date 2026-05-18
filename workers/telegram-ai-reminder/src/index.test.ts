@@ -1,5 +1,10 @@
 /// <reference types="vitest/globals" />
+import * as ed from '@noble/ed25519';
+import { sha512 } from '@noble/hashes/sha2.js';
+
 import worker from './index';
+
+ed.hashes.sha512 = (...messages) => sha512(ed.etc.concatBytes(...messages));
 
 const backupPayload = {
   version: 1,
@@ -129,6 +134,15 @@ const env = {
     '请基于当前持仓、A 股市场指数、市场情绪、中文财经新闻和投资画像，重点判断当前是否适合加仓、是否需要减仓、是否达到清仓条件。',
 };
 
+const qqEnv = {
+  ...env,
+  QQ_OFFICIAL_ENABLED: 'true',
+  QQ_OFFICIAL_APP_ID: '1903963785',
+  QQ_OFFICIAL_APP_SECRET: 'test-secret',
+  QQ_OFFICIAL_ALLOWED_GROUP_OPENIDS: 'group-openid',
+  QQ_OFFICIAL_ALLOWED_MEMBER_OPENIDS: 'member-openid',
+};
+
 const jsonResponse = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), {
     status,
@@ -181,6 +195,41 @@ const findAiRequestBody = (fetchMock: ReturnType<typeof vi.fn>) => {
 
 const waitForScheduledTasks = async (tasks: Promise<unknown>[]) => {
   await Promise.all(tasks);
+};
+
+const buildQqRequest = (body: unknown, headers?: HeadersInit) =>
+  new Request('https://worker.example/qq-official', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...headers },
+    body: JSON.stringify(body),
+  });
+
+const buildQqSeed = (secret: string) => {
+  let seed = secret;
+  while (seed.length < 32) seed += seed;
+  return new TextEncoder().encode(seed.slice(0, 32));
+};
+
+const bytesToHex = (bytes: Uint8Array) =>
+  Array.from(bytes)
+    .map((byte) => byte.toString(16).padStart(2, '0'))
+    .join('');
+
+const buildSignedQqRequest = async (body: unknown, secret = qqEnv.QQ_OFFICIAL_APP_SECRET) => {
+  const rawBody = JSON.stringify(body);
+  const timestamp = '1725442341';
+  const signature = bytesToHex(
+    await ed.sign(new TextEncoder().encode(`${timestamp}${rawBody}`), buildQqSeed(secret)),
+  );
+  return new Request('https://worker.example/qq-official', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Signature-Ed25519': signature,
+      'X-Signature-Timestamp': timestamp,
+    },
+    body: rawBody,
+  });
 };
 
 describe('telegram ai reminder worker', () => {
@@ -749,6 +798,159 @@ describe('telegram ai reminder worker', () => {
     const telegramCall = fetchMock.mock.calls.find((call) => String(call[0]).includes('api.telegram.org'));
     const telegramBody = JSON.parse(telegramCall?.[1].body as string) as { text: string };
     expect(telegramBody.text).toContain('养基AI收盘分析');
+  });
+
+  it('QQ 官方机器人未启用时返回 404', async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+
+    const response = await worker.fetch(buildQqRequest({ op: 0 }), env);
+    const body = (await response.json()) as { ok: boolean; error: string };
+
+    expect(response.status).toBe(404);
+    expect(body).toEqual({ ok: false, error: 'QQ 官方机器人未启用' });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('QQ 官方回调地址验证返回 plain_token 和 signature', async () => {
+    const response = await worker.fetch(
+      buildQqRequest({ op: 13, d: { plain_token: 'plain-token', event_ts: '1725442341' } }),
+      qqEnv,
+    );
+    const body = (await response.json()) as { plain_token: string; signature: string };
+
+    expect(response.status).toBe(200);
+    expect(body.plain_token).toBe('plain-token');
+    expect(body.signature).toMatch(/^[0-9a-f]{128}$/);
+  });
+
+  it('QQ 官方普通回调签名无效时拒绝', async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+
+    const response = await worker.fetch(
+      buildQqRequest(
+        { op: 0, t: 'GROUP_AT_MESSAGE_CREATE', d: {} },
+        { 'X-Signature-Ed25519': '00', 'X-Signature-Timestamp': '1725442341' },
+      ),
+      qqEnv,
+    );
+    const body = (await response.json()) as { ok: boolean; error: string };
+
+    expect(response.status).toBe(401);
+    expect(body).toEqual({ ok: false, error: 'QQ 官方回调签名无效' });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('QQ 官方非群 @ 事件会忽略', async () => {
+    const payload = { op: 0, t: 'READY', d: {} };
+    const response = await worker.fetch(await buildSignedQqRequest(payload), qqEnv);
+    const body = (await response.json()) as { ok: boolean; ignored: boolean };
+
+    expect(response.status).toBe(200);
+    expect(body).toEqual({ ok: true, ignored: true });
+  });
+
+  it('QQ 官方未授权群或用户会忽略', async () => {
+    const fetchMock = vi.fn();
+    mockBaseSuccessfulFetches(fetchMock);
+    vi.stubGlobal('fetch', fetchMock);
+    const payload = {
+      op: 0,
+      t: 'GROUP_AT_MESSAGE_CREATE',
+      d: {
+        id: 'msg-id',
+        content: '分析',
+        group_openid: 'other-group',
+        author: { member_openid: 'member-openid' },
+      },
+    };
+
+    const response = await worker.fetch(await buildSignedQqRequest(payload), qqEnv);
+    const body = (await response.json()) as { ok: boolean; ignored: boolean };
+
+    expect(response.status).toBe(200);
+    expect(body).toEqual({ ok: true, ignored: true });
+    expect(fetchMock.mock.calls.some((call) => String(call[0]).includes('chat/completions'))).toBe(false);
+  });
+
+  it('QQ 官方授权用户群内触发分析会两段式回复', async () => {
+    const fetchMock = vi.fn().mockImplementation((input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes('bots.qq.com/app/getAppAccessToken')) {
+        return Promise.resolve(jsonResponse({ access_token: 'qq-access-token', expires_in: 7200 }));
+      }
+      if (url.includes('api.sgroup.qq.com/v2/groups/group-openid/messages')) {
+        return Promise.resolve(jsonResponse({ id: 'sent-id', timestamp: Date.now() }));
+      }
+      if (url.includes('api.github.com/gists')) {
+        return Promise.resolve(
+          jsonResponse({ files: { 'fund-manager-sync.json': { content: JSON.stringify(backupPayload) } } }),
+        );
+      }
+      if (url.includes('morningstar.cn')) return Promise.resolve(jsonResponse(holdingsPayload));
+      if (url.includes('qt.gtimg.cn')) return Promise.resolve(new Response(marketText));
+      if (url.includes('np-listapi.eastmoney.com')) return Promise.resolve(jsonResponse(eastMoneyNewsPayload));
+      if (url.includes('push2.eastmoney.com/api/qt/clist/get')) {
+        return Promise.resolve(jsonResponse(eastMoneyFundFlowPayload));
+      }
+      if (url.includes('feed.mix.sina.com.cn')) return Promise.resolve(jsonResponse(sinaNewsPayload));
+      if (url.includes('chat/completions')) {
+        return Promise.resolve(jsonResponse({ choices: [{ message: { content: 'QQ 分析结果' } }] }));
+      }
+      return Promise.resolve(jsonResponse({}));
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    const payload = {
+      op: 0,
+      t: 'GROUP_AT_MESSAGE_CREATE',
+      d: {
+        id: 'msg-id',
+        content: '<@!robot> 建仓',
+        group_openid: 'group-openid',
+        author: { member_openid: 'member-openid' },
+      },
+    };
+
+    const response = await worker.fetch(await buildSignedQqRequest(payload), qqEnv);
+    const body = (await response.json()) as { ok: boolean; handled: string; sentMessages: number };
+
+    expect(response.status).toBe(200);
+    expect(body.ok).toBe(true);
+    expect(body.handled).toBe('analysis');
+    expect(body.sentMessages).toBe(2);
+    const qqMessageCalls = fetchMock.mock.calls.filter((call) =>
+      String(call[0]).includes('api.sgroup.qq.com/v2/groups/group-openid/messages'),
+    );
+    expect(qqMessageCalls).toHaveLength(2);
+    const pendingBody = JSON.parse(qqMessageCalls[0]?.[1].body as string) as {
+      content: string;
+      msg_id: string;
+      msg_seq: number;
+    };
+    const analysisBody = JSON.parse(qqMessageCalls[1]?.[1].body as string) as {
+      content: string;
+      msg_id: string;
+      msg_seq: number;
+    };
+    expect(pendingBody).toEqual(
+      expect.objectContaining({
+        content: '收到，正在结合市场情绪、资金流和持仓分析...',
+        msg_id: 'msg-id',
+        msg_seq: 1,
+      }),
+    );
+    expect(analysisBody.content).toContain('养基AI持仓分析');
+    expect(analysisBody.content).toContain('QQ 分析结果');
+    expect(analysisBody.msg_id).toBe('msg-id');
+    expect(analysisBody.msg_seq).toBe(2);
+    expect(
+      fetchMock.mock.calls.some(
+        (call) =>
+          call[0] === 'https://bots.qq.com/app/getAppAccessToken' &&
+          JSON.parse(call[1].body as string).appId === '1903963785',
+      ),
+    ).toBe(true);
   });
 
   it('Telegram webhook secret 不匹配时返回 401', async () => {

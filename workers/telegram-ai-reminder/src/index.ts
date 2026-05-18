@@ -1,3 +1,8 @@
+import * as ed from '@noble/ed25519';
+import { sha512 } from '@noble/hashes/sha2.js';
+
+ed.hashes.sha512 = (...messages) => sha512(ed.etc.concatBytes(...messages));
+
 interface Env {
   TELEGRAM_BOT_TOKEN: string;
   TELEGRAM_CHAT_ID: string;
@@ -19,6 +24,11 @@ interface Env {
   NEWS_LOOKBACK_HOURS?: string;
   NEWS_MAX_ITEMS?: string;
   NEWS_QUERY_TIMEOUT_MS?: string;
+  QQ_OFFICIAL_ENABLED?: string;
+  QQ_OFFICIAL_APP_ID?: string;
+  QQ_OFFICIAL_APP_SECRET?: string;
+  QQ_OFFICIAL_ALLOWED_GROUP_OPENIDS?: string;
+  QQ_OFFICIAL_ALLOWED_MEMBER_OPENIDS?: string;
 }
 
 interface ScheduledController {
@@ -244,6 +254,32 @@ interface TelegramUpdate {
   };
 }
 
+interface QqOfficialPayload {
+  id?: string;
+  op?: number;
+  t?: string;
+  d?: unknown;
+}
+
+interface QqOfficialValidationPayload {
+  plain_token?: string;
+  event_ts?: string;
+}
+
+interface QqOfficialGroupAtMessage {
+  id?: string;
+  content?: string;
+  group_openid?: string;
+  author?: {
+    member_openid?: string;
+  };
+}
+
+interface QqOfficialAccessTokenResponse {
+  access_token?: string;
+  expires_in?: string | number;
+}
+
 interface GithubGistResponse {
   files?: Record<
     string,
@@ -262,6 +298,8 @@ const TENCENT_QUOTE_API = 'https://qt.gtimg.cn/q=';
 const EASTMONEY_NEWS_API = 'https://np-listapi.eastmoney.com/comm/web/getNewsByColumns';
 const EASTMONEY_FUND_FLOW_API = 'https://push2.eastmoney.com/api/qt/clist/get';
 const SINA_FINANCE_ROLL_API = 'https://feed.mix.sina.com.cn/api/roll/get';
+const QQ_OFFICIAL_API_BASE = 'https://api.sgroup.qq.com';
+const QQ_OFFICIAL_ACCESS_TOKEN_API = 'https://bots.qq.com/app/getAppAccessToken';
 const DEFAULT_NEWS_QUERY_TIMEOUT_MS = 5000;
 const DEFAULT_FUND_FLOW_QUERY_TIMEOUT_MS = 3000;
 const DEFAULT_AI_QUESTION =
@@ -408,6 +446,32 @@ const parsePositiveInt = (value: string | undefined, fallback: number) => {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
 };
 
+const parseCsvSet = (value: string | undefined) =>
+  new Set(
+    (value || '')
+      .split(',')
+      .map((item) => item.trim())
+      .filter(Boolean),
+  );
+
+const textEncoder = new TextEncoder();
+
+const bytesToHex = (bytes: Uint8Array) =>
+  Array.from(bytes)
+    .map((byte) => byte.toString(16).padStart(2, '0'))
+    .join('');
+
+const hexToBytes = (hex: string) => {
+  if (!/^[0-9a-fA-F]+$/.test(hex) || hex.length % 2 !== 0) {
+    throw new Error('无效的十六进制字符串');
+  }
+  const bytes = new Uint8Array(hex.length / 2);
+  for (let index = 0; index < bytes.length; index += 1) {
+    bytes[index] = Number.parseInt(hex.slice(index * 2, index * 2 + 2), 16);
+  }
+  return bytes;
+};
+
 const fetchText = async (url: string, init: RequestInit, label: string): Promise<string> => {
   const response = await fetch(url, init);
   if (!response.ok) {
@@ -445,6 +509,106 @@ const fetchJsonWithTimeout = async <T>(
 ): Promise<T> => {
   const text = await fetchTextWithTimeout(url, init, label, timeoutMs);
   return JSON.parse(text) as T;
+};
+
+const buildQqOfficialSeed = (secret: string) => {
+  let seed = secret;
+  while (seed.length < 32) seed += seed;
+  return textEncoder.encode(seed.slice(0, 32));
+};
+
+const signQqOfficialMessage = async (secret: string, message: string) => {
+  return bytesToHex(await ed.sign(textEncoder.encode(message), buildQqOfficialSeed(secret)));
+};
+
+const verifyQqOfficialSignature = async (env: Env, rawBody: string, request: Request) => {
+  const signature = request.headers.get('X-Signature-Ed25519');
+  const timestamp = request.headers.get('X-Signature-Timestamp');
+  if (!signature || !timestamp) return false;
+  try {
+    const secret = requireEnv(env, 'QQ_OFFICIAL_APP_SECRET');
+    const publicKey = await ed.getPublicKey(buildQqOfficialSeed(secret));
+    return await ed.verify(hexToBytes(signature), textEncoder.encode(`${timestamp}${rawBody}`), publicKey);
+  } catch {
+    return false;
+  }
+};
+
+const buildQqOfficialValidationResponse = async (env: Env, data: QqOfficialValidationPayload) => {
+  const plainToken = data.plain_token?.trim();
+  const eventTs = data.event_ts?.trim();
+  if (!plainToken || !eventTs) throw new Error('QQ 回调验证参数缺失');
+  const signature = await signQqOfficialMessage(
+    requireEnv(env, 'QQ_OFFICIAL_APP_SECRET'),
+    `${eventTs}${plainToken}`,
+  );
+  return { plain_token: plainToken, signature };
+};
+
+const fetchQqOfficialAccessToken = async (env: Env) => {
+  const response = await fetchJson<QqOfficialAccessTokenResponse>(
+    QQ_OFFICIAL_ACCESS_TOKEN_API,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        appId: requireEnv(env, 'QQ_OFFICIAL_APP_ID'),
+        clientSecret: requireEnv(env, 'QQ_OFFICIAL_APP_SECRET'),
+      }),
+    },
+    '获取 QQ 官方 access_token',
+  );
+  if (!response.access_token) throw new Error('QQ 官方 access_token 为空');
+  return response.access_token;
+};
+
+const sendQqOfficialGroupMessage = async (params: {
+  env: Env;
+  groupOpenid: string;
+  content: string;
+  msgId: string;
+  msgSeq: number;
+}) => {
+  const accessToken = await fetchQqOfficialAccessToken(params.env);
+  await fetchJson<unknown>(
+    `${QQ_OFFICIAL_API_BASE}/v2/groups/${params.groupOpenid}/messages`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `QQBot ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        content: params.content,
+        msg_type: 0,
+        msg_id: params.msgId,
+        msg_seq: params.msgSeq,
+      }),
+    },
+    '发送 QQ 官方群消息',
+  );
+  return 1;
+};
+
+const sendQqOfficialGroupTextChunks = async (params: {
+  env: Env;
+  groupOpenid: string;
+  text: string;
+  msgId: string;
+  startSeq: number;
+}) => {
+  const chunks = splitTelegramMessage(params.text);
+  let sentMessages = 0;
+  for (const [index, chunk] of chunks.entries()) {
+    sentMessages += await sendQqOfficialGroupMessage({
+      env: params.env,
+      groupOpenid: params.groupOpenid,
+      content: chunk,
+      msgId: params.msgId,
+      msgSeq: params.startSeq + index,
+    });
+  }
+  return sentMessages;
 };
 
 const readGistBackup = async (env: Env): Promise<FundBackupPayload> => {
@@ -1364,6 +1528,108 @@ const handleTelegramWebhook = async (request: Request, env: Env) => {
   }
 };
 
+const extractQqOfficialCommandText = (content: string | undefined) => {
+  return (content || '')
+    .replace(/<@![^>]+>/g, '')
+    .replace(/<@[^>]+>/g, '')
+    .trim();
+};
+
+const isAuthorizedQqOfficialMessage = (env: Env, message: QqOfficialGroupAtMessage) => {
+  const allowedGroups = parseCsvSet(env.QQ_OFFICIAL_ALLOWED_GROUP_OPENIDS);
+  const allowedMembers = parseCsvSet(env.QQ_OFFICIAL_ALLOWED_MEMBER_OPENIDS);
+  const groupOpenid = message.group_openid || '';
+  const memberOpenid = message.author?.member_openid || '';
+  const allowedGroup = allowedGroups.size > 0 && allowedGroups.has(groupOpenid);
+  const allowedMember = allowedMembers.size > 0 && allowedMembers.has(memberOpenid);
+  if (!allowedGroup || !allowedMember) {
+    console.warn('忽略未授权 QQ 官方机器人消息', { groupOpenid, memberOpenid });
+  }
+  return allowedGroup && allowedMember;
+};
+
+const handleQqOfficialWebhook = async (request: Request, env: Env) => {
+  if (!isEnabled(env.QQ_OFFICIAL_ENABLED, false)) {
+    return json({ ok: false, error: 'QQ 官方机器人未启用' }, 404);
+  }
+
+  const rawBody = await request.text();
+  const payload = JSON.parse(rawBody) as QqOfficialPayload;
+
+  if (payload.op === 13) {
+    return json(await buildQqOfficialValidationResponse(env, payload.d as QqOfficialValidationPayload));
+  }
+
+  const hasSignatureHeaders =
+    request.headers.has('X-Signature-Ed25519') || request.headers.has('X-Signature-Timestamp');
+  if (hasSignatureHeaders && !(await verifyQqOfficialSignature(env, rawBody, request))) {
+    return json({ ok: false, error: 'QQ 官方回调签名无效' }, 401);
+  }
+
+  if (payload.t !== 'GROUP_AT_MESSAGE_CREATE') {
+    return json({ ok: true, ignored: true });
+  }
+
+  const message = payload.d as QqOfficialGroupAtMessage;
+  if (!message.group_openid || !message.id) {
+    return json({ ok: true, ignored: true });
+  }
+
+  if (!isAuthorizedQqOfficialMessage(env, message)) {
+    return json({ ok: true, ignored: true });
+  }
+
+  const commandConfig = resolveTelegramCommandConfig(extractQqOfficialCommandText(message.content));
+  if (!commandConfig) {
+    return json({ ok: true, handled: 'help' });
+  }
+
+  const pendingMessages = await sendQqOfficialGroupTextChunks({
+    env,
+    groupOpenid: message.group_openid,
+    text: TELEGRAM_ANALYSIS_PENDING_TEXT,
+    msgId: message.id,
+    startSeq: 1,
+  });
+
+  try {
+    const analysisMessage = await buildAnalysisMessage(env, commandConfig);
+    const analysisMessages = await sendQqOfficialGroupTextChunks({
+      env,
+      groupOpenid: message.group_openid,
+      text: analysisMessage.text,
+      msgId: message.id,
+      startSeq: 2,
+    });
+
+    return json({
+      ok: true,
+      handled: 'analysis',
+      holdings: analysisMessage.holdings,
+      totalAssets: analysisMessage.totalAssets,
+      sentMessages: pendingMessages + analysisMessages,
+    });
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : '未知错误';
+    const failureMessages = await sendQqOfficialGroupTextChunks({
+      env,
+      groupOpenid: message.group_openid,
+      text: `分析失败：${errorMessage}`,
+      msgId: message.id,
+      startSeq: 2,
+    });
+    return json(
+      {
+        ok: false,
+        handled: 'analysis',
+        error: errorMessage,
+        sentMessages: pendingMessages + failureMessages,
+      },
+      500,
+    );
+  }
+};
+
 const setupTelegramWebhook = async (request: Request, env: Env) => {
   if (!isAuthorizedManualRun(request, env)) {
     return json({ ok: false, error: '未授权' }, 401);
@@ -1395,6 +1661,17 @@ export default {
     if (url.pathname === '/telegram' && request.method === 'POST') {
       try {
         return await handleTelegramWebhook(request, env);
+      } catch (error) {
+        return json(
+          { ok: false, error: error instanceof Error ? error.message : '未知错误' },
+          500,
+        );
+      }
+    }
+
+    if (url.pathname === '/qq-official' && request.method === 'POST') {
+      try {
+        return await handleQqOfficialWebhook(request, env);
       } catch (error) {
         return json(
           { ok: false, error: error instanceof Error ? error.message : '未知错误' },
