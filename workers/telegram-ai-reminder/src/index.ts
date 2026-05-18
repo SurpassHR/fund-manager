@@ -963,7 +963,7 @@ const buildAnalysisMessage = async (env: Env, options?: { question?: string; max
     fetchNewsSnapshot(env, snapshot),
   ]);
   const analysis = await analyzeHoldings(env, { holdings: snapshot, marketSnapshot, newsSnapshot }, options?.question);
-  const title = `小胡养基 AI 持仓分析\n时间：${new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' })}\n`;
+  const title = `养基AI持仓分析\n时间：${new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' })}\n`;
   const body = truncateForTelegram(analysis, options?.maxLength);
 
   return {
@@ -1105,7 +1105,7 @@ export default {
     ctx.waitUntil(
       runReminder(env).catch(async (error) => {
         const message = error instanceof Error ? error.message : '未知错误';
-        await sendTelegramMessage(env, `小胡养基 AI 持仓分析定时任务失败：${message}`).catch(
+        await sendTelegramMessage(env, `养基AI持仓分析定时任务失败：${message}`).catch(
           () => undefined,
         );
       }),

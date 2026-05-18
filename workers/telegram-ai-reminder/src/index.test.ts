@@ -187,7 +187,7 @@ describe('telegram ai reminder worker', () => {
     };
     expect(telegramCall?.[0]).toBe('https://api.telegram.org/bottelegram-token/sendMessage');
     expect(telegramBody.chat_id).toBe('123456');
-    expect(telegramBody.text).toContain('小胡养基 AI 持仓分析');
+    expect(telegramBody.text).toContain('养基AI持仓分析');
     expect(telegramBody.text).toContain('组合整体表现良好。');
   });
 
@@ -379,7 +379,7 @@ describe('telegram ai reminder worker', () => {
     const telegramCall = fetchMock.mock.calls.find((call) => String(call[0]).includes('api.telegram.org'));
     const telegramBody = JSON.parse(telegramCall?.[1].body as string) as { chat_id: string; text: string };
     expect(telegramBody.chat_id).toBe('123456');
-    expect(telegramBody.text).toContain('小胡养基 AI 持仓分析');
+    expect(telegramBody.text).toContain('养基AI持仓分析');
     const aiBody = findAiRequestBody(fetchMock);
     expect(aiBody.messages[1].content).toContain('Telegram 短版分析');
     expect(aiBody.messages[1].content).toContain('1200 字以内');
