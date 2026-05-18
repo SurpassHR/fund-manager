@@ -38,17 +38,34 @@ const marketText =
   'v_sh000001="1~上证指数~000001~3050.12~~~~~~~~~~~~~~~~~~~~~~~~~~~20260518150000~12.34~0.41";\n' +
   'v_sz399006="51~创业板指~399006~2200.50~~~~~~~~~~~~~~~~~~~~~~~~~~~20260518150000~-8.80~-0.40";';
 
-const newsPayload = {
-  articles: [
-    {
-      title: 'A股人工智能板块午后走强',
-      domain: 'example.cn',
-      url: 'https://example.cn/news/ai',
-      seendate: '20260518T120000Z',
-      language: 'Chinese',
-    },
-  ],
+const eastMoneyNewsPayload = {
+  data: {
+    list: [
+      {
+        title: 'A股人工智能板块午后走强',
+        mediaName: '东方财富',
+        url: 'https://finance.eastmoney.com/a/test.html',
+        showTime: '2026-05-18 12:00:00',
+      },
+    ],
+  },
 };
+
+const sinaNewsPayload = {
+  result: {
+    data: [
+      {
+        title: '新能源板块震荡回升',
+        source: '新浪财经',
+        url: 'https://finance.sina.com.cn/test.html',
+        ctime: String(Math.floor(Date.now() / 1000)),
+      },
+    ],
+  },
+};
+
+const emptyEastMoneyNewsPayload = { data: { list: [] } };
+const emptySinaNewsPayload = { result: { data: [] } };
 
 const env = {
   TELEGRAM_BOT_TOKEN: 'telegram-token',
@@ -70,7 +87,11 @@ const jsonResponse = (body: unknown, status = 200) =>
     headers: { 'Content-Type': 'application/json' },
   });
 
-const mockBaseSuccessfulFetches = (fetchMock: ReturnType<typeof vi.fn>, news = newsPayload) => {
+const mockBaseSuccessfulFetches = (
+  fetchMock: ReturnType<typeof vi.fn>,
+  eastMoneyNews = eastMoneyNewsPayload,
+  sinaNews = sinaNewsPayload,
+) => {
   fetchMock.mockImplementation((input: RequestInfo | URL) => {
     const url = String(input);
     if (url.includes('api.github.com/gists')) {
@@ -86,7 +107,8 @@ const mockBaseSuccessfulFetches = (fetchMock: ReturnType<typeof vi.fn>, news = n
     }
     if (url.includes('morningstar.cn')) return Promise.resolve(jsonResponse(holdingsPayload));
     if (url.includes('qt.gtimg.cn')) return Promise.resolve(new Response(marketText));
-    if (url.includes('api.gdeltproject.org')) return Promise.resolve(jsonResponse(news));
+    if (url.includes('np-listapi.eastmoney.com')) return Promise.resolve(jsonResponse(eastMoneyNews));
+    if (url.includes('feed.mix.sina.com.cn')) return Promise.resolve(jsonResponse(sinaNews));
     if (url.includes('chat/completions')) {
       return Promise.resolve(jsonResponse({ choices: [{ message: { content: '组合整体表现良好。' } }] }));
     }
@@ -139,7 +161,7 @@ describe('telegram ai reminder worker', () => {
     );
     expect(fetchMock.mock.calls.some((call) => String(call[0]).includes('https://qt.gtimg.cn/q='))).toBe(true);
     expect(
-      fetchMock.mock.calls.some((call) => String(call[0]).includes('https://api.gdeltproject.org/api/v2/doc/doc')),
+      fetchMock.mock.calls.some((call) => String(call[0]).includes('https://np-listapi.eastmoney.com')),
     ).toBe(true);
     const aiBody = findAiRequestBody(fetchMock);
     expect(aiBody.messages[0].content).toContain('测试基金A');
@@ -186,7 +208,7 @@ describe('telegram ai reminder worker', () => {
   it('长分析结果会拆分为多条 Telegram 消息', async () => {
     const longText = '分析'.repeat(2500);
     const fetchMock = vi.fn();
-    mockBaseSuccessfulFetches(fetchMock, { articles: [] });
+    mockBaseSuccessfulFetches(fetchMock, emptyEastMoneyNewsPayload, emptySinaNewsPayload);
     fetchMock.mockImplementation((input: RequestInfo | URL) => {
       const url = String(input);
       if (url.includes('chat/completions')) {
@@ -199,7 +221,8 @@ describe('telegram ai reminder worker', () => {
       }
       if (url.includes('morningstar.cn')) return Promise.resolve(jsonResponse(holdingsPayload));
       if (url.includes('qt.gtimg.cn')) return Promise.resolve(new Response(marketText));
-      if (url.includes('api.gdeltproject.org')) return Promise.resolve(jsonResponse({ articles: [] }));
+      if (url.includes('np-listapi.eastmoney.com')) return Promise.resolve(jsonResponse(emptyEastMoneyNewsPayload));
+      if (url.includes('feed.mix.sina.com.cn')) return Promise.resolve(jsonResponse(emptySinaNewsPayload));
       if (url.includes('api.telegram.org')) return Promise.resolve(jsonResponse({ ok: true }));
       return Promise.resolve(jsonResponse({}));
     });
@@ -253,7 +276,7 @@ describe('telegram ai reminder worker', () => {
     ).toBe(true);
   });
 
-  it('部分 GDELT 查询失败但仍有新闻时标记为 available', async () => {
+  it('东方财富失败但新浪成功时标记为 available', async () => {
     const fetchMock = vi.fn().mockImplementation((input: RequestInfo | URL) => {
       const url = String(input);
       if (url.includes('api.github.com/gists')) {
@@ -263,10 +286,8 @@ describe('telegram ai reminder worker', () => {
       }
       if (url.includes('morningstar.cn')) return Promise.resolve(jsonResponse(holdingsPayload));
       if (url.includes('qt.gtimg.cn')) return Promise.resolve(new Response(marketText));
-      if (url.includes('api.gdeltproject.org') && url.includes('A%E8%82%A1+%E6%94%BF%E7%AD%96')) {
-        return Promise.resolve(jsonResponse(newsPayload));
-      }
-      if (url.includes('api.gdeltproject.org')) return Promise.resolve(jsonResponse({}, 429));
+      if (url.includes('np-listapi.eastmoney.com')) return Promise.resolve(jsonResponse({}, 500));
+      if (url.includes('feed.mix.sina.com.cn')) return Promise.resolve(jsonResponse(sinaNewsPayload));
       if (url.includes('chat/completions')) {
         return Promise.resolve(jsonResponse({ choices: [{ message: { content: '部分失败分析' } }] }));
       }
@@ -283,12 +304,13 @@ describe('telegram ai reminder worker', () => {
     expect(response.status).toBe(200);
     const aiBody = findAiRequestBody(fetchMock);
     expect(aiBody.messages[0].content).toContain('消息面/财报/公告数据: available');
-    expect(aiBody.messages[0].content).toContain('failedQueries');
+    expect(aiBody.messages[0].content).toContain('failedSources');
+    expect(aiBody.messages[0].content).toContain('新能源板块震荡回升');
   });
 
   it('新闻为空时在 prompt 中标记消息面缺失', async () => {
     const fetchMock = vi.fn();
-    mockBaseSuccessfulFetches(fetchMock, { articles: [] });
+    mockBaseSuccessfulFetches(fetchMock, emptyEastMoneyNewsPayload, emptySinaNewsPayload);
     vi.stubGlobal('fetch', fetchMock);
 
     const response = await worker.fetch(
@@ -299,10 +321,10 @@ describe('telegram ai reminder worker', () => {
     expect(response.status).toBe(200);
     const aiBody = findAiRequestBody(fetchMock);
     expect(aiBody.messages[0].content).toContain('消息面/财报/公告数据: missing');
-    expect(aiBody.messages[0].content).toContain('才可以说明“最近');
+    expect(aiBody.messages[0].content).toContain('可用中文财经新闻项');
   });
 
-  it('所有 GDELT 查询失败时标记为 failed 且不等同于无新闻', async () => {
+  it('所有中文财经新闻源失败时标记为 failed 且不等同于无新闻', async () => {
     const fetchMock = vi.fn().mockImplementation((input: RequestInfo | URL) => {
       const url = String(input);
       if (url.includes('api.github.com/gists')) {
@@ -312,7 +334,8 @@ describe('telegram ai reminder worker', () => {
       }
       if (url.includes('morningstar.cn')) return Promise.resolve(jsonResponse(holdingsPayload));
       if (url.includes('qt.gtimg.cn')) return Promise.resolve(new Response(marketText));
-      if (url.includes('api.gdeltproject.org')) return Promise.resolve(jsonResponse({}, 429));
+      if (url.includes('np-listapi.eastmoney.com')) return Promise.resolve(jsonResponse({}, 500));
+      if (url.includes('feed.mix.sina.com.cn')) return Promise.resolve(jsonResponse({}, 429));
       if (url.includes('chat/completions')) {
         return Promise.resolve(jsonResponse({ choices: [{ message: { content: '失败分析' } }] }));
       }
@@ -329,7 +352,7 @@ describe('telegram ai reminder worker', () => {
     expect(response.status).toBe(200);
     const aiBody = findAiRequestBody(fetchMock);
     expect(aiBody.messages[0].content).toContain('消息面/财报/公告数据: failed');
-    expect(aiBody.messages[0].content).toContain('新闻接口失败，消息面/财报/公告暂不可用');
+    expect(aiBody.messages[0].content).toContain('中文财经新闻接口失败，消息面/财报/公告暂不可用');
     expect(aiBody.messages[0].content).toContain('不得说成近 72 小时无新闻');
   });
 });

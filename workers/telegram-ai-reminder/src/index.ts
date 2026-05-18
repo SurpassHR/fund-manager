@@ -14,7 +14,7 @@ interface Env {
   MARKET_ANALYSIS_ENABLED?: string;
   MARKET_INDEX_CODES?: string;
   NEWS_ANALYSIS_ENABLED?: string;
-  NEWS_PROVIDER?: 'gdelt';
+  NEWS_PROVIDER?: 'eastmoney' | 'sina' | 'mixed';
   NEWS_LOOKBACK_HOURS?: string;
   NEWS_MAX_ITEMS?: string;
   NEWS_QUERY_TIMEOUT_MS?: string;
@@ -156,13 +156,12 @@ interface NewsItemSnapshot {
 
 interface NewsSnapshot {
   asOf: string;
-  provider: 'gdelt';
+  provider: 'eastmoney' | 'sina' | 'mixed';
   keywords: string[];
-  queries: string[];
   lookbackHours: number;
   items: NewsItemSnapshot[];
   dataStatus: 'available' | 'missing' | 'failed';
-  failedQueries?: number;
+  failedSources?: string[];
 }
 
 interface AnalysisContextSnapshot {
@@ -186,7 +185,8 @@ const DEFAULT_GIST_FILENAME = 'fund-manager-sync.json';
 const TELEGRAM_MESSAGE_LIMIT = 3900;
 const MORNINGSTAR_API_BASE = 'https://www.morningstar.cn/cn-api';
 const TENCENT_QUOTE_API = 'https://qt.gtimg.cn/q=';
-const GDELT_DOC_API = 'https://api.gdeltproject.org/api/v2/doc/doc';
+const EASTMONEY_NEWS_API = 'https://np-listapi.eastmoney.com/comm/web/getNewsByColumns';
+const SINA_FINANCE_ROLL_API = 'https://feed.mix.sina.com.cn/api/roll/get';
 const DEFAULT_NEWS_QUERY_TIMEOUT_MS = 5000;
 const DEFAULT_MARKET_INDEX_CODES = [
   'sh000001',
@@ -434,70 +434,125 @@ const buildNewsKeywords = (holdings: HoldingsSnapshot) => {
   return Array.from(keywords).slice(0, 18);
 };
 
-const buildGdeltQueries = (holdings: HoldingsSnapshot) => {
-  const stockNames = new Set<string>();
-  const sectorNames = new Set<string>();
-  holdings.holdings.forEach((fund) => {
-    fund.topEquityHoldings?.slice(0, 5).forEach((equity) => {
-      if (equity.name.trim()) stockNames.add(equity.name.trim());
-      if (equity.sector?.trim()) sectorNames.add(equity.sector.trim());
-    });
-  });
+interface EastMoneyNewsItem {
+  title?: string;
+  mediaName?: string;
+  showTime?: string;
+  url?: string;
+  uniqueUrl?: string;
+}
 
-  const queries = [
-    'A股 政策',
-    'A股 财报',
-    'A股 公告',
-    'A股 业绩预告',
-    '人工智能 A股',
-    '新能源 A股',
-    ...Array.from(sectorNames)
-      .slice(0, 4)
-      .map((sector) => `${sector} A股`),
-    ...Array.from(stockNames)
-      .slice(0, 6)
-      .map((name) => `${name} A股`),
-  ];
+interface EastMoneyNewsResponse {
+  data?: {
+    list?: EastMoneyNewsItem[];
+  };
+}
 
-  return Array.from(new Set(queries)).slice(0, 12);
-};
-
-const formatGdeltDate = (date: Date) => {
-  const pad = (value: number) => String(value).padStart(2, '0');
-  return `${date.getUTCFullYear()}${pad(date.getUTCMonth() + 1)}${pad(date.getUTCDate())}${pad(
-    date.getUTCHours(),
-  )}${pad(date.getUTCMinutes())}${pad(date.getUTCSeconds())}`;
-};
-
-interface GdeltArticle {
+interface SinaNewsItem {
   title?: string;
   url?: string;
-  sourceCountry?: string;
-  domain?: string;
-  seendate?: string;
-  language?: string;
+  ctime?: string;
+  media_name?: string;
+  source?: string;
 }
 
-interface GdeltResponse {
-  articles?: GdeltArticle[];
+interface SinaNewsResponse {
+  result?: {
+    data?: SinaNewsItem[];
+  };
 }
 
-const mapGdeltArticles = (articles: GdeltArticle[], seen: Set<string>) => {
-  return articles
-    .map<NewsItemSnapshot | null>((article) => {
-      const title = article.title?.trim();
-      const uniqueKey = title || article.url;
-      if (!title || !uniqueKey || seen.has(uniqueKey)) return null;
-      seen.add(uniqueKey);
+const isNewsWithinLookback = (publishedAt: string | undefined, lookbackHours: number) => {
+  if (!publishedAt) return true;
+  const normalized = /^\d+$/.test(publishedAt)
+    ? Number.parseInt(publishedAt, 10) * 1000
+    : Date.parse(publishedAt.replace(/-/g, '/'));
+  if (!Number.isFinite(normalized)) return true;
+  return Date.now() - normalized <= lookbackHours * 60 * 60 * 1000;
+};
+
+const dedupeNewsItems = (items: NewsItemSnapshot[], maxItems: number) => {
+  const seen = new Set<string>();
+  return items
+    .filter((item) => {
+      const key = item.url || item.title;
+      if (!item.title || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .slice(0, maxItems);
+};
+
+const fetchEastMoneyNews = async (
+  maxItems: number,
+  lookbackHours: number,
+  timeoutMs: number,
+): Promise<NewsItemSnapshot[]> => {
+  const url = new URL(EASTMONEY_NEWS_API);
+  url.searchParams.set('client', 'web');
+  url.searchParams.set('biz', 'web_news_col');
+  url.searchParams.set('column', '345');
+  url.searchParams.set('order', '1');
+  url.searchParams.set('needInteractData', '0');
+  url.searchParams.set('page_index', '1');
+  url.searchParams.set('page_size', String(maxItems));
+  url.searchParams.set('req_trace', String(Date.now()));
+  const response = await fetchJsonWithTimeout<EastMoneyNewsResponse>(
+    url.toString(),
+    { headers: { Accept: 'application/json' } },
+    '读取东方财富新闻',
+    timeoutMs,
+  );
+
+  return (response.data?.list || [])
+    .map<NewsItemSnapshot | null>((item) => {
+      const title = item.title?.trim();
+      if (!title) return null;
       return {
         title,
-        source: article.domain || article.sourceCountry,
-        url: article.url,
-        publishedAt: article.seendate,
-        language: article.language,
+        source: item.mediaName || '东方财富',
+        url: item.url || item.uniqueUrl,
+        publishedAt: item.showTime,
+        language: 'zh-CN',
       };
     })
-    .filter((item): item is NewsItemSnapshot => Boolean(item));
+    .filter((item): item is NewsItemSnapshot => Boolean(item))
+    .filter((item) => isNewsWithinLookback(item.publishedAt, lookbackHours));
+};
+
+const fetchSinaNews = async (
+  maxItems: number,
+  lookbackHours: number,
+  timeoutMs: number,
+): Promise<NewsItemSnapshot[]> => {
+  const url = new URL(SINA_FINANCE_ROLL_API);
+  url.searchParams.set('pageid', '153');
+  url.searchParams.set('lid', '2510');
+  url.searchParams.set('k', '');
+  url.searchParams.set('num', String(maxItems));
+  url.searchParams.set('page', '1');
+  url.searchParams.set('r', String(Date.now()));
+  const response = await fetchJsonWithTimeout<SinaNewsResponse>(
+    url.toString(),
+    { headers: { Accept: 'application/json' } },
+    '读取新浪财经新闻',
+    timeoutMs,
+  );
+
+  return (response.result?.data || [])
+    .map<NewsItemSnapshot | null>((item) => {
+      const title = item.title?.trim();
+      if (!title) return null;
+      return {
+        title,
+        source: item.media_name || item.source || '新浪财经',
+        url: item.url,
+        publishedAt: item.ctime,
+        language: 'zh-CN',
+      };
+    })
+    .filter((item): item is NewsItemSnapshot => Boolean(item))
+    .filter((item) => isNewsWithinLookback(item.publishedAt, lookbackHours));
 };
 
 const fetchNewsSnapshot = async (
@@ -505,8 +560,11 @@ const fetchNewsSnapshot = async (
   holdings: HoldingsSnapshot,
 ): Promise<NewsSnapshot | undefined> => {
   if (!isEnabled(env.NEWS_ANALYSIS_ENABLED, true)) return undefined;
-  const provider = env.NEWS_PROVIDER || 'gdelt';
-  if (provider !== 'gdelt') return undefined;
+  const configuredProvider = env.NEWS_PROVIDER || 'mixed';
+  const provider =
+    configuredProvider === 'eastmoney' || configuredProvider === 'sina' || configuredProvider === 'mixed'
+      ? configuredProvider
+      : 'mixed';
 
   const lookbackHours = parsePositiveInt(env.NEWS_LOOKBACK_HOURS, 72);
   const maxItems = Math.min(parsePositiveInt(env.NEWS_MAX_ITEMS, 12), 25);
@@ -515,59 +573,47 @@ const fetchNewsSnapshot = async (
     10000,
   );
   const keywords = buildNewsKeywords(holdings);
-  const queries = buildGdeltQueries(holdings).slice(0, 8);
-  const end = new Date();
-  const start = new Date(end.getTime() - lookbackHours * 60 * 60 * 1000);
-  const seen = new Set<string>();
   const items: NewsItemSnapshot[] = [];
-  let failedQueries = 0;
+  const failedSources: string[] = [];
 
-  for (const query of queries) {
-    if (items.length >= maxItems) break;
-    const url = new URL(GDELT_DOC_API);
-    url.searchParams.set('query', query);
-    url.searchParams.set('mode', 'ArtList');
-    url.searchParams.set('format', 'json');
-    url.searchParams.set('maxrecords', '3');
-    url.searchParams.set('sort', 'HybridRel');
-    url.searchParams.set('startdatetime', formatGdeltDate(start));
-    url.searchParams.set('enddatetime', formatGdeltDate(end));
-
+  if (provider === 'eastmoney' || provider === 'mixed') {
     try {
-      const response = await fetchJsonWithTimeout<GdeltResponse>(
-        url.toString(),
-        {},
-        `读取 GDELT 新闻: ${query}`,
-        timeoutMs,
-      );
-      items.push(...mapGdeltArticles(response.articles || [], seen));
+      items.push(...(await fetchEastMoneyNews(maxItems, lookbackHours, timeoutMs)));
     } catch {
-      failedQueries += 1;
+      failedSources.push('eastmoney');
     }
   }
 
-  if (failedQueries >= queries.length && items.length === 0) {
+  if ((provider === 'sina' || provider === 'mixed') && items.length < maxItems) {
+    try {
+      items.push(...(await fetchSinaNews(maxItems, lookbackHours, timeoutMs)));
+    } catch {
+      failedSources.push('sina');
+    }
+  }
+
+  const uniqueItems = dedupeNewsItems(items, maxItems);
+  const expectedSources = provider === 'mixed' ? 2 : 1;
+  if (failedSources.length >= expectedSources && uniqueItems.length === 0) {
     return {
       asOf: new Date().toISOString(),
-      provider: 'gdelt',
+      provider,
       keywords,
-      queries,
       lookbackHours,
       items: [],
       dataStatus: 'failed',
-      failedQueries,
+      failedSources,
     };
   }
 
   return {
     asOf: new Date().toISOString(),
-    provider: 'gdelt',
+    provider,
     keywords,
-    queries,
     lookbackHours,
-    items: items.slice(0, maxItems),
-    dataStatus: items.length > 0 ? 'available' : 'missing',
-    failedQueries: failedQueries > 0 ? failedQueries : undefined,
+    items: uniqueItems,
+    dataStatus: uniqueItems.length > 0 ? 'available' : 'missing',
+    failedSources: failedSources.length > 0 ? failedSources : undefined,
   };
 };
 
@@ -728,7 +774,7 @@ const buildHoldingsAnalysisPrompt = (context: AnalysisContextSnapshot, mode: str
     .filter(Boolean)
     .join('\n');
 
-  return `${modeInstruction}\n要求：\n1) 使用简体中文回答。\n2) 只基于给定 JSON 数据推理，不要编造不存在的数据。\n3) 如果前十大重仓股、真实行业分布、基金经理调仓、账户外资产、风险承受能力或投资期限在 dataCoverage 中标记为 missing/partial，必须明确说明“当前数据缺失/不完整”，不能当作已知事实分析。\n4) 如果 marketSnapshot 缺失或 dataStatus 为 missing/partial，必须说明“A 股市场数据缺失/不完整”，不得假设指数涨跌。\n5) 如果 newsSnapshot 缺失或 dataStatus 为 failed，必须说明“新闻接口失败，消息面/财报/公告暂不可用”，不得说成近 72 小时无新闻。\n6) 如果 newsSnapshot.dataStatus 为 missing，才可以说明“最近 ${newsSnapshot?.lookbackHours ?? 72} 小时未抓到可用新闻项”。\n7) 不得编造新闻标题、财报数据或公告内容，不得把未确认传闻当事实。\n8) 可以基于 topEquityHoldings 和 equityOverlap 分析底层股票重合度；没有数据时必须跳过。\n9) 必须输出“是否适合加仓”“是否需要减仓”“是否达到清仓条件”三段，结论只能是条件判断，例如“暂不适合/只适合小额分批/等待确认/未达到清仓条件”。\n10) 加仓、减仓、清仓建议必须同时给出依据和触发条件；清仓不能只因为单日涨跌，必须基于长期逻辑失效、风格偏离、风险画像冲突、重合度过高或明确止盈止损条件。\n11) 输出适合 Telegram 阅读，标题清晰，重点用短句。\n\n请按以下结构输出：\n一、A 股市场环境\n二、持仓表现\n三、消息面/财报/公告影响\n四、是否适合加仓\n五、是否需要减仓\n六、是否达到清仓条件\n七、明日观察点\n\n组合摘要：\n${summary}\n\n以下是分析上下文(JSON)：\n${JSON.stringify(context, null, 2)}`;
+  return `${modeInstruction}\n要求：\n1) 使用简体中文回答。\n2) 只基于给定 JSON 数据推理，不要编造不存在的数据。\n3) 如果前十大重仓股、真实行业分布、基金经理调仓、账户外资产、风险承受能力或投资期限在 dataCoverage 中标记为 missing/partial，必须明确说明“当前数据缺失/不完整”，不能当作已知事实分析。\n4) 如果 marketSnapshot 缺失或 dataStatus 为 missing/partial，必须说明“A 股市场数据缺失/不完整”，不得假设指数涨跌。\n5) 如果 newsSnapshot 缺失或 dataStatus 为 failed，必须说明“中文财经新闻接口失败，消息面/财报/公告暂不可用”，不得说成近 72 小时无新闻。\n6) 如果 newsSnapshot.dataStatus 为 missing，才可以说明“最近 ${newsSnapshot?.lookbackHours ?? 72} 小时未抓到可用中文财经新闻项”。\n7) 不得编造新闻标题、财报数据或公告内容，不得把未确认传闻当事实。\n8) 可以基于 topEquityHoldings 和 equityOverlap 分析底层股票重合度；没有数据时必须跳过。\n9) 必须输出“是否适合加仓”“是否需要减仓”“是否达到清仓条件”三段，结论只能是条件判断，例如“暂不适合/只适合小额分批/等待确认/未达到清仓条件”。\n10) 加仓、减仓、清仓建议必须同时给出依据和触发条件；清仓不能只因为单日涨跌，必须基于长期逻辑失效、风格偏离、风险画像冲突、重合度过高或明确止盈止损条件。\n11) 输出适合 Telegram 阅读，标题清晰，重点用短句。\n\n请按以下结构输出：\n一、A 股市场环境\n二、持仓表现\n三、消息面/财报/公告影响\n四、是否适合加仓\n五、是否需要减仓\n六、是否达到清仓条件\n七、明日观察点\n\n组合摘要：\n${summary}\n\n以下是分析上下文(JSON)：\n${JSON.stringify(context, null, 2)}`;
 };
 
 const resolveAiEndpoint = (env: Env) => {
