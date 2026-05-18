@@ -480,9 +480,13 @@ describe('telegram ai reminder worker', () => {
     expect(response.status).toBe(200);
     expect(body.ok).toBe(true);
     expect(body.handled).toBe('analysis');
-    expect(body.sentMessages).toBe(1);
-    const telegramCall = fetchMock.mock.calls.find((call) => String(call[0]).includes('api.telegram.org'));
-    const telegramBody = JSON.parse(telegramCall?.[1].body as string) as { chat_id: string; text: string };
+    expect(body.sentMessages).toBe(2);
+    const telegramCalls = fetchMock.mock.calls.filter((call) => String(call[0]).includes('api.telegram.org'));
+    expect(telegramCalls).toHaveLength(2);
+    const pendingBody = JSON.parse(telegramCalls[0]?.[1].body as string) as { chat_id: string; text: string };
+    const telegramBody = JSON.parse(telegramCalls[1]?.[1].body as string) as { chat_id: string; text: string };
+    expect(pendingBody.chat_id).toBe('123456');
+    expect(pendingBody.text).toBe('收到，正在结合市场情绪、资金流和持仓分析...');
     expect(telegramBody.chat_id).toBe('123456');
     expect(telegramBody.text).toContain('养基AI持仓分析');
     const aiBody = findAiRequestBody(fetchMock);
@@ -643,9 +647,41 @@ describe('telegram ai reminder worker', () => {
     );
 
     expect(response.status).toBe(200);
-    const telegramCall = fetchMock.mock.calls.find((call) => String(call[0]).includes('api.telegram.org'));
-    const telegramBody = JSON.parse(telegramCall?.[1].body as string) as { text: string };
+    const telegramCalls = fetchMock.mock.calls.filter((call) => String(call[0]).includes('api.telegram.org'));
+    const pendingBody = JSON.parse(telegramCalls[0]?.[1].body as string) as { text: string };
+    const telegramBody = JSON.parse(telegramCalls[1]?.[1].body as string) as { text: string };
+    expect(pendingBody.text).toBe('收到，正在结合市场情绪、资金流和持仓分析...');
     expect(telegramBody.text).toContain('已截断，发送“详细分析”查看完整版本。');
+  });
+
+  it('Telegram 分析失败时会在立即回复后发送失败提示', async () => {
+    const fetchMock = vi.fn().mockImplementation((input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes('api.github.com/gists')) return Promise.resolve(jsonResponse({}, 500));
+      if (url.includes('api.telegram.org')) return Promise.resolve(jsonResponse({ ok: true }));
+      return Promise.resolve(jsonResponse({}));
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const response = await worker.fetch(
+      new Request('https://worker.example/telegram', {
+        method: 'POST',
+        body: JSON.stringify({ message: { text: '分析', chat: { id: 123456 } } }),
+      }),
+      env,
+    );
+    const body = (await response.json()) as { ok: boolean; handled: string; sentMessages: number };
+
+    expect(response.status).toBe(500);
+    expect(body.ok).toBe(false);
+    expect(body.handled).toBe('analysis');
+    expect(body.sentMessages).toBe(2);
+    const telegramCalls = fetchMock.mock.calls.filter((call) => String(call[0]).includes('api.telegram.org'));
+    expect(telegramCalls).toHaveLength(2);
+    const pendingBody = JSON.parse(telegramCalls[0]?.[1].body as string) as { text: string };
+    const failureBody = JSON.parse(telegramCalls[1]?.[1].body as string) as { text: string };
+    expect(pendingBody.text).toBe('收到，正在结合市场情绪、资金流和持仓分析...');
+    expect(failureBody.text).toContain('分析失败：读取 Gist 请求失败');
   });
 
   it('Telegram webhook secret 不匹配时返回 401', async () => {

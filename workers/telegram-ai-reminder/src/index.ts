@@ -295,6 +295,7 @@ const COMMAND_QUESTION_MAP: Record<string, { question: string; maxLength?: numbe
 const TELEGRAM_ANALYSIS_COMMANDS = Object.keys(COMMAND_QUESTION_MAP);
 const TELEGRAM_HELP_TEXT =
   '发送“分析”获取短版判断；发送“详细分析”获取完整分析；也可发送“建仓”“加仓”“减仓”“清仓”获取专项判断。';
+const TELEGRAM_ANALYSIS_PENDING_TEXT = '收到，正在结合市场情绪、资金流和持仓分析...';
 const DEFAULT_MARKET_INDEX_CODES = [
   'sh000001',
   'sz399001',
@@ -1291,15 +1292,25 @@ const handleTelegramWebhook = async (request: Request, env: Env) => {
     return json({ ok: true, handled: 'help', sentMessages });
   }
 
-  const analysisMessage = await buildAnalysisMessage(env, commandConfig);
-  const sentMessages = await sendTelegramMessage(env, analysisMessage.text, chatIdStr);
-  return json({
-    ok: true,
-    handled: 'analysis',
-    holdings: analysisMessage.holdings,
-    totalAssets: analysisMessage.totalAssets,
-    sentMessages,
-  });
+  const pendingMessages = await sendTelegramMessage(env, TELEGRAM_ANALYSIS_PENDING_TEXT, chatIdStr);
+  try {
+    const analysisMessage = await buildAnalysisMessage(env, commandConfig);
+    const analysisMessages = await sendTelegramMessage(env, analysisMessage.text, chatIdStr);
+    return json({
+      ok: true,
+      handled: 'analysis',
+      holdings: analysisMessage.holdings,
+      totalAssets: analysisMessage.totalAssets,
+      sentMessages: pendingMessages + analysisMessages,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : '未知错误';
+    const failureMessages = await sendTelegramMessage(env, `分析失败：${message}`, chatIdStr);
+    return json(
+      { ok: false, handled: 'analysis', error: message, sentMessages: pendingMessages + failureMessages },
+      500,
+    );
+  }
 };
 
 const setupTelegramWebhook = async (request: Request, env: Env) => {
