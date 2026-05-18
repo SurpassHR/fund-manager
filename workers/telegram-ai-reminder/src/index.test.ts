@@ -357,7 +357,7 @@ describe('telegram ai reminder worker', () => {
     expect(aiBody.messages[0].content).toContain('不得说成近 72 小时无新闻');
   });
 
-  it('Telegram 发送“分析”会触发完整分析并回复当前 chat', async () => {
+  it('Telegram 发送“分析”会触发短版分析并回复当前 chat', async () => {
     const fetchMock = vi.fn();
     mockBaseSuccessfulFetches(fetchMock);
     vi.stubGlobal('fetch', fetchMock);
@@ -381,7 +381,83 @@ describe('telegram ai reminder worker', () => {
     expect(telegramBody.chat_id).toBe('123456');
     expect(telegramBody.text).toContain('小胡养基 AI 持仓分析');
     const aiBody = findAiRequestBody(fetchMock);
+    expect(aiBody.messages[1].content).toContain('Telegram 短版分析');
+    expect(aiBody.messages[1].content).toContain('1200 字以内');
+  });
+
+  it('Telegram 发送“详细分析”会触发完整分析问题', async () => {
+    const fetchMock = vi.fn();
+    mockBaseSuccessfulFetches(fetchMock);
+    vi.stubGlobal('fetch', fetchMock);
+
+    const response = await worker.fetch(
+      new Request('https://worker.example/telegram', {
+        method: 'POST',
+        body: JSON.stringify({ message: { text: '详细分析', chat: { id: 123456 } } }),
+      }),
+      env,
+    );
+
+    expect(response.status).toBe(200);
+    const aiBody = findAiRequestBody(fetchMock);
+    expect(aiBody.messages[1].content).toContain('请基于当前持仓');
     expect(aiBody.messages[1].content).toContain('是否适合加仓');
+    expect(aiBody.messages[1].content).not.toContain('Telegram 短版分析');
+  });
+
+  it('Telegram 发送“加仓”会触发专项短答', async () => {
+    const fetchMock = vi.fn();
+    mockBaseSuccessfulFetches(fetchMock);
+    vi.stubGlobal('fetch', fetchMock);
+
+    const response = await worker.fetch(
+      new Request('https://worker.example/telegram', {
+        method: 'POST',
+        body: JSON.stringify({ message: { text: '加仓', chat: { id: 123456 } } }),
+      }),
+      env,
+    );
+
+    expect(response.status).toBe(200);
+    const aiBody = findAiRequestBody(fetchMock);
+    expect(aiBody.messages[1].content).toContain('只回答当前是否适合加仓');
+    expect(aiBody.messages[1].content).toContain('1000 字以内');
+  });
+
+  it('Telegram 短版输出过长时会截断', async () => {
+    const fetchMock = vi.fn();
+    mockBaseSuccessfulFetches(fetchMock);
+    fetchMock.mockImplementation((input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes('chat/completions')) {
+        return Promise.resolve(jsonResponse({ choices: [{ message: { content: '分析'.repeat(1200) } }] }));
+      }
+      if (url.includes('api.github.com/gists')) {
+        return Promise.resolve(
+          jsonResponse({ files: { 'fund-manager-sync.json': { content: JSON.stringify(backupPayload) } } }),
+        );
+      }
+      if (url.includes('morningstar.cn')) return Promise.resolve(jsonResponse(holdingsPayload));
+      if (url.includes('qt.gtimg.cn')) return Promise.resolve(new Response(marketText));
+      if (url.includes('np-listapi.eastmoney.com')) return Promise.resolve(jsonResponse(eastMoneyNewsPayload));
+      if (url.includes('feed.mix.sina.com.cn')) return Promise.resolve(jsonResponse(sinaNewsPayload));
+      if (url.includes('api.telegram.org')) return Promise.resolve(jsonResponse({ ok: true }));
+      return Promise.resolve(jsonResponse({}));
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const response = await worker.fetch(
+      new Request('https://worker.example/telegram', {
+        method: 'POST',
+        body: JSON.stringify({ message: { text: '分析', chat: { id: 123456 } } }),
+      }),
+      env,
+    );
+
+    expect(response.status).toBe(200);
+    const telegramCall = fetchMock.mock.calls.find((call) => String(call[0]).includes('api.telegram.org'));
+    const telegramBody = JSON.parse(telegramCall?.[1].body as string) as { text: string };
+    expect(telegramBody.text).toContain('已截断，发送“详细分析”查看完整版本。');
   });
 
   it('Telegram webhook secret 不匹配时返回 401', async () => {

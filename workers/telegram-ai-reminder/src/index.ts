@@ -200,9 +200,32 @@ const SINA_FINANCE_ROLL_API = 'https://feed.mix.sina.com.cn/api/roll/get';
 const DEFAULT_NEWS_QUERY_TIMEOUT_MS = 5000;
 const DEFAULT_AI_QUESTION =
   '请基于当前持仓、A 股市场指数、市场情绪、中文财经新闻和投资画像，重点判断当前是否适合加仓、是否需要减仓、是否达到清仓条件。请给出明确但条件化的结论、依据、触发条件和明日观察点。';
-const TELEGRAM_ANALYSIS_COMMANDS = ['分析', '市场分析', '加仓', '减仓', '清仓'];
+const SHORT_ANALYSIS_QUESTION =
+  '请输出 Telegram 短版分析，控制在 1200 字以内。先给一句明确结论，再用短段落说明市场情绪、A股环境、中文财经新闻、持仓状态、是否适合加仓、是否需要减仓、是否达到清仓条件和明日观察点。不要展开长篇推理。';
+const DETAILED_ANALYSIS_QUESTION = DEFAULT_AI_QUESTION;
+const COMMAND_QUESTION_MAP: Record<string, { question: string; maxLength?: number }> = {
+  分析: { question: SHORT_ANALYSIS_QUESTION, maxLength: 1600 },
+  市场分析: { question: SHORT_ANALYSIS_QUESTION, maxLength: 1600 },
+  详细分析: { question: DETAILED_ANALYSIS_QUESTION },
+  加仓: {
+    question:
+      '请只回答当前是否适合加仓，控制在 1000 字以内。必须结合 A 股市场、中文财经新闻、持仓盈亏、仓位集中度和投资画像，给出结论、依据、触发条件和不适合加仓的风险。',
+    maxLength: 1200,
+  },
+  减仓: {
+    question:
+      '请只回答当前是否需要减仓，控制在 1000 字以内。必须结合 A 股市场、中文财经新闻、持仓盈亏、重合度和投资画像，给出结论、依据、触发条件和暂不减仓的条件。',
+    maxLength: 1200,
+  },
+  清仓: {
+    question:
+      '请只回答当前是否达到清仓条件，控制在 1000 字以内。清仓判断必须严格，不能只因为单日涨跌；必须结合长期逻辑失效、风格偏离、风险画像冲突、重合度过高或明确止盈止损条件。',
+    maxLength: 1200,
+  },
+};
+const TELEGRAM_ANALYSIS_COMMANDS = Object.keys(COMMAND_QUESTION_MAP);
 const TELEGRAM_HELP_TEXT =
-  '发送“分析”即可获取市场情绪、A股市场、中文财经新闻与加仓/减仓/清仓判断。';
+  '发送“分析”获取短版判断；发送“详细分析”获取完整分析；也可发送“加仓”“减仓”“清仓”获取专项判断。';
 const DEFAULT_MARKET_INDEX_CODES = [
   'sh000001',
   'sz399001',
@@ -865,13 +888,17 @@ const analyzeWithGemini = async (params: { env: Env; systemPrompt: string; quest
   return content;
 };
 
-const analyzeHoldings = async (env: Env, context: AnalysisContextSnapshot) => {
+const analyzeHoldings = async (
+  env: Env,
+  context: AnalysisContextSnapshot,
+  questionOverride?: string,
+) => {
   if (context.holdings.holdings.length === 0) {
     return '当前 Gist 备份中没有有效持仓，未生成 AI 分析。';
   }
 
   const mode = env.AI_MODE || 'deep';
-  const question = env.AI_QUESTION || DEFAULT_AI_QUESTION;
+  const question = questionOverride || env.AI_QUESTION || DEFAULT_AI_QUESTION;
   const systemPrompt = buildHoldingsAnalysisPrompt(context, mode);
   const endpoint = resolveAiEndpoint(env);
 
@@ -918,18 +945,24 @@ const sendTelegramMessage = async (env: Env, text: string, chatId = requireEnv(e
   return chunks.length;
 };
 
-const buildAnalysisMessage = async (env: Env) => {
+const truncateForTelegram = (text: string, maxLength?: number) => {
+  if (!maxLength || text.length <= maxLength) return text;
+  return `${text.slice(0, maxLength).trim()}\n\n已截断，发送“详细分析”查看完整版本。`;
+};
+
+const buildAnalysisMessage = async (env: Env, options?: { question?: string; maxLength?: number }) => {
   const payload = await readGistBackup(env);
   const snapshot = await buildHoldingsSnapshot(payload);
   const [marketSnapshot, newsSnapshot] = await Promise.all([
     fetchMarketSnapshot(env),
     fetchNewsSnapshot(env, snapshot),
   ]);
-  const analysis = await analyzeHoldings(env, { holdings: snapshot, marketSnapshot, newsSnapshot });
+  const analysis = await analyzeHoldings(env, { holdings: snapshot, marketSnapshot, newsSnapshot }, options?.question);
   const title = `小胡养基 AI 持仓分析\n时间：${new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' })}\n`;
+  const body = truncateForTelegram(analysis, options?.maxLength);
 
   return {
-    text: `${title}\n${analysis}`,
+    text: `${title}\n${body}`,
     holdings: snapshot.holdings.length,
     totalAssets: snapshot.totalAssets,
   };
@@ -957,9 +990,10 @@ const isAuthorizedTelegramWebhook = (request: Request, env: Env) => {
   return request.headers.get('X-Telegram-Bot-Api-Secret-Token') === env.TELEGRAM_WEBHOOK_SECRET;
 };
 
-const isAnalysisCommand = (text: string) => {
+const resolveTelegramCommandConfig = (text: string) => {
   const normalized = text.trim().replace(/^\//, '').toLowerCase();
-  return TELEGRAM_ANALYSIS_COMMANDS.some((command) => normalized === command.toLowerCase());
+  const command = TELEGRAM_ANALYSIS_COMMANDS.find((item) => item.toLowerCase() === normalized);
+  return command ? COMMAND_QUESTION_MAP[command] : null;
 };
 
 const handleTelegramWebhook = async (request: Request, env: Env) => {
@@ -977,12 +1011,13 @@ const handleTelegramWebhook = async (request: Request, env: Env) => {
     return json({ ok: true, ignored: true });
   }
 
-  if (!isAnalysisCommand(text)) {
+  const commandConfig = resolveTelegramCommandConfig(text);
+  if (!commandConfig) {
     const sentMessages = await sendTelegramMessage(env, TELEGRAM_HELP_TEXT, chatIdStr);
     return json({ ok: true, handled: 'help', sentMessages });
   }
 
-  const analysisMessage = await buildAnalysisMessage(env);
+  const analysisMessage = await buildAnalysisMessage(env, commandConfig);
   const sentMessages = await sendTelegramMessage(env, analysisMessage.text, chatIdStr);
   return json({
     ok: true,
