@@ -184,61 +184,18 @@ export const deriveFundIntradayDisplayMetrics = (params: {
 };
 
 /**
- * 从已结算交易推算清仓基金的已实现盈亏。
- * 仅基于已结算交易计算，不依赖当前持仓。
+ * 获取清仓基金的已实现盈亏。
+ * 仅在结算时将卖出部分的持有收益固化到 realizedGain 字段。
+ * 历史未固化的数据直接返回 0，不通过交易记录反推。
  */
 export const computeRealizedGain = (
   fund: Fund,
 ): { realizedGain: number; realizedGainPct: number } => {
-  const txs = fund.pendingTransactions || [];
-  let totalSellRevenue = 0;
-  let totalBuyCost = 0;
-
-  txs.forEach((tx) => {
-    if (!tx.settled) return;
-
-    if (tx.type === 'sell') {
-      if (tx.netOutAmount != null) {
-        totalSellRevenue += tx.netOutAmount;
-      } else if (tx.grossAmount != null) {
-        totalSellRevenue += tx.grossAmount * (1 - (tx.sellFeeRate || 0));
-      } else {
-        totalSellRevenue += tx.amount * fund.currentNav * (1 - (tx.sellFeeRate || 0));
-      }
-    } else if (tx.type === 'transferOut' && tx.netOutAmount != null) {
-      totalSellRevenue += tx.netOutAmount;
-    } else if (tx.type === 'buy') {
-      totalBuyCost += tx.amount;
-    } else if (tx.type === 'transferIn' && tx.netInAmount != null) {
-      totalBuyCost += tx.netInAmount;
-    }
-  });
-
-  const realizedGain = totalSellRevenue - totalBuyCost;
-  const realizedGainPct = totalBuyCost > 0 ? (realizedGain / totalBuyCost) * 100 : 0;
-
-  if (fund.holdingShares <= 0.01) {
-    console.log('[computeRealizedGain]', {
-      fundCode: fund.code,
-      fundName: fund.name,
-      currentNav: fund.currentNav,
-      totalSellRevenue,
-      totalBuyCost,
-      realizedGain,
-      realizedGainPct,
-      txs: txs
-        .filter((t) => t.settled)
-        .map((t) => ({
-          type: t.type,
-          amount: t.amount,
-          netOutAmount: t.netOutAmount,
-          grossAmount: t.grossAmount,
-          netInAmount: t.netInAmount,
-          sellFeeRate: t.sellFeeRate,
-          settled: t.settled,
-        })),
-    });
+  if (fund.realizedGain != null) {
+    const cost = fund.realizedGainCost ?? 0;
+    const pct = cost > 0 ? (fund.realizedGain / cost) * 100 : 0;
+    return { realizedGain: fund.realizedGain, realizedGainPct: pct };
   }
 
-  return { realizedGain, realizedGainPct };
+  return { realizedGain: 0, realizedGainPct: 0 };
 };

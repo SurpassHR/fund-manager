@@ -336,6 +336,8 @@ export const runSettlementPipeline = (options?: RefreshOptions) => {
         let changed = false;
         let newShares = fund.holdingShares;
         let newCostPrice = fund.costPrice;
+        let newRealizedGain = fund.realizedGain ?? 0;
+        let newRealizedGainCost = fund.realizedGainCost ?? 0;
 
         const updatedPending = pending.map((tx) => {
           if (tx.settled) return tx;
@@ -360,6 +362,10 @@ export const runSettlementPipeline = (options?: RefreshOptions) => {
             const sellNav = fund.currentNav;
             const grossAmount = roundMoney(sellShares * sellNav);
             const netOutAmount = roundMoney(grossAmount * (1 - (tx.sellFeeRate || 0)));
+            // 卖出部分的持有收益固化为已实现收益
+            const sellCost = roundMoney(sellShares * newCostPrice);
+            newRealizedGain += netOutAmount - sellCost;
+            newRealizedGainCost += sellCost;
             newShares = Math.max(0, newShares - sellShares);
             return { ...tx, settled: true, grossAmount, netOutAmount };
           }
@@ -372,6 +378,8 @@ export const runSettlementPipeline = (options?: RefreshOptions) => {
             holdingShares: newShares,
             costPrice: newCostPrice,
             pendingTransactions: updatedPending,
+            realizedGain: newRealizedGain,
+            realizedGainCost: newRealizedGainCost,
           });
         }
       }
@@ -455,6 +463,11 @@ export const runSettlementPipeline = (options?: RefreshOptions) => {
               ? roundShares((oldTargetCostValue + netInAmount) / nextTargetShares)
               : 0;
 
+          // 调仓转出部分的持有收益固化为已实现收益
+          const transferCost = roundMoney(outShares * sourceFund.costPrice);
+          const nextRealizedGain = (sourceFund.realizedGain ?? 0) + (netOutAmount - transferCost);
+          const nextRealizedGainCost = (sourceFund.realizedGainCost ?? 0) + transferCost;
+
           const nextSourcePending = sourcePending.map((tx) => {
             if (tx.id !== sourceTx.id) return tx;
             return {
@@ -481,6 +494,8 @@ export const runSettlementPipeline = (options?: RefreshOptions) => {
           await db.funds.update(sourceFund.id!, {
             holdingShares: nextSourceShares,
             pendingTransactions: nextSourcePending,
+            realizedGain: nextRealizedGain,
+            realizedGainCost: nextRealizedGainCost,
           });
           await db.funds.update(targetFund.id!, {
             holdingShares: nextTargetShares,
@@ -906,11 +921,9 @@ export const calculateSummary = (funds: Fund[]): AssetSummary => {
     totalCost += costValue;
     holdingGain += totalGain;
 
-    // 清仓基金：累加已实现盈亏
-    if (fund.holdingShares <= 0.01) {
-      const { realizedGain } = computeRealizedGain(fund);
-      clearedRealizedGain += realizedGain;
-    }
+    // 累加已实现盈亏（含持仓中和已清仓基金）
+    const { realizedGain } = computeRealizedGain(fund);
+    clearedRealizedGain += realizedGain;
   });
 
   const holdingGainPct = totalCost > 0 ? (holdingGain / totalCost) * 100 : 0;
@@ -918,26 +931,6 @@ export const calculateSummary = (funds: Fund[]): AssetSummary => {
     totalAssets - totalDayGain > 0 ? (totalDayGain / (totalAssets - totalDayGain)) * 100 : 0;
   const cumulativeGain = holdingGain + clearedRealizedGain;
   const cumulativeGainPct = totalCost > 0 ? (cumulativeGain / totalCost) * 100 : 0;
-
-  if (clearedRealizedGain !== 0) {
-    console.log('[calculateSummary]', {
-      holdingGain,
-      clearedRealizedGain,
-      cumulativeGain,
-      totalCost,
-      activeFundsCount: funds.filter((f) => f.holdingShares > 0.01).length,
-      clearedFundsCount: funds.filter((f) => f.holdingShares <= 0.01).length,
-      clearedFunds: funds
-        .filter((f) => f.holdingShares <= 0.01)
-        .map((f) => ({
-          code: f.code,
-          name: f.name,
-          currentNav: f.currentNav,
-          holdingShares: f.holdingShares,
-          costPrice: f.costPrice,
-        })),
-    });
-  }
 
   return {
     totalAssets,
