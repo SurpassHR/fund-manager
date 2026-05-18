@@ -383,6 +383,7 @@ describe('telegram ai reminder worker', () => {
     const aiBody = findAiRequestBody(fetchMock);
     expect(aiBody.messages[1].content).toContain('Telegram 短版分析');
     expect(aiBody.messages[1].content).toContain('1200 字以内');
+    expect(aiBody.messages[1].content).toContain('今日最适合建仓/加仓候选');
   });
 
   it('Telegram 发送“详细分析”会触发完整分析问题', async () => {
@@ -421,7 +422,27 @@ describe('telegram ai reminder worker', () => {
     expect(response.status).toBe(200);
     const aiBody = findAiRequestBody(fetchMock);
     expect(aiBody.messages[1].content).toContain('只回答当前是否适合加仓');
+    expect(aiBody.messages[1].content).toContain('今日最适合建仓/加仓候选');
     expect(aiBody.messages[1].content).toContain('1000 字以内');
+  });
+
+  it('Telegram 发送“建仓”会触发建仓候选专项短答', async () => {
+    const fetchMock = vi.fn();
+    mockBaseSuccessfulFetches(fetchMock);
+    vi.stubGlobal('fetch', fetchMock);
+
+    const response = await worker.fetch(
+      new Request('https://worker.example/telegram', {
+        method: 'POST',
+        body: JSON.stringify({ message: { text: '建仓', chat: { id: 123456 } } }),
+      }),
+      env,
+    );
+
+    expect(response.status).toBe(200);
+    const aiBody = findAiRequestBody(fetchMock);
+    expect(aiBody.messages[1].content).toContain('今天哪只基金最适合建仓/加仓');
+    expect(aiBody.messages[1].content).toContain('不能为了回答硬选');
   });
 
   it('Telegram 短版输出过长时会截断', async () => {
@@ -542,5 +563,6 @@ describe('telegram ai reminder worker', () => {
     const telegramCall = fetchMock.mock.calls.find((call) => String(call[0]).includes('api.telegram.org'));
     const telegramBody = JSON.parse(telegramCall?.[1].body as string) as { text: string };
     expect(telegramBody.text).toContain('发送“分析”');
+    expect(telegramBody.text).toContain('建仓');
   });
 });
