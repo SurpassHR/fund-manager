@@ -70,15 +70,11 @@ const jsonResponse = (body: unknown, status = 200) =>
     headers: { 'Content-Type': 'application/json' },
   });
 
-describe('telegram ai reminder worker', () => {
-  afterEach(() => {
-    vi.unstubAllGlobals();
-  });
-
-  it('读取 Gist 持仓、调用 AI 并发送 Telegram', async () => {
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValueOnce(
+const mockBaseSuccessfulFetches = (fetchMock: ReturnType<typeof vi.fn>, news = newsPayload) => {
+  fetchMock.mockImplementation((input: RequestInfo | URL) => {
+    const url = String(input);
+    if (url.includes('api.github.com/gists')) {
+      return Promise.resolve(
         jsonResponse({
           files: {
             'fund-manager-sync.json': {
@@ -86,16 +82,38 @@ describe('telegram ai reminder worker', () => {
             },
           },
         }),
-      )
-      .mockResolvedValueOnce(jsonResponse(holdingsPayload))
-      .mockResolvedValueOnce(new Response(marketText))
-      .mockResolvedValueOnce(jsonResponse(newsPayload))
-      .mockResolvedValueOnce(
-        jsonResponse({
-          choices: [{ message: { content: '组合整体表现良好。' } }],
-        }),
-      )
-      .mockResolvedValueOnce(jsonResponse({ ok: true }));
+      );
+    }
+    if (url.includes('morningstar.cn')) return Promise.resolve(jsonResponse(holdingsPayload));
+    if (url.includes('qt.gtimg.cn')) return Promise.resolve(new Response(marketText));
+    if (url.includes('api.gdeltproject.org')) return Promise.resolve(jsonResponse(news));
+    if (url.includes('chat/completions')) {
+      return Promise.resolve(jsonResponse({ choices: [{ message: { content: '组合整体表现良好。' } }] }));
+    }
+    if (url.includes('generativelanguage.googleapis.com')) {
+      return Promise.resolve(
+        jsonResponse({ candidates: [{ content: { parts: [{ text: 'Gemini 分析' }] } }] }),
+      );
+    }
+    if (url.includes('api.telegram.org')) return Promise.resolve(jsonResponse({ ok: true }));
+    return Promise.resolve(jsonResponse({}));
+  });
+};
+
+const findAiRequestBody = (fetchMock: ReturnType<typeof vi.fn>) => {
+  const call = fetchMock.mock.calls.find((item) => String(item[0]).includes('/chat/completions'));
+  if (!call) throw new Error('AI request not found');
+  return JSON.parse(call[1].body as string) as { messages: Array<{ role: string; content: string }> };
+};
+
+describe('telegram ai reminder worker', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('读取 Gist 持仓、调用 AI 并发送 Telegram', async () => {
+    const fetchMock = vi.fn();
+    mockBaseSuccessfulFetches(fetchMock);
     vi.stubGlobal('fetch', fetchMock);
 
     const response = await worker.fetch(
@@ -111,40 +129,19 @@ describe('telegram ai reminder worker', () => {
 
     expect(response.status).toBe(200);
     expect(body).toEqual({ ok: true, holdings: 1, totalAssets: 120, sentMessages: 1 });
-    expect(fetchMock).toHaveBeenCalledTimes(6);
-    expect(fetchMock).toHaveBeenNthCalledWith(
-      1,
+    expect(fetchMock).toHaveBeenCalledWith(
       'https://api.github.com/gists/gist-id',
-      expect.objectContaining({
-        headers: expect.objectContaining({ Authorization: 'Bearer github-token' }),
-      }),
+      expect.objectContaining({ headers: expect.objectContaining({ Authorization: 'Bearer github-token' }) }),
     );
-    expect(fetchMock).toHaveBeenNthCalledWith(
-      2,
+    expect(fetchMock).toHaveBeenCalledWith(
       'https://www.morningstar.cn/cn-api/v2/funds/000001/holdings',
       expect.objectContaining({ headers: expect.objectContaining({ Accept: 'application/json' }) }),
     );
-    expect(fetchMock).toHaveBeenNthCalledWith(
-      3,
-      expect.stringContaining('https://qt.gtimg.cn/q='),
-      expect.any(Object),
-    );
-    expect(fetchMock).toHaveBeenNthCalledWith(
-      4,
-      expect.stringContaining('https://api.gdeltproject.org/api/v2/doc/doc'),
-      expect.any(Object),
-    );
-    expect(fetchMock).toHaveBeenNthCalledWith(
-      5,
-      'https://example.com/v1/chat/completions',
-      expect.objectContaining({
-        method: 'POST',
-        headers: expect.objectContaining({ Authorization: 'Bearer ai-token' }),
-      }),
-    );
-    const aiBody = JSON.parse(fetchMock.mock.calls[4][1].body as string) as {
-      messages: Array<{ role: string; content: string }>;
-    };
+    expect(fetchMock.mock.calls.some((call) => String(call[0]).includes('https://qt.gtimg.cn/q='))).toBe(true);
+    expect(
+      fetchMock.mock.calls.some((call) => String(call[0]).includes('https://api.gdeltproject.org/api/v2/doc/doc')),
+    ).toBe(true);
+    const aiBody = findAiRequestBody(fetchMock);
     expect(aiBody.messages[0].content).toContain('测试基金A');
     expect(aiBody.messages[0].content).toContain('贵州茅台');
     expect(aiBody.messages[0].content).toContain('dataCoverage');
@@ -159,13 +156,13 @@ describe('telegram ai reminder worker', () => {
     expect(aiBody.messages[0].content).toContain('不要编造不存在的数据');
     expect(aiBody.messages[1].content).toBe('请分析持仓');
 
-    const telegramBody = JSON.parse(fetchMock.mock.calls[5][1].body as string) as {
+    const telegramCall = fetchMock.mock.calls.find((call) => String(call[0]).includes('api.telegram.org'));
+    expect(telegramCall).toBeTruthy();
+    const telegramBody = JSON.parse(telegramCall?.[1].body as string) as {
       chat_id: string;
       text: string;
     };
-    expect(fetchMock.mock.calls[5][0]).toBe(
-      'https://api.telegram.org/bottelegram-token/sendMessage',
-    );
+    expect(telegramCall?.[0]).toBe('https://api.telegram.org/bottelegram-token/sendMessage');
     expect(telegramBody.chat_id).toBe('123456');
     expect(telegramBody.text).toContain('小胡养基 AI 持仓分析');
     expect(telegramBody.text).toContain('组合整体表现良好。');
@@ -188,22 +185,24 @@ describe('telegram ai reminder worker', () => {
 
   it('长分析结果会拆分为多条 Telegram 消息', async () => {
     const longText = '分析'.repeat(2500);
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValueOnce(
-        jsonResponse({
-          files: {
-            'fund-manager-sync.json': {
-              content: JSON.stringify(backupPayload),
-            },
-          },
-        }),
-      )
-      .mockResolvedValueOnce(jsonResponse(holdingsPayload))
-      .mockResolvedValueOnce(new Response(marketText))
-      .mockResolvedValueOnce(jsonResponse({ articles: [] }))
-      .mockResolvedValueOnce(jsonResponse({ choices: [{ message: { content: longText } }] }))
-      .mockImplementation(() => Promise.resolve(jsonResponse({ ok: true })));
+    const fetchMock = vi.fn();
+    mockBaseSuccessfulFetches(fetchMock, { articles: [] });
+    fetchMock.mockImplementation((input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes('chat/completions')) {
+        return Promise.resolve(jsonResponse({ choices: [{ message: { content: longText } }] }));
+      }
+      if (url.includes('api.github.com/gists')) {
+        return Promise.resolve(
+          jsonResponse({ files: { 'fund-manager-sync.json': { content: JSON.stringify(backupPayload) } } }),
+        );
+      }
+      if (url.includes('morningstar.cn')) return Promise.resolve(jsonResponse(holdingsPayload));
+      if (url.includes('qt.gtimg.cn')) return Promise.resolve(new Response(marketText));
+      if (url.includes('api.gdeltproject.org')) return Promise.resolve(jsonResponse({ articles: [] }));
+      if (url.includes('api.telegram.org')) return Promise.resolve(jsonResponse({ ok: true }));
+      return Promise.resolve(jsonResponse({}));
+    });
     vi.stubGlobal('fetch', fetchMock);
 
     const response = await worker.fetch(
@@ -221,22 +220,8 @@ describe('telegram ai reminder worker', () => {
   });
 
   it('DeepSeek provider 使用内置 OpenAI 兼容地址', async () => {
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValueOnce(
-        jsonResponse({
-          files: {
-            'fund-manager-sync.json': {
-              content: JSON.stringify(backupPayload),
-            },
-          },
-        }),
-      )
-      .mockResolvedValueOnce(jsonResponse(holdingsPayload))
-      .mockResolvedValueOnce(new Response(marketText))
-      .mockResolvedValueOnce(jsonResponse(newsPayload))
-      .mockResolvedValueOnce(jsonResponse({ choices: [{ message: { content: 'DeepSeek 分析' } }] }))
-      .mockResolvedValueOnce(jsonResponse({ ok: true }));
+    const fetchMock = vi.fn();
+    mockBaseSuccessfulFetches(fetchMock);
     vi.stubGlobal('fetch', fetchMock);
 
     const response = await worker.fetch(
@@ -245,28 +230,12 @@ describe('telegram ai reminder worker', () => {
     );
 
     expect(response.status).toBe(200);
-    expect(fetchMock.mock.calls[4][0]).toBe('https://api.deepseek.com/v1/chat/completions');
+    expect(fetchMock.mock.calls.some((call) => call[0] === 'https://api.deepseek.com/v1/chat/completions')).toBe(true);
   });
 
   it('Gemini provider 使用 Gemini REST API', async () => {
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValueOnce(
-        jsonResponse({
-          files: {
-            'fund-manager-sync.json': {
-              content: JSON.stringify(backupPayload),
-            },
-          },
-        }),
-      )
-      .mockResolvedValueOnce(jsonResponse(holdingsPayload))
-      .mockResolvedValueOnce(new Response(marketText))
-      .mockResolvedValueOnce(jsonResponse(newsPayload))
-      .mockResolvedValueOnce(
-        jsonResponse({ candidates: [{ content: { parts: [{ text: 'Gemini 分析' }] } }] }),
-      )
-      .mockResolvedValueOnce(jsonResponse({ ok: true }));
+    const fetchMock = vi.fn();
+    mockBaseSuccessfulFetches(fetchMock);
     vi.stubGlobal('fetch', fetchMock);
 
     const response = await worker.fetch(
@@ -275,28 +244,35 @@ describe('telegram ai reminder worker', () => {
     );
 
     expect(response.status).toBe(200);
-    expect(fetchMock.mock.calls[4][0]).toBe(
-      'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=ai-token',
-    );
+    expect(
+      fetchMock.mock.calls.some(
+        (call) =>
+          call[0] ===
+          'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=ai-token',
+      ),
+    ).toBe(true);
   });
 
-  it('新闻为空时在 prompt 中标记消息面缺失', async () => {
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValueOnce(
-        jsonResponse({
-          files: {
-            'fund-manager-sync.json': {
-              content: JSON.stringify(backupPayload),
-            },
-          },
-        }),
-      )
-      .mockResolvedValueOnce(jsonResponse(holdingsPayload))
-      .mockResolvedValueOnce(new Response(marketText))
-      .mockResolvedValueOnce(jsonResponse({ articles: [] }))
-      .mockResolvedValueOnce(jsonResponse({ choices: [{ message: { content: '缺失分析' } }] }))
-      .mockResolvedValueOnce(jsonResponse({ ok: true }));
+  it('部分 GDELT 查询失败但仍有新闻时标记为 available', async () => {
+    const fetchMock = vi.fn().mockImplementation((input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes('api.github.com/gists')) {
+        return Promise.resolve(
+          jsonResponse({ files: { 'fund-manager-sync.json': { content: JSON.stringify(backupPayload) } } }),
+        );
+      }
+      if (url.includes('morningstar.cn')) return Promise.resolve(jsonResponse(holdingsPayload));
+      if (url.includes('qt.gtimg.cn')) return Promise.resolve(new Response(marketText));
+      if (url.includes('api.gdeltproject.org') && url.includes('A%E8%82%A1+%E6%94%BF%E7%AD%96')) {
+        return Promise.resolve(jsonResponse(newsPayload));
+      }
+      if (url.includes('api.gdeltproject.org')) return Promise.resolve(jsonResponse({}, 429));
+      if (url.includes('chat/completions')) {
+        return Promise.resolve(jsonResponse({ choices: [{ message: { content: '部分失败分析' } }] }));
+      }
+      if (url.includes('api.telegram.org')) return Promise.resolve(jsonResponse({ ok: true }));
+      return Promise.resolve(jsonResponse({}));
+    });
     vi.stubGlobal('fetch', fetchMock);
 
     const response = await worker.fetch(
@@ -305,10 +281,55 @@ describe('telegram ai reminder worker', () => {
     );
 
     expect(response.status).toBe(200);
-    const aiBody = JSON.parse(fetchMock.mock.calls[4][1].body as string) as {
-      messages: Array<{ role: string; content: string }>;
-    };
+    const aiBody = findAiRequestBody(fetchMock);
+    expect(aiBody.messages[0].content).toContain('消息面/财报/公告数据: available');
+    expect(aiBody.messages[0].content).toContain('failedQueries');
+  });
+
+  it('新闻为空时在 prompt 中标记消息面缺失', async () => {
+    const fetchMock = vi.fn();
+    mockBaseSuccessfulFetches(fetchMock, { articles: [] });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const response = await worker.fetch(
+      new Request('https://worker.example/run', { method: 'POST' }),
+      env,
+    );
+
+    expect(response.status).toBe(200);
+    const aiBody = findAiRequestBody(fetchMock);
     expect(aiBody.messages[0].content).toContain('消息面/财报/公告数据: missing');
-    expect(aiBody.messages[0].content).toContain('消息面/财报/公告数据缺失');
+    expect(aiBody.messages[0].content).toContain('才可以说明“最近');
+  });
+
+  it('所有 GDELT 查询失败时标记为 failed 且不等同于无新闻', async () => {
+    const fetchMock = vi.fn().mockImplementation((input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes('api.github.com/gists')) {
+        return Promise.resolve(
+          jsonResponse({ files: { 'fund-manager-sync.json': { content: JSON.stringify(backupPayload) } } }),
+        );
+      }
+      if (url.includes('morningstar.cn')) return Promise.resolve(jsonResponse(holdingsPayload));
+      if (url.includes('qt.gtimg.cn')) return Promise.resolve(new Response(marketText));
+      if (url.includes('api.gdeltproject.org')) return Promise.resolve(jsonResponse({}, 429));
+      if (url.includes('chat/completions')) {
+        return Promise.resolve(jsonResponse({ choices: [{ message: { content: '失败分析' } }] }));
+      }
+      if (url.includes('api.telegram.org')) return Promise.resolve(jsonResponse({ ok: true }));
+      return Promise.resolve(jsonResponse({}));
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const response = await worker.fetch(
+      new Request('https://worker.example/run', { method: 'POST' }),
+      env,
+    );
+
+    expect(response.status).toBe(200);
+    const aiBody = findAiRequestBody(fetchMock);
+    expect(aiBody.messages[0].content).toContain('消息面/财报/公告数据: failed');
+    expect(aiBody.messages[0].content).toContain('新闻接口失败，消息面/财报/公告暂不可用');
+    expect(aiBody.messages[0].content).toContain('不得说成近 72 小时无新闻');
   });
 });

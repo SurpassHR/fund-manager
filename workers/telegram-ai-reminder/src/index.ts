@@ -17,6 +17,7 @@ interface Env {
   NEWS_PROVIDER?: 'gdelt';
   NEWS_LOOKBACK_HOURS?: string;
   NEWS_MAX_ITEMS?: string;
+  NEWS_QUERY_TIMEOUT_MS?: string;
 }
 
 interface ScheduledController {
@@ -157,9 +158,11 @@ interface NewsSnapshot {
   asOf: string;
   provider: 'gdelt';
   keywords: string[];
+  queries: string[];
   lookbackHours: number;
   items: NewsItemSnapshot[];
   dataStatus: 'available' | 'missing' | 'failed';
+  failedQueries?: number;
 }
 
 interface AnalysisContextSnapshot {
@@ -184,6 +187,7 @@ const TELEGRAM_MESSAGE_LIMIT = 3900;
 const MORNINGSTAR_API_BASE = 'https://www.morningstar.cn/cn-api';
 const TENCENT_QUOTE_API = 'https://qt.gtimg.cn/q=';
 const GDELT_DOC_API = 'https://api.gdeltproject.org/api/v2/doc/doc';
+const DEFAULT_NEWS_QUERY_TIMEOUT_MS = 5000;
 const DEFAULT_MARKET_INDEX_CODES = [
   'sh000001',
   'sz399001',
@@ -240,8 +244,33 @@ const fetchText = async (url: string, init: RequestInit, label: string): Promise
   return response.text();
 };
 
+const fetchTextWithTimeout = async (
+  url: string,
+  init: RequestInit,
+  label: string,
+  timeoutMs: number,
+): Promise<string> => {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetchText(url, { ...init, signal: controller.signal }, label);
+  } finally {
+    clearTimeout(timeout);
+  }
+};
+
 const fetchJson = async <T>(url: string, init: RequestInit, label: string): Promise<T> => {
   const text = await fetchText(url, init, label);
+  return JSON.parse(text) as T;
+};
+
+const fetchJsonWithTimeout = async <T>(
+  url: string,
+  init: RequestInit,
+  label: string,
+  timeoutMs: number,
+): Promise<T> => {
+  const text = await fetchTextWithTimeout(url, init, label, timeoutMs);
   return JSON.parse(text) as T;
 };
 
@@ -405,6 +434,34 @@ const buildNewsKeywords = (holdings: HoldingsSnapshot) => {
   return Array.from(keywords).slice(0, 18);
 };
 
+const buildGdeltQueries = (holdings: HoldingsSnapshot) => {
+  const stockNames = new Set<string>();
+  const sectorNames = new Set<string>();
+  holdings.holdings.forEach((fund) => {
+    fund.topEquityHoldings?.slice(0, 5).forEach((equity) => {
+      if (equity.name.trim()) stockNames.add(equity.name.trim());
+      if (equity.sector?.trim()) sectorNames.add(equity.sector.trim());
+    });
+  });
+
+  const queries = [
+    'A股 政策',
+    'A股 财报',
+    'A股 公告',
+    'A股 业绩预告',
+    '人工智能 A股',
+    '新能源 A股',
+    ...Array.from(sectorNames)
+      .slice(0, 4)
+      .map((sector) => `${sector} A股`),
+    ...Array.from(stockNames)
+      .slice(0, 6)
+      .map((name) => `${name} A股`),
+  ];
+
+  return Array.from(new Set(queries)).slice(0, 12);
+};
+
 const formatGdeltDate = (date: Date) => {
   const pad = (value: number) => String(value).padStart(2, '0');
   return `${date.getUTCFullYear()}${pad(date.getUTCMonth() + 1)}${pad(date.getUTCDate())}${pad(
@@ -425,6 +482,24 @@ interface GdeltResponse {
   articles?: GdeltArticle[];
 }
 
+const mapGdeltArticles = (articles: GdeltArticle[], seen: Set<string>) => {
+  return articles
+    .map<NewsItemSnapshot | null>((article) => {
+      const title = article.title?.trim();
+      const uniqueKey = title || article.url;
+      if (!title || !uniqueKey || seen.has(uniqueKey)) return null;
+      seen.add(uniqueKey);
+      return {
+        title,
+        source: article.domain || article.sourceCountry,
+        url: article.url,
+        publishedAt: article.seendate,
+        language: article.language,
+      };
+    })
+    .filter((item): item is NewsItemSnapshot => Boolean(item));
+};
+
 const fetchNewsSnapshot = async (
   env: Env,
   holdings: HoldingsSnapshot,
@@ -435,57 +510,65 @@ const fetchNewsSnapshot = async (
 
   const lookbackHours = parsePositiveInt(env.NEWS_LOOKBACK_HOURS, 72);
   const maxItems = Math.min(parsePositiveInt(env.NEWS_MAX_ITEMS, 12), 25);
+  const timeoutMs = Math.min(
+    parsePositiveInt(env.NEWS_QUERY_TIMEOUT_MS, DEFAULT_NEWS_QUERY_TIMEOUT_MS),
+    10000,
+  );
   const keywords = buildNewsKeywords(holdings);
+  const queries = buildGdeltQueries(holdings).slice(0, 8);
   const end = new Date();
   const start = new Date(end.getTime() - lookbackHours * 60 * 60 * 1000);
-  const query = `(${keywords.map((keyword) => `"${keyword}"`).join(' OR ')})`;
-  const url = new URL(GDELT_DOC_API);
-  url.searchParams.set('query', query);
-  url.searchParams.set('mode', 'ArtList');
-  url.searchParams.set('format', 'json');
-  url.searchParams.set('maxrecords', String(maxItems));
-  url.searchParams.set('sort', 'HybridRel');
-  url.searchParams.set('startdatetime', formatGdeltDate(start));
-  url.searchParams.set('enddatetime', formatGdeltDate(end));
+  const seen = new Set<string>();
+  const items: NewsItemSnapshot[] = [];
+  let failedQueries = 0;
 
-  try {
-    const response = await fetchJson<GdeltResponse>(url.toString(), {}, '读取 GDELT 新闻');
-    const seen = new Set<string>();
-    const items = (response.articles || [])
-      .map<NewsItemSnapshot | null>((article) => {
-        const title = article.title?.trim();
-        if (!title || seen.has(title)) return null;
-        seen.add(title);
-        return {
-          title,
-          source: article.domain || article.sourceCountry,
-          url: article.url,
-          publishedAt: article.seendate,
-          language: article.language,
-        };
-      })
-      .filter((item): item is NewsItemSnapshot => Boolean(item))
-      .slice(0, maxItems);
+  for (const query of queries) {
+    if (items.length >= maxItems) break;
+    const url = new URL(GDELT_DOC_API);
+    url.searchParams.set('query', query);
+    url.searchParams.set('mode', 'ArtList');
+    url.searchParams.set('format', 'json');
+    url.searchParams.set('maxrecords', '3');
+    url.searchParams.set('sort', 'HybridRel');
+    url.searchParams.set('startdatetime', formatGdeltDate(start));
+    url.searchParams.set('enddatetime', formatGdeltDate(end));
 
+    try {
+      const response = await fetchJsonWithTimeout<GdeltResponse>(
+        url.toString(),
+        {},
+        `读取 GDELT 新闻: ${query}`,
+        timeoutMs,
+      );
+      items.push(...mapGdeltArticles(response.articles || [], seen));
+    } catch {
+      failedQueries += 1;
+    }
+  }
+
+  if (failedQueries >= queries.length && items.length === 0) {
     return {
       asOf: new Date().toISOString(),
       provider: 'gdelt',
       keywords,
-      lookbackHours,
-      items,
-      dataStatus: items.length > 0 ? 'available' : 'missing',
-    };
-  } catch (error) {
-    console.warn('读取 GDELT 新闻失败', error);
-    return {
-      asOf: new Date().toISOString(),
-      provider: 'gdelt',
-      keywords,
+      queries,
       lookbackHours,
       items: [],
       dataStatus: 'failed',
+      failedQueries,
     };
   }
+
+  return {
+    asOf: new Date().toISOString(),
+    provider: 'gdelt',
+    keywords,
+    queries,
+    lookbackHours,
+    items: items.slice(0, maxItems),
+    dataStatus: items.length > 0 ? 'available' : 'missing',
+    failedQueries: failedQueries > 0 ? failedQueries : undefined,
+  };
 };
 
 const buildEquityOverlap = (holdings: HoldingSnapshotItem[]): EquityOverlapItem[] => {
@@ -645,7 +728,7 @@ const buildHoldingsAnalysisPrompt = (context: AnalysisContextSnapshot, mode: str
     .filter(Boolean)
     .join('\n');
 
-  return `${modeInstruction}\n要求：\n1) 使用简体中文回答。\n2) 只基于给定 JSON 数据推理，不要编造不存在的数据。\n3) 如果前十大重仓股、真实行业分布、基金经理调仓、账户外资产、风险承受能力或投资期限在 dataCoverage 中标记为 missing/partial，必须明确说明“当前数据缺失/不完整”，不能当作已知事实分析。\n4) 如果 marketSnapshot 缺失或 dataStatus 为 missing/partial，必须说明“A 股市场数据缺失/不完整”，不得假设指数涨跌。\n5) 如果 newsSnapshot 缺失、failed 或 missing，必须说明“消息面/财报/公告数据缺失”，不得编造新闻标题、财报数据或公告内容。\n6) 可以基于 topEquityHoldings 和 equityOverlap 分析底层股票重合度；没有数据时必须跳过。\n7) 必须输出“是否适合加仓”“是否需要减仓”“是否达到清仓条件”三段，结论只能是条件判断，例如“暂不适合/只适合小额分批/等待确认/未达到清仓条件”。\n8) 加仓、减仓、清仓建议必须同时给出依据和触发条件；清仓不能只因为单日涨跌，必须基于长期逻辑失效、风格偏离、风险画像冲突、重合度过高或明确止盈止损条件。\n9) 输出适合 Telegram 阅读，标题清晰，重点用短句。\n\n请按以下结构输出：\n一、A 股市场环境\n二、持仓表现\n三、消息面/财报/公告影响\n四、是否适合加仓\n五、是否需要减仓\n六、是否达到清仓条件\n七、明日观察点\n\n组合摘要：\n${summary}\n\n以下是分析上下文(JSON)：\n${JSON.stringify(context, null, 2)}`;
+  return `${modeInstruction}\n要求：\n1) 使用简体中文回答。\n2) 只基于给定 JSON 数据推理，不要编造不存在的数据。\n3) 如果前十大重仓股、真实行业分布、基金经理调仓、账户外资产、风险承受能力或投资期限在 dataCoverage 中标记为 missing/partial，必须明确说明“当前数据缺失/不完整”，不能当作已知事实分析。\n4) 如果 marketSnapshot 缺失或 dataStatus 为 missing/partial，必须说明“A 股市场数据缺失/不完整”，不得假设指数涨跌。\n5) 如果 newsSnapshot 缺失或 dataStatus 为 failed，必须说明“新闻接口失败，消息面/财报/公告暂不可用”，不得说成近 72 小时无新闻。\n6) 如果 newsSnapshot.dataStatus 为 missing，才可以说明“最近 ${newsSnapshot?.lookbackHours ?? 72} 小时未抓到可用新闻项”。\n7) 不得编造新闻标题、财报数据或公告内容，不得把未确认传闻当事实。\n8) 可以基于 topEquityHoldings 和 equityOverlap 分析底层股票重合度；没有数据时必须跳过。\n9) 必须输出“是否适合加仓”“是否需要减仓”“是否达到清仓条件”三段，结论只能是条件判断，例如“暂不适合/只适合小额分批/等待确认/未达到清仓条件”。\n10) 加仓、减仓、清仓建议必须同时给出依据和触发条件；清仓不能只因为单日涨跌，必须基于长期逻辑失效、风格偏离、风险画像冲突、重合度过高或明确止盈止损条件。\n11) 输出适合 Telegram 阅读，标题清晰，重点用短句。\n\n请按以下结构输出：\n一、A 股市场环境\n二、持仓表现\n三、消息面/财报/公告影响\n四、是否适合加仓\n五、是否需要减仓\n六、是否达到清仓条件\n七、明日观察点\n\n组合摘要：\n${summary}\n\n以下是分析上下文(JSON)：\n${JSON.stringify(context, null, 2)}`;
 };
 
 const resolveAiEndpoint = (env: Env) => {
