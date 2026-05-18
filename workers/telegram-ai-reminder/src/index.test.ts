@@ -22,6 +22,40 @@ const backupPayload = {
       dayChangeVal: 1.8,
     },
   ],
+  watchlists: [
+    {
+      code: '000001',
+      name: '测试基金A',
+      type: 'fund',
+      platform: '默认账户',
+      anchorPrice: 1.1,
+      anchorDate: '2026-05-01',
+      currentPrice: 1.2,
+      dayChangePct: 1.5,
+      lastUpdate: '2026-05-18',
+    },
+    {
+      code: '000002',
+      name: '未持有基金B',
+      type: 'fund',
+      platform: '默认账户',
+      anchorPrice: 1.5,
+      anchorDate: '2026-05-01',
+      currentPrice: 1.35,
+      dayChangePct: -0.8,
+      lastUpdate: '2026-05-18',
+    },
+    {
+      code: 'sh000300',
+      name: '沪深300',
+      type: 'index',
+      anchorPrice: 4000,
+      anchorDate: '2026-05-01',
+      currentPrice: 4100,
+      dayChangePct: 0.3,
+      lastUpdate: '2026-05-18',
+    },
+  ],
 };
 
 const holdingsPayload = {
@@ -174,9 +208,12 @@ describe('telegram ai reminder worker', () => {
     expect(aiBody.messages[0].content).toContain('newsSnapshot');
     expect(aiBody.messages[0].content).toContain('上证指数');
     expect(aiBody.messages[0].content).toContain('A股人工智能板块午后走强');
-    expect(aiBody.messages[0].content).toContain('是否适合加仓');
+    expect(aiBody.messages[0].content).toContain('今日加仓候选');
     expect(aiBody.messages[0].content).toContain('不得编造新闻标题、财报数据或公告内容');
     expect(aiBody.messages[0].content).toContain('不要编造不存在的数据');
+    expect(aiBody.messages[0].content).toContain('buildCandidates');
+    expect(aiBody.messages[0].content).toContain('未持有基金B');
+    expect(aiBody.messages[0].content).toContain('未持有自选建仓候选数量: 1');
     expect(aiBody.messages[1].content).toContain('是否适合加仓');
 
     const telegramCall = fetchMock.mock.calls.find((call) => String(call[0]).includes('api.telegram.org'));
@@ -383,7 +420,8 @@ describe('telegram ai reminder worker', () => {
     const aiBody = findAiRequestBody(fetchMock);
     expect(aiBody.messages[1].content).toContain('Telegram 短版分析');
     expect(aiBody.messages[1].content).toContain('1200 字以内');
-    expect(aiBody.messages[1].content).toContain('今日最适合建仓/加仓候选');
+    expect(aiBody.messages[1].content).toContain('今日建仓候选');
+    expect(aiBody.messages[1].content).toContain('今日加仓候选');
   });
 
   it('Telegram 发送“详细分析”会触发完整分析问题', async () => {
@@ -422,7 +460,7 @@ describe('telegram ai reminder worker', () => {
     expect(response.status).toBe(200);
     const aiBody = findAiRequestBody(fetchMock);
     expect(aiBody.messages[1].content).toContain('只回答当前是否适合加仓');
-    expect(aiBody.messages[1].content).toContain('今日最适合建仓/加仓候选');
+    expect(aiBody.messages[1].content).toContain('加仓候选只能从 holdings 当前已持有基金中选择');
     expect(aiBody.messages[1].content).toContain('1000 字以内');
   });
 
@@ -441,7 +479,11 @@ describe('telegram ai reminder worker', () => {
 
     expect(response.status).toBe(200);
     const aiBody = findAiRequestBody(fetchMock);
-    expect(aiBody.messages[1].content).toContain('今天哪只基金最适合建仓/加仓');
+    expect(aiBody.messages[1].content).toContain('今天哪只未持有基金最适合建仓');
+    expect(aiBody.messages[1].content).toContain('建仓候选只能从 buildCandidates 中选择');
+    expect(aiBody.messages[1].content).toContain('严禁推荐 holdings 或 heldFundCodes 中已经持有的基金');
+    expect(aiBody.messages[0].content).toContain('未持有基金B');
+    expect(aiBody.messages[0].content).toContain('"heldFundCodes"');
     expect(aiBody.messages[1].content).toContain('不能为了回答硬选');
   });
 
