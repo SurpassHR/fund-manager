@@ -197,8 +197,14 @@ export const computeRealizedGain = (
   txs.forEach((tx) => {
     if (!tx.settled) return;
 
-    if (tx.type === 'sell' && tx.netOutAmount != null) {
-      totalSellRevenue += tx.netOutAmount;
+    if (tx.type === 'sell') {
+      if (tx.netOutAmount != null) {
+        totalSellRevenue += tx.netOutAmount;
+      } else if (tx.grossAmount != null) {
+        totalSellRevenue += tx.grossAmount * (1 - (tx.sellFeeRate || 0));
+      } else {
+        totalSellRevenue += tx.amount * fund.currentNav * (1 - (tx.sellFeeRate || 0));
+      }
     } else if (tx.type === 'transferOut' && tx.netOutAmount != null) {
       totalSellRevenue += tx.netOutAmount;
     } else if (tx.type === 'buy') {

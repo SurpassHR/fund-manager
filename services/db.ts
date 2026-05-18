@@ -355,8 +355,13 @@ export const runSettlementPipeline = (options?: RefreshOptions) => {
             newShares += newBuyShares;
             newCostPrice = totalCost / newShares; // 加权平均成本
           } else {
-            // 减仓：扣减份额，成本价不变
-            newShares = Math.max(0, newShares - tx.amount);
+            // 减仓：扣减份额，成本价不变，同时记录卖出金额
+            const sellShares = tx.amount;
+            const sellNav = fund.currentNav;
+            const grossAmount = roundMoney(sellShares * sellNav);
+            const netOutAmount = roundMoney(grossAmount * (1 - (tx.sellFeeRate || 0)));
+            newShares = Math.max(0, newShares - sellShares);
+            return { ...tx, settled: true, grossAmount, netOutAmount };
           }
 
           return { ...tx, settled: true };
