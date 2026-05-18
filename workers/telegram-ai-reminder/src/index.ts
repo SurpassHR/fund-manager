@@ -26,6 +26,8 @@ interface ScheduledController {
   cron: string;
 }
 
+type ScheduledAnalysisType = 'midday' | 'lateSession' | 'close';
+
 interface ExecutionContext {
   waitUntil(promise: Promise<unknown>): void;
 }
@@ -267,6 +269,32 @@ const DEFAULT_AI_QUESTION =
 const SHORT_ANALYSIS_QUESTION =
   '请输出 Telegram 短版分析，控制在 1200 字以内。先给一句明确结论，再用短段落说明市场情绪、A股环境、中文财经新闻、资金流入最强方向、持仓状态、今日建仓候选、今日加仓候选、是否需要减仓、是否达到清仓条件和明日观察点。不要展开长篇推理。建仓候选只能从 buildCandidates 中选择，不能推荐 holdings 中已有基金；加仓候选只能从 holdings 中选择。如果没有合适候选，分别明确写“今日暂无适合建仓的基金”或“今日暂无适合加仓的基金”。';
 const DETAILED_ANALYSIS_QUESTION = DEFAULT_AI_QUESTION;
+const MIDDAY_ANALYSIS_QUESTION =
+  '请输出午盘休息分析，控制在 1000 字以内。重点总结上午市场情绪、A 股指数强弱、资金流入最强方向、中文财经新闻利好/风险，并判断下午是否适合观察、低吸、小额试探或暂不操作。建仓候选优先从 buildCandidates 选择，buildCandidates 为空时可参考 fallbackBuildCandidates 但必须标注“候选来源：资金流方向兜底，非你的自选基金”。午盘不做激进操作建议，不要建议清仓，必须给出下午观察点。';
+const LATE_SESSION_ACTION_QUESTION =
+  '请输出尾盘半小时操作提醒，控制在 1000 字以内。重点服务 14:50 前是否加仓、是否减仓、是否有未持有建仓候选。必须结合 A 股市场情绪、资金流入最强方向、中文财经新闻利好/风险、当前持仓涨跌、未持有建仓候选和投资画像。结论要明确但条件化，例如“只适合小额加仓/暂不加仓/需要小幅减仓/继续观察”。不轻易建议清仓；如 buildCandidates 为空可参考 fallbackBuildCandidates，但必须标注“候选来源：资金流方向兜底，非你的自选基金”。输出 14:50 前操作建议和放弃操作条件。';
+const CLOSE_ANALYSIS_QUESTION =
+  '请输出收盘分析，控制在 1200 字以内。总结全天市场情绪、资金流入最强方向、中文财经新闻影响、持仓表现、今日建仓/加仓/减仓判断和明日观察点。收盘分析重点是复盘和明日触发条件，不要编造缺失数据。建仓候选优先从 buildCandidates 选择，buildCandidates 为空时可参考 fallbackBuildCandidates 但必须标注“候选来源：资金流方向兜底，非你的自选基金”。';
+const SCHEDULED_ANALYSIS_CONFIG: Record<
+  ScheduledAnalysisType,
+  { title: string; question: string; maxLength?: number }
+> = {
+  midday: {
+    title: '养基AI午盘休息分析',
+    question: MIDDAY_ANALYSIS_QUESTION,
+    maxLength: 1400,
+  },
+  lateSession: {
+    title: '养基AI尾盘操作提醒',
+    question: LATE_SESSION_ACTION_QUESTION,
+    maxLength: 1400,
+  },
+  close: {
+    title: '养基AI收盘分析',
+    question: CLOSE_ANALYSIS_QUESTION,
+    maxLength: 1600,
+  },
+};
 const COMMAND_QUESTION_MAP: Record<string, { question: string; maxLength?: number }> = {
   分析: { question: SHORT_ANALYSIS_QUESTION, maxLength: 1600 },
   市场分析: { question: SHORT_ANALYSIS_QUESTION, maxLength: 1600 },
@@ -1215,7 +1243,10 @@ const truncateForTelegram = (text: string, maxLength?: number) => {
   return `${text.slice(0, maxLength).trim()}\n\n已截断，发送“详细分析”查看完整版本。`;
 };
 
-const buildAnalysisMessage = async (env: Env, options?: { question?: string; maxLength?: number }) => {
+const buildAnalysisMessage = async (
+  env: Env,
+  options?: { question?: string; maxLength?: number; title?: string },
+) => {
   const payload = await readGistBackup(env);
   const snapshot = await buildHoldingsSnapshot(payload);
   const [marketSnapshot, newsSnapshot, fundFlowSnapshot] = await Promise.all([
@@ -1233,7 +1264,7 @@ const buildAnalysisMessage = async (env: Env, options?: { question?: string; max
     { holdings: snapshotWithFallback, marketSnapshot, newsSnapshot, fundFlowSnapshot },
     options?.question,
   );
-  const title = `养基AI持仓分析\n时间：${new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' })}\n`;
+  const title = `${options?.title || '养基AI持仓分析'}\n时间：${new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' })}\n`;
   const body = truncateForTelegram(analysis, options?.maxLength);
 
   return {
@@ -1249,6 +1280,26 @@ const runReminder = async (env: Env) => {
 
   return {
     ok: true,
+    holdings: analysisMessage.holdings,
+    totalAssets: analysisMessage.totalAssets,
+    sentMessages,
+  };
+};
+
+const resolveScheduledAnalysisType = (cron: string): ScheduledAnalysisType => {
+  if (cron === '35 3 * * 1-5') return 'midday';
+  if (cron === '30 6 * * 1-5') return 'lateSession';
+  return 'close';
+};
+
+const runScheduledReminder = async (env: Env, analysisType: ScheduledAnalysisType) => {
+  const config = SCHEDULED_ANALYSIS_CONFIG[analysisType];
+  const analysisMessage = await buildAnalysisMessage(env, config);
+  const sentMessages = await sendTelegramMessage(env, analysisMessage.text);
+
+  return {
+    ok: true,
+    analysisType,
     holdings: analysisMessage.holdings,
     totalAssets: analysisMessage.totalAssets,
     sentMessages,
@@ -1381,11 +1432,12 @@ export default {
     return json({ ok: false, error: 'Not Found' }, 404);
   },
 
-  async scheduled(_event: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
+  async scheduled(event: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
+    const analysisType = resolveScheduledAnalysisType(event.cron);
     ctx.waitUntil(
-      runReminder(env).catch(async (error) => {
+      runScheduledReminder(env, analysisType).catch(async (error) => {
         const message = error instanceof Error ? error.message : '未知错误';
-        await sendTelegramMessage(env, `养基AI持仓分析定时任务失败：${message}`).catch(
+        await sendTelegramMessage(env, `${SCHEDULED_ANALYSIS_CONFIG[analysisType].title}定时任务失败：${message}`).catch(
           () => undefined,
         );
       }),

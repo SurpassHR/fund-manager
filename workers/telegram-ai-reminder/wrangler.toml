@@ -3,9 +3,9 @@ main = "src/index.ts"
 compatibility_date = "2026-04-04"
 workers_dev = true
 
-# 北京时间工作日 15:30，Cloudflare Cron 使用 UTC。
+# 北京时间工作日 11:35 / 14:30 / 15:00，Cloudflare Cron 使用 UTC。
 [triggers]
-crons = ["30 7 * * 1-5"]
+crons = ["35 3 * * 1-5", "30 6 * * 1-5", "0 7 * * 1-5"]
 
 [dev]
 port = 8789

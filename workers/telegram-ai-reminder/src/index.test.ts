@@ -179,6 +179,10 @@ const findAiRequestBody = (fetchMock: ReturnType<typeof vi.fn>) => {
   return JSON.parse(call[1].body as string) as { messages: Array<{ role: string; content: string }> };
 };
 
+const waitForScheduledTasks = async (tasks: Promise<unknown>[]) => {
+  await Promise.all(tasks);
+};
+
 describe('telegram ai reminder worker', () => {
   afterEach(() => {
     vi.unstubAllGlobals();
@@ -682,6 +686,69 @@ describe('telegram ai reminder worker', () => {
     const failureBody = JSON.parse(telegramCalls[1]?.[1].body as string) as { text: string };
     expect(pendingBody.text).toBe('收到，正在结合市场情绪、资金流和持仓分析...');
     expect(failureBody.text).toContain('分析失败：读取 Gist 请求失败');
+  });
+
+  it('午盘 scheduled cron 使用午盘休息分析', async () => {
+    const fetchMock = vi.fn();
+    mockBaseSuccessfulFetches(fetchMock);
+    vi.stubGlobal('fetch', fetchMock);
+    const tasks: Promise<unknown>[] = [];
+
+    await worker.scheduled(
+      { scheduledTime: Date.now(), cron: '35 3 * * 1-5' },
+      env,
+      { waitUntil: (promise: Promise<unknown>) => tasks.push(promise) },
+    );
+    await waitForScheduledTasks(tasks);
+
+    const aiBody = findAiRequestBody(fetchMock);
+    expect(aiBody.messages[1].content).toContain('午盘休息分析');
+    expect(aiBody.messages[1].content).toContain('下午是否适合观察、低吸、小额试探或暂不操作');
+    const telegramCall = fetchMock.mock.calls.find((call) => String(call[0]).includes('api.telegram.org'));
+    const telegramBody = JSON.parse(telegramCall?.[1].body as string) as { text: string };
+    expect(telegramBody.text).toContain('养基AI午盘休息分析');
+  });
+
+  it('尾盘 scheduled cron 使用尾盘操作提醒', async () => {
+    const fetchMock = vi.fn();
+    mockBaseSuccessfulFetches(fetchMock);
+    vi.stubGlobal('fetch', fetchMock);
+    const tasks: Promise<unknown>[] = [];
+
+    await worker.scheduled(
+      { scheduledTime: Date.now(), cron: '30 6 * * 1-5' },
+      env,
+      { waitUntil: (promise: Promise<unknown>) => tasks.push(promise) },
+    );
+    await waitForScheduledTasks(tasks);
+
+    const aiBody = findAiRequestBody(fetchMock);
+    expect(aiBody.messages[1].content).toContain('尾盘半小时操作提醒');
+    expect(aiBody.messages[1].content).toContain('14:50 前是否加仓、是否减仓');
+    const telegramCall = fetchMock.mock.calls.find((call) => String(call[0]).includes('api.telegram.org'));
+    const telegramBody = JSON.parse(telegramCall?.[1].body as string) as { text: string };
+    expect(telegramBody.text).toContain('养基AI尾盘操作提醒');
+  });
+
+  it('收盘 scheduled cron 使用收盘分析', async () => {
+    const fetchMock = vi.fn();
+    mockBaseSuccessfulFetches(fetchMock);
+    vi.stubGlobal('fetch', fetchMock);
+    const tasks: Promise<unknown>[] = [];
+
+    await worker.scheduled(
+      { scheduledTime: Date.now(), cron: '0 7 * * 1-5' },
+      env,
+      { waitUntil: (promise: Promise<unknown>) => tasks.push(promise) },
+    );
+    await waitForScheduledTasks(tasks);
+
+    const aiBody = findAiRequestBody(fetchMock);
+    expect(aiBody.messages[1].content).toContain('收盘分析');
+    expect(aiBody.messages[1].content).toContain('明日观察点');
+    const telegramCall = fetchMock.mock.calls.find((call) => String(call[0]).includes('api.telegram.org'));
+    const telegramBody = JSON.parse(telegramCall?.[1].body as string) as { text: string };
+    expect(telegramBody.text).toContain('养基AI收盘分析');
   });
 
   it('Telegram webhook secret 不匹配时返回 401', async () => {
