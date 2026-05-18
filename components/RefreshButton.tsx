@@ -84,7 +84,7 @@ const RefreshButton = forwardRef<RefreshButtonHandle, RefreshButtonProps>(
     const progressRef = useRef<HTMLDivElement>(null);
     const rafRef = useRef(0);
     const coolingDownGateRef = useRef(false);
-    const spinTimerRef = useRef<ReturnType<typeof setTimeout>>();
+    const spinTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
     // 注入全局样式（仅一次）
     useEffect(() => {
