@@ -21,7 +21,7 @@ interface RefreshButtonProps {
   className?: string;
 }
 
-const COOLDOWN_MS = 5000;
+const COOLDOWN_MS = 10000;
 const MIN_REFRESH_MS = 1000;
 const COOLDOWN_COLOR = '#22d3ee';
 
@@ -84,6 +84,7 @@ const RefreshButton = forwardRef<RefreshButtonHandle, RefreshButtonProps>(
     const progressRef = useRef<HTMLDivElement>(null);
     const rafRef = useRef(0);
     const coolingDownGateRef = useRef(false);
+    const spinTimerRef = useRef<ReturnType<typeof setTimeout>>();
 
     // 注入全局样式（仅一次）
     useEffect(() => {
@@ -128,6 +129,8 @@ const RefreshButton = forwardRef<RefreshButtonHandle, RefreshButtonProps>(
     // 暴露给外部的冷却触发方法
     const triggerCooldown = useCallback(() => {
       if (isRefreshing || coolingDownGateRef.current) return;
+      setIsRefreshing(true);
+      spinTimerRef.current = setTimeout(() => setIsRefreshing(false), MIN_REFRESH_MS);
       runCooldown();
     }, [isRefreshing, runCooldown]);
 
@@ -152,10 +155,11 @@ const RefreshButton = forwardRef<RefreshButtonHandle, RefreshButtonProps>(
       }
     }, [disabled, isRefreshing, onRefresh, runCooldown]);
 
-    // 卸载清理 RAF
+    // 卸载清理 RAF 和 spin timer
     useEffect(() => {
       return () => {
         if (rafRef.current) cancelAnimationFrame(rafRef.current);
+        if (spinTimerRef.current) clearTimeout(spinTimerRef.current);
       };
     }, []);
 
