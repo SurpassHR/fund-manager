@@ -13,16 +13,72 @@ export interface FundBackupPayload {
 
 const BACKUP_VERSION = 1;
 
+const FUND_BACKUP_FIELDS: (keyof Fund)[] = [
+  'code',
+  'name',
+  'platform',
+  'holdingShares',
+  'costPrice',
+  'currentNav',
+  'lastUpdate',
+  'dayChangePct',
+  'dayChangeVal',
+  'officialDayChangePct',
+  'estimatedDayChangePct',
+  'todayChangeIsEstimated',
+  'todayChangeUnavailable',
+  'todayChangePreOpen',
+  'buyDate',
+  'buyTime',
+  'settlementDays',
+  'pendingTransactions',
+  'realizedGain',
+  'realizedGainCost',
+  'positionOpenAmount',
+  'positionOpenDate',
+  'category',
+  'trackingInfo',
+  'parentEtfInfo',
+  'underlyingMarket',
+];
+
 const stripFundId = (fund: Fund): Fund => {
-  const cleanFund = { ...fund } as Fund & { id?: number };
-  delete cleanFund.id;
-  return cleanFund as Fund;
+  const cleanFund: Record<string, unknown> = {};
+  for (const key of FUND_BACKUP_FIELDS) {
+    if (key in fund) {
+      cleanFund[key] = fund[key];
+    }
+  }
+  return cleanFund as unknown as Fund;
 };
 
+const WATCHLIST_BACKUP_FIELDS: (keyof WatchlistItem)[] = [
+  'code',
+  'name',
+  'type',
+  'platform',
+  'anchorPrice',
+  'anchorDate',
+  'currentPrice',
+  'dayChangePct',
+  'lastUpdate',
+  'todayChangeIsEstimated',
+  'todayChangeUnavailable',
+  'todayChangePreOpen',
+  'category',
+  'trackingInfo',
+  'parentEtfInfo',
+  'underlyingMarket',
+];
+
 const stripWatchlistId = (item: WatchlistItem): WatchlistItem => {
-  const cleanItem = { ...item } as WatchlistItem & { id?: number };
-  delete cleanItem.id;
-  return cleanItem as WatchlistItem;
+  const cleanItem: Record<string, unknown> = {};
+  for (const key of WATCHLIST_BACKUP_FIELDS) {
+    if (key in item) {
+      cleanItem[key] = item[key];
+    }
+  }
+  return cleanItem as unknown as WatchlistItem;
 };
 
 const stripAccountId = (account: Account): Account => {
@@ -217,7 +273,9 @@ export const parseAndNormalizeFundBackupPayload = (
                 ? payload.investmentProfile.externalAssets
                 : '',
             notes:
-              typeof payload.investmentProfile.notes === 'string' ? payload.investmentProfile.notes : '',
+              typeof payload.investmentProfile.notes === 'string'
+                ? payload.investmentProfile.notes
+                : '',
           }
         : undefined,
   };
