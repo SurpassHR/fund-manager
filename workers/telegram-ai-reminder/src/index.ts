@@ -29,6 +29,11 @@ interface Env {
   QQ_OFFICIAL_APP_SECRET?: string;
   QQ_OFFICIAL_ALLOWED_GROUP_OPENIDS?: string;
   QQ_OFFICIAL_ALLOWED_MEMBER_OPENIDS?: string;
+  QQ_BOT_ENABLED?: string;
+  QQ_BOT_API_BASE?: string;
+  QQ_BOT_ACCESS_TOKEN?: string;
+  QQ_ALLOWED_GROUP_IDS?: string;
+  QQ_ALLOWED_USER_IDS?: string;
 }
 
 interface ScheduledController {
@@ -278,6 +283,15 @@ interface QqOfficialGroupAtMessage {
 interface QqOfficialAccessTokenResponse {
   access_token?: string;
   expires_in?: string | number;
+}
+
+interface OneBotMessageEvent {
+  post_type?: string;
+  message_type?: string;
+  group_id?: number | string;
+  user_id?: number | string;
+  raw_message?: string;
+  message?: string | Array<unknown>;
 }
 
 interface GithubGistResponse {
@@ -607,6 +621,37 @@ const sendQqOfficialGroupTextChunks = async (params: {
       msgId: params.msgId,
       msgSeq: params.startSeq + index,
     });
+  }
+  return sentMessages;
+};
+
+const getOneBotAuthHeaders = (env: Env) => {
+  const token = env.QQ_BOT_ACCESS_TOKEN?.trim();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+};
+
+const sendOneBotGroupMessage = async (env: Env, groupId: string, message: string) => {
+  const apiBase = requireEnv(env, 'QQ_BOT_API_BASE').replace(/\/$/, '');
+  await fetchJson<unknown>(
+    `${apiBase}/send_group_msg`,
+    {
+      method: 'POST',
+      headers: {
+        ...getOneBotAuthHeaders(env),
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ group_id: Number.isFinite(Number(groupId)) ? Number(groupId) : groupId, message }),
+    },
+    '发送 QQ 群消息',
+  );
+  return 1;
+};
+
+const sendOneBotGroupTextChunks = async (env: Env, groupId: string, text: string) => {
+  const chunks = splitTelegramMessage(text);
+  let sentMessages = 0;
+  for (const chunk of chunks) {
+    sentMessages += await sendOneBotGroupMessage(env, groupId, chunk);
   }
   return sentMessages;
 };
@@ -1630,6 +1675,68 @@ const handleQqOfficialWebhook = async (request: Request, env: Env) => {
   }
 };
 
+const extractOneBotCommandText = (event: OneBotMessageEvent) => {
+  if (typeof event.raw_message === 'string') return event.raw_message.trim();
+  if (typeof event.message === 'string') return event.message.trim();
+  return '';
+};
+
+const isAuthorizedOneBotMessage = (env: Env, event: OneBotMessageEvent) => {
+  const allowedGroups = parseCsvSet(env.QQ_ALLOWED_GROUP_IDS);
+  const allowedUsers = parseCsvSet(env.QQ_ALLOWED_USER_IDS);
+  const groupId = String(event.group_id || '');
+  const userId = String(event.user_id || '');
+  const allowedGroup = allowedGroups.size > 0 && allowedGroups.has(groupId);
+  const allowedUser = allowedUsers.size > 0 && allowedUsers.has(userId);
+  if (!allowedGroup || !allowedUser) {
+    console.warn('忽略未授权 OneBot 消息', { groupId, userId });
+  }
+  return allowedGroup && allowedUser;
+};
+
+const handleOneBotWebhook = async (request: Request, env: Env) => {
+  if (!isEnabled(env.QQ_BOT_ENABLED, false)) {
+    return json({ ok: false, error: 'QQ OneBot 未启用' }, 404);
+  }
+
+  const event = (await request.json().catch(() => null)) as OneBotMessageEvent | null;
+  if (!event || event.post_type !== 'message' || event.message_type !== 'group') {
+    return json({ ok: true, ignored: true });
+  }
+
+  const groupId = String(event.group_id || '');
+  if (!groupId || !event.user_id) return json({ ok: true, ignored: true });
+
+  if (!isAuthorizedOneBotMessage(env, event)) {
+    return json({ ok: true, ignored: true });
+  }
+
+  const commandConfig = resolveTelegramCommandConfig(extractOneBotCommandText(event));
+  if (!commandConfig) {
+    return json({ ok: true, handled: 'help' });
+  }
+
+  const pendingMessages = await sendOneBotGroupTextChunks(env, groupId, TELEGRAM_ANALYSIS_PENDING_TEXT);
+  try {
+    const analysisMessage = await buildAnalysisMessage(env, commandConfig);
+    const analysisMessages = await sendOneBotGroupTextChunks(env, groupId, analysisMessage.text);
+    return json({
+      ok: true,
+      handled: 'analysis',
+      holdings: analysisMessage.holdings,
+      totalAssets: analysisMessage.totalAssets,
+      sentMessages: pendingMessages + analysisMessages,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : '未知错误';
+    const failureMessages = await sendOneBotGroupTextChunks(env, groupId, `分析失败：${message}`);
+    return json(
+      { ok: false, handled: 'analysis', error: message, sentMessages: pendingMessages + failureMessages },
+      500,
+    );
+  }
+};
+
 const setupTelegramWebhook = async (request: Request, env: Env) => {
   if (!isAuthorizedManualRun(request, env)) {
     return json({ ok: false, error: '未授权' }, 401);
@@ -1672,6 +1779,17 @@ export default {
     if (url.pathname === '/qq-official' && request.method === 'POST') {
       try {
         return await handleQqOfficialWebhook(request, env);
+      } catch (error) {
+        return json(
+          { ok: false, error: error instanceof Error ? error.message : '未知错误' },
+          500,
+        );
+      }
+    }
+
+    if (url.pathname === '/qq' && request.method === 'POST') {
+      try {
+        return await handleOneBotWebhook(request, env);
       } catch (error) {
         return json(
           { ok: false, error: error instanceof Error ? error.message : '未知错误' },

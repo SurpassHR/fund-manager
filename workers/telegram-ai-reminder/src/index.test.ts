@@ -143,6 +143,15 @@ const qqEnv = {
   QQ_OFFICIAL_ALLOWED_MEMBER_OPENIDS: 'member-openid',
 };
 
+const oneBotEnv = {
+  ...env,
+  QQ_BOT_ENABLED: 'true',
+  QQ_BOT_API_BASE: 'https://onebot.example',
+  QQ_BOT_ACCESS_TOKEN: 'onebot-token',
+  QQ_ALLOWED_GROUP_IDS: '123456789',
+  QQ_ALLOWED_USER_IDS: '987654321',
+};
+
 const jsonResponse = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), {
     status,
@@ -201,6 +210,13 @@ const buildQqRequest = (body: unknown, headers?: HeadersInit) =>
   new Request('https://worker.example/qq-official', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...headers },
+    body: JSON.stringify(body),
+  });
+
+const buildOneBotRequest = (body: unknown) =>
+  new Request('https://worker.example/qq', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   });
 
@@ -951,6 +967,95 @@ describe('telegram ai reminder worker', () => {
           JSON.parse(call[1].body as string).appId === '1903963785',
       ),
     ).toBe(true);
+  });
+
+  it('OneBot 未启用时返回 404', async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+
+    const response = await worker.fetch(buildOneBotRequest({ post_type: 'message' }), env);
+    const body = (await response.json()) as { ok: boolean; error: string };
+
+    expect(response.status).toBe(404);
+    expect(body).toEqual({ ok: false, error: 'QQ OneBot 未启用' });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('OneBot 未授权群或用户会忽略且不调用 AI', async () => {
+    const fetchMock = vi.fn();
+    mockBaseSuccessfulFetches(fetchMock);
+    vi.stubGlobal('fetch', fetchMock);
+
+    const response = await worker.fetch(
+      buildOneBotRequest({
+        post_type: 'message',
+        message_type: 'group',
+        group_id: 111,
+        user_id: 987654321,
+        raw_message: '分析',
+      }),
+      oneBotEnv,
+    );
+    const body = (await response.json()) as { ok: boolean; ignored: boolean };
+
+    expect(response.status).toBe(200);
+    expect(body).toEqual({ ok: true, ignored: true });
+    expect(fetchMock.mock.calls.some((call) => String(call[0]).includes('chat/completions'))).toBe(false);
+  });
+
+  it('OneBot 授权用户群内触发分析会两段式回复', async () => {
+    const fetchMock = vi.fn().mockImplementation((input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes('onebot.example/send_group_msg')) return Promise.resolve(jsonResponse({ status: 'ok' }));
+      if (url.includes('api.github.com/gists')) {
+        return Promise.resolve(
+          jsonResponse({ files: { 'fund-manager-sync.json': { content: JSON.stringify(backupPayload) } } }),
+        );
+      }
+      if (url.includes('morningstar.cn')) return Promise.resolve(jsonResponse(holdingsPayload));
+      if (url.includes('qt.gtimg.cn')) return Promise.resolve(new Response(marketText));
+      if (url.includes('np-listapi.eastmoney.com')) return Promise.resolve(jsonResponse(eastMoneyNewsPayload));
+      if (url.includes('push2.eastmoney.com/api/qt/clist/get')) {
+        return Promise.resolve(jsonResponse(eastMoneyFundFlowPayload));
+      }
+      if (url.includes('feed.mix.sina.com.cn')) return Promise.resolve(jsonResponse(sinaNewsPayload));
+      if (url.includes('chat/completions')) {
+        return Promise.resolve(jsonResponse({ choices: [{ message: { content: 'OneBot 分析结果' } }] }));
+      }
+      return Promise.resolve(jsonResponse({}));
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const response = await worker.fetch(
+      buildOneBotRequest({
+        post_type: 'message',
+        message_type: 'group',
+        group_id: 123456789,
+        user_id: 987654321,
+        raw_message: '建仓',
+      }),
+      oneBotEnv,
+    );
+    const body = (await response.json()) as { ok: boolean; handled: string; sentMessages: number };
+
+    expect(response.status).toBe(200);
+    expect(body.ok).toBe(true);
+    expect(body.handled).toBe('analysis');
+    expect(body.sentMessages).toBe(2);
+    const oneBotCalls = fetchMock.mock.calls.filter((call) => String(call[0]).includes('onebot.example/send_group_msg'));
+    expect(oneBotCalls).toHaveLength(2);
+    expect(oneBotCalls[0]?.[1].headers).toEqual(
+      expect.objectContaining({ Authorization: 'Bearer onebot-token' }),
+    );
+    const pendingBody = JSON.parse(oneBotCalls[0]?.[1].body as string) as { group_id: number; message: string };
+    const analysisBody = JSON.parse(oneBotCalls[1]?.[1].body as string) as { group_id: number; message: string };
+    expect(pendingBody).toEqual({
+      group_id: 123456789,
+      message: '收到，正在结合市场情绪、资金流和持仓分析...',
+    });
+    expect(analysisBody.group_id).toBe(123456789);
+    expect(analysisBody.message).toContain('养基AI持仓分析');
+    expect(analysisBody.message).toContain('OneBot 分析结果');
   });
 
   it('Telegram webhook secret 不匹配时返回 401', async () => {
