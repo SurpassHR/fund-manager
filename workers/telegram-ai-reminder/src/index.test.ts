@@ -562,7 +562,7 @@ describe('telegram ai reminder worker', () => {
     expect(aiBody.messages[1].content).toContain('Telegram 短版分析');
     expect(aiBody.messages[1].content).toContain('1200 字以内');
     expect(aiBody.messages[1].content).toContain('资金流入最强方向');
-    expect(aiBody.messages[1].content).toContain('今日建仓候选');
+    expect(aiBody.messages[1].content).toContain('今日建仓候选/观察');
     expect(aiBody.messages[1].content).toContain('今日加仓候选');
   });
 
@@ -622,16 +622,18 @@ describe('telegram ai reminder worker', () => {
     expect(response.status).toBe(200);
     const aiBody = findAiRequestBody(fetchMock);
     expect(aiBody.messages[1].content).toContain('今天哪只未持有基金最适合建仓');
-    expect(aiBody.messages[1].content).toContain('建仓候选优先从 buildCandidates 中选择');
-    expect(aiBody.messages[1].content).toContain('严禁推荐 holdings 或 heldFundCodes 中已经持有的基金');
+    expect(aiBody.messages[1].content).toContain('建仓候选优先从自选未持有基金中选择');
+    expect(aiBody.messages[1].content).toContain('严禁推荐已经持有的基金');
     expect(aiBody.messages[1].content).toContain('资金流入最强方向');
-    expect(aiBody.messages[1].content).toContain('市场情绪、今日利好方向、资金流入最强方向、未持有建仓候选、建仓方式、放弃建仓条件');
+    expect(aiBody.messages[1].content).toContain('市场情绪、今日利好方向、资金流入最强方向、今日建仓候选/观察、建仓方式、放弃建仓条件');
     expect(aiBody.messages[1].content).toContain('不要输出“为什么不选已有基金”');
-    expect(aiBody.messages[1].content).toContain('fallbackBuildCandidates');
+    expect(aiBody.messages[1].content).toContain('今日建仓观察');
+    expect(aiBody.messages[1].content).toContain('不得把观察方向写成买入建议');
+    expect(aiBody.messages[1].content).toContain('最终回复不得出现 buildCandidates、fallbackBuildCandidates');
     expect(aiBody.messages[1].content).not.toContain('为什么不是已有基金');
     expect(aiBody.messages[0].content).toContain('未持有基金B');
     expect(aiBody.messages[0].content).toContain('"heldFundCodes"');
-    expect(aiBody.messages[1].content).toContain('不能为了回答硬选');
+    expect(aiBody.messages[1].content).toContain('不得硬选基金');
   });
 
   it('建仓候选为空时使用资金流方向兜底候选并标明来源', async () => {
@@ -679,7 +681,7 @@ describe('telegram ai reminder worker', () => {
     expect(aiBody.messages[0].content).toContain('fundFlowFallback');
     expect(aiBody.messages[0].content).toContain('人工智能');
     expect(aiBody.messages[1].content).toContain('候选来源：资金流方向兜底，非你的自选基金');
-    expect(aiBody.messages[1].content).toContain('严禁推荐 holdings 或 heldFundCodes 中已经持有的基金');
+    expect(aiBody.messages[1].content).toContain('严禁推荐已经持有的基金');
   });
 
   it('Telegram 短版输出过长时会截断', async () => {

@@ -319,14 +319,14 @@ const DEFAULT_FUND_FLOW_QUERY_TIMEOUT_MS = 3000;
 const DEFAULT_AI_QUESTION =
   '请基于当前持仓、A 股市场指数、市场情绪、中文财经新闻和投资画像，重点判断当前是否适合加仓、是否需要减仓、是否达到清仓条件。请给出明确但条件化的结论、依据、触发条件和明日观察点。';
 const SHORT_ANALYSIS_QUESTION =
-  '请输出 Telegram 短版分析，控制在 1200 字以内。先给一句明确结论，再用短段落说明市场情绪、A股环境、中文财经新闻、资金流入最强方向、持仓状态、今日建仓候选、今日加仓候选、是否需要减仓、是否达到清仓条件和明日观察点。不要展开长篇推理。建仓候选只能从 buildCandidates 中选择，不能推荐 holdings 中已有基金；加仓候选只能从 holdings 中选择。如果没有合适候选，分别明确写“今日暂无适合建仓的基金”或“今日暂无适合加仓的基金”。';
+  '请输出 Telegram 短版分析，控制在 1200 字以内。先给一句明确结论，再用短段落说明市场情绪、A股环境、中文财经新闻、资金流入最强方向、持仓状态、今日建仓候选/观察、今日加仓候选、是否需要减仓、是否达到清仓条件和明日观察点。不要展开长篇推理。建仓候选优先从自选未持有基金中选择；如果没有明确候选，必须输出“今日建仓观察”，给出 1-3 个观察方向和触发条件，不能硬写买入建议。加仓候选只能从当前已持有基金中选择。如果没有合适候选，分别明确写“今日暂无明确建仓候选，仅做观察”或“今日暂无适合加仓的基金”。最终回复不得出现 buildCandidates、fallbackBuildCandidates、fundFlowSnapshot、holdings 等内部字段名。';
 const DETAILED_ANALYSIS_QUESTION = DEFAULT_AI_QUESTION;
 const MIDDAY_ANALYSIS_QUESTION =
-  '请输出午盘休息分析，控制在 1000 字以内。重点总结上午市场情绪、A 股指数强弱、资金流入最强方向、中文财经新闻利好/风险，并判断下午是否适合观察、低吸、小额试探或暂不操作。建仓候选优先从 buildCandidates 选择，buildCandidates 为空时可参考 fallbackBuildCandidates 但必须标注“候选来源：资金流方向兜底，非你的自选基金”。午盘不做激进操作建议，不要建议清仓，必须给出下午观察点。';
+  '请输出午盘休息分析，控制在 1000 字以内。重点总结上午市场情绪、A 股指数强弱、资金流入最强方向、中文财经新闻利好/风险，并判断下午是否适合观察、低吸、小额试探或暂不操作。建仓候选优先从自选未持有基金选择；如果没有明确候选，必须输出“午盘建仓观察”，给出 1-3 个下午观察方向和触发条件，不得硬写买入建议。午盘不做激进操作建议，不要建议清仓。最终回复不得出现 buildCandidates、fallbackBuildCandidates、fundFlowSnapshot、holdings 等内部字段名。';
 const LATE_SESSION_ACTION_QUESTION =
-  '请输出尾盘半小时操作提醒，控制在 1000 字以内。重点服务 14:50 前是否加仓、是否减仓、是否有未持有建仓候选。必须结合 A 股市场情绪、资金流入最强方向、中文财经新闻利好/风险、当前持仓涨跌、未持有建仓候选和投资画像。结论要明确但条件化，例如“只适合小额加仓/暂不加仓/需要小幅减仓/继续观察”。不轻易建议清仓；如 buildCandidates 为空可参考 fallbackBuildCandidates，但必须标注“候选来源：资金流方向兜底，非你的自选基金”。输出 14:50 前操作建议和放弃操作条件。';
+  '请输出尾盘半小时操作提醒，控制在 1000 字以内。重点服务 14:50 前是否加仓、是否减仓、是否有未持有建仓候选/观察方向。必须结合 A 股市场情绪、资金流入最强方向、中文财经新闻利好/风险、当前持仓涨跌、未持有建仓候选和投资画像。结论要明确但条件化，例如“只适合小额加仓/暂不加仓/需要小幅减仓/继续观察”。不轻易建议清仓；如果没有明确建仓候选，必须输出“尾盘建仓观察”，给出观察方向、触发条件和放弃条件，不得硬写买入建议。最终回复不得出现 buildCandidates、fallbackBuildCandidates、fundFlowSnapshot、holdings 等内部字段名。';
 const CLOSE_ANALYSIS_QUESTION =
-  '请输出收盘分析，控制在 1200 字以内。总结全天市场情绪、资金流入最强方向、中文财经新闻影响、持仓表现、今日建仓/加仓/减仓判断和明日观察点。收盘分析重点是复盘和明日触发条件，不要编造缺失数据。建仓候选优先从 buildCandidates 选择，buildCandidates 为空时可参考 fallbackBuildCandidates 但必须标注“候选来源：资金流方向兜底，非你的自选基金”。';
+  '请输出收盘分析，控制在 1200 字以内。总结全天市场情绪、资金流入最强方向、中文财经新闻影响、持仓表现、今日建仓/加仓/减仓判断和明日观察点。收盘分析重点是复盘和明日触发条件，不要编造缺失数据。建仓候选优先从自选未持有基金选择；如果没有明确候选，必须输出“明日建仓观察”，给出 1-3 个观察方向、触发条件和放弃条件，不得硬写买入建议。最终回复不得出现 buildCandidates、fallbackBuildCandidates、fundFlowSnapshot、holdings 等内部字段名。';
 const SCHEDULED_ANALYSIS_CONFIG: Record<
   ScheduledAnalysisType,
   { title: string; question: string; maxLength?: number }
@@ -358,7 +358,7 @@ const COMMAND_QUESTION_MAP: Record<string, { question: string; maxLength?: numbe
   },
   建仓: {
     question:
-      '请只回答今天哪只未持有基金最适合建仓，控制在 1000 字以内。建仓候选优先从 buildCandidates 中选择，严禁推荐 holdings 或 heldFundCodes 中已经持有的基金；如果 buildCandidates 为空，可以从 fallbackBuildCandidates 中选择，但必须明确写“候选来源：资金流方向兜底，非你的自选基金”。必须先结合 marketSnapshot 判断市场情绪，再结合 newsSnapshot 提取今日利好方向和风险方向，并结合 fundFlowSnapshot 判断资金流入最强方向。只有当候选基金与市场情绪、利好方向、资金流入方向匹配，且与现有持仓不过度重复、锚点偏离合理、符合投资画像时，才可以列为建仓候选。如果 fundFlowSnapshot 缺失或 failed，必须说明“资金流数据暂不可用，本次仅基于市场情绪和新闻利好判断”，不得编造资金流。如果 buildCandidates 和 fallbackBuildCandidates 都为空、市场/新闻/资金流依据不足或没有匹配候选，必须明确写“今日暂无适合建仓的基金”，不能为了回答硬选。请按“市场情绪、今日利好方向、资金流入最强方向、未持有建仓候选、建仓方式、放弃建仓条件”输出，不要输出“为什么不选已有基金”。',
+      '请只回答今天哪只未持有基金最适合建仓，控制在 1000 字以内。建仓候选优先从自选未持有基金中选择，严禁推荐已经持有的基金；如果自选未持有基金为空，可以参考资金流方向兜底候选，但必须明确写“候选来源：资金流方向兜底，非你的自选基金”。必须先判断市场情绪，再提取今日利好方向和风险方向，并结合资金流入最强方向。只有当候选基金与市场情绪、利好方向、资金流入方向匹配，且与现有持仓不过度重复、锚点偏离合理、符合投资画像时，才可以列为建仓候选。如果资金流数据缺失或失败，必须说明“资金流数据暂不可用，本次仅基于市场情绪和新闻利好判断”，不得编造资金流。如果没有满足建仓条件的基金，必须输出“今日建仓观察”，列出 1-3 个观察方向、触发条件和放弃条件，不得硬选基金，不得把观察方向写成买入建议。请按“市场情绪、今日利好方向、资金流入最强方向、今日建仓候选/观察、建仓方式、放弃建仓条件”输出，不要输出“为什么不选已有基金”，最终回复不得出现 buildCandidates、fallbackBuildCandidates、fundFlowSnapshot、holdings、heldFundCodes 等内部字段名。',
     maxLength: 1200,
   },
   减仓: {
@@ -1314,7 +1314,7 @@ const buildHoldingsAnalysisPrompt = (context: AnalysisContextSnapshot, mode: str
     .filter(Boolean)
     .join('\n');
 
-  return `${modeInstruction}\n要求：\n1) 使用简体中文回答。\n2) 只基于给定 JSON 数据推理，不要编造不存在的数据。\n3) 如果前十大重仓股、真实行业分布、基金经理调仓、账户外资产、风险承受能力或投资期限在 dataCoverage 中标记为 missing/partial，必须明确说明“当前数据缺失/不完整”，不能当作已知事实分析。\n4) 如果 marketSnapshot 缺失或 dataStatus 为 missing/partial，必须说明“A 股市场数据缺失/不完整”，不得假设指数涨跌。\n5) 如果 newsSnapshot 缺失或 dataStatus 为 failed，必须说明“中文财经新闻接口失败，消息面/财报/公告暂不可用”，不得说成近 72 小时无新闻。\n6) 如果 newsSnapshot.dataStatus 为 missing，才可以说明“最近 ${newsSnapshot?.lookbackHours ?? 72} 小时未抓到可用中文财经新闻项”。\n7) 如果 fundFlowSnapshot 缺失、dataStatus 为 missing 或 failed，必须说明“资金流数据暂不可用”，不得编造资金流入方向或金额；如果 partial，必须说明资金流数据不完整。\n8) 不得编造新闻标题、财报数据、公告内容或资金流数据，不得把未确认传闻当事实。\n9) 可以基于 topEquityHoldings 和 equityOverlap 分析底层股票重合度；没有数据时必须跳过。\n10) 必须分开输出“今日建仓候选”“今日加仓候选”“是否需要减仓”“是否达到清仓条件”四段，结论只能是条件判断，例如“暂不适合/只适合小额分批/等待确认/未达到清仓条件”。\n11) 今日建仓候选优先从 buildCandidates 中选择，严禁推荐 holdings 或 heldFundCodes 中已有基金。只有当 buildCandidates 为空时，才可以从 fallbackBuildCandidates 中选择；使用 fallbackBuildCandidates 时必须明确写“候选来源：资金流方向兜底，非你的自选基金”。建仓判断必须同时考虑 A 股市场情绪、中文财经新闻利好/风险、fundFlowSnapshot 资金流入最强方向、候选基金锚点偏离和投资画像。如果两个候选列表都为空或没有合适候选，必须明确写“今日暂无适合建仓的基金”，不能硬选。\n12) 今日加仓候选只能从 holdings 中选择；如果没有合适加仓候选，必须明确写“今日暂无适合加仓的基金”。\n13) 加仓、减仓、清仓建议必须同时给出依据和触发条件；清仓不能只因为单日涨跌，必须基于长期逻辑失效、风格偏离、风险画像冲突、重合度过高或明确止盈止损条件。\n14) 输出适合 Telegram 阅读，标题清晰，重点用短句。\n\n请按以下结构输出：\n一、A 股市场环境\n二、持仓表现\n三、消息面/财报/公告影响\n四、资金流入最强方向\n五、今日建仓候选\n六、今日加仓候选\n七、是否需要减仓\n八、是否达到清仓条件\n九、明日观察点\n\n组合摘要：\n${summary}\n\n以下是分析上下文(JSON)：\n${JSON.stringify(context, null, 2)}`;
+  return `${modeInstruction}\n要求：\n1) 使用简体中文回答。\n2) 只基于给定 JSON 数据推理，不要编造不存在的数据。\n3) 如果前十大重仓股、真实行业分布、基金经理调仓、账户外资产、风险承受能力或投资期限在 dataCoverage 中标记为 missing/partial，必须明确说明“当前数据缺失/不完整”，不能当作已知事实分析。\n4) 如果 marketSnapshot 缺失或 dataStatus 为 missing/partial，必须说明“A 股市场数据缺失/不完整”，不得假设指数涨跌。\n5) 如果 newsSnapshot 缺失或 dataStatus 为 failed，必须说明“中文财经新闻接口失败，消息面/财报/公告暂不可用”，不得说成近 72 小时无新闻。\n6) 如果 newsSnapshot.dataStatus 为 missing，才可以说明“最近 ${newsSnapshot?.lookbackHours ?? 72} 小时未抓到可用中文财经新闻项”。\n7) 如果 fundFlowSnapshot 缺失、dataStatus 为 missing 或 failed，必须说明“资金流数据暂不可用”，不得编造资金流入方向或金额；如果 partial，必须说明资金流数据不完整。\n8) 不得编造新闻标题、财报数据、公告内容或资金流数据，不得把未确认传闻当事实。\n9) 可以基于 topEquityHoldings 和 equityOverlap 分析底层股票重合度；没有数据时必须跳过。\n10) 最终回复不得出现 buildCandidates、fallbackBuildCandidates、fundFlowSnapshot、newsSnapshot、marketSnapshot、holdings、heldFundCodes、topEquityHoldings、equityOverlap、dataCoverage 等内部字段名；必须转成自然语言，例如“自选未持有基金”“资金流方向兜底候选”“当前持仓”。\n11) 必须分开输出“今日建仓候选/观察”“今日加仓候选”“是否需要减仓”“是否达到清仓条件”四段，结论只能是条件判断，例如“暂不适合/只适合小额分批/等待确认/未达到清仓条件”。\n12) 今日建仓候选优先从自选未持有基金中选择，严禁推荐已经持有的基金。只有当自选未持有基金为空时，才可以从资金流方向兜底候选中选择；使用兜底候选时必须明确写“候选来源：资金流方向兜底，非你的自选基金”。建仓判断必须同时考虑 A 股市场情绪、中文财经新闻利好/风险、资金流入最强方向、候选基金锚点偏离和投资画像。\n13) 如果没有满足建仓条件的基金，不能只写暂无候选；必须输出“今日建仓观察”，列出 1-3 个观察方向、触发条件和放弃条件，并明确这不是买入建议。\n14) 今日加仓候选只能从当前已持有基金中选择；如果没有合适加仓候选，必须明确写“今日暂无适合加仓的基金”。\n15) 加仓、减仓、清仓建议必须同时给出依据和触发条件；清仓不能只因为单日涨跌，必须基于长期逻辑失效、风格偏离、风险画像冲突、重合度过高或明确止盈止损条件。\n16) 输出适合 Telegram/QQ 阅读，标题清晰，重点用短句。\n\n请按以下结构输出：\n一、A 股市场环境\n二、持仓表现\n三、消息面/财报/公告影响\n四、资金流入最强方向\n五、今日建仓候选/观察\n六、今日加仓候选\n七、是否需要减仓\n八、是否达到清仓条件\n九、明日观察点\n\n组合摘要：\n${summary}\n\n以下是分析上下文(JSON)：\n${JSON.stringify(context, null, 2)}`;
 };
 
 const resolveAiEndpoint = (env: Env) => {
