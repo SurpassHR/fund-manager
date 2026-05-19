@@ -6,7 +6,7 @@ import reactRefresh from 'eslint-plugin-react-refresh';
 
 export default [
   {
-    ignores: ['dist', 'node_modules', 'test/fund.js'],
+    ignores: ['dist', 'node_modules', 'test/fund.js', '**/.wrangler/**'],
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,

@@ -95,6 +95,9 @@ const mocked = vi.hoisted(() => ({
     },
     setBusinessModelConfig: vi.fn(),
     updateBusinessModelConfig: vi.fn(),
+    investmentProfile: {},
+    setInvestmentProfile: vi.fn(),
+    updateInvestmentProfile: vi.fn(),
   },
 }));
 

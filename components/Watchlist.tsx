@@ -74,7 +74,9 @@ const loadCollapsedInstitutionGroups = (): Set<string> => {
   try {
     const raw = localStorage.getItem(INSTITUTION_COLLAPSE_STORAGE_KEY);
     if (raw) return new Set(JSON.parse(raw));
-  } catch {}
+  } catch {
+    // 忽略本地缓存损坏
+  }
   return new Set();
 };
 
@@ -432,7 +434,9 @@ export const Watchlist: React.FC = () => {
         const parsed = JSON.parse(raw);
         hasSavedCollapsedState = Array.isArray(parsed) && parsed.length > 0;
       }
-    } catch {}
+    } catch {
+      // 忽略本地缓存损坏
+    }
     if (hasSavedCollapsedState) return;
     const allInstitutions = new Set(groupedWatchlists.keys());
     setCollapsedInstitutionGroups(allInstitutions);

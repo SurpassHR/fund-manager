@@ -70,6 +70,9 @@ const mockedDeps = vi.hoisted(() => ({
     },
     setBusinessModelConfig: vi.fn(),
     updateBusinessModelConfig: vi.fn(),
+    investmentProfile: {},
+    setInvestmentProfile: vi.fn(),
+    updateInvestmentProfile: vi.fn(),
   },
   listCustomOpenAiModels: vi.fn(async (_args?: unknown) => [] as string[]),
 }));

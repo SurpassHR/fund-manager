@@ -18,7 +18,13 @@ import { groupFundsByInstitution, resolveInstitutions } from '../services/fundIn
 import { Icons } from './Icon';
 import RefreshButton, { type RefreshButtonHandle } from './RefreshButton';
 import { useTranslation } from '../services/i18n';
-import type { HoldingsSnapshot } from '../services/aiAnalysis';
+import {
+  buildEquityOverlap,
+  buildHoldingsDataCoverage,
+  type HoldingEquitySnapshot,
+  type HoldingsSnapshot,
+} from '../services/aiAnalysis';
+import { fetchFundHoldings } from '../services/api';
 import { AccountManagerModal } from './AccountManagerModal';
 import { AddHoldingModal } from './AddHoldingModal';
 import { AdjustPositionModal } from './AdjustPositionModal';
@@ -49,6 +55,12 @@ import {
 import { computeRealizedGain, deriveFundHoldingDisplayMetrics } from '../services/fundDayChange';
 import { getCachedFundStreaks } from '../services/streakCalculator';
 import type { FundStreak } from '../types';
+
+type FundHoldingsEnrichment = {
+  status: 'available' | 'missing' | 'failed';
+  portfolioDate?: string;
+  topEquityHoldings?: HoldingEquitySnapshot[];
+};
 
 const LONG_PRESS_DURATION_MS = 600;
 const TOUCH_MOVE_CANCEL_THRESHOLD_PX = 12;
@@ -112,7 +124,9 @@ const loadCollapsedInstitutionGroups = (): Set<string> => {
   try {
     const raw = localStorage.getItem(INSTITUTION_COLLAPSE_STORAGE_KEY);
     if (raw) return new Set(JSON.parse(raw));
-  } catch {}
+  } catch {
+    // 忽略本地缓存损坏
+  }
   return new Set();
 };
 
@@ -174,12 +188,15 @@ export const Dashboard: React.FC = () => {
   );
   const [institutionMap, setInstitutionMap] = useState<Map<string, string> | null>(null);
   const [streakMap, setStreakMap] = useState<Map<string, FundStreak | null>>(new Map());
+  const [fundHoldingsEnrichment, setFundHoldingsEnrichment] = useState<
+    Record<string, FundHoldingsEnrichment>
+  >({});
   const [isAiAnalysisOpen, setIsAiAnalysisOpen] = useState(false);
   const [isTotalAssetsOpen, setIsTotalAssetsOpen] = useState(false);
   const [investmentPlanPrefillCode, setInvestmentPlanPrefillCode] = useState<string | undefined>(
     undefined,
   );
-  const { autoRefresh } = useSettings();
+  const { autoRefresh, investmentProfile } = useSettings();
 
   const refreshBtnRef = useRef<RefreshButtonHandle>(null);
   const refreshInFlightRef = useRef(false);
@@ -202,6 +219,43 @@ export const Dashboard: React.FC = () => {
   const isScrollGestureRef = useRef(false);
 
   const { t } = useTranslation();
+
+  useEffect(() => {
+    if (!funds || funds.length === 0) {
+      setFundHoldingsEnrichment({});
+      return;
+    }
+
+    let active = true;
+    const codes = Array.from(new Set(funds.map((fund) => fund.code).filter(Boolean)));
+
+    void Promise.all(
+      codes.map(async (code) => {
+        const response = await fetchFundHoldings(code);
+        const equities = response?.data?.equityHoldings?.slice(0, 10) ?? [];
+        const enrichment: FundHoldingsEnrichment = equities.length
+          ? {
+              status: 'available',
+              portfolioDate: response?.data?.portfolioDate,
+              topEquityHoldings: equities.map((holding) => ({
+                ticker: holding.ticker,
+                name: holding.name,
+                weight: holding.weight,
+                sector: holding.sector,
+              })),
+            }
+          : { status: response ? 'missing' : 'failed' };
+        return [code, enrichment] as const;
+      }),
+    ).then((entries) => {
+      if (!active) return;
+      setFundHoldingsEnrichment(Object.fromEntries(entries));
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [funds]);
 
   const getHoldingDisplayMetrics = useCallback(
     (
@@ -231,6 +285,7 @@ export const Dashboard: React.FC = () => {
     const asOf = latestDateStr || getLocalDateString();
     const holdings = funds.map((fund) => {
       const { marketValue, totalCost, totalGain, totalGainPct } = getHoldingDisplayMetrics(fund);
+      const enrichment = fundHoldingsEnrichment[fund.code];
       return {
         code: fund.code,
         name: fund.name,
@@ -248,8 +303,12 @@ export const Dashboard: React.FC = () => {
         buyDate: fund.buyDate,
         buyTime: fund.buyTime,
         settlementDays: fund.settlementDays,
+        topEquityHoldings: enrichment?.topEquityHoldings,
+        holdingsDataStatus: enrichment?.status ?? 'missing',
+        holdingsDataDate: enrichment?.portfolioDate,
       };
     });
+    const equityOverlap = buildEquityOverlap(holdings);
     return {
       asOf,
       currency: 'CNY',
@@ -259,8 +318,11 @@ export const Dashboard: React.FC = () => {
       holdingGain: summary.holdingGain,
       holdingGainPct: summary.holdingGainPct,
       holdings,
+      equityOverlap,
+      dataCoverage: buildHoldingsDataCoverage(holdings, investmentProfile),
+      investmentProfile,
     };
-  }, [funds, getHoldingDisplayMetrics]);
+  }, [funds, fundHoldingsEnrichment, getHoldingDisplayMetrics, investmentProfile]);
 
   const requestFundRefresh = useCallback(async (force = false) => {
     if (refreshInFlightRef.current) return false;
@@ -409,6 +471,8 @@ export const Dashboard: React.FC = () => {
   );
 
   const summary = useMemo(() => calculateSummary(filteredFunds), [filteredFunds]);
+  const cumulativeGain = summary.cumulativeGain ?? 0;
+  const cumulativeGainPct = summary.cumulativeGainPct ?? 0;
 
   // 每日自动记录总资产快照（跳过数据未就绪的空快照）
   useEffect(() => {
@@ -548,7 +612,9 @@ export const Dashboard: React.FC = () => {
         const parsed = JSON.parse(raw);
         hasSavedCollapsedState = Array.isArray(parsed) && parsed.length > 0;
       }
-    } catch {}
+    } catch {
+      // 忽略本地缓存损坏
+    }
     if (hasSavedCollapsedState) return;
     const allInstitutions = new Set(groupedActiveFunds.keys());
     if (groupedClearedFunds) {
@@ -920,10 +986,10 @@ export const Dashboard: React.FC = () => {
                   <span className="text-[12px] font-medium text-indigo-600 dark:text-indigo-400">
                     累计收益
                   </span>
-                  <span className={`text-[13px] font-bold ${getSignColor(summary.cumulativeGain)}`}>
-                    {showValues ? formatSignedCurrency(summary.cumulativeGain) : '****'}
+                  <span className={`text-[13px] font-bold ${getSignColor(cumulativeGain)}`}>
+                    {showValues ? formatSignedCurrency(cumulativeGain) : '****'}
                     <span className="ml-1 text-xs font-medium">
-                      ({showValues ? formatPct(summary.cumulativeGainPct) : '****'})
+                      ({showValues ? formatPct(cumulativeGainPct) : '****'})
                     </span>
                   </span>
                 </div>

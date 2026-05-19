@@ -258,7 +258,7 @@ describe('Watchlist add holding from context menu', () => {
       vi.advanceTimersByTime(700);
     });
 
-    expect(screen.queryByText('common.menu')).not.toBeInTheDocument();
+    expect(screen.queryByText('common.edit')).not.toBeInTheDocument();
     vi.useRealTimers();
   });
 
@@ -275,7 +275,7 @@ describe('Watchlist add holding from context menu', () => {
       vi.advanceTimersByTime(700);
     });
 
-    expect(screen.getByText('common.menu')).toBeInTheDocument();
+    expect(screen.getByText('common.edit')).toBeInTheDocument();
     vi.useRealTimers();
   });
 

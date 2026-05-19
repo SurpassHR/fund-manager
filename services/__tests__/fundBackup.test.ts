@@ -119,4 +119,29 @@ describe('fundBackup', () => {
     expect(parseAndNormalizeFundBackup(legacyPayload)).toHaveLength(1);
     expect(parseAndNormalizeFundBackupPayload(legacyPayload).watchlists).toEqual([]);
   });
+
+  it('支持在备份中携带投资画像', () => {
+    const payload = buildFundBackupPayload(
+      [buildFund()],
+      '2026-03-19T00:00:00.000Z',
+      [],
+      [],
+      [],
+      {
+        riskTolerance: '稳健',
+        investmentHorizon: '3-5年',
+        externalAssets: '现金 5 万',
+        notes: '长期持有',
+      },
+    );
+
+    const normalized = parseAndNormalizeFundBackupPayload(payload);
+
+    expect(normalized.investmentProfile).toEqual({
+      riskTolerance: '稳健',
+      investmentHorizon: '3-5年',
+      externalAssets: '现金 5 万',
+      notes: '长期持有',
+    });
+  });
 });

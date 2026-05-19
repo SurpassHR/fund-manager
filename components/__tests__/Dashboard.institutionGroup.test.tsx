@@ -56,6 +56,7 @@ vi.mock('../../services/i18n', () => ({
 vi.mock('../../services/SettingsContext', () => ({
   useSettings: () => ({
     autoRefresh: false,
+    investmentProfile: {},
   }),
 }));
 
@@ -101,10 +102,12 @@ vi.mock('../InvestmentPlanModal', () => ({
 }));
 const apiMock = vi.hoisted(() => ({
   fetchFundCommonData: vi.fn(),
+  fetchFundHoldings: vi.fn(),
 }));
 
 vi.mock('../../services/api', () => ({
   fetchFundCommonData: apiMock.fetchFundCommonData,
+  fetchFundHoldings: apiMock.fetchFundHoldings,
   fetchRecentHistoricalNavs: vi.fn().mockResolvedValue([]),
 }));
 
@@ -132,6 +135,7 @@ describe('Dashboard institution group', () => {
       }
       return Promise.resolve({ data: {} });
     });
+    apiMock.fetchFundHoldings.mockResolvedValue(null);
 
     mocked.state.funds = [
       {
@@ -267,16 +271,21 @@ describe('Dashboard institution group', () => {
     await waitFor(() => {
       expect(screen.getByText('永赢基金')).toBeDefined();
     });
+    await waitFor(() => {
+      const saved = JSON.parse(localStorage.getItem(COLLAPSE_STORAGE_KEY)!);
+      expect(saved).toContain('永赢基金');
+    });
 
     // 点击永赢基金分隔条展开
     fireEvent.click(screen.getByText('永赢基金').closest('.institution-group-divider')!);
 
-    // 验证已持久化到 localStorage
-    const saved = JSON.parse(localStorage.getItem(COLLAPSE_STORAGE_KEY)!);
-    expect(saved).toBeInstanceOf(Array);
-    // 永赢基金不在折叠集合中，华夏基金仍在
-    expect(saved).not.toContain('永赢基金');
-    expect(saved).toContain('华夏基金');
+    await waitFor(() => {
+      const saved = JSON.parse(localStorage.getItem(COLLAPSE_STORAGE_KEY)!);
+      expect(saved).toBeInstanceOf(Array);
+      // 永赢基金不在折叠集合中，华夏基金仍在
+      expect(saved).not.toContain('永赢基金');
+      expect(saved).toContain('华夏基金');
+    });
   });
 
   it('restores collapsed state from localStorage on remount', async () => {

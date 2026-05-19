@@ -8,6 +8,7 @@ import {
   type BusinessModelConfig,
   type LlmBusinessKey,
 } from './businessModelConfig';
+import type { InvestmentProfileSnapshot } from './aiAnalysis';
 
 export type AiProvider = 'openai' | 'gemini' | 'customOpenAi';
 
@@ -65,6 +66,9 @@ interface SettingsContextValue {
   businessModelConfig: BusinessModelConfig;
   setBusinessModelConfig: (val: BusinessModelConfig) => void;
   updateBusinessModelConfig: (key: LlmBusinessKey, val: Partial<BusinessModelConfig[LlmBusinessKey]>) => void;
+  investmentProfile: InvestmentProfileSnapshot;
+  setInvestmentProfile: (val: InvestmentProfileSnapshot) => void;
+  updateInvestmentProfile: (val: Partial<InvestmentProfileSnapshot>) => void;
 }
 
 const STORAGE_KEY = 'app-settings-preference';
@@ -146,6 +150,19 @@ const defaultSettings = {
     createDefaultProvider('customOpenAi'),
   ] as LlmProviderConfig[],
   businessModelConfig: DEFAULT_LLM_BUSINESS_CONFIG,
+  investmentProfile: {} as InvestmentProfileSnapshot,
+};
+
+export const parseInvestmentProfile = (value: unknown): InvestmentProfileSnapshot => {
+  if (!value || typeof value !== 'object') return {};
+  const candidate = value as Partial<InvestmentProfileSnapshot>;
+  return {
+    riskTolerance: typeof candidate.riskTolerance === 'string' ? candidate.riskTolerance : '',
+    investmentHorizon:
+      typeof candidate.investmentHorizon === 'string' ? candidate.investmentHorizon : '',
+    externalAssets: typeof candidate.externalAssets === 'string' ? candidate.externalAssets : '',
+    notes: typeof candidate.notes === 'string' ? candidate.notes : '',
+  };
 };
 
 const parseDefaultGistTarget = (value: unknown): DefaultGistTargetSnapshot | null => {
@@ -267,6 +284,7 @@ const parseSavedSettings = (saved: string): typeof defaultSettings => {
     defaultGistTarget: parseDefaultGistTarget(parsed.defaultGistTarget),
     llmProviders: migratedProviders,
     businessModelConfig: migratedBusinessModelConfig,
+    investmentProfile: parseInvestmentProfile(parsed.investmentProfile),
   };
 };
 
@@ -305,6 +323,9 @@ const SettingsContext = createContext<SettingsContextValue>({
   businessModelConfig: defaultSettings.businessModelConfig,
   setBusinessModelConfig: () => {},
   updateBusinessModelConfig: () => {},
+  investmentProfile: defaultSettings.investmentProfile,
+  setInvestmentProfile: () => {},
+  updateInvestmentProfile: () => {},
 });
 
 export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -375,6 +396,18 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   };
   const setBusinessModelConfig = (val: BusinessModelConfig) =>
     updateSettings({ businessModelConfig: val });
+  const setInvestmentProfile = (val: InvestmentProfileSnapshot) =>
+    updateSettings({ investmentProfile: parseInvestmentProfile(val) });
+  const updateInvestmentProfile = (val: Partial<InvestmentProfileSnapshot>) => {
+    setSettings((prev) => {
+      const next = {
+        ...prev,
+        investmentProfile: parseInvestmentProfile({ ...prev.investmentProfile, ...val }),
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      return next;
+    });
+  };
   const updateBusinessModelConfig = (
     key: LlmBusinessKey,
     val: Partial<BusinessModelConfig[LlmBusinessKey]>,
@@ -432,6 +465,9 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         businessModelConfig: settings.businessModelConfig,
         setBusinessModelConfig,
         updateBusinessModelConfig,
+        investmentProfile: settings.investmentProfile,
+        setInvestmentProfile,
+        updateInvestmentProfile,
       }}
     >
       {children}

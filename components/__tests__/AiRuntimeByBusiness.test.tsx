@@ -45,6 +45,9 @@ const mocked = vi.hoisted(() => ({
     },
     setBusinessModelConfig: vi.fn(),
     updateBusinessModelConfig: vi.fn(),
+    investmentProfile: {},
+    setInvestmentProfile: vi.fn(),
+    updateInvestmentProfile: vi.fn(),
   },
   resolveByBusiness: vi.fn((..._args: unknown[]) => ({
     provider: 'openai' as const,

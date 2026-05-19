@@ -43,6 +43,7 @@ Desktop.ini
 # 部署平台本地配置
 .vercel
 .netlify
+**/.wrangler
 
 # Vite 本地文件
 *.local

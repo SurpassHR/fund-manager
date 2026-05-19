@@ -68,6 +68,41 @@ export interface HoldingSnapshotItem {
   buyDate?: string;
   buyTime?: 'before15' | 'after15';
   settlementDays?: number;
+  topEquityHoldings?: HoldingEquitySnapshot[];
+  holdingsDataStatus?: 'available' | 'missing' | 'failed';
+  holdingsDataDate?: string;
+}
+
+export interface HoldingEquitySnapshot {
+  ticker: string;
+  name: string;
+  weight: number;
+  sector?: string;
+}
+
+export interface EquityOverlapItem {
+  ticker: string;
+  name: string;
+  fundCount: number;
+  funds: string[];
+  maxWeight: number;
+  totalWeight: number;
+}
+
+export interface HoldingsDataCoverage {
+  topEquityHoldings: 'available' | 'partial' | 'missing';
+  industryDistribution: 'available' | 'partial' | 'missing';
+  managerChanges: 'missing';
+  externalAssets: 'available' | 'missing';
+  riskProfile: 'available' | 'missing';
+  investmentHorizon: 'available' | 'missing';
+}
+
+export interface InvestmentProfileSnapshot {
+  riskTolerance?: string;
+  investmentHorizon?: string;
+  externalAssets?: string;
+  notes?: string;
 }
 
 export interface HoldingsSnapshot {
@@ -79,7 +114,71 @@ export interface HoldingsSnapshot {
   holdingGain: number;
   holdingGainPct: number;
   holdings: HoldingSnapshotItem[];
+  equityOverlap?: EquityOverlapItem[];
+  dataCoverage?: HoldingsDataCoverage;
+  investmentProfile?: InvestmentProfileSnapshot;
 }
+
+export const buildEquityOverlap = (holdings: HoldingSnapshotItem[]): EquityOverlapItem[] => {
+  const byTicker = new Map<
+    string,
+    { name: string; fundWeights: Map<string, number>; totalWeight: number; maxWeight: number }
+  >();
+
+  holdings.forEach((fund) => {
+    fund.topEquityHoldings?.forEach((equity) => {
+      const ticker = equity.ticker.trim();
+      if (!ticker) return;
+      const current = byTicker.get(ticker) ?? {
+        name: equity.name || ticker,
+        fundWeights: new Map<string, number>(),
+        totalWeight: 0,
+        maxWeight: 0,
+      };
+      current.name = current.name || equity.name || ticker;
+      current.fundWeights.set(fund.name, equity.weight);
+      current.totalWeight += equity.weight;
+      current.maxWeight = Math.max(current.maxWeight, equity.weight);
+      byTicker.set(ticker, current);
+    });
+  });
+
+  return Array.from(byTicker.entries())
+    .map(([ticker, item]) => ({
+      ticker,
+      name: item.name,
+      fundCount: item.fundWeights.size,
+      funds: Array.from(item.fundWeights.keys()),
+      maxWeight: Number(item.maxWeight.toFixed(2)),
+      totalWeight: Number(item.totalWeight.toFixed(2)),
+    }))
+    .filter((item) => item.fundCount > 1)
+    .sort((a, b) => b.fundCount - a.fundCount || b.totalWeight - a.totalWeight)
+    .slice(0, 20);
+};
+
+export const buildHoldingsDataCoverage = (
+  holdings: HoldingSnapshotItem[],
+  investmentProfile?: InvestmentProfileSnapshot,
+): HoldingsDataCoverage => {
+  const availableCount = holdings.filter((item) => item.topEquityHoldings?.length).length;
+  const sectorAvailableCount = holdings.filter((item) =>
+    item.topEquityHoldings?.some((equity) => equity.sector?.trim()),
+  ).length;
+  const resolveCoverage = (count: number) => {
+    if (holdings.length === 0 || count === 0) return 'missing';
+    return count === holdings.length ? 'available' : 'partial';
+  };
+
+  return {
+    topEquityHoldings: resolveCoverage(availableCount),
+    industryDistribution: resolveCoverage(sectorAvailableCount),
+    managerChanges: 'missing',
+    externalAssets: investmentProfile?.externalAssets?.trim() ? 'available' : 'missing',
+    riskProfile: investmentProfile?.riskTolerance?.trim() ? 'available' : 'missing',
+    investmentHorizon: investmentProfile?.investmentHorizon?.trim() ? 'available' : 'missing',
+  };
+};
 
 const OPENAI_BASE_URL = 'https://api.openai.com/v1';
 const AI_ANALYSIS_CACHE_PREFIX = 'ai_analysis_cache:';
@@ -105,6 +204,13 @@ const buildHoldingsSummary = (holdings: HoldingsSnapshot) => {
       topGain ? `收益最佳: ${topGain.name} (${topGain.totalGainPct}%)` : '',
       topLoss ? `收益最弱: ${topLoss.name} (${topLoss.totalGainPct}%)` : '',
       `前三大仓位集中度: ${(concentration * 100).toFixed(1)}%`,
+      `前十大重仓股数据: ${holdings.dataCoverage?.topEquityHoldings ?? 'missing'}`,
+      `真实行业分布数据: ${holdings.dataCoverage?.industryDistribution ?? 'missing'}`,
+      `基金经理最新调仓数据: ${holdings.dataCoverage?.managerChanges ?? 'missing'}`,
+      `账户外资产数据: ${holdings.dataCoverage?.externalAssets ?? 'missing'}`,
+      `风险承受能力: ${holdings.dataCoverage?.riskProfile ?? 'missing'}`,
+      `投资期限: ${holdings.dataCoverage?.investmentHorizon ?? 'missing'}`,
+      `底层股票重合项数量: ${holdings.equityOverlap?.length ?? 0}`,
     ].filter(Boolean),
   };
 };
@@ -130,7 +236,7 @@ export const buildHoldingsAnalysisPrompt = (
         ? '请输出：1) 组合概览 2) 收益归因 3) 风险评估 4) 优化建议。'
         : '请输出：1) 快速结论 2) 关键亮点 3) 主要问题 4) 下一步建议。';
 
-  return `${modeInstruction}\n要求：\n1) 使用简体中文回答。\n2) 只基于给定持仓数据推理，不要编造不存在的数据。\n3) 避免直接给出买卖指令，但可以给方向性建议。\n4) 当前模式: ${mode === 'quick' ? '快速' : mode === 'deep' ? '深度' : '风险'}分析。\n\n组合摘要：\n${summary}\n\n${modeChecklist}\n\n以下是用户当前持仓快照(JSON)：\n${JSON.stringify(holdings, null, 2)}`;
+  return `${modeInstruction}\n要求：\n1) 使用简体中文回答。\n2) 只基于给定持仓数据推理，不要编造不存在的数据。\n3) 如果前十大重仓股、真实行业分布、基金经理调仓、账户外资产、风险承受能力或投资期限在 dataCoverage 中标记为 missing/partial，必须明确说明“当前数据缺失/不完整”，不能当作已知事实分析。\n4) 可以基于 topEquityHoldings 和 equityOverlap 分析底层股票重合度；没有数据时必须跳过。\n5) 避免直接给出买卖指令，但可以给方向性建议。\n6) 当前模式: ${mode === 'quick' ? '快速' : mode === 'deep' ? '深度' : '风险'}分析。\n\n组合摘要：\n${summary}\n\n${modeChecklist}\n\n以下是用户当前持仓快照(JSON)：\n${JSON.stringify(holdings, null, 2)}`;
 };
 
 const buildSystemPrompt = (holdings: HoldingsSnapshot, options?: AiPromptOptions) =>
