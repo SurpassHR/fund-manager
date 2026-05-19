@@ -16,7 +16,7 @@ import {
 import { isEtfLinkFundName } from '../services/constants';
 import { groupFundsByInstitution, resolveInstitutions } from '../services/fundInstitution';
 import { Icons } from './Icon';
-import RefreshButton, { type RefreshButtonHandle } from './RefreshButton';
+import { type RefreshButtonHandle } from './RefreshButton';
 import { useTranslation } from '../services/i18n';
 import {
   buildEquityOverlap,
@@ -54,6 +54,12 @@ import {
 } from '../services/refreshPolicy';
 import { computeRealizedGain, deriveFundHoldingDisplayMetrics } from '../services/fundDayChange';
 import { getCachedFundStreaks } from '../services/streakCalculator';
+import { AssetAllocationCard } from './AssetAllocationCard';
+import {
+  getAvailableAssets,
+  isAssetConfigured,
+  setTotalAssets,
+} from '../services/assetAllocation';
 import type { FundStreak } from '../types';
 
 type FundHoldingsEnrichment = {
@@ -196,6 +202,8 @@ export const Dashboard: React.FC = () => {
   const [investmentPlanPrefillCode, setInvestmentPlanPrefillCode] = useState<string | undefined>(
     undefined,
   );
+  const [availableAssets, setAvailableAssets] = useState<number>(() => getAvailableAssets());
+  const assetConfigured = isAssetConfigured();
   const { autoRefresh, investmentProfile } = useSettings();
 
   const refreshBtnRef = useRef<RefreshButtonHandle>(null);
@@ -277,7 +285,7 @@ export const Dashboard: React.FC = () => {
 
   const holdingsSnapshot = useMemo<HoldingsSnapshot | null>(() => {
     if (!funds) return null;
-    const summary = calculateSummary(funds);
+    const summary = calculateSummary(funds, assetConfigured ? availableAssets : 0);
     const latestDateStr = funds.reduce((max, fund) => {
       if (!fund.lastUpdate) return max;
       return fund.lastUpdate > max ? fund.lastUpdate : max;
@@ -322,7 +330,7 @@ export const Dashboard: React.FC = () => {
       dataCoverage: buildHoldingsDataCoverage(holdings, investmentProfile),
       investmentProfile,
     };
-  }, [funds, fundHoldingsEnrichment, getHoldingDisplayMetrics, investmentProfile]);
+  }, [funds, fundHoldingsEnrichment, getHoldingDisplayMetrics, investmentProfile, assetConfigured, availableAssets]);
 
   const requestFundRefresh = useCallback(async (force = false) => {
     if (refreshInFlightRef.current) return false;
@@ -470,15 +478,22 @@ export const Dashboard: React.FC = () => {
     [activeFilter, safeFunds],
   );
 
-  const summary = useMemo(() => calculateSummary(filteredFunds), [filteredFunds]);
+  const summary = useMemo(
+    () => calculateSummary(filteredFunds, assetConfigured ? availableAssets : 0),
+    [filteredFunds, availableAssets, assetConfigured],
+  );
   const cumulativeGain = summary.cumulativeGain ?? 0;
   const cumulativeGainPct = summary.cumulativeGainPct ?? 0;
 
-  // 每日自动记录总资产快照（跳过数据未就绪的空快照）
+  // 每日自动记录总资产快照（跳过数据未就绪的空快照），使用含可用资产的增强总资产
   useEffect(() => {
-    if (summary.totalAssets <= 0) return;
-    saveTotalAssetsSnapshot(summary);
-  }, [summary]);
+    const snapshotTotal = summary.totalAssets + (assetConfigured ? availableAssets : 0);
+    if (snapshotTotal <= 0 && summary.totalAssets <= 0) return;
+    saveTotalAssetsSnapshot({
+      ...summary,
+      totalAssets: snapshotTotal,
+    });
+  }, [summary, availableAssets, assetConfigured]);
 
   const filterList =
     safeAccounts.length > 1
@@ -937,65 +952,25 @@ export const Dashboard: React.FC = () => {
         </div>
 
         <section className="relative mt-3 grid gap-3 lg:grid-cols-[minmax(0,1fr)_24rem] xl:grid-cols-[minmax(0,1fr)_26rem] md:mt-3">
-          {/* 左侧大卡片：资产概览 */}
-          <div className="glass-card relative flex flex-col justify-center overflow-hidden rounded-[2rem] px-5 py-6 md:px-8 md:py-8 min-h-[200px]">
-            <div className="pointer-events-none absolute inset-0">
-              <div className="absolute inset-y-0 left-0 w-full bg-[radial-gradient(circle_at_top_left,_rgba(148,163,184,0.12),_transparent_34%),radial-gradient(circle_at_bottom_right,_rgba(226,232,240,0.4),_transparent_28%)] dark:bg-[radial-gradient(circle_at_top_left,_rgba(96,165,250,0.12),_transparent_35%),radial-gradient(circle_at_bottom_right,_rgba(59,130,246,0.10),_transparent_28%)]" />
-            </div>
-
-            <div className="relative">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 text-[13px] font-medium tracking-wide text-slate-500 dark:text-gray-400">
-                  <span>资产概览</span>
-                  <button
-                    onClick={() => setShowValues(!showValues)}
-                    className="rounded-full bg-[var(--app-shell-panel-strong)]/50 p-1 text-slate-500 transition-colors hover:text-slate-800 dark:bg-white/5 dark:text-gray-400 dark:hover:text-gray-100"
-                  >
-                    {showValues ? <Icons.Eye size={16} /> : <Icons.EyeOff size={16} />}
-                  </button>
-                </div>
-
-                <RefreshButton ref={refreshBtnRef} onRefresh={handleManualRefresh} size="sm" />
-              </div>
-
-              <div>
-                <div className="text-[11px] font-semibold tracking-wide text-slate-400 dark:text-gray-500">
-                  总资产 (CNY)
-                </div>
-                <button
-                  onClick={() => setIsTotalAssetsOpen(true)}
-                  className="mt-1 text-4xl font-black tracking-[-0.04em] text-slate-900 dark:text-gray-50 md:text-[3.25rem] md:leading-tight hover:opacity-80 transition-opacity cursor-pointer text-left"
-                >
-                  {showValues ? formatCurrency(summary.totalAssets) : '****'}
-                </button>
-              </div>
-
-              <div className="mt-4 flex flex-wrap items-center gap-2">
-                <div className="inline-flex items-center gap-2 rounded-full border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)]/80 px-3.5 py-1.5 transition-colors dark:border-white/5 dark:bg-white/5">
-                  <span className="text-[12px] font-medium text-amber-600 dark:text-amber-500">
-                    持有收益
-                  </span>
-                  <span className={`text-[13px] font-bold ${getSignColor(summary.holdingGain)}`}>
-                    {showValues ? formatSignedCurrency(summary.holdingGain) : '****'}
-                    <span className="ml-1 text-xs font-medium">
-                      ({showValues ? formatPct(summary.holdingGainPct) : '****'})
-                    </span>
-                  </span>
-                </div>
-                <div className="inline-flex items-center gap-2 rounded-full border border-indigo-200 bg-indigo-50/80 px-3.5 py-1.5 transition-colors dark:border-indigo-400/20 dark:bg-indigo-500/10">
-                  <span className="text-[12px] font-medium text-indigo-600 dark:text-indigo-400">
-                    累计收益
-                  </span>
-                  <span className={`text-[13px] font-bold ${getSignColor(cumulativeGain)}`}>
-                    {showValues ? formatSignedCurrency(cumulativeGain) : '****'}
-                    <span className="ml-1 text-xs font-medium">
-                      ({showValues ? formatPct(cumulativeGainPct) : '****'})
-                    </span>
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
+          {/* 左侧大卡片：资产概览（含基金/可用资产分配） */}
+          <AssetAllocationCard
+            fundAssets={summary.totalAssets}
+            availableAssets={availableAssets}
+            isConfigured={assetConfigured}
+            holdingGain={summary.holdingGain}
+            holdingGainPct={summary.holdingGainPct}
+            cumulativeGain={cumulativeGain}
+            cumulativeGainPct={cumulativeGainPct}
+            showValues={showValues}
+            onToggleShowValues={() => setShowValues(!showValues)}
+            onRefresh={handleManualRefresh}
+            onSetTotalAssets={(total) => {
+              setTotalAssets(total, summary.totalAssets);
+              setAvailableAssets(getAvailableAssets());
+            }}
+            onOpenTotalAssetsHistory={() => setIsTotalAssetsOpen(true)}
+            refreshBtnRef={refreshBtnRef}
+          />
 
           {/* 右侧卡片组 */}
           <div className="flex flex-col gap-3">

@@ -6,6 +6,7 @@ import { SelectDropdown } from './SelectDropdown';
 import type { Fund, PendingTransaction } from '../types';
 import { parseSellInputToShares } from './adjustPositionUtils';
 import { ModalShell } from './ModalShell';
+import { deductAvailableForBuy, addAvailableForSell } from '../services/assetAllocation';
 
 interface AdjustPositionModalProps {
   isOpen: boolean;
@@ -101,6 +102,15 @@ export const AdjustPositionModal: React.FC<AdjustPositionModalProps> = ({
       await db.funds.update(fund.id, {
         pendingTransactions: [...existingPending, newTx],
       });
+    }
+
+    // 同步调整可用资产：加仓时扣减，减仓时增加
+    if (type === 'buy') {
+      deductAvailableForBuy(val);
+    } else {
+      // 减仓：按当前净值估算到账金额调整可用资产
+      const estimatedAmount = val * (fund?.currentNav ?? 0);
+      addAvailableForSell(estimatedAmount);
     }
 
     onClose();

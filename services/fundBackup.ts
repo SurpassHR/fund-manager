@@ -9,6 +9,8 @@ export interface FundBackupPayload {
   watchlists?: WatchlistItem[];
   investmentPlans?: InvestmentPlan[];
   investmentProfile?: InvestmentProfileSnapshot;
+  /** 可用资产（余额宝类随时可取用资产），undefined 表示未配置 */
+  availableAssets?: number;
 }
 
 const BACKUP_VERSION = 1;
@@ -159,6 +161,7 @@ export const buildFundBackupPayload = (
   watchlists: WatchlistItem[] = [],
   investmentPlans: InvestmentPlan[] = [],
   investmentProfile?: InvestmentProfileSnapshot,
+  availableAssets?: number,
 ): FundBackupPayload => {
   return {
     version: BACKUP_VERSION,
@@ -168,6 +171,7 @@ export const buildFundBackupPayload = (
     watchlists: watchlists.map(stripWatchlistId),
     investmentPlans: investmentPlans.map(stripInvestmentPlanId),
     investmentProfile,
+    ...(availableAssets !== undefined ? { availableAssets } : {}),
   };
 };
 
@@ -252,6 +256,11 @@ export const parseAndNormalizeFundBackupPayload = (
     return stripInvestmentPlanId(plan as InvestmentPlan);
   });
 
+  const parsedAvailableAssets =
+    typeof payload.availableAssets === 'number' && isFinite(payload.availableAssets)
+      ? payload.availableAssets
+      : undefined;
+
   return {
     funds: normalizedFunds,
     accounts: normalizedAccounts,
@@ -278,6 +287,7 @@ export const parseAndNormalizeFundBackupPayload = (
                 : '',
           }
         : undefined,
+    availableAssets: parsedAvailableAssets,
   };
 };
 

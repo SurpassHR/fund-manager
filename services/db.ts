@@ -28,6 +28,7 @@ import {
   deriveFundHoldingDisplayMetrics,
   deriveFundIntradayDisplayMetrics,
 } from './fundDayChange';
+import { getAvailableAssets, isAssetConfigured, setAvailableAssets, resetAssetAllocation } from './assetAllocation';
 import { isEtfLinkFundName } from './constants';
 import { sanitizeWatchlistName } from './watchlistName';
 import { runFundQuotePipeline } from './fundQuotePipeline';
@@ -674,11 +675,16 @@ export const refreshFundData = (options?: RefreshOptions) => {
         await runSettlementPipeline({ force: forceRefresh });
       }
 
-      // 刷新完成后立即保存总资产快照，确保使用最新数据
+      // 刷新完成后立即保存总资产快照，确保使用最新数据（含可用资产）
       const latestFunds = await db.funds.toArray();
-      const snapshot = calculateSummary(latestFunds);
-      if (snapshot.totalAssets > 0) {
-        void saveTotalAssetsSnapshot(snapshot);
+      const avail = isAssetConfigured() ? getAvailableAssets() : 0;
+      const snapshot = calculateSummary(latestFunds, avail);
+      const snapshotTotal = snapshot.totalAssets + avail;
+      if (snapshotTotal > 0) {
+        void saveTotalAssetsSnapshot({
+          ...snapshot,
+          totalAssets: snapshotTotal,
+        });
       }
 
       const failed = failedBase + failedUpdates;
@@ -874,12 +880,12 @@ export const refreshWatchlistData = (options?: RefreshOptions) => {
 /**
  * Calculates the aggregate asset summary for a given list of funds.
  * @param funds - Array of fund objects to aggregate.
+ * @param availableAssets - Optional available assets (余额宝类), used as denominator for day gain pct.
  * @returns The calculated AssetSummary including total assets, daily gain, and holding gain.
  */
-export const calculateSummary = (funds: Fund[]): AssetSummary => {
+export const calculateSummary = (funds: Fund[], availableAssets = 0): AssetSummary => {
   let totalAssets = 0;
   let totalDayGain = 0;
-  let totalCost = 0;
   let holdingGain = 0;
   let clearedRealizedGain = 0;
 
@@ -888,7 +894,6 @@ export const calculateSummary = (funds: Fund[]): AssetSummary => {
   funds.forEach((fund) => {
     const {
       marketValue,
-      totalCost: costValue,
       totalGain,
       isInTransit,
       dayChangeBaseNav,
@@ -919,7 +924,6 @@ export const calculateSummary = (funds: Fund[]): AssetSummary => {
 
     totalAssets += marketValue;
     totalDayGain += dayGain;
-    totalCost += costValue;
     holdingGain += totalGain;
 
     // 累加已实现盈亏（含持仓中和已清仓基金）
@@ -927,11 +931,13 @@ export const calculateSummary = (funds: Fund[]): AssetSummary => {
     clearedRealizedGain += realizedGain;
   });
 
-  const holdingGainPct = totalCost > 0 ? (holdingGain / totalCost) * 100 : 0;
+  // 持有收益 / 累计收益 / 今日收益 百分比分母统一使用基金资产+可用资产
+  const enhancedTotal = totalAssets + availableAssets;
+  const holdingGainPct = enhancedTotal > 0 ? (holdingGain / enhancedTotal) * 100 : 0;
   const totalDayGainPct =
-    totalAssets - totalDayGain > 0 ? (totalDayGain / (totalAssets - totalDayGain)) * 100 : 0;
+    enhancedTotal - totalDayGain > 0 ? (totalDayGain / (enhancedTotal - totalDayGain)) * 100 : 0;
   const cumulativeGain = holdingGain + clearedRealizedGain;
-  const cumulativeGainPct = totalCost > 0 ? (cumulativeGain / totalCost) * 100 : 0;
+  const cumulativeGainPct = enhancedTotal > 0 ? (cumulativeGain / enhancedTotal) * 100 : 0;
 
   return {
     totalAssets,
@@ -1049,6 +1055,7 @@ export const exportFundsToJsonString = async (
   const allAccounts = await db.accounts.toArray();
   const allWatchlists = await db.watchlists.toArray();
   const allInvestmentPlans = await db.investmentPlans.toArray();
+  const availableAssets = isAssetConfigured() ? getAvailableAssets() : undefined;
   return JSON.stringify(
     buildFundBackupPayload(
       allFunds,
@@ -1057,6 +1064,7 @@ export const exportFundsToJsonString = async (
       allWatchlists,
       allInvestmentPlans,
       investmentProfile,
+      availableAssets,
     ),
     null,
     2,
@@ -1075,6 +1083,7 @@ export const importFundsFromBackupContent = async (
     accounts: importedAccounts,
     watchlists: importedWatchlists,
     investmentPlans: importedInvestmentPlans,
+    availableAssets: importedAvailableAssets,
   } = parseAndNormalizeFundBackupPayload(content);
 
   const importMode = options?.importMode ?? 'merge';
@@ -1135,6 +1144,13 @@ export const importFundsFromBackupContent = async (
         }
         if (importedInvestmentPlans.length > 0) {
           await db.investmentPlans.bulkAdd(importedInvestmentPlans);
+        }
+
+        // 恢复可用资产配置
+        if (importedAvailableAssets !== undefined) {
+          setAvailableAssets(importedAvailableAssets);
+        } else {
+          resetAssetAllocation();
         }
       },
     );
@@ -1254,6 +1270,11 @@ export const importFundsFromBackupContent = async (
     await db.investmentPlans.add(plan);
     added++;
     existingPlanKeys.add(plan.fundCode);
+  }
+
+  // 合并模式下，如果导入数据包含可用资产配置则恢复
+  if (importedAvailableAssets !== undefined) {
+    setAvailableAssets(importedAvailableAssets);
   }
 
   return { added, skipped };

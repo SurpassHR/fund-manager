@@ -239,6 +239,7 @@ describe('calculateSummary', () => {
 
     expect(summary.totalDayGain).toBeCloseTo(23.45, 6);
     expect(summary.holdingGain).toBeCloseTo(23.45, 6);
-    expect(summary.holdingGainPct).toBeCloseTo(23.45, 6);
+    // holdingGainPct = holdingGain / enhancedTotal * 100 = 23.45 / 123.45 * 100
+    expect(summary.holdingGainPct).toBeCloseTo(18.9955, 4);
   });
 });

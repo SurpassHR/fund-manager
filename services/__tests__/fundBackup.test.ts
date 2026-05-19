@@ -144,4 +144,40 @@ describe('fundBackup', () => {
       notes: '长期持有',
     });
   });
+
+  it('支持在备份中携带可用资产', () => {
+    const payload = buildFundBackupPayload(
+      [buildFund()],
+      '2026-03-19T00:00:00.000Z',
+      [],
+      [],
+      [],
+      undefined,
+      50000,
+    );
+
+    const normalized = parseAndNormalizeFundBackupPayload(payload);
+    expect(normalized.availableAssets).toBe(50000);
+  });
+
+  it('未携带可用资产时返回 undefined', () => {
+    const payload = buildFundBackupPayload([buildFund()], '2026-03-19T00:00:00.000Z');
+    const normalized = parseAndNormalizeFundBackupPayload(payload);
+    expect(normalized.availableAssets).toBeUndefined();
+  });
+
+  it('可用资产为 0 时保留为 0', () => {
+    const payload = buildFundBackupPayload(
+      [buildFund()],
+      '2026-03-19T00:00:00.000Z',
+      [],
+      [],
+      [],
+      undefined,
+      0,
+    );
+
+    const normalized = parseAndNormalizeFundBackupPayload(payload);
+    expect(normalized.availableAssets).toBe(0);
+  });
 });
