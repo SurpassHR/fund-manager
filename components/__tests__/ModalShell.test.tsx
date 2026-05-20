@@ -58,9 +58,7 @@ describe('ModalShell acrylic frosted glass', () => {
 
     const card = document.querySelector('.backdrop-blur-xl')!;
     expect(card).not.toBeNull();
-    expect(card).toHaveClass('bg-white/80');
-    expect(card).toHaveClass('dark:bg-card-dark/10');
-    expect(card).not.toHaveClass('bg-white/10');
+    expect(card).toHaveClass('bg-[var(--app-shell-panel)]/92');
   });
 
   it('always applies theme-aware acrylic classes even with custom className', () => {
@@ -68,9 +66,7 @@ describe('ModalShell acrylic frosted glass', () => {
 
     const card = document.querySelector('.backdrop-blur-xl')!;
     expect(card).not.toBeNull();
-    expect(card).toHaveClass('bg-white/80');
-    expect(card).toHaveClass('dark:bg-card-dark/10');
-    expect(card).not.toHaveClass('bg-white/10');
+    expect(card).toHaveClass('bg-[var(--app-shell-panel)]/92');
     expect(card).toHaveClass('custom-structural');
     expect(card).toHaveClass('border-2');
   });

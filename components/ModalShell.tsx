@@ -23,7 +23,7 @@ interface ModalShellProps {
   onExitComplete?: () => void;
 }
 
-const ACRYLIC_CARD = 'bg-white/80 dark:bg-card-dark/10 backdrop-blur-xl';
+const ACRYLIC_CARD = 'bg-[var(--app-shell-panel)]/92 dark:bg-card-dark/15 backdrop-blur-xl';
 const STRUCTURAL_CARD =
   'rounded-t-2xl sm:rounded-xl w-full sm:max-w-md overflow-hidden shadow-2xl flex flex-col max-h-[92vh] sm:max-h-[90vh] border border-[var(--app-shell-line)]';
 

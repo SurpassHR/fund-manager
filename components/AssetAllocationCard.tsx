@@ -127,6 +127,13 @@ export const AssetAllocationCard: React.FC<AssetAllocationCardProps> = ({
   // 卡片通用样式
   const cardBase = 'glass-card rounded-3xl p-6';
 
+  // 文字色系（浅色模式深色字 / 深色模式浅色字）
+  const labelMuted = 'text-slate-400 dark:text-gray-500';
+  const labelSoft = 'text-slate-500 dark:text-gray-400';
+  const numberBold = 'text-slate-800 dark:text-gray-100';
+  const numberHero = 'text-slate-900 dark:text-gray-50';
+  const subtle = 'text-slate-400 dark:text-gray-600';
+
   return (
     <div className="lg:col-span-2">
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
@@ -140,11 +147,13 @@ export const AssetAllocationCard: React.FC<AssetAllocationCardProps> = ({
           <div className="relative">
             {/* 标题行 */}
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-[13px] font-medium tracking-wide text-gray-400">
+              <div
+                className={`flex items-center gap-2 text-[13px] font-medium tracking-wide ${labelSoft}`}
+              >
                 <span>总资产概览</span>
                 <button
                   onClick={onToggleShowValues}
-                  className="rounded-full p-1 text-gray-500 transition-colors hover:text-gray-300"
+                  className="rounded-full p-1 text-slate-400 transition-colors hover:text-slate-700 dark:text-gray-500 dark:hover:text-gray-300"
                   aria-label={showValues ? '隐藏金额' : '显示金额'}
                 >
                   {showValues ? <Icons.Eye size={16} /> : <Icons.EyeOff size={16} />}
@@ -164,12 +173,12 @@ export const AssetAllocationCard: React.FC<AssetAllocationCardProps> = ({
               {/* 左侧：总资产 */}
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
-                  <div className="text-[11px] font-semibold tracking-wide text-gray-500">
+                  <div className={`text-[11px] font-semibold tracking-wide ${labelMuted}`}>
                     总资产 (CNY)
                   </div>
                   <button
                     onClick={handleStartEdit}
-                    className="rounded-full p-0.5 text-gray-500 transition-colors hover:text-gray-300"
+                    className={`rounded-full p-0.5 ${labelMuted} transition-colors hover:text-slate-700 dark:hover:text-gray-300`}
                     aria-label="编辑总资产"
                   >
                     <Icons.Edit size={12} />
@@ -184,7 +193,7 @@ export const AssetAllocationCard: React.FC<AssetAllocationCardProps> = ({
                       value={editValue}
                       onChange={(e) => setEditValue(e.target.value)}
                       onKeyDown={handleEditKeyDown}
-                      className="w-40 rounded-lg border border-blue-600 bg-slate-800/90 px-3 py-1.5 text-2xl font-black tracking-[-0.04em] text-gray-50 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 md:text-3xl [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      className="w-40 rounded-lg border border-blue-600 bg-white px-3 py-1.5 text-2xl font-black tracking-[-0.04em] text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:bg-slate-800/90 dark:text-gray-50 md:text-3xl [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                       placeholder="输入总资产"
                       min={Math.round(fundAssets)}
                     />
@@ -199,7 +208,7 @@ export const AssetAllocationCard: React.FC<AssetAllocationCardProps> = ({
                       </button>
                       <button
                         onClick={handleCancelEdit}
-                        className="rounded-lg bg-white/10 p-1.5 text-gray-400 transition-colors hover:bg-white/20"
+                        className="rounded-lg bg-slate-200 p-1.5 text-slate-500 transition-colors hover:bg-slate-300 dark:bg-white/10 dark:text-gray-400 dark:hover:bg-white/20"
                         aria-label="取消"
                       >
                         <Icons.X size={16} />
@@ -210,17 +219,17 @@ export const AssetAllocationCard: React.FC<AssetAllocationCardProps> = ({
                   <div className="flex items-baseline gap-1">
                     <button
                       onClick={onOpenTotalAssetsHistory}
-                      className="mt-1 text-4xl font-black tracking-[-0.04em] text-gray-50 md:text-[3.25rem] md:leading-tight hover:opacity-80 transition-opacity cursor-pointer text-left"
+                      className={`mt-1 text-4xl font-black tracking-[-0.04em] ${numberHero} md:text-[3.25rem] md:leading-tight hover:opacity-80 transition-opacity cursor-pointer text-left`}
                     >
                       {showValues ? formatCurrency(totalAssets) : '****'}
                     </button>
-                    {showValues && <span className="text-lg font-medium text-gray-400">元</span>}
+                    {showValues && <span className={`text-lg font-medium ${labelMuted}`}>元</span>}
                   </div>
                 )}
 
                 {/* 编辑时预览可用资产变化 */}
                 {isEditing && editValid && (
-                  <div className="mt-1 text-xs text-gray-500">
+                  <div className={`mt-1 text-xs ${labelMuted}`}>
                     可用资产将调整为 {showValues ? formatCurrency(editAvailable) : '****'}
                   </div>
                 )}
@@ -228,14 +237,14 @@ export const AssetAllocationCard: React.FC<AssetAllocationCardProps> = ({
 
               {/* 右侧：今日收益 */}
               <div className="shrink-0 text-right">
-                <div className="text-[11px] font-medium text-gray-500">今日收益</div>
+                <div className={`text-[11px] font-medium ${labelMuted}`}>今日收益</div>
                 <div
                   className={`mt-1 text-2xl font-bold flex items-center justify-end gap-1 ${getSignColor(totalDayGain)}`}
                 >
                   {totalDayGain >= 0 ? <Icons.ArrowUp size={14} /> : <Icons.ArrowDown size={14} />}
                   <span>{showValues ? formatSignedCurrency(totalDayGain) : '****'}</span>
                 </div>
-                <div className="mt-0.5 text-xs text-gray-500 text-right">
+                <div className={`mt-0.5 text-xs ${labelMuted} text-right`}>
                   {showValues ? formatPct(totalDayGainPct) : '****'}
                 </div>
               </div>
@@ -249,18 +258,18 @@ export const AssetAllocationCard: React.FC<AssetAllocationCardProps> = ({
           <div className={`${cardBase} flex-1 flex flex-col justify-center`}>
             <div className="flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-red-400" />
-              <span className="text-xs font-medium text-gray-400">基金定投资产</span>
+              <span className={`text-xs font-medium ${labelSoft}`}>基金定投资产</span>
               {isConfigured && (
                 <span className="ml-auto inline-flex items-center rounded-full bg-red-500/10 border border-red-500/20 px-2 py-0.5 text-[11px] font-semibold text-red-400">
                   {fundRatioPct}%
                 </span>
               )}
             </div>
-            <div className="mt-2 text-xl font-bold text-gray-100">
+            <div className={`mt-2 text-xl font-bold ${numberBold}`}>
               {showValues ? formatCurrency(fundAssets) : '****'}
             </div>
             {isConfigured && totalAssets > 0 && (
-              <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-white/5">
+              <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-white/5">
                 <div
                   className="h-full rounded-full bg-gradient-to-r from-red-500/60 to-red-400"
                   style={{ width: `${fundRatio * 100}%` }}
@@ -273,20 +282,20 @@ export const AssetAllocationCard: React.FC<AssetAllocationCardProps> = ({
           <div className={`${cardBase} flex-1 flex flex-col justify-center`}>
             <div className="flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-blue-400" />
-              <span className="text-xs font-medium text-gray-400">活期可用资金</span>
+              <span className={`text-xs font-medium ${labelSoft}`}>活期可用资金</span>
               {isConfigured ? (
                 <span className="ml-auto inline-flex items-center rounded-full bg-blue-500/10 border border-blue-500/20 px-2 py-0.5 text-[11px] font-semibold text-blue-400">
                   {availableRatioPct}%
                 </span>
               ) : (
-                <span className="ml-auto text-[10px] text-gray-500">点击总资产旁✏️配置</span>
+                <span className={`ml-auto text-[10px] ${labelMuted}`}>点击总资产旁✏️配置</span>
               )}
             </div>
-            <div className="mt-2 text-xl font-bold text-gray-100">
+            <div className={`mt-2 text-xl font-bold ${numberBold}`}>
               {showValues ? formatCurrency(availableAssets) : '****'}
             </div>
             {isConfigured && totalAssets > 0 && (
-              <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-white/5">
+              <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-white/5">
                 <div
                   className="h-full rounded-full bg-gradient-to-r from-blue-500/60 to-blue-400"
                   style={{ width: `${(1 - fundRatio) * 100}%` }}
@@ -304,7 +313,7 @@ export const AssetAllocationCard: React.FC<AssetAllocationCardProps> = ({
           >
             {/* 绿色微缩下跌走势 SVG 背景 */}
             <svg
-              className="pointer-events-none absolute inset-0 w-full h-full opacity-[0.04]"
+              className="pointer-events-none absolute inset-0 w-full h-full opacity-[0.06] dark:opacity-[0.04]"
               viewBox="0 0 200 100"
               preserveAspectRatio="none"
             >
@@ -316,9 +325,9 @@ export const AssetAllocationCard: React.FC<AssetAllocationCardProps> = ({
               />
             </svg>
             <div className="relative">
-              <div className="text-[11px] font-medium text-gray-500">
+              <div className={`text-[11px] font-medium ${labelMuted}`}>
                 <span>持有盈亏</span>
-                <span className="text-gray-600"> · 截止昨日</span>
+                <span className={subtle}> · 截止昨日</span>
               </div>
               <div
                 className={`mt-1.5 text-xl font-bold flex items-center gap-1 ${getSignColor(holdingGain)}`}
@@ -326,7 +335,7 @@ export const AssetAllocationCard: React.FC<AssetAllocationCardProps> = ({
                 {holdingSign >= 0 ? <Icons.ArrowUp size={14} /> : <Icons.ArrowDown size={14} />}
                 <span>{showValues ? formatSignedCurrency(holdingGain) : '****'}</span>
               </div>
-              <div className="mt-0.5 text-xs text-gray-500">
+              <div className={`mt-0.5 text-xs ${labelMuted}`}>
                 {showValues ? formatPct(holdingGainPct) : '****'}
               </div>
             </div>
@@ -338,7 +347,7 @@ export const AssetAllocationCard: React.FC<AssetAllocationCardProps> = ({
           >
             {/* 红色微缩上行趋势 SVG 背景 */}
             <svg
-              className="pointer-events-none absolute inset-0 w-full h-full opacity-[0.04]"
+              className="pointer-events-none absolute inset-0 w-full h-full opacity-[0.06] dark:opacity-[0.04]"
               viewBox="0 0 200 100"
               preserveAspectRatio="none"
             >
@@ -350,9 +359,9 @@ export const AssetAllocationCard: React.FC<AssetAllocationCardProps> = ({
               />
             </svg>
             <div className="relative">
-              <div className="text-[11px] font-medium text-gray-500">
+              <div className={`text-[11px] font-medium ${labelMuted}`}>
                 <span>累计总盈亏</span>
-                <span className="text-gray-600"> · 历史至今</span>
+                <span className={subtle}> · 历史至今</span>
               </div>
               <div
                 className={`mt-1.5 text-xl font-bold flex items-center gap-1 ${getSignColor(cumulativeGain)}`}
@@ -360,7 +369,7 @@ export const AssetAllocationCard: React.FC<AssetAllocationCardProps> = ({
                 {cumulativeSign >= 0 ? <Icons.ArrowUp size={14} /> : <Icons.ArrowDown size={14} />}
                 <span>{showValues ? formatSignedCurrency(cumulativeGain) : '****'}</span>
               </div>
-              <div className="mt-0.5 text-xs text-gray-500">
+              <div className={`mt-0.5 text-xs ${labelMuted}`}>
                 {showValues ? formatPct(cumulativeGainPct) : '****'}
               </div>
             </div>
