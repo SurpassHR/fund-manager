@@ -18,8 +18,8 @@
   --color-terminal-line-strong: rgba(17, 19, 24, 0.22);
   --color-terminal-accent: #c28b2c;
   --color-terminal-accent-soft: rgba(194, 139, 44, 0.18);
-  --color-terminal-panel: rgba(255, 252, 245, 0.76);
-  --color-terminal-panel-strong: rgba(255, 251, 242, 0.9);
+  --color-terminal-panel: rgba(255, 255, 255, 0.76);
+  --color-terminal-panel-strong: rgba(255, 255, 255, 0.9);
   --color-terminal-shadow: 0 28px 90px rgba(33, 26, 14, 0.16);
 
   --color-terminal-ink-dark: #f4efe5;
