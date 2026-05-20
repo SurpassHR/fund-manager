@@ -486,6 +486,7 @@ body {
 .glass-nav {
   --glass-nav-blur: blur(20px);
   background: rgba(255, 255, 255, 0.85);
+  border: 1px solid rgba(27, 34, 48, 0.06);
   -webkit-backdrop-filter: blur(20px);
 }
 
@@ -515,9 +516,9 @@ body {
 }
 
 .dark .glass-card {
-  background: rgba(14, 18, 26, 0.8);
+  background: #ffffff08;
   border: 1px solid rgba(27, 34, 48, 0.3);
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+  box-shadow: 0 8px 32px #0000005e;
 }
 
 /* 全局 input 重置 — 移除 WebKit 原生渲染 */

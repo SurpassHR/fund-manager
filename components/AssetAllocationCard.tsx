@@ -253,7 +253,7 @@ export const AssetAllocationCard: React.FC<AssetAllocationCardProps> = ({
         </div>
 
         {/* ===== 中列: Card 2 (基金定投资产) + Card 3 (活期可用资金) ===== */}
-        <div className="flex flex-col gap-2">
+        <div className="grid grid-cols-2 md:flex md:flex-col gap-2">
           {/* Card 2: 基金定投资产 */}
           <div className={`${cardBase} flex-1 flex flex-col justify-center`}>
             <div className="flex items-center gap-2">
@@ -306,7 +306,7 @@ export const AssetAllocationCard: React.FC<AssetAllocationCardProps> = ({
         </div>
 
         {/* ===== 右列: Card 4 (持有盈亏) + Card 5 (累计总盈亏) ===== */}
-        <div className="flex flex-col gap-2">
+        <div className="grid grid-cols-2 md:flex md:flex-col gap-2">
           {/* Card 4: 持有盈亏 */}
           <div
             className={`${cardBase} flex-1 relative overflow-hidden flex flex-col justify-center`}
