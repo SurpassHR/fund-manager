@@ -55,11 +55,7 @@ import {
 import { computeRealizedGain, deriveFundHoldingDisplayMetrics } from '../services/fundDayChange';
 import { getCachedFundStreaks } from '../services/streakCalculator';
 import { AssetAllocationCard } from './AssetAllocationCard';
-import {
-  getAvailableAssets,
-  isAssetConfigured,
-  setTotalAssets,
-} from '../services/assetAllocation';
+import { getAvailableAssets, isAssetConfigured, setTotalAssets } from '../services/assetAllocation';
 import type { FundStreak } from '../types';
 
 type FundHoldingsEnrichment = {
@@ -330,7 +326,14 @@ export const Dashboard: React.FC = () => {
       dataCoverage: buildHoldingsDataCoverage(holdings, investmentProfile),
       investmentProfile,
     };
-  }, [funds, fundHoldingsEnrichment, getHoldingDisplayMetrics, investmentProfile, assetConfigured, availableAssets]);
+  }, [
+    funds,
+    fundHoldingsEnrichment,
+    getHoldingDisplayMetrics,
+    investmentProfile,
+    assetConfigured,
+    availableAssets,
+  ]);
 
   const requestFundRefresh = useCallback(async (force = false) => {
     if (refreshInFlightRef.current) return false;
@@ -951,8 +954,7 @@ export const Dashboard: React.FC = () => {
           </div>
         </div>
 
-        <section className="relative mt-3 grid gap-3 lg:grid-cols-[minmax(0,1fr)_24rem] xl:grid-cols-[minmax(0,1fr)_26rem] md:mt-3">
-          {/* 左侧大卡片：资产概览（含基金/可用资产分配） */}
+        <section className="relative mt-3 md:mt-3">
           <AssetAllocationCard
             fundAssets={summary.totalAssets}
             availableAssets={availableAssets}
@@ -961,6 +963,8 @@ export const Dashboard: React.FC = () => {
             holdingGainPct={summary.holdingGainPct}
             cumulativeGain={cumulativeGain}
             cumulativeGainPct={cumulativeGainPct}
+            totalDayGain={summary.totalDayGain}
+            totalDayGainPct={summary.totalDayGainPct}
             showValues={showValues}
             onToggleShowValues={() => setShowValues(!showValues)}
             onRefresh={handleManualRefresh}
@@ -971,51 +975,6 @@ export const Dashboard: React.FC = () => {
             onOpenTotalAssetsHistory={() => setIsTotalAssetsOpen(true)}
             refreshBtnRef={refreshBtnRef}
           />
-
-          {/* 右侧卡片组 */}
-          <div className="flex flex-col gap-3">
-            {/* 顶部两个小卡片 */}
-            <div className="grid grid-cols-2 gap-3">
-              <div className="glass-card flex min-w-0 flex-1 flex-col justify-center rounded-[1.25rem] px-4 py-4 md:py-5">
-                <div className="text-[10px] font-semibold tracking-[0.1em] text-slate-400 dark:text-gray-500">
-                  当前账户
-                </div>
-                <div className="mt-1.5 truncate text-[15px] font-bold text-slate-800 dark:text-gray-100">
-                  {activeFilterLabel}
-                </div>
-              </div>
-              <div className="glass-card flex min-w-0 flex-1 flex-col justify-center rounded-[1.25rem] px-4 py-4 md:py-5">
-                <div className="text-[10px] font-semibold tracking-[0.1em] text-slate-400 dark:text-gray-500">
-                  持仓数量
-                </div>
-                <div className="mt-1.5 truncate text-[15px] font-bold text-slate-800 dark:text-gray-100">
-                  {sortedFunds.length}
-                </div>
-              </div>
-            </div>
-
-            {/* 底部收益卡片 */}
-            <div className="glass-card relative flex min-w-0 flex-1 flex-col justify-center overflow-hidden rounded-[1.5rem] border-l-[3px] border-l-blue-500 px-5 py-5 dark:border-l-blue-500">
-              <div className="flex items-center justify-between">
-                <div className="text-[11px] font-semibold tracking-[0.1em] text-slate-400 dark:text-gray-500">
-                  今日收益
-                </div>
-                <div className="rounded-lg bg-blue-500/10 p-1.5 text-blue-500 dark:bg-blue-500/20 dark:text-blue-400">
-                  <Icons.TrendingUp size={16} />
-                </div>
-              </div>
-              <div className="mt-3 flex items-baseline gap-2">
-                <span
-                  className={`text-[2rem] font-black tracking-[-0.03em] ${getSignColor(summary.totalDayGain)}`}
-                >
-                  {showValues ? formatSignedCurrency(summary.totalDayGain) : '****'}
-                </span>
-                <span className="text-sm font-semibold tracking-wide text-slate-400 dark:text-gray-500">
-                  {showValues ? formatPct(summary.totalDayGainPct) : '****'}
-                </span>
-              </div>
-            </div>
-          </div>
         </section>
 
         <section className="glass-card mt-3 overflow-hidden rounded-3xl md:mt-5">

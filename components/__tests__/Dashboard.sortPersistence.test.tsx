@@ -245,7 +245,7 @@ describe('Dashboard sort persistence', () => {
     expect(screen.getAllByText('200.00').length).toBeGreaterThan(0);
     expect(screen.getAllByText('+100.00%').length).toBeGreaterThan(0);
 
-    const overviewLabel = screen.getByText('资产概览');
+    const overviewLabel = screen.getByText('总资产概览');
     const toggleButton = overviewLabel.parentElement?.querySelector('button');
     expect(toggleButton).not.toBeNull();
 

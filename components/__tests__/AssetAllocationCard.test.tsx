@@ -17,6 +17,8 @@ const DEFAULT_PROPS = {
   holdingGainPct: 5.0,
   cumulativeGain: 8000,
   cumulativeGainPct: 8.0,
+  totalDayGain: 1200,
+  totalDayGainPct: 1.2,
   showValues: true,
   onToggleShowValues: vi.fn(),
   onRefresh: vi.fn().mockResolvedValue(undefined),
@@ -54,10 +56,10 @@ describe('AssetAllocationCard', () => {
     expect(totalMatches.length).toBeGreaterThanOrEqual(1);
   });
 
-  it('渲染基金资产和可用资产两个子卡片', () => {
+  it('渲染基金定投资产和活期可用资金两个子卡片', () => {
     render(<AssetAllocationCard {...DEFAULT_PROPS} availableAssets={40000} isConfigured={true} />);
-    expect(screen.getByText('基金资产')).toBeTruthy();
-    expect(screen.getByText('可用资产')).toBeTruthy();
+    expect(screen.getByText('基金定投资产')).toBeTruthy();
+    expect(screen.getByText('活期可用资金')).toBeTruthy();
   });
 
   it('未配置时可用资产显示提示文字', () => {
@@ -68,15 +70,15 @@ describe('AssetAllocationCard', () => {
   it('已配置时显示占比百分比', () => {
     render(<AssetAllocationCard {...DEFAULT_PROPS} availableAssets={40000} isConfigured={true} />);
     // 基金占比 100000/140000 ≈ 71.4%
-    expect(screen.getByText('占比 71.4%')).toBeTruthy();
+    expect(screen.getByText('71.4%')).toBeTruthy();
     // 可用占比 40000/140000 ≈ 28.6%
-    expect(screen.getByText('占比 28.6%')).toBeTruthy();
+    expect(screen.getByText('28.6%')).toBeTruthy();
   });
 
-  it('显示持有收益和累计收益', () => {
+  it('显示持有盈亏和累计总盈亏', () => {
     render(<AssetAllocationCard {...DEFAULT_PROPS} />);
-    expect(screen.getByText('持有收益')).toBeTruthy();
-    expect(screen.getByText('累计收益')).toBeTruthy();
+    expect(screen.getByText('持有盈亏')).toBeTruthy();
+    expect(screen.getByText('累计总盈亏')).toBeTruthy();
   });
 
   it('隐私模式下隐藏数字显示 ****', () => {
