@@ -183,6 +183,7 @@ export const parseAndNormalizeFundBackupPayload = (
   watchlists: WatchlistItem[];
   investmentPlans: InvestmentPlan[];
   investmentProfile?: InvestmentProfileSnapshot;
+  availableAssets?: number;
 } => {
   const parsed =
     typeof content === 'string' ? (JSON.parse(content) as Partial<FundBackupPayload>) : content;
