@@ -1,4 +1,5 @@
 import { db, getSettlementDate } from './db';
+import { deductAvailableForBuy } from './assetAllocation';
 import type { InvestmentPlan, InvestmentFrequency, PendingTransaction } from '../types';
 
 const getLocalDateString = () => {
@@ -111,6 +112,8 @@ export const executeInvestmentPlans = async (): Promise<void> => {
         await db.funds.update(fund.id, {
           pendingTransactions: [...existingPending, newTx],
         });
+
+        deductAvailableForBuy(plan.amount);
 
         await db.investmentPlans.update(plan.id!, { lastExecutedDate: today });
       }

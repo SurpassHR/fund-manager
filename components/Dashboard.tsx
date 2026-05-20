@@ -345,6 +345,7 @@ export const Dashboard: React.FC = () => {
     try {
       await refreshFundData({ force });
       writeRefreshLastSuccessAt('fund', Date.now());
+      setAvailableAssets(getAvailableAssets());
       return true;
     } finally {
       refreshInFlightRef.current = false;
@@ -1788,7 +1789,10 @@ export const Dashboard: React.FC = () => {
       />
       <AdjustPositionModal
         isOpen={!!adjustFund}
-        onClose={() => setAdjustFund(null)}
+        onClose={() => {
+          setAdjustFund(null);
+          setAvailableAssets(getAvailableAssets());
+        }}
         fund={adjustFund}
       />
       <RebalanceModal
