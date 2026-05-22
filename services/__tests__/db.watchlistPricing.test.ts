@@ -242,4 +242,93 @@ describe('calculateSummary', () => {
     // holdingGainPct = holdingGain / enhancedTotal * 100 = 23.45 / 123.45 * 100
     expect(summary.holdingGainPct).toBeCloseTo(18.9955, 4);
   });
+
+  it('清仓后重新添加的基金不应将旧 realizedGain 计入新持有期', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-05-22T10:00:00'));
+
+    // 场景：基金曾持有并已清仓（holdingShares=0, realizedGain=500），
+    // 用户通过编辑重新添加持仓，realizedGain 已在上层清除为 null。
+    // calculateSummary 应正确计算市值和持有收益，不应将旧 realizedGain 累入新持仓。
+    const summary = calculateSummary([
+      {
+        id: 1,
+        code: '320007',
+        name: '诺安成长混合',
+        platform: 'Default',
+        holdingShares: 1000,
+        costPrice: 1.5,
+        currentNav: 1.5,
+        lastUpdate: '2026-05-22',
+        dayChangePct: 0,
+        dayChangeVal: 0,
+        buyDate: '2026-05-22',
+        buyTime: 'before15',
+        settlementDays: 1,
+        realizedGain: null as unknown as undefined,
+        realizedGainCost: null as unknown as undefined,
+      },
+    ]);
+
+    // 市值 = 1000 * 1.5 = 1500
+    expect(summary.totalAssets).toBeCloseTo(1500, 6);
+    // 持仓收益：成本=1000*1.5=1500，市值=1500，差额=0
+    expect(summary.holdingGain).toBe(0);
+    // 累计收益 = holdingGain + clearedRealizedGain = 0 + 0 = 0
+    expect(summary.cumulativeGain).toBe(0);
+    expect(summary.cumulativeGainPct).toBe(0);
+  });
+
+  it('已清仓基金的旧 realizedGain 仍应计入总累计收益', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-05-22T10:00:00'));
+
+    // 场景：用户新建了一条持仓记录（db.funds.add），旧的已清仓记录仍存在。
+    // 两者独立计算：旧记录贡献 realizedGain，新记录贡献市值和持有收益。
+    const summary = calculateSummary([
+      // 旧记录：已清仓
+      {
+        id: 1,
+        code: '320007',
+        name: '诺安成长混合',
+        platform: 'Default',
+        holdingShares: 0,
+        costPrice: 1.0,
+        currentNav: 1.5,
+        lastUpdate: '2026-04-01',
+        dayChangePct: 0,
+        dayChangeVal: 0,
+        buyDate: '2026-01-15',
+        buyTime: 'before15',
+        settlementDays: 1,
+        realizedGain: 500,
+        realizedGainCost: 1000,
+      },
+      // 新记录：重新添加
+      {
+        id: 2,
+        code: '320007',
+        name: '诺安成长混合',
+        platform: 'Default',
+        holdingShares: 1000,
+        costPrice: 1.5,
+        currentNav: 1.5,
+        lastUpdate: '2026-05-22',
+        dayChangePct: 0,
+        dayChangeVal: 0,
+        buyDate: '2026-05-22',
+        buyTime: 'before15',
+        settlementDays: 1,
+      },
+    ]);
+
+    // 市值：0(旧) + 1000*1.5(新) = 1500
+    expect(summary.totalAssets).toBeCloseTo(1500, 6);
+    // 持有收益：0(旧, 持股为0) + 0(新, 成本=市值) = 0
+    expect(summary.holdingGain).toBe(0);
+    // 累计收益 = holdingGain + realizedGain(旧) = 0 + 500 = 500
+    expect(summary.cumulativeGain).toBeCloseTo(500, 6);
+    // cumulativeGainPct = 500 / 1500 * 100 ≈ 33.33
+    expect(summary.cumulativeGainPct).toBeCloseTo(33.3333, 4);
+  });
 });

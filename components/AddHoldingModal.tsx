@@ -251,15 +251,26 @@ export const AddHoldingModal: React.FC<AddHoldingModalProps> = ({
       });
 
       if (editFund && editFund.id) {
+        const wasCleared = editFund.holdingShares <= 0.01;
         await db.funds.update(editFund.id, {
           holdingShares: valShares,
           costPrice: effectiveCostPrice,
+          currentNav,
           platform: selectedAccount,
           dayChangeVal: metrics.dayChangeVal,
           dayChangePct: metrics.dayChangePct,
           buyDate,
           buyTime,
           settlementDays,
+          ...(wasCleared
+            ? {
+                realizedGain: null as unknown as number,
+                realizedGainCost: null as unknown as number,
+                pendingTransactions: null as unknown as typeof editFund.pendingTransactions,
+                positionOpenAmount: isNaN(valAmount) ? undefined : valAmount,
+                positionOpenDate: buyDate || undefined,
+              }
+            : {}),
         });
 
         onClose();
