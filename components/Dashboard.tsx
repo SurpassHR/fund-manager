@@ -943,7 +943,7 @@ export const Dashboard: React.FC = () => {
 
             <div className="ml-auto flex shrink-0 items-center gap-2">
               <div className="hidden rounded-full border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] px-3 py-1.5 text-[11px] font-medium tracking-[0.18em] text-slate-500 dark:border-white/10 dark:bg-white/5 dark:text-gray-400 md:flex">
-                {sortedFunds.length} {t('common.fund')}
+                {activeFunds.length} {t('common.fund')}
               </div>
               <button
                 onClick={() => setIsAccountManagerOpen(true)}
