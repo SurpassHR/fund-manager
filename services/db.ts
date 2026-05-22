@@ -28,7 +28,12 @@ import {
   deriveFundHoldingDisplayMetrics,
   deriveFundIntradayDisplayMetrics,
 } from './fundDayChange';
-import { getAvailableAssets, isAssetConfigured, setAvailableAssets, resetAssetAllocation } from './assetAllocation';
+import {
+  getAvailableAssets,
+  isAssetConfigured,
+  setAvailableAssets,
+  resetAssetAllocation,
+} from './assetAllocation';
 import { isEtfLinkFundName } from './constants';
 import { sanitizeWatchlistName } from './watchlistName';
 import { runFundQuotePipeline } from './fundQuotePipeline';
@@ -215,11 +220,56 @@ export const deletePendingTransaction = async (
       if (!fund) return;
 
       const originalTxs = fund.pendingTransactions || [];
+      const targetTx = originalTxs.find((tx) => tx.id === txId);
       const nextTxs = originalTxs.filter((tx) => tx.id !== txId);
       if (nextTxs.length === originalTxs.length) return;
 
       deletedCount = originalTxs.length - nextTxs.length;
       affectedFundIds.add(fundId);
+
+      // 删除已结算卖出记录：恢复持仓份额和已实现收益
+      if (targetTx && targetTx.settled && targetTx.type === 'sell') {
+        const sellShares = targetTx.amount;
+        const costPrice = fund.costPrice ?? 0;
+        const sellCost = roundMoney(sellShares * costPrice);
+        const netOutAmount =
+          targetTx.netOutAmount ??
+          roundMoney(sellShares * (fund.currentNav ?? 0) * (1 - (targetTx.sellFeeRate ?? 0)));
+        await db.funds.update(fundId, {
+          pendingTransactions: nextTxs,
+          holdingShares: roundShares((fund.holdingShares ?? 0) + sellShares),
+          realizedGain: roundMoney((fund.realizedGain ?? 0) - (netOutAmount - sellCost)),
+          realizedGainCost: roundMoney((fund.realizedGainCost ?? 0) - sellCost),
+        });
+        return;
+      }
+
+      // 删除已结算买入记录：恢复持仓份额和成本价
+      if (targetTx && targetTx.settled && targetTx.type === 'buy') {
+        const txAmount = targetTx.amount;
+        const currentShares = fund.holdingShares ?? 0;
+        const currentCostPrice = fund.costPrice ?? 0;
+        const buyShares = targetTx.inShares ?? txAmount / (fund.currentNav ?? 1);
+        const oldShares = Math.max(0, currentShares - buyShares);
+        if (oldShares > 0 && currentCostPrice > 0) {
+          const oldTotalCost = roundMoney(currentCostPrice * currentShares - txAmount);
+          const newCostPrice = oldTotalCost / oldShares;
+          await db.funds.update(fundId, {
+            pendingTransactions: nextTxs,
+            holdingShares: roundShares(oldShares),
+            costPrice: roundMoney(newCostPrice),
+          });
+        } else {
+          // 清仓后再删除买入记录：份额和成本归零
+          await db.funds.update(fundId, {
+            pendingTransactions: nextTxs,
+            holdingShares: 0,
+            costPrice: 0,
+          });
+        }
+        return;
+      }
+
       await db.funds.update(fundId, { pendingTransactions: nextTxs });
     });
 
@@ -358,6 +408,7 @@ export const runSettlementPipeline = (options?: RefreshOptions) => {
             const totalCost = newCostPrice * newShares + tx.amount;
             newShares += newBuyShares;
             newCostPrice = totalCost / newShares; // 加权平均成本
+            return { ...tx, settled: true, inShares: roundShares(newBuyShares) };
           } else {
             // 减仓：扣减份额，成本价不变，同时记录卖出金额
             const sellShares = tx.amount;
@@ -892,20 +943,16 @@ export const calculateSummary = (funds: Fund[], availableAssets = 0): AssetSumma
   const todayStr = getLocalDateString();
 
   funds.forEach((fund) => {
-    const {
-      marketValue,
-      totalGain,
-      isInTransit,
-      dayChangeBaseNav,
-    } = deriveFundHoldingDisplayMetrics({
-      holdingShares: fund.holdingShares,
-      currentNav: fund.currentNav,
-      costPrice: fund.costPrice,
-      buyDate: fund.buyDate,
-      buyTime: fund.buyTime,
-      settlementDays: fund.settlementDays,
-      effectiveDate: fund.lastUpdate || todayStr,
-    });
+    const { marketValue, totalGain, isInTransit, dayChangeBaseNav } =
+      deriveFundHoldingDisplayMetrics({
+        holdingShares: fund.holdingShares,
+        currentNav: fund.currentNav,
+        costPrice: fund.costPrice,
+        buyDate: fund.buyDate,
+        buyTime: fund.buyTime,
+        settlementDays: fund.settlementDays,
+        effectiveDate: fund.lastUpdate || todayStr,
+      });
 
     // 如果该基金的最后更新日期不是”今天”，说明它的涨跌幅停留在之前的交易日
     // 此时它对”今日总收益”的贡献应当为 0

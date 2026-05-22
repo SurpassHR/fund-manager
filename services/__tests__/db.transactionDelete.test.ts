@@ -189,4 +189,119 @@ describe('deletePendingTransaction', () => {
     });
     expect(updateSpy).toHaveBeenCalledTimes(1);
   });
+
+  it('reverses settled sell: restores holdingShares, realizedGain, realizedGainCost', async () => {
+    const settledSell = buildTx({
+      id: 'settled-sell',
+      type: 'sell',
+      amount: 30,
+      settled: true,
+      grossAmount: 36,
+      netOutAmount: 35.5,
+      sellFeeRate: 0.005,
+    });
+    // 结算时: sellCost = 30 * 1.2 = 36, realizedGain += 35.5 - 36 = -0.5, realizedGainCost += 36
+    const fund: Fund = {
+      ...buildFund(9, [settledSell]),
+      holdingShares: 70,
+      costPrice: 1.2,
+      realizedGain: -0.5,
+      realizedGainCost: 36,
+    };
+
+    mockTransaction();
+    vi.spyOn(db.funds, 'get').mockResolvedValue(fund);
+    const updateSpy = vi.spyOn(db.funds, 'update').mockResolvedValue(1);
+
+    const result = await deletePendingTransaction({
+      fundId: 9,
+      txId: 'settled-sell',
+      type: 'sell',
+    });
+
+    expect(result.deletedCount).toBe(1);
+    expect(updateSpy).toHaveBeenCalledTimes(1);
+    expect(updateSpy).toHaveBeenCalledWith(
+      9,
+      expect.objectContaining({
+        pendingTransactions: [],
+        holdingShares: 100, // 70 + 30
+        realizedGain: expect.closeTo(-0.5 - (35.5 - 36), 0.01), // reversed: -0.5 - (-0.5) = 0
+        realizedGainCost: expect.closeTo(0, 0.01), // 36 - 36
+      }),
+    );
+  });
+
+  it('reverses settled buy: restores holdingShares and costPrice', async () => {
+    const settledBuy = buildTx({
+      id: 'settled-buy',
+      type: 'buy',
+      amount: 200,
+      settled: true,
+      inShares: 160, // 200 / 1.25 (buyNav)
+    });
+    const fund: Fund = {
+      ...buildFund(10, [settledBuy]),
+      holdingShares: 260, // 100 original + 160 bought
+      costPrice: (100 * 1 + 200) / 260, // ~1.1538
+    };
+
+    mockTransaction();
+    vi.spyOn(db.funds, 'get').mockResolvedValue(fund);
+    const updateSpy = vi.spyOn(db.funds, 'update').mockResolvedValue(1);
+
+    const result = await deletePendingTransaction({
+      fundId: 10,
+      txId: 'settled-buy',
+      type: 'buy',
+    });
+
+    expect(result.deletedCount).toBe(1);
+    expect(updateSpy).toHaveBeenCalledTimes(1);
+    expect(updateSpy).toHaveBeenCalledWith(
+      10,
+      expect.objectContaining({
+        pendingTransactions: [],
+        holdingShares: expect.closeTo(100, 0.01), // 260 - 160
+        costPrice: expect.closeTo(1, 0.01), // back to original
+      }),
+    );
+  });
+
+  it('does not modify holdingShares when deleting unsettled sell', async () => {
+    const unsettledSell = buildTx({
+      id: 'unsettled-sell',
+      type: 'sell',
+      amount: 20,
+      settled: false,
+    });
+    const fund: Fund = {
+      ...buildFund(11, [unsettledSell]),
+      holdingShares: 100,
+      realizedGain: 5,
+      realizedGainCost: 10,
+    };
+
+    mockTransaction();
+    vi.spyOn(db.funds, 'get').mockResolvedValue(fund);
+    const updateSpy = vi.spyOn(db.funds, 'update').mockResolvedValue(1);
+
+    const result = await deletePendingTransaction({
+      fundId: 11,
+      txId: 'unsettled-sell',
+      type: 'sell',
+    });
+
+    expect(result.deletedCount).toBe(1);
+    expect(updateSpy).toHaveBeenCalledWith(
+      11,
+      expect.objectContaining({
+        pendingTransactions: [],
+      }),
+    );
+    // 只更新 pendingTransactions，不修改持仓字段
+    const callArgs = updateSpy.mock.calls[0][1];
+    expect(callArgs).not.toHaveProperty('holdingShares');
+    expect(callArgs).not.toHaveProperty('realizedGain');
+  });
 });

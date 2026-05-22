@@ -3,6 +3,7 @@ import type { Fund, PendingTransaction } from '../types';
 import { useTranslation } from '../services/i18n';
 import { Icons } from './Icon';
 import { deletePendingTransaction } from '../services/db';
+import { deductAvailableForBuy, addAvailableForSell } from '../services/assetAllocation';
 import { ModalShell } from './ModalShell';
 
 interface TransactionHistoryModalProps {
@@ -191,6 +192,16 @@ export const TransactionHistoryModal: React.FC<TransactionHistoryModalProps> = (
 
       if (result.affectedFundIds.length > 0) {
         onTransactionsDeleted?.(result.affectedFundIds);
+      }
+
+      // 同步调整可用资产：撤销卖出/买入交易时反向操作 availableAssets
+      if (tx.type === 'sell') {
+        const sellAmount = tx.settled
+          ? (tx.grossAmount ?? tx.amount * (fund.currentNav ?? 0))
+          : tx.amount * (fund.currentNav ?? 0);
+        if (sellAmount > 0) deductAvailableForBuy(sellAmount);
+      } else if (tx.type === 'buy') {
+        if (tx.amount > 0) addAvailableForSell(tx.amount);
       }
     } catch (e) {
       console.error('Failed to delete transaction', e);

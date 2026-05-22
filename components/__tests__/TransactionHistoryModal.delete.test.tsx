@@ -29,6 +29,8 @@ const mockedDeps = vi.hoisted(() => ({
     return dict[key] ?? key;
   },
   deletePendingTransaction: vi.fn(),
+  deductAvailableForBuy: vi.fn(),
+  addAvailableForSell: vi.fn(),
 }));
 
 vi.mock('../../services/i18n', () => ({
@@ -37,6 +39,11 @@ vi.mock('../../services/i18n', () => ({
 
 vi.mock('../../services/db', () => ({
   deletePendingTransaction: mockedDeps.deletePendingTransaction,
+}));
+
+vi.mock('../../services/assetAllocation', () => ({
+  deductAvailableForBuy: mockedDeps.deductAvailableForBuy,
+  addAvailableForSell: mockedDeps.addAvailableForSell,
 }));
 
 vi.mock('../../services/useEdgeSwipe', () => ({
@@ -189,5 +196,116 @@ describe('TransactionHistoryModal delete flow', () => {
 
     expect(nav?.className).toContain('z-50');
     expect(modalOverlay?.className).toContain('z-[60]');
+  });
+
+  describe('availableAssets adjustment on delete', () => {
+    beforeEach(() => {
+      vi.clearAllMocks();
+      vi.stubGlobal(
+        'confirm',
+        vi.fn(() => true),
+      );
+      mockedDeps.deletePendingTransaction.mockResolvedValue({
+        deletedCount: 1,
+        affectedFundIds: [1],
+        linkedDelete: false,
+      });
+    });
+
+    it('deducts availableAssets when deleting an unsettled sell', async () => {
+      const sellTx = buildTx({ id: 'sell-1', type: 'sell', amount: 50, settled: false });
+      const fund = buildFund([sellTx]);
+      fund.currentNav = 1.5;
+
+      render(
+        <TransactionHistoryModal
+          isOpen
+          onClose={vi.fn()}
+          fund={fund}
+          onTransactionsDeleted={vi.fn()}
+        />,
+      );
+
+      fireEvent.click(screen.getByRole('button', { name: '撤销' }));
+
+      await waitFor(() => {
+        expect(mockedDeps.deductAvailableForBuy).toHaveBeenCalledWith(75); // 50 * 1.5
+      });
+    });
+
+    it('deducts availableAssets using grossAmount when deleting a settled sell', async () => {
+      const sellTx = buildTx({
+        id: 'sell-2',
+        type: 'sell',
+        amount: 30,
+        settled: true,
+        grossAmount: 45,
+        netOutAmount: 44.5,
+      });
+      const fund = buildFund([sellTx]);
+
+      render(
+        <TransactionHistoryModal
+          isOpen
+          onClose={vi.fn()}
+          fund={fund}
+          onTransactionsDeleted={vi.fn()}
+        />,
+      );
+
+      fireEvent.click(screen.getByRole('button', { name: '删除' }));
+
+      await waitFor(() => {
+        expect(mockedDeps.deductAvailableForBuy).toHaveBeenCalledWith(45);
+      });
+    });
+
+    it('adds back availableAssets when deleting a buy', async () => {
+      const buyTx = buildTx({ id: 'buy-1', type: 'buy', amount: 200, settled: true });
+      const fund = buildFund([buyTx]);
+
+      render(
+        <TransactionHistoryModal
+          isOpen
+          onClose={vi.fn()}
+          fund={fund}
+          onTransactionsDeleted={vi.fn()}
+        />,
+      );
+
+      fireEvent.click(screen.getByRole('button', { name: '删除' }));
+
+      await waitFor(() => {
+        expect(mockedDeps.addAvailableForSell).toHaveBeenCalledWith(200);
+      });
+    });
+
+    it('does not adjust availableAssets when deleting transfer transactions', async () => {
+      const transferTx = buildTx({
+        id: 'transfer-1',
+        type: 'transferOut',
+        amount: 100,
+        settled: false,
+        transferId: 'tr-1',
+      });
+      const fund = buildFund([transferTx]);
+
+      render(
+        <TransactionHistoryModal
+          isOpen
+          onClose={vi.fn()}
+          fund={fund}
+          onTransactionsDeleted={vi.fn()}
+        />,
+      );
+
+      fireEvent.click(screen.getByRole('button', { name: '撤销' }));
+
+      await waitFor(() => {
+        expect(mockedDeps.deletePendingTransaction).toHaveBeenCalled();
+      });
+      expect(mockedDeps.deductAvailableForBuy).not.toHaveBeenCalled();
+      expect(mockedDeps.addAvailableForSell).not.toHaveBeenCalled();
+    });
   });
 });

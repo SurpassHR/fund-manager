@@ -55,7 +55,12 @@ import {
 import { computeRealizedGain, deriveFundHoldingDisplayMetrics } from '../services/fundDayChange';
 import { getCachedFundStreaks } from '../services/streakCalculator';
 import { AssetAllocationCard } from './AssetAllocationCard';
-import { getAvailableAssets, isAssetConfigured, setTotalAssets } from '../services/assetAllocation';
+import {
+  addAvailableForSell,
+  getAvailableAssets,
+  isAssetConfigured,
+  setTotalAssets,
+} from '../services/assetAllocation';
 import type { FundStreak } from '../types';
 
 type FundHoldingsEnrichment = {
@@ -756,6 +761,11 @@ export const Dashboard: React.FC = () => {
 
   const handleDelete = async (fundId: number) => {
     if (confirm(t('common.delete') + '?')) {
+      const fund = funds.find((item) => item.id === fundId);
+      if (fund && isAssetConfigured()) {
+        const marketValue = (fund.holdingShares ?? 0) * (fund.currentNav ?? 0);
+        addAvailableForSell(marketValue);
+      }
       await db.funds.delete(fundId);
     }
     setContextMenu(null);
