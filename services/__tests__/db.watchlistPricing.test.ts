@@ -331,4 +331,110 @@ describe('calculateSummary', () => {
     // cumulativeGainPct = 500 / 1500 * 100 ≈ 33.33
     expect(summary.cumulativeGainPct).toBeCloseTo(33.3333, 4);
   });
+
+  it('清仓重加后日收益应基于当前净值计算，不受旧 navChangePct 影响', () => {
+    vi.useFakeTimers();
+    // 2026-05-22 是周五，设置为 05-26（周二），确保买入日期已过结算日
+    vi.setSystemTime(new Date('2026-05-26T15:30:00'));
+
+    // 场景：清仓重加后（买入日 05-22），已过结算日，lastUpdate = 今天。
+    // 刷新后 dayChangePct 和 dayChangeVal 为正确的当日数据，不依赖旧记录的 navChangePct。
+    const holdingShares = 2000;
+    const costPrice = 1.5;
+    const currentNav = 1.52085; // 市值 ≈ 3041.7，日涨幅 +1.39%
+    const dayChangePct = 1.39;
+    const marketValue = holdingShares * currentNav;
+
+    const summary = calculateSummary([
+      {
+        id: 1,
+        code: '320007',
+        name: '诺安成长混合',
+        platform: 'Default',
+        holdingShares,
+        costPrice,
+        currentNav,
+        lastUpdate: '2026-05-26',
+        dayChangePct,
+        // dayChangeVal 由刷新计算：dayChangeBaseNav 取上一个交易日的净值
+        // 此处模拟 exact 公式反推值
+        dayChangeVal: (marketValue * (dayChangePct / 100)) / (1 + dayChangePct / 100),
+        buyDate: '2026-05-22',
+        buyTime: 'before15',
+        settlementDays: 1,
+        realizedGain: null as unknown as undefined,
+        realizedGainCost: null as unknown as undefined,
+      },
+    ]);
+
+    // 市值 = 2000 * 1.52085 = 3041.7
+    expect(summary.totalAssets).toBeCloseTo(3041.7, 2);
+    // 持有收益 = 2000 * (1.52085 - 1.5) = 41.7
+    expect(summary.holdingGain).toBeCloseTo(41.7, 2);
+    // 累计收益 = holdingGain + 0 = 41.7
+    expect(summary.cumulativeGain).toBeCloseTo(41.7, 2);
+    // 日收益基于 fund.dayChangeVal 计算，应与 holdingGain 量级一致（约 41.7）
+    expect(summary.totalDayGain).toBeCloseTo(41.7, 1);
+  });
+
+  it('清仓重加后旧记录的 dayChangeVal 不污染汇总日收益', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-05-26T15:30:00'));
+
+    // 场景：清仓后通过新建（非编辑）重新添加同一基金。
+    // 旧清仓记录 lastUpdate 为旧日期（不匹配今天），日收益贡献应为 0。
+    // 新记录 lastUpdate = 今天，settlement 已完成，应正常贡献日收益。
+    const holdingShares = 2000;
+    const currentNav = 1.52085;
+    const dayChangePct = 1.39;
+    const marketValue = holdingShares * currentNav;
+
+    const summary = calculateSummary([
+      // 旧记录：已清仓，lastUpdate 是旧日期，带有残留的负 dayChangeVal
+      {
+        id: 1,
+        code: '320007',
+        name: '诺安成长混合',
+        platform: 'Default',
+        holdingShares: 0,
+        costPrice: 1.0,
+        currentNav: 1.5,
+        lastUpdate: '2026-03-10',
+        dayChangePct: -2.5,
+        dayChangeVal: -707,
+        buyDate: '2026-01-15',
+        buyTime: 'before15',
+        settlementDays: 1,
+        realizedGain: -750,
+        realizedGainCost: 1000,
+      },
+      // 新记录：重新添加，正确的当日数据
+      {
+        id: 2,
+        code: '320007',
+        name: '诺安成长混合',
+        platform: 'Default',
+        holdingShares,
+        costPrice: 1.5,
+        currentNav,
+        lastUpdate: '2026-05-26',
+        dayChangePct,
+        dayChangeVal: (marketValue * (dayChangePct / 100)) / (1 + dayChangePct / 100),
+        buyDate: '2026-05-22',
+        buyTime: 'before15',
+        settlementDays: 1,
+        realizedGain: null as unknown as undefined,
+        realizedGainCost: null as unknown as undefined,
+      },
+    ]);
+
+    // 总市值 = 0(旧) + 3041.7(新) = 3041.7
+    expect(summary.totalAssets).toBeCloseTo(3041.7, 2);
+    // 累计收益 = 41.7(holdingGain) + (-750)(旧 realizedGain) ≈ -708.3
+    expect(summary.cumulativeGain).toBeCloseTo(-708.3, 2);
+    // 日收益：旧记录 lastUpdate !== today → 0；新记录 dayChangeVal 应正常贡献
+    expect(summary.totalDayGain).toBeGreaterThan(0);
+    // 日收益不应被旧记录的 -707 污染（那样会是 ≈ -665）
+    expect(summary.totalDayGain).not.toBeCloseTo(-665, 0);
+  });
 });

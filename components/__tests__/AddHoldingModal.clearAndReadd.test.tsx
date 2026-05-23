@@ -247,4 +247,72 @@ describe('AddHoldingModal 清仓后重新添加', () => {
     const updateArg = mocked.fundsUpdate.mock.calls[0][1];
     expect(updateArg.currentNav).toBe(clearedFund.currentNav);
   });
+
+  it('清仓重加时 dayChangeVal / dayChangePct 应清零（不使用旧记录的 navChangePct）', async () => {
+    // 旧记录在上一个交易日有 -1.5% 的涨跌幅，清仓重加时不应带入
+    render(
+      <AddHoldingModal
+        isOpen
+        onClose={vi.fn()}
+        editFund={{ ...clearedFund, dayChangePct: -1.5, dayChangeVal: -42 }}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'common.confirm' })).toBeTruthy();
+    });
+
+    setSharesValue('500');
+
+    fireEvent.click(screen.getByRole('button', { name: 'common.confirm' }));
+
+    await waitFor(() => {
+      expect(mocked.fundsUpdate).toHaveBeenCalledTimes(1);
+    });
+
+    const updateArg = mocked.fundsUpdate.mock.calls[0][1];
+    // navChangePct 被强制清零，dayChangeVal/ dayChangePct 应均为 0
+    expect(updateArg.dayChangePct).toBe(0);
+    expect(updateArg.dayChangeVal).toBe(0);
+  });
+
+  it('清仓重加时 lastUpdate 应为今天而非旧记录的历史日期', async () => {
+    render(<AddHoldingModal isOpen onClose={vi.fn()} editFund={clearedFund} />);
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'common.confirm' })).toBeTruthy();
+    });
+
+    setSharesValue('300');
+
+    fireEvent.click(screen.getByRole('button', { name: 'common.confirm' }));
+
+    await waitFor(() => {
+      expect(mocked.fundsUpdate).toHaveBeenCalledTimes(1);
+    });
+
+    const updateArg = mocked.fundsUpdate.mock.calls[0][1];
+    const today = new Date().toISOString().split('T')[0];
+    // 应设置 lastUpdate 为今天，不应使用旧记录的 '2026-01-15'
+    expect(updateArg.lastUpdate).toBe(today);
+  });
+
+  it('编辑活跃基金时 lastUpdate 应随更新持久化', async () => {
+    render(<AddHoldingModal isOpen onClose={vi.fn()} editFund={activeFund} />);
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'common.confirm' })).toBeTruthy();
+    });
+
+    setSharesValue('30');
+
+    fireEvent.click(screen.getByRole('button', { name: 'common.confirm' }));
+
+    await waitFor(() => {
+      expect(mocked.fundsUpdate).toHaveBeenCalledTimes(1);
+    });
+
+    const updateArg = mocked.fundsUpdate.mock.calls[0][1];
+    expect(updateArg.lastUpdate).toBeTypeOf('string');
+  });
 });

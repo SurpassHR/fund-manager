@@ -230,8 +230,13 @@ export const AddHoldingModal: React.FC<AddHoldingModalProps> = ({
     setIsSaving(true);
 
     try {
-      const effectiveNavDate =
-        editFund?.lastUpdate || navDate || buyDate || new Date().toISOString().split('T')[0];
+      const isReAddingCleared = editFund ? editFund.holdingShares <= 0.01 : false;
+      // 清仓重加时不使用旧记录的 lastUpdate（可能远过期），改用今天
+      const effectiveNavDate = isReAddingCleared
+        ? new Date().toISOString().split('T')[0]
+        : editFund?.lastUpdate || navDate || buyDate || new Date().toISOString().split('T')[0];
+      // 清仓重加时 navChangePct 来自旧记录（过期），应清零
+      const effectiveNavChangePct = isReAddingCleared ? 0 : navChangePct;
       const { isGainActive, dayChangeBaseNav } = deriveFundGainActivationState({
         buyDate,
         buyTime,
@@ -244,25 +249,25 @@ export const AddHoldingModal: React.FC<AddHoldingModalProps> = ({
         nav: currentNav,
         navDate: effectiveNavDate,
         todayStr: effectiveNavDate,
-        navChangePercent: navChangePct,
+        navChangePercent: effectiveNavChangePct,
         shouldEstimate: false,
         isGainActive,
         dayChangeBaseNav,
       });
 
       if (editFund && editFund.id) {
-        const wasCleared = editFund.holdingShares <= 0.01;
         await db.funds.update(editFund.id, {
           holdingShares: valShares,
           costPrice: effectiveCostPrice,
           currentNav,
+          lastUpdate: effectiveNavDate,
           platform: selectedAccount,
           dayChangeVal: metrics.dayChangeVal,
           dayChangePct: metrics.dayChangePct,
           buyDate,
           buyTime,
           settlementDays,
-          ...(wasCleared
+          ...(isReAddingCleared
             ? {
                 realizedGain: null as unknown as number,
                 realizedGainCost: null as unknown as number,
