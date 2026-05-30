@@ -80,49 +80,63 @@ body {
   left: 0;
   width: 100%;
   height: 100%;
+  /* 将所有 blob 提升到独立 GPU 合成层，避免每帧重绘 */
+  transform: translateZ(0);
+  will-change: transform;
 }
 
 .blob {
   position: absolute;
   border-radius: 50%;
-  filter: blur(80px);
-  opacity: 0.15;
-  animation: float 20s infinite alternate;
+  filter: blur(40px);
+  opacity: 0.12;
+  animation: float 30s infinite alternate;
 }
 
 .blob-1 {
-  width: 500px;
-  height: 500px;
+  width: 400px;
+  height: 400px;
   background: radial-gradient(circle, #3b82f6 0%, transparent 70%);
-  top: -100px;
-  left: -100px;
+  top: -80px;
+  left: -80px;
 }
 
 .blob-2 {
-  width: 600px;
-  height: 600px;
+  width: 500px;
+  height: 500px;
   background: radial-gradient(circle, #f97316 0%, transparent 70%);
-  bottom: -150px;
-  right: -100px;
-  animation-delay: -5s;
+  bottom: -120px;
+  right: -80px;
+  animation-delay: -7s;
 }
 
 .blob-3 {
-  width: 400px;
-  height: 400px;
+  width: 350px;
+  height: 350px;
   background: radial-gradient(circle, #8b5cf6 0%, transparent 70%);
   top: 40%;
   left: 30%;
-  animation-delay: -10s;
+  animation-delay: -14s;
 }
 
 @keyframes float {
   0% {
     transform: translate(0, 0) scale(1);
   }
-
   100% {
-    transform: translate(50px, 100px) scale(1.1);
+    transform: translate(30px, 60px) scale(1.05);
+  }
+}
+
+/* 用户开启"减少动画"时，停止光球运动 */
+@media (prefers-reduced-motion: reduce) {
+  .blob {
+    animation: none;
+    opacity: 0.06;
+  }
+
+  .bg-blobs {
+    will-change: auto;
   }
 }
 
@@ -519,6 +533,18 @@ body {
   background: #ffffff08;
   border: 1px solid rgba(27, 34, 48, 0.3);
   box-shadow: 0 8px 32px #0000005e;
+}
+
+/* GPU 降级：用户开启"减少动画"或低端设备时，禁用所有 backdrop-filter 模糊
+   这能显著降低 GPU 合成层数量，尤其是 glass-nav（始终可见的 BottomNav blur(20px)） */
+@media (prefers-reduced-motion: reduce) {
+  .glass-nav,
+  .glass-card,
+  .cleared-group-divider,
+  .institution-group-divider {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
 }
 
 /* 全局 input 重置 — 移除 WebKit 原生渲染 */

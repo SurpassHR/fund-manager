@@ -167,10 +167,16 @@ export function useCanvasNavIndicator({
     const container = containerRef.current;
     if (!container) return;
 
+    // ResizeObserver 通过 rAF 节流，避免高频触发（移动端键盘/安全区变化）
+    let resizeRafId = 0;
     const ro = new ResizeObserver(() => {
-      setupCanvas();
-      updateTarget();
-      draw();
+      if (resizeRafId) cancelAnimationFrame(resizeRafId);
+      resizeRafId = requestAnimationFrame(() => {
+        setupCanvas();
+        updateTarget();
+        draw();
+        resizeRafId = 0;
+      });
     });
     ro.observe(container);
 
@@ -183,6 +189,7 @@ export function useCanvasNavIndicator({
     return () => {
       ro.disconnect();
       mo.disconnect();
+      if (resizeRafId) cancelAnimationFrame(resizeRafId);
     };
   }, [setupCanvas, updateTarget, draw, containerRef, resolveColors]);
 
@@ -199,8 +206,8 @@ export function useCanvasNavIndicator({
       return;
     }
 
-    let prevDrawX = currentX.current;
-    let prevDrawW = currentW.current;
+    let frameCount = 0;
+    const MAX_FRAMES = 300; // 安全上限：300 帧 ≈ 5 秒 (60fps)，防止浮点误差导致无限循环
 
     const animate = () => {
       const container = containerRef.current;
@@ -208,6 +215,8 @@ export function useCanvasNavIndicator({
         rafId.current = requestAnimationFrame(animate);
         return;
       }
+
+      frameCount++;
 
       const tx = targetX.current;
       const tw = targetW.current;
@@ -222,19 +231,19 @@ export function useCanvasNavIndicator({
       const distX = Math.abs(tx - currentX.current);
       const distW = Math.abs(tw - currentW.current);
 
+      // 全部 delta 低于阈值 → 已收敛，绘制最终精确位置后停止
       if (
-        dx > 0.005 ||
-        dw > 0.005 ||
-        distX > 0.1 ||
-        distW > 0.1 ||
-        currentX.current !== prevDrawX ||
-        currentW.current !== prevDrawW
+        frameCount > MAX_FRAMES ||
+        (dx < 0.005 && dw < 0.005 && distX < 0.1 && distW < 0.1)
       ) {
+        currentX.current = tx;
+        currentW.current = tw;
         draw();
-        prevDrawX = currentX.current;
-        prevDrawW = currentW.current;
-        rafId.current = requestAnimationFrame(animate);
+        return;
       }
+
+      draw();
+      rafId.current = requestAnimationFrame(animate);
     };
 
     rafId.current = requestAnimationFrame(animate);

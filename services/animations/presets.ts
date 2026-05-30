@@ -19,7 +19,7 @@ export interface BottomNavAnimationConfig {
 }
 
 const REDUCED_TRANSITION: Transition = {
-  duration: 0.12,
+  duration: 0.08,
   ease: 'easeOut',
 };
 
@@ -30,13 +30,14 @@ const REDUCED_PRESET: AnimationPreset = {
   transition: REDUCED_TRANSITION,
 };
 
+// GPU 优化：缩短 transition duration，减少每帧合成时间
 const PRESETS: Record<AnimationPresetName, AnimationPreset> = {
   pageFadeLift: {
     initial: { opacity: 0, y: 12 },
     animate: { opacity: 1, y: 0 },
     exit: { opacity: 0, y: -8 },
     transition: {
-      duration: 0.2,
+      duration: 0.15,
       ease: [0.22, 1, 0.36, 1],
     },
   },
@@ -45,7 +46,7 @@ const PRESETS: Record<AnimationPresetName, AnimationPreset> = {
     animate: { opacity: 1, y: 0 },
     exit: { opacity: 0, y: -4 },
     transition: {
-      duration: 0.16,
+      duration: 0.12,
       ease: [0.22, 1, 0.36, 1],
     },
   },
