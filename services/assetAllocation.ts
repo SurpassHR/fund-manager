@@ -13,6 +13,12 @@
 
 const STORAGE_KEY_AVAILABLE = 'assetAllocation.availableAssets';
 const STORAGE_KEY_CONFIGURED = 'assetAllocation.configured';
+export const ASSET_ALLOCATION_UPDATED_EVENT = 'asset-allocation:updated';
+
+const emitAssetAllocationUpdated = (): void => {
+  if (typeof window === 'undefined') return;
+  window.dispatchEvent(new CustomEvent(ASSET_ALLOCATION_UPDATED_EVENT));
+};
 
 /**
  * 获取可用资产（用户手动填写后的余额宝类资产）
@@ -38,6 +44,7 @@ export function setAvailableAssets(value: number): void {
   const clamped = Math.max(0, value);
   localStorage.setItem(STORAGE_KEY_AVAILABLE, String(clamped));
   localStorage.setItem(STORAGE_KEY_CONFIGURED, 'true');
+  emitAssetAllocationUpdated();
 }
 
 /**
@@ -101,4 +108,5 @@ export function addAvailableForSell(amount: number): void {
 export function resetAssetAllocation(): void {
   localStorage.removeItem(STORAGE_KEY_AVAILABLE);
   localStorage.removeItem(STORAGE_KEY_CONFIGURED);
+  emitAssetAllocationUpdated();
 }

@@ -56,6 +56,7 @@ import { computeRealizedGain, deriveFundHoldingDisplayMetrics } from '../service
 import { getCachedFundStreaks } from '../services/streakCalculator';
 import { AssetAllocationCard } from './AssetAllocationCard';
 import {
+  ASSET_ALLOCATION_UPDATED_EVENT,
   addAvailableForSell,
   getAvailableAssets,
   isAssetConfigured,
@@ -355,6 +356,30 @@ export const Dashboard: React.FC = () => {
     } finally {
       refreshInFlightRef.current = false;
     }
+  }, []);
+
+  useEffect(() => {
+    const syncAvailableAssets = () => {
+      setAvailableAssets(getAvailableAssets());
+    };
+
+    const handleStorage = (event: StorageEvent) => {
+      if (
+        event.key === null ||
+        event.key === 'assetAllocation.availableAssets' ||
+        event.key === 'assetAllocation.configured'
+      ) {
+        syncAvailableAssets();
+      }
+    };
+
+    window.addEventListener(ASSET_ALLOCATION_UPDATED_EVENT, syncAvailableAssets);
+    window.addEventListener('storage', handleStorage);
+
+    return () => {
+      window.removeEventListener(ASSET_ALLOCATION_UPDATED_EVENT, syncAvailableAssets);
+      window.removeEventListener('storage', handleStorage);
+    };
   }, []);
 
   useEffect(() => {
