@@ -321,8 +321,8 @@ export const ScannerModal: React.FC<ScannerModalProps> = ({ isOpen, onClose }) =
     >
       {isReviewing ? (
         <>
-          <div className="p-4 border-b border-gray-100 dark:border-border-dark flex justify-between items-center bg-gray-50 dark:bg-white/5">
-            <h3 className="font-bold text-gray-800 dark:text-gray-100">
+          <div className="p-4 border-b border-[var(--app-shell-line)] flex justify-between items-center bg-[var(--app-shell-panel)]">
+            <h3 className="font-bold text-[var(--app-shell-ink)]">
               {t('common.ocrReview') || '识别结果确认'}
             </h3>
             <button
@@ -330,8 +330,9 @@ export const ScannerModal: React.FC<ScannerModalProps> = ({ isOpen, onClose }) =
                 setIsReviewing(false);
                 lastAutoValidateSignatureRef.current = '';
               }}
+              className="rounded-full p-1 text-[var(--app-shell-muted)] transition-colors hover:bg-[var(--app-shell-line)]"
             >
-              <Icons.Plus className="transform rotate-45 text-gray-400" />
+              <Icons.Plus className="transform rotate-45" />
             </button>
           </div>
           <div className="p-6 space-y-3 overflow-y-auto">
@@ -349,16 +350,16 @@ export const ScannerModal: React.FC<ScannerModalProps> = ({ isOpen, onClose }) =
                 return (
                   <div
                     key={item.id}
-                    className="p-3 rounded-lg border border-gray-100 dark:border-border-dark"
+                    className="p-3 rounded-lg border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)]"
                   >
                     <div className="flex items-center justify-between mb-2">
                       <input
                         value={item.name}
                         onChange={(e) => updateReviewItem(item.id, { name: e.target.value })}
-                        className="flex-1 mr-2 px-2 py-1 border border-gray-200 dark:border-gray-700 rounded text-sm bg-white dark:bg-white/5"
+                        className="flex-1 mr-2 px-2 py-1 border border-[var(--app-shell-line)] rounded text-sm bg-[var(--app-shell-panel)] text-[var(--app-shell-ink)] outline-none focus:border-[var(--app-shell-accent)]"
                       />
                       <span
-                        className={`text-[10px] ${item.matched ? 'text-green-600' : 'text-gray-400'}`}
+                        className={`text-[10px] ${item.matched ? 'text-green-600' : 'text-[var(--app-shell-muted)]'}`}
                       >
                         {item.matched
                           ? t('common.matched') || '已匹配'
@@ -373,7 +374,7 @@ export const ScannerModal: React.FC<ScannerModalProps> = ({ isOpen, onClose }) =
                           updateReviewItem(item.id, { amount: parseNumInput(e.target.value) })
                         }
                         placeholder={t('common.holdingAmount') || '持仓金额'}
-                        className="px-2 py-1 border border-gray-200 dark:border-gray-700 rounded bg-white dark:bg-white/5"
+                        className="px-2 py-1 border border-[var(--app-shell-line)] rounded bg-[var(--app-shell-panel)] text-[var(--app-shell-ink)] outline-none focus:border-[var(--app-shell-accent)]"
                       />
                       <input
                         value={item.dayGain ?? ''}
@@ -383,7 +384,7 @@ export const ScannerModal: React.FC<ScannerModalProps> = ({ isOpen, onClose }) =
                           })
                         }
                         placeholder={t('common.dayGain') || '昨日收益'}
-                        className="px-2 py-1 border border-gray-200 dark:border-gray-700 rounded bg-white dark:bg-white/5"
+                        className="px-2 py-1 border border-[var(--app-shell-line)] rounded bg-[var(--app-shell-panel)] text-[var(--app-shell-ink)] outline-none focus:border-[var(--app-shell-accent)]"
                       />
                       <input
                         value={item.holdingGain ?? ''}
@@ -393,7 +394,7 @@ export const ScannerModal: React.FC<ScannerModalProps> = ({ isOpen, onClose }) =
                           })
                         }
                         placeholder={t('common.totalGain') || '持有收益'}
-                        className="px-2 py-1 border border-gray-200 dark:border-gray-700 rounded bg-white dark:bg-white/5"
+                        className="px-2 py-1 border border-[var(--app-shell-line)] rounded bg-[var(--app-shell-panel)] text-[var(--app-shell-ink)] outline-none focus:border-[var(--app-shell-accent)]"
                       />
                       <input
                         value={item.holdingGainPct ?? ''}
@@ -403,12 +404,12 @@ export const ScannerModal: React.FC<ScannerModalProps> = ({ isOpen, onClose }) =
                           })
                         }
                         placeholder={t('common.totalGainPct') || '持有收益率%'}
-                        className="px-2 py-1 border border-gray-200 dark:border-gray-700 rounded bg-white dark:bg-white/5"
+                        className="px-2 py-1 border border-[var(--app-shell-line)] rounded bg-[var(--app-shell-panel)] text-[var(--app-shell-ink)] outline-none focus:border-[var(--app-shell-accent)]"
                       />
                     </div>
 
                     {item.matchedName && (
-                      <div className="text-[10px] text-gray-400 mt-2">
+                      <div className="text-[10px] text-[var(--app-shell-muted)] mt-2">
                         {item.matchedName} ({item.matchedCode})
                       </div>
                     )}
@@ -422,7 +423,7 @@ export const ScannerModal: React.FC<ScannerModalProps> = ({ isOpen, onClose }) =
                               [item.matchedCode!]: 'keep',
                             }))
                           }
-                          className={`px-2 py-1 rounded ${decision === 'keep' ? 'bg-gray-200 dark:bg-white/10' : 'bg-gray-50 dark:bg-white/5'}`}
+                          className={`px-2 py-1 rounded ${decision === 'keep' ? 'bg-[var(--app-shell-panel)] text-[var(--app-shell-ink)]' : 'bg-[var(--app-shell-panel)]/60 text-[var(--app-shell-muted)]'}`}
                         >
                           {t('common.keepExisting') || '保留已有'}
                         </button>
@@ -433,7 +434,7 @@ export const ScannerModal: React.FC<ScannerModalProps> = ({ isOpen, onClose }) =
                               [item.matchedCode!]: 'overwrite',
                             }))
                           }
-                          className={`px-2 py-1 rounded ${decision === 'overwrite' ? 'bg-blue-600 text-white' : 'bg-gray-50 dark:bg-white/5'}`}
+                          className={`px-2 py-1 rounded ${decision === 'overwrite' ? 'bg-[var(--app-shell-accent)] text-white' : 'bg-[var(--app-shell-panel)]/60 text-[var(--app-shell-muted)]'}`}
                         >
                           {t('common.overwrite') || '覆盖'}
                         </button>
@@ -450,7 +451,7 @@ export const ScannerModal: React.FC<ScannerModalProps> = ({ isOpen, onClose }) =
                   setIsReviewing(false);
                   lastAutoValidateSignatureRef.current = '';
                 }}
-                className="flex-1 bg-gray-100 dark:bg-white/10 text-gray-700 dark:text-gray-200 py-2.5 rounded-xl font-bold"
+                className="flex-1 bg-[var(--app-shell-panel-strong)] text-[var(--app-shell-muted)] py-2.5 rounded-xl font-bold transition-colors hover:text-[var(--app-shell-ink)]"
               >
                 {t('common.cancel')}
               </button>
@@ -465,16 +466,19 @@ export const ScannerModal: React.FC<ScannerModalProps> = ({ isOpen, onClose }) =
         </>
       ) : (
         <>
-          <div className="p-4 border-b border-gray-100 dark:border-border-dark flex justify-between items-center bg-gray-50 dark:bg-white/5">
-            <h3 className="font-bold text-gray-800 dark:text-gray-100">{t('common.smartEntry')}</h3>
-            <button onClick={handleClose}>
-              <Icons.Plus className="transform rotate-45 text-gray-400" />
+          <div className="p-4 border-b border-[var(--app-shell-line)] flex justify-between items-center bg-[var(--app-shell-panel)]">
+            <h3 className="font-bold text-[var(--app-shell-ink)]">{t('common.smartEntry')}</h3>
+            <button
+              onClick={handleClose}
+              className="rounded-full p-1 text-[var(--app-shell-muted)] transition-colors hover:bg-[var(--app-shell-line)]"
+            >
+              <Icons.Plus className="transform rotate-45" />
             </button>
           </div>
 
           <div className="p-6 space-y-4 overflow-y-auto" onPaste={handlePaste}>
             <div
-              className="w-full aspect-[3/4] bg-gray-50 dark:bg-white/5 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600 flex flex-col items-center justify-center relative overflow-hidden"
+              className="w-full aspect-[3/4] bg-[var(--app-shell-panel-strong)] rounded-lg border-2 border-dashed border-[var(--app-shell-line-strong)] flex flex-col items-center justify-center relative overflow-hidden"
               onDragOver={(e) => e.preventDefault()}
               onDrop={handleDrop}
             >
@@ -486,28 +490,30 @@ export const ScannerModal: React.FC<ScannerModalProps> = ({ isOpen, onClose }) =
                 />
               ) : (
                 <>
-                  <Icons.Scan size={48} className="text-gray-300 dark:text-gray-600 mb-4" />
-                  <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                  <Icons.Scan size={48} className="text-[var(--app-shell-muted)] opacity-50 mb-4" />
+                  <p className="text-sm font-medium text-[var(--app-shell-muted)]">
                     {t('common.uploadTip')}
                   </p>
-                  <p className="text-[10px] text-gray-400 mt-1">
+                  <p className="text-[10px] text-[var(--app-shell-muted)] mt-1">
                     {t('common.dragPasteTip') || '支持拖拽或粘贴图片'}
                   </p>
                 </>
               )}
               {scanning && (
-                <div className="absolute inset-0 bg-blue-500/10 dark:bg-blue-500/20 flex flex-col items-center justify-center">
-                  <div className="text-blue-600 font-bold">{t('common.ocrProcessing')}</div>
+                <div className="absolute inset-0 bg-[var(--app-shell-accent-soft)] flex flex-col items-center justify-center">
+                  <div className="text-[var(--app-shell-accent)] font-bold">
+                    {t('common.ocrProcessing')}
+                  </div>
                 </div>
               )}
             </div>
 
-            <p className="text-xs text-gray-400 px-2">{t('common.ocrPrivacy')}</p>
+            <p className="text-xs text-[var(--app-shell-muted)] px-2">{t('common.ocrPrivacy')}</p>
 
             <div className="flex gap-2">
               <button
                 onClick={() => fileInputRef.current?.click()}
-                className="flex-1 bg-gray-100 dark:bg-white/10 text-gray-700 dark:text-gray-200 py-2.5 rounded-xl font-bold"
+                className="flex-1 bg-[var(--app-shell-panel-strong)] text-[var(--app-shell-muted)] py-2.5 rounded-xl font-bold transition-colors hover:text-[var(--app-shell-ink)]"
               >
                 {t('common.selectImage')}
               </button>

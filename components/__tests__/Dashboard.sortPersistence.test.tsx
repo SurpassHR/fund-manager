@@ -161,6 +161,14 @@ describe('Dashboard sort persistence', () => {
     expect(localStorage.getItem('dashboard.sortState.v1')).toBeNull();
   });
 
+  it('快捷同步入口应使用主题背景而不是固定浅蓝底色', () => {
+    render(<Dashboard />);
+
+    const syncButton = screen.getByRole('button', { name: 'common.sync' });
+    expect(syncButton.className).toContain('bg-[var(--app-shell-panel-strong)]');
+    expect(syncButton.className).not.toContain('bg-blue-50');
+  });
+
   it('falls back to default sort when cached payload is invalid', () => {
     localStorage.setItem(
       'dashboard.sortState.v1',

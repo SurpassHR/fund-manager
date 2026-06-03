@@ -100,6 +100,17 @@ describe('AssetAllocationCard', () => {
     expect(screen.getByLabelText('取消')).toBeTruthy();
   });
 
+  it('编辑总资产输入框应使用当前主题背景', () => {
+    render(<AssetAllocationCard {...DEFAULT_PROPS} />);
+
+    fireEvent.click(screen.getByLabelText('编辑总资产'));
+
+    const input = screen.getByPlaceholderText('输入总资产');
+    expect(input.className).toContain('bg-[var(--app-shell-panel-strong)]');
+    expect(input.className).not.toContain('bg-white');
+    expect(input.className).not.toContain('dark:bg-slate-800/90');
+  });
+
   it('编辑时输入小于基金资产的值无法确认', () => {
     render(<AssetAllocationCard {...DEFAULT_PROPS} />);
     const editBtn = screen.getByLabelText('编辑总资产');

@@ -866,7 +866,7 @@ export const Dashboard: React.FC = () => {
               const fund = funds.find((item) => item.id === contextMenu.fundId);
               if (fund) handleEdit(fund);
             }}
-            className="flex w-full items-center gap-2 border-b border-[var(--app-shell-line)] px-4 py-3 text-left text-sm text-slate-700 hover:bg-[var(--app-shell-panel-strong)] dark:border-border-dark dark:text-gray-200 dark:hover:bg-blue-900/20"
+            className="flex w-full items-center gap-2 border-b border-[var(--app-shell-line)] px-4 py-3 text-left text-sm text-slate-700 hover:bg-[var(--app-shell-panel-strong)] dark:border-border-dark dark:text-gray-200"
           >
             <Icons.Settings size={16} className="text-slate-500" /> {t('common.edit')}
           </button>
@@ -878,7 +878,7 @@ export const Dashboard: React.FC = () => {
                 setContextMenu(null);
               }
             }}
-            className="flex w-full items-center gap-2 border-b border-gray-50 px-4 py-3 text-left text-sm text-gray-700 hover:bg-indigo-50 dark:border-border-dark dark:text-gray-200 dark:hover:bg-indigo-900/20"
+            className="flex w-full items-center gap-2 border-b border-[var(--app-shell-line)] px-4 py-3 text-left text-sm text-slate-700 hover:bg-[var(--app-shell-panel-strong)] dark:border-border-dark dark:text-gray-200"
           >
             <Icons.ArrowDown size={16} className="text-indigo-500" /> {t('common.rebalance')}
           </button>
@@ -890,7 +890,7 @@ export const Dashboard: React.FC = () => {
                 setContextMenu(null);
               }
             }}
-            className="flex w-full items-center gap-2 border-b border-gray-50 px-4 py-3 text-left text-sm text-gray-700 hover:bg-blue-50 dark:border-border-dark dark:text-gray-200 dark:hover:bg-blue-900/20"
+            className="flex w-full items-center gap-2 border-b border-[var(--app-shell-line)] px-4 py-3 text-left text-sm text-slate-700 hover:bg-[var(--app-shell-panel-strong)] dark:border-border-dark dark:text-gray-200"
           >
             <Icons.Calendar size={16} className="text-blue-500" /> 定投计划
           </button>
@@ -902,7 +902,7 @@ export const Dashboard: React.FC = () => {
                 setContextMenu(null);
               }
             }}
-            className="flex w-full items-center gap-2 border-b border-gray-50 px-4 py-3 text-left text-sm text-gray-700 hover:bg-amber-50 dark:border-border-dark dark:text-gray-200 dark:hover:bg-amber-900/20"
+            className="flex w-full items-center gap-2 border-b border-[var(--app-shell-line)] px-4 py-3 text-left text-sm text-slate-700 hover:bg-[var(--app-shell-panel-strong)] dark:border-border-dark dark:text-gray-200"
           >
             <Icons.TrendingUp size={16} className="text-amber-500" /> {t('common.adjustPosition')}
           </button>
@@ -914,14 +914,14 @@ export const Dashboard: React.FC = () => {
                 setContextMenu(null);
               }
             }}
-            className="flex w-full items-center gap-2 border-b border-[var(--app-shell-line)] px-4 py-3 text-left text-sm text-slate-700 hover:bg-[var(--app-shell-panel-strong)] dark:border-border-dark dark:text-gray-200 dark:hover:bg-purple-900/20"
+            className="flex w-full items-center gap-2 border-b border-[var(--app-shell-line)] px-4 py-3 text-left text-sm text-slate-700 hover:bg-[var(--app-shell-panel-strong)] dark:border-border-dark dark:text-gray-200"
           >
             <Icons.Grid size={16} className="text-slate-500" />{' '}
             {t('common.transactionHistory') || '交易记录'}
           </button>
           <button
             onClick={() => void handleCopyFundJson(contextMenu.fundId)}
-            className="flex w-full items-center gap-2 border-b border-[var(--app-shell-line)] px-4 py-3 text-left text-sm text-slate-700 hover:bg-[var(--app-shell-panel-strong)] dark:border-border-dark dark:text-gray-200 dark:hover:bg-blue-900/20"
+            className="flex w-full items-center gap-2 border-b border-[var(--app-shell-line)] px-4 py-3 text-left text-sm text-slate-700 hover:bg-[var(--app-shell-panel-strong)] dark:border-border-dark dark:text-gray-200"
           >
             <Icons.Copy size={16} className="text-slate-500" />{' '}
             {t('common.copyFundJson') || '复制基金详情(JSON)'}
@@ -1765,7 +1765,7 @@ export const Dashboard: React.FC = () => {
                     const event = new CustomEvent('open-scanner');
                     window.dispatchEvent(event);
                   }}
-                  className="flex min-h-[4.75rem] flex-col items-start justify-between rounded-2xl border border-[var(--app-shell-line-strong)] bg-blue-50 px-4 py-3 text-left text-slate-800 transition-colors hover:border-[var(--app-shell-line-strong)] dark:border-blue-400/20 dark:bg-blue-500/15 dark:text-blue-100 dark:hover:bg-blue-500/20"
+                  className="flex min-h-[4.75rem] flex-col items-start justify-between rounded-2xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] px-4 py-3 text-left text-slate-700 transition-colors hover:border-[var(--app-shell-line-strong)] hover:text-slate-900 dark:border-white/10 dark:bg-white/5 dark:text-gray-200 dark:hover:border-white/20 dark:hover:bg-white/10"
                 >
                   <Icons.Refresh size={18} />
                   <span className="text-sm font-semibold">{t('common.sync')}</span>
@@ -1783,7 +1783,7 @@ export const Dashboard: React.FC = () => {
             >
               <div className="flex w-full items-center justify-between gap-4">
                 <div className="flex items-center gap-4">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-blue-100 bg-blue-50 text-blue-600 shadow-none dark:border-transparent dark:bg-blue-500/15 dark:text-blue-200">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] text-[var(--app-shell-accent)] shadow-none dark:border-white/10 dark:bg-white/5">
                     <Icons.Chat size={22} />
                   </div>
                   <div>

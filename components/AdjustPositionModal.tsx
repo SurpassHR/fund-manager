@@ -121,28 +121,28 @@ export const AdjustPositionModal: React.FC<AdjustPositionModalProps> = ({
   return (
     <ModalShell isOpen={isOpen} onClose={onClose} overlayId="adjust-position-modal" edgeSwipe>
       {/* 标题 */}
-      <div className="p-4 border-b border-gray-100 dark:border-border-dark flex justify-between items-center bg-gray-50 dark:bg-white/5 shrink-0">
-        <h3 className="font-bold text-gray-800 dark:text-gray-100">
+      <div className="p-4 border-b border-[var(--app-shell-line)] flex justify-between items-center bg-[var(--app-shell-panel)] shrink-0">
+        <h3 className="font-bold text-[var(--app-shell-ink)]">
           {t('common.adjustPosition') || '加减仓'}
         </h3>
         <button onClick={onClose}>
-          <Icons.Plus className="transform rotate-45 text-gray-400" />
+          <Icons.Plus className="transform rotate-45 text-[var(--app-shell-muted)]" />
         </button>
       </div>
 
       <div className="p-6 space-y-4 overflow-y-auto">
         {/* 基金信息 */}
-        <div className="bg-blue-50 dark:bg-blue-900/30 p-3 rounded-lg border border-blue-100 dark:border-blue-800/50">
+        <div className="bg-[var(--app-shell-panel-strong)] p-3 rounded-lg border border-[var(--app-shell-line)]">
           <div className="flex justify-between items-center">
             <div>
-              <div className="font-bold text-blue-900 dark:text-blue-100 text-sm">{fund?.name}</div>
-              <div className="text-xs text-blue-600 dark:text-blue-400 mt-1">{fund?.code}</div>
+              <div className="font-bold text-[var(--app-shell-ink)] text-sm">{fund?.name}</div>
+              <div className="text-xs text-[var(--app-shell-muted)] mt-1">{fund?.code}</div>
             </div>
             <div className="text-right">
-              <div className="text-[10px] text-blue-400">
+              <div className="text-[10px] text-[var(--app-shell-muted)]">
                 {t('common.shares')} · T+{fund?.settlementDays ?? 1}
               </div>
-              <div className="font-sans font-bold text-blue-800 dark:text-blue-300">
+              <div className="font-sans font-bold text-[var(--app-shell-accent)]">
                 {(fund?.holdingShares ?? 0).toFixed(2)}
               </div>
             </div>
@@ -162,7 +162,7 @@ export const AdjustPositionModal: React.FC<AdjustPositionModalProps> = ({
             className={`flex-1 py-2.5 rounded-lg text-sm font-bold transition-all ${
               type === 'buy'
                 ? 'bg-stock-red text-white shadow-md'
-                : 'bg-gray-100 dark:bg-white/10 text-gray-500 dark:text-gray-400'
+                : 'bg-[var(--app-shell-panel-strong)] text-[var(--app-shell-muted)]'
             }`}
           >
             {t('common.addPosition') || '加仓'}
@@ -172,7 +172,7 @@ export const AdjustPositionModal: React.FC<AdjustPositionModalProps> = ({
             className={`flex-1 py-2.5 rounded-lg text-sm font-bold transition-all ${
               type === 'sell'
                 ? 'bg-stock-green text-white shadow-md'
-                : 'bg-gray-100 dark:bg-white/10 text-gray-500 dark:text-gray-400'
+                : 'bg-[var(--app-shell-panel-strong)] text-[var(--app-shell-muted)]'
             }`}
           >
             {t('common.reducePosition') || '减仓'}
@@ -182,18 +182,18 @@ export const AdjustPositionModal: React.FC<AdjustPositionModalProps> = ({
         {/* 日期 + 时间 */}
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block text-xs font-bold text-gray-500 mb-1">
+            <label className="block text-xs font-bold text-[var(--app-shell-muted)] mb-1">
               {t('common.operationDate') || '操作日期'}
             </label>
             <input
               type="date"
               value={opDate}
               onChange={(e) => setOpDate(e.target.value)}
-              className="w-full p-2.5 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-white/5 focus:outline-none focus:border-blue-500 text-gray-900 dark:text-gray-100 text-sm font-sans"
+              className="w-full p-2.5 border border-[var(--app-shell-line)] rounded-lg bg-[var(--app-shell-panel-strong)] focus:outline-none focus:border-[var(--app-shell-accent)] text-[var(--app-shell-ink)] text-sm font-sans"
             />
           </div>
           <div>
-            <label className="block text-xs font-bold text-gray-500 mb-1">
+            <label className="block text-xs font-bold text-[var(--app-shell-muted)] mb-1">
               {t('common.operationTime') || '操作时间'}
             </label>
             <SelectDropdown
@@ -203,14 +203,14 @@ export const AdjustPositionModal: React.FC<AdjustPositionModalProps> = ({
               ]}
               value={opTime}
               onChange={(v) => setOpTime(v as 'before15' | 'after15')}
-              className="w-full p-3 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-white/5 focus:outline-none focus:border-blue-500 text-gray-900 dark:text-gray-100 text-sm"
+              className="w-full p-3 border border-[var(--app-shell-line)] rounded-lg bg-[var(--app-shell-panel-strong)] focus:outline-none focus:border-[var(--app-shell-accent)] text-[var(--app-shell-ink)] text-sm"
             />
           </div>
         </div>
 
         {/* 金额/份额 */}
         <div>
-          <label className="block text-xs font-bold text-gray-500 mb-1">
+          <label className="block text-xs font-bold text-[var(--app-shell-muted)] mb-1">
             {type === 'buy'
               ? t('common.buyAmount') || '加仓金额 (¥)'
               : t('common.sellShares') || '减仓份额'}
@@ -227,7 +227,7 @@ export const AdjustPositionModal: React.FC<AdjustPositionModalProps> = ({
                 ? '0.00'
                 : `如 50、50%、1/3（最大 ${(fund?.holdingShares ?? 0).toFixed(2)}）`
             }
-            className={`w-full p-3 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-white/5 text-gray-900 dark:text-white font-bold font-sans focus:border-blue-500 outline-none text-lg ${noSpinnerClass}`}
+            className={`w-full p-3 border border-[var(--app-shell-line)] rounded-lg bg-[var(--app-shell-panel-strong)] text-[var(--app-shell-ink)] font-bold font-sans focus:border-[var(--app-shell-accent)] outline-none text-lg ${noSpinnerClass}`}
           />
 
           {type === 'sell' && (
@@ -246,7 +246,7 @@ export const AdjustPositionModal: React.FC<AdjustPositionModalProps> = ({
                       setAmount(item.value);
                       setInputError('');
                     }}
-                    className="px-2.5 py-1.5 text-xs font-bold rounded-md bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-white/15"
+                    className="px-2.5 py-1.5 text-xs font-bold rounded-md bg-[var(--app-shell-panel-strong)] text-[var(--app-shell-muted)] hover:text-[var(--app-shell-ink)]"
                   >
                     {item.label}
                   </button>
@@ -257,11 +257,11 @@ export const AdjustPositionModal: React.FC<AdjustPositionModalProps> = ({
                 {inputError ? (
                   <span className="text-red-500">{inputError}</span>
                 ) : parsedSell?.shares != null ? (
-                  <span className="text-gray-500 dark:text-gray-400">
+                  <span className="text-[var(--app-shell-muted)]">
                     将减仓 {parsedSell.shares.toFixed(2)} 份
                   </span>
                 ) : (
-                  <span className="text-gray-400 dark:text-gray-500">
+                  <span className="text-[var(--app-shell-muted)]">
                     输入格式支持：份额、百分比（如 50%）、分数（如 1/3）
                   </span>
                 )}
@@ -293,7 +293,7 @@ export const AdjustPositionModal: React.FC<AdjustPositionModalProps> = ({
         <div className="flex gap-3 pt-2">
           <button
             onClick={onClose}
-            className="flex-1 py-3 text-sm font-bold text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-white/10 rounded-xl hover:bg-gray-200 dark:hover:bg-white/15"
+            className="flex-1 py-3 text-sm font-bold text-[var(--app-shell-muted)] bg-[var(--app-shell-panel-strong)] rounded-xl hover:text-[var(--app-shell-ink)]"
           >
             {t('common.cancel')}
           </button>

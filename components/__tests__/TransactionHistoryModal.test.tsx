@@ -169,4 +169,21 @@ describe('TransactionHistoryModal position open logic', () => {
     const blueBadges = container.querySelectorAll('.bg-blue-50, .dark\\:bg-blue-900\\/30');
     expect(blueBadges.length).toBeGreaterThan(0);
   });
+
+  it('交易历史的中性容器和条目应使用当前主题背景', () => {
+    const fund = buildFund({
+      pendingTransactions: [buildTx({ id: 'first-buy', type: 'buy', amount: 100 })],
+    });
+
+    render(<TransactionHistoryModal isOpen onClose={vi.fn()} fund={fund} />);
+
+    const fundNameBadge = screen.getByText('测试基金');
+    expect(fundNameBadge.className).toContain('bg-[var(--app-shell-panel-strong)]');
+    expect(fundNameBadge.className).not.toContain('bg-gray-50');
+
+    const transactionCard = screen.getByText('100.00 元').closest('.rounded-xl');
+    expect(transactionCard?.className).toContain('bg-[var(--app-shell-panel-strong)]');
+    expect(transactionCard?.className).not.toContain('bg-white');
+    expect(transactionCard?.className).not.toContain('dark:bg-white/5');
+  });
 });

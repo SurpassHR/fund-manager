@@ -193,7 +193,7 @@ export const AssetAllocationCard: React.FC<AssetAllocationCardProps> = ({
                       value={editValue}
                       onChange={(e) => setEditValue(e.target.value)}
                       onKeyDown={handleEditKeyDown}
-                      className="w-40 rounded-lg border border-blue-600 bg-white px-3 py-1.5 text-2xl font-black tracking-[-0.04em] text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:bg-slate-800/90 dark:text-gray-50 md:text-3xl [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      className="w-40 rounded-lg border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] px-3 py-1.5 text-2xl font-black tracking-[-0.04em] text-[var(--app-shell-ink)] outline-none focus:border-[var(--app-shell-accent)] focus:ring-2 focus:ring-[var(--app-shell-accent-soft)] md:text-3xl [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                       placeholder="输入总资产"
                       min={Math.round(fundAssets)}
                     />
@@ -208,7 +208,7 @@ export const AssetAllocationCard: React.FC<AssetAllocationCardProps> = ({
                       </button>
                       <button
                         onClick={handleCancelEdit}
-                        className="rounded-lg bg-slate-200 p-1.5 text-slate-500 transition-colors hover:bg-slate-300 dark:bg-white/10 dark:text-gray-400 dark:hover:bg-white/20"
+                        className="rounded-lg bg-[var(--app-shell-panel-strong)] p-1.5 text-[var(--app-shell-muted)] transition-colors hover:text-[var(--app-shell-ink)]"
                         aria-label="取消"
                       >
                         <Icons.X size={16} />

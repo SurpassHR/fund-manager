@@ -156,10 +156,13 @@ export const InvestmentPlanModal: React.FC<InvestmentPlanModalProps> = ({
   return (
     <ModalShell isOpen={isOpen} onClose={onClose} overlayId="investment-plan-modal" edgeSwipe>
       {/* Header */}
-      <div className="p-4 border-b border-gray-100 dark:border-border-dark flex justify-between items-center bg-gray-50 dark:bg-white/5 shrink-0">
-        <h3 className="font-bold text-gray-800 dark:text-gray-100">定投计划</h3>
-        <button onClick={onClose}>
-          <Icons.Plus className="transform rotate-45 text-gray-400" />
+      <div className="p-4 border-b border-[var(--app-shell-line)] flex justify-between items-center bg-[var(--app-shell-panel)] shrink-0">
+        <h3 className="font-bold text-[var(--app-shell-ink)]">定投计划</h3>
+        <button
+          onClick={onClose}
+          className="rounded-full p-1 text-[var(--app-shell-muted)] transition-colors hover:bg-[var(--app-shell-line)]"
+        >
+          <Icons.Plus className="transform rotate-45" />
         </button>
       </div>
 
@@ -167,7 +170,7 @@ export const InvestmentPlanModal: React.FC<InvestmentPlanModalProps> = ({
         {/* 现有计划列表 */}
         {plans && plans.length > 0 && (
           <div className="space-y-2">
-            <div className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+            <div className="text-xs font-semibold text-[var(--app-shell-muted)] uppercase tracking-wider">
               现有计划 ({plans.length})
             </div>
             {plans.map((plan) => {
@@ -175,18 +178,18 @@ export const InvestmentPlanModal: React.FC<InvestmentPlanModalProps> = ({
               return (
                 <div
                   key={plan.id}
-                  className="flex items-center justify-between p-3 rounded-xl bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-border-dark"
+                  className="flex items-center justify-between p-3 rounded-xl bg-[var(--app-shell-panel-strong)] border border-[var(--app-shell-line)]"
                 >
                   <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate">
+                    <div className="text-sm font-medium text-[var(--app-shell-ink)] truncate">
                       {fundName}
                     </div>
-                    <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                    <div className="text-xs text-[var(--app-shell-muted)] mt-0.5">
                       {plan.fundCode} · {formatFrequency(plan.frequency, plan.frequencyDay)} · ¥
                       {plan.amount.toFixed(2)}
                     </div>
                     {plan.lastExecutedDate && (
-                      <div className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5">
+                      <div className="text-[10px] text-[var(--app-shell-muted)] mt-0.5">
                         上次执行: {plan.lastExecutedDate}
                       </div>
                     )}
@@ -196,10 +199,12 @@ export const InvestmentPlanModal: React.FC<InvestmentPlanModalProps> = ({
                     <button
                       onClick={() => plan.id != null && handleToggleActive(plan.id, plan.active)}
                       className={`relative inline-flex h-6 w-11 items-center rounded-full transition-all duration-300 ease-in-out focus:outline-none ${
-                        plan.active ? 'bg-blue-600' : 'bg-gray-300 dark:bg-[#30363d]'
+                        plan.active
+                          ? 'bg-[var(--app-shell-accent)]'
+                          : 'bg-[var(--app-shell-line-strong)]'
                       }`}
                       style={{
-                        boxShadow: plan.active ? '0 0 10px rgba(37, 99, 235, 0.4)' : 'none',
+                        boxShadow: plan.active ? '0 0 10px var(--app-shell-accent-soft)' : 'none',
                       }}
                     >
                       <span className="sr-only">Toggle Switch</span>
@@ -215,7 +220,7 @@ export const InvestmentPlanModal: React.FC<InvestmentPlanModalProps> = ({
                     {/* 删除按钮 */}
                     <button
                       onClick={() => plan.id != null && handleDelete(plan.id)}
-                      className="p-1 text-gray-400 hover:text-red-500 transition-colors"
+                      className="p-1 text-[var(--app-shell-muted)] hover:text-red-500 transition-colors"
                     >
                       <Icons.Plus className="transform rotate-45 w-4 h-4" />
                     </button>
@@ -235,14 +240,14 @@ export const InvestmentPlanModal: React.FC<InvestmentPlanModalProps> = ({
 
         {/* 添加新计划 */}
         {isAdding ? (
-          <div className="space-y-3 p-4 rounded-xl bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800/30">
-            <div className="text-sm font-semibold text-blue-800 dark:text-blue-200">
+          <div className="space-y-3 p-4 rounded-xl bg-[var(--app-shell-panel)] border border-[var(--app-shell-line)]">
+            <div className="text-sm font-semibold text-[var(--app-shell-ink)]">
               {prefillFundCode ? `为 ${prefillFundName} 设置定投` : '新建定投计划'}
             </div>
 
             {/* 基金选择（预选时仅展示不可改） */}
             {prefillFundCode ? (
-              <div className="p-2 rounded-lg bg-white dark:bg-card-dark border border-blue-200 dark:border-blue-800/50 text-sm text-gray-700 dark:text-gray-300">
+              <div className="p-2 rounded-lg bg-[var(--app-shell-panel-strong)] border border-[var(--app-shell-line)] text-sm text-[var(--app-shell-ink)]">
                 {prefillFundName} ({prefillFundCode})
               </div>
             ) : (
@@ -259,7 +264,7 @@ export const InvestmentPlanModal: React.FC<InvestmentPlanModalProps> = ({
 
             {/* 金额输入 */}
             <div>
-              <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
+              <label className="block text-xs font-medium text-[var(--app-shell-muted)] mb-1">
                 每次定投金额 (CNY)
               </label>
               <input
@@ -270,8 +275,8 @@ export const InvestmentPlanModal: React.FC<InvestmentPlanModalProps> = ({
                   setInputError('');
                 }}
                 placeholder="如: 100"
-                className={`w-full p-2 rounded-lg bg-white dark:bg-card-dark border text-sm text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 ${noSpinnerClass} ${
-                  inputError ? 'border-red-400' : 'border-gray-200 dark:border-border-dark'
+                className={`w-full p-2 rounded-lg bg-[var(--app-shell-panel-strong)] border text-sm text-[var(--app-shell-ink)] focus:outline-none focus:ring-2 focus:ring-[var(--app-shell-accent-soft)] focus:border-[var(--app-shell-accent)] ${noSpinnerClass} ${
+                  inputError ? 'border-red-400' : 'border-[var(--app-shell-line)]'
                 }`}
                 inputMode="decimal"
               />
@@ -279,7 +284,7 @@ export const InvestmentPlanModal: React.FC<InvestmentPlanModalProps> = ({
 
             {/* 频率选择 */}
             <div>
-              <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
+              <label className="block text-xs font-medium text-[var(--app-shell-muted)] mb-1">
                 定投频率
               </label>
               <div className="flex gap-2">
@@ -289,8 +294,8 @@ export const InvestmentPlanModal: React.FC<InvestmentPlanModalProps> = ({
                     onClick={() => setFrequency(opt.value)}
                     className={`flex-1 py-1.5 rounded-lg text-xs font-medium transition-colors ${
                       frequency === opt.value
-                        ? 'bg-blue-500 text-white'
-                        : 'bg-white dark:bg-card-dark text-gray-600 dark:text-gray-400 border border-gray-200 dark:border-border-dark'
+                        ? 'bg-[var(--app-shell-accent)] text-white'
+                        : 'bg-[var(--app-shell-panel-strong)] text-[var(--app-shell-muted)] border border-[var(--app-shell-line)] hover:text-[var(--app-shell-ink)]'
                     }`}
                   >
                     {opt.label}
@@ -302,7 +307,7 @@ export const InvestmentPlanModal: React.FC<InvestmentPlanModalProps> = ({
             {/* 频率日期选择 */}
             {frequency !== 'daily' && (
               <div>
-                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
+                <label className="block text-xs font-medium text-[var(--app-shell-muted)] mb-1">
                   {frequency === 'weekly' ? '选择星期' : '选择日期'}
                 </label>
                 {frequency === 'weekly' ? (
@@ -313,8 +318,8 @@ export const InvestmentPlanModal: React.FC<InvestmentPlanModalProps> = ({
                         onClick={() => setFrequencyDay(opt.value)}
                         className={`py-1.5 rounded-lg text-xs font-medium transition-colors ${
                           frequencyDay === opt.value
-                            ? 'bg-blue-500 text-white'
-                            : 'bg-white dark:bg-card-dark text-gray-600 dark:text-gray-400 border border-gray-200 dark:border-border-dark'
+                            ? 'bg-[var(--app-shell-accent)] text-white'
+                            : 'bg-[var(--app-shell-panel-strong)] text-[var(--app-shell-muted)] border border-[var(--app-shell-line)] hover:text-[var(--app-shell-ink)]'
                         }`}
                       >
                         {opt.label.replace('周', '')}
@@ -329,8 +334,8 @@ export const InvestmentPlanModal: React.FC<InvestmentPlanModalProps> = ({
                         onClick={() => setFrequencyDay(opt.value)}
                         className={`py-1.5 rounded-lg text-xs font-medium transition-colors ${
                           frequencyDay === opt.value
-                            ? 'bg-blue-500 text-white'
-                            : 'bg-white dark:bg-card-dark text-gray-600 dark:text-gray-400 border border-gray-200 dark:border-border-dark'
+                            ? 'bg-[var(--app-shell-accent)] text-white'
+                            : 'bg-[var(--app-shell-panel-strong)] text-[var(--app-shell-muted)] border border-[var(--app-shell-line)] hover:text-[var(--app-shell-ink)]'
                         }`}
                       >
                         {opt.value}
@@ -342,7 +347,7 @@ export const InvestmentPlanModal: React.FC<InvestmentPlanModalProps> = ({
             )}
 
             {/* 提示 */}
-            <p className="text-[11px] text-blue-600 dark:text-blue-400">
+            <p className="text-[11px] text-[var(--app-shell-muted)]">
               按设定频率自动创建买入交易，遵循基金 T+N 结算规则
             </p>
 
@@ -355,7 +360,7 @@ export const InvestmentPlanModal: React.FC<InvestmentPlanModalProps> = ({
                   setIsAdding(false);
                   setInputError('');
                 }}
-                className="flex-1 py-2 rounded-lg text-sm text-gray-500 bg-gray-100 dark:bg-white/10 hover:bg-gray-200 dark:hover:bg-white/20 transition-colors"
+                className="flex-1 py-2 rounded-lg text-sm text-[var(--app-shell-muted)] bg-[var(--app-shell-panel-strong)] hover:text-[var(--app-shell-ink)] transition-colors"
               >
                 取消
               </button>
@@ -370,7 +375,7 @@ export const InvestmentPlanModal: React.FC<InvestmentPlanModalProps> = ({
         ) : (
           <button
             onClick={() => setIsAdding(true)}
-            className="w-full p-3 rounded-xl border-2 border-dashed border-gray-300 dark:border-gray-600 text-gray-400 dark:text-gray-500 hover:text-blue-500 hover:border-blue-400 dark:hover:border-blue-500 transition-colors text-sm"
+            className="w-full p-3 rounded-xl border-2 border-dashed border-[var(--app-shell-line-strong)] text-[var(--app-shell-muted)] hover:text-[var(--app-shell-accent)] hover:border-[var(--app-shell-accent)] transition-colors text-sm"
           >
             + 新增定投计划
           </button>

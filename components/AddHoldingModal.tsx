@@ -352,7 +352,7 @@ export const AddHoldingModal: React.FC<AddHoldingModalProps> = ({
         </h3>
         <button
           onClick={onClose}
-          className="p-1 hover:bg-gray-200 dark:hover:bg-white/10 rounded-full transition-colors text-[var(--app-shell-muted)]"
+          className="p-1 hover:bg-[var(--app-shell-line)] rounded-full transition-colors text-[var(--app-shell-muted)]"
         >
           <Icons.Plus size={20} className="transform rotate-45" />
         </button>
@@ -365,16 +365,16 @@ export const AddHoldingModal: React.FC<AddHoldingModalProps> = ({
 
         {/* 基金信息卡 */}
         {selectedFund ? (
-          <div className="bg-blue-50 dark:bg-blue-900/30 p-3 rounded-xl border border-blue-100 dark:border-blue-800/50 flex justify-between items-center">
+          <div className="bg-[var(--app-shell-panel-strong)] p-3 rounded-xl border border-[var(--app-shell-line)] flex justify-between items-center">
             <div className="min-w-0 flex-1">
-              <div className="font-bold text-blue-900 dark:text-blue-100 text-sm truncate">
+              <div className="font-bold text-[var(--app-shell-ink)] text-sm truncate">
                 {info.name}
               </div>
-              <div className="text-xs text-blue-600 dark:text-blue-400 mt-1">{info.code}</div>
+              <div className="text-xs text-[var(--app-shell-muted)] mt-1">{info.code}</div>
             </div>
             <div className="text-right shrink-0 ml-3">
-              <div className="text-[10px] text-blue-400 dark:text-blue-500">{t('common.nav')}</div>
-              <div className="font-sans font-bold text-blue-800 dark:text-blue-300">
+              <div className="text-[10px] text-[var(--app-shell-muted)]">{t('common.nav')}</div>
+              <div className="font-sans font-bold text-[var(--app-shell-accent)]">
                 {navLoading ? '...' : currentNav.toFixed(4)}
               </div>
             </div>
@@ -402,7 +402,7 @@ export const AddHoldingModal: React.FC<AddHoldingModalProps> = ({
             }
             value={selectedAccount}
             onChange={setSelectedAccount}
-            className="w-full p-3 border border-[var(--app-shell-line)] rounded-xl bg-[var(--app-shell-panel)] focus:outline-none focus:border-blue-500 text-[var(--app-shell-ink)] text-sm"
+            className="w-full p-3 border border-[var(--app-shell-line)] rounded-xl bg-[var(--app-shell-panel)] focus:outline-none focus:border-[var(--app-shell-accent)] text-[var(--app-shell-ink)] text-sm"
           />
         </div>
 
@@ -416,7 +416,7 @@ export const AddHoldingModal: React.FC<AddHoldingModalProps> = ({
               type="date"
               value={buyDate}
               onChange={(e) => handleBuyDateChange(e.target.value)}
-              className="w-full p-2.5 border border-[var(--app-shell-line)] rounded-xl bg-[var(--app-shell-panel)] focus:outline-none focus:border-blue-500 text-[var(--app-shell-ink)] text-sm font-sans"
+              className="w-full p-2.5 border border-[var(--app-shell-line)] rounded-xl bg-[var(--app-shell-panel)] focus:outline-none focus:border-[var(--app-shell-accent)] text-[var(--app-shell-ink)] text-sm font-sans"
             />
           </div>
           <div>
@@ -430,7 +430,7 @@ export const AddHoldingModal: React.FC<AddHoldingModalProps> = ({
               ]}
               value={buyTime}
               onChange={(v) => setBuyTime(v as 'before15' | 'after15')}
-              className="w-full p-2.5 border border-[var(--app-shell-line)] rounded-xl bg-[var(--app-shell-panel)] focus:outline-none focus:border-blue-500 text-[var(--app-shell-ink)] text-sm font-sans"
+              className="w-full p-2.5 border border-[var(--app-shell-line)] rounded-xl bg-[var(--app-shell-panel)] focus:outline-none focus:border-[var(--app-shell-accent)] text-[var(--app-shell-ink)] text-sm font-sans"
             />
           </div>
         </div>
@@ -448,7 +448,7 @@ export const AddHoldingModal: React.FC<AddHoldingModalProps> = ({
               max="10"
               value={settlementDays}
               onChange={(e) => setSettlementDays(Math.max(0, parseInt(e.target.value) || 0))}
-              className={`w-20 p-2.5 border border-[var(--app-shell-line)] rounded-xl bg-[var(--app-shell-panel)] focus:outline-none focus:border-blue-500 text-[var(--app-shell-ink)] text-sm font-sans font-bold text-center ${noSpinnerClass}`}
+              className={`w-20 p-2.5 border border-[var(--app-shell-line)] rounded-xl bg-[var(--app-shell-panel)] focus:outline-none focus:border-[var(--app-shell-accent)] text-[var(--app-shell-ink)] text-sm font-sans font-bold text-center ${noSpinnerClass}`}
             />
             <span className="text-xs text-[var(--app-shell-muted)]">个交易日</span>
           </div>
@@ -466,7 +466,7 @@ export const AddHoldingModal: React.FC<AddHoldingModalProps> = ({
                 value={amount}
                 onChange={(e) => handleAmountChange(e.target.value)}
                 placeholder="0.00"
-                className={`w-full p-2 border border-[var(--app-shell-line)] rounded-xl bg-[var(--app-shell-paper)] dark:bg-[var(--app-shell-paper-dark)] text-[var(--app-shell-ink)] font-bold font-sans focus:border-blue-500 outline-none ${noSpinnerClass}`}
+                className={`w-full p-2 border border-[var(--app-shell-line)] rounded-xl bg-[var(--app-shell-panel-strong)] text-[var(--app-shell-ink)] font-bold font-sans focus:border-[var(--app-shell-accent)] outline-none ${noSpinnerClass}`}
               />
             </div>
             <div>
@@ -478,7 +478,7 @@ export const AddHoldingModal: React.FC<AddHoldingModalProps> = ({
                 value={shares}
                 onChange={(e) => handleSharesChange(e.target.value)}
                 placeholder="0.00"
-                className={`w-full p-2 border border-[var(--app-shell-line)] rounded-xl bg-[var(--app-shell-paper)] dark:bg-[var(--app-shell-paper-dark)] text-[var(--app-shell-ink)] font-bold font-sans focus:border-blue-500 outline-none ${noSpinnerClass}`}
+                className={`w-full p-2 border border-[var(--app-shell-line)] rounded-xl bg-[var(--app-shell-panel-strong)] text-[var(--app-shell-ink)] font-bold font-sans focus:border-[var(--app-shell-accent)] outline-none ${noSpinnerClass}`}
               />
             </div>
           </div>
@@ -492,7 +492,7 @@ export const AddHoldingModal: React.FC<AddHoldingModalProps> = ({
                 value={costPrice}
                 onChange={(e) => handleCostPriceChange(e.target.value)}
                 placeholder="0.0000"
-                className={`w-full p-2 border border-[var(--app-shell-line)] rounded-xl bg-[var(--app-shell-paper)] dark:bg-[var(--app-shell-paper-dark)] text-[var(--app-shell-ink)] font-bold font-sans focus:border-blue-500 outline-none ${noSpinnerClass}`}
+                className={`w-full p-2 border border-[var(--app-shell-line)] rounded-xl bg-[var(--app-shell-panel-strong)] text-[var(--app-shell-ink)] font-bold font-sans focus:border-[var(--app-shell-accent)] outline-none ${noSpinnerClass}`}
               />
             </div>
             <div>
@@ -504,7 +504,7 @@ export const AddHoldingModal: React.FC<AddHoldingModalProps> = ({
                 value={gain}
                 onChange={(e) => handleGainChange(e.target.value)}
                 placeholder="0.00"
-                className={`w-full p-2 border border-[var(--app-shell-line)] rounded-xl bg-[var(--app-shell-paper)] dark:bg-[var(--app-shell-paper-dark)] font-bold font-sans focus:border-blue-500 outline-none ${noSpinnerClass} ${getGainColor(gain)}`}
+                className={`w-full p-2 border border-[var(--app-shell-line)] rounded-xl bg-[var(--app-shell-panel-strong)] font-bold font-sans focus:border-[var(--app-shell-accent)] outline-none ${noSpinnerClass} ${getGainColor(gain)}`}
               />
             </div>
           </div>

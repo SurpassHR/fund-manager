@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { render } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { RebalanceModal } from '../RebalanceModal';
 import type { Fund } from '../../types';
 
@@ -67,5 +67,20 @@ describe('RebalanceModal', () => {
 
     expect(document.body.style.overflow).toBe('');
     expect(document.documentElement.style.overflow).toBe('');
+  });
+
+  it('调仓表单的中性信息区域应使用当前主题背景', () => {
+    render(<RebalanceModal isOpen onClose={vi.fn()} sourceFund={sourceFund} funds={[sourceFund]} />);
+
+    const sourceSummary = screen.getByText('测试基金').closest('.rounded-lg');
+    expect(sourceSummary?.className).toContain('bg-[var(--app-shell-panel-strong)]');
+    expect(sourceSummary?.className).not.toContain('bg-gray-50');
+
+    const transferOutSharesInput = screen
+      .getByText('common.transferOutShares')
+      .parentElement?.querySelector('input');
+    expect(transferOutSharesInput?.className).toContain('bg-[var(--app-shell-panel-strong)]');
+    expect(transferOutSharesInput?.className).not.toContain('bg-white');
+    expect(transferOutSharesInput?.className).not.toContain('dark:bg-white/5');
   });
 });

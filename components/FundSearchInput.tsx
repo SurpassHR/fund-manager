@@ -85,18 +85,18 @@ export const FundSearchInput: React.FC<FundSearchInputProps> = ({
       <div className="relative">
         <Icons.Search
           size={18}
-          className={`absolute left-3 top-1/2 -translate-y-1/2 ${isSearching ? 'text-blue-500' : 'text-[var(--app-shell-muted)]'}`}
+          className={`absolute left-3 top-1/2 -translate-y-1/2 ${isSearching ? 'text-[var(--app-shell-accent)]' : 'text-[var(--app-shell-muted)]'}`}
         />
         <input
           type="text"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder={placeholder || t('common.searchFund')}
-          className="w-full pl-10 pr-4 py-3 border border-[var(--app-shell-line)] rounded-xl bg-[var(--app-shell-panel)] focus:bg-[var(--app-shell-paper)] dark:focus:bg-[var(--app-shell-paper-dark)] focus:border-blue-500 focus:outline-none transition-all text-[var(--app-shell-ink)] placeholder:text-[var(--app-shell-muted)] text-sm"
+          className="w-full pl-10 pr-4 py-3 border border-[var(--app-shell-line)] rounded-xl bg-[var(--app-shell-panel)] focus:bg-[var(--app-shell-panel-strong)] focus:border-[var(--app-shell-accent)] focus:outline-none transition-all text-[var(--app-shell-ink)] placeholder:text-[var(--app-shell-muted)] text-sm"
         />
         {isSearching && (
           <div className="absolute right-3 top-1/2 -translate-y-1/2">
-            <Icons.Settings size={16} className="text-blue-500 animate-spin" />
+            <Icons.Settings size={16} className="text-[var(--app-shell-accent)] animate-spin" />
           </div>
         )}
       </div>
@@ -106,12 +106,12 @@ export const FundSearchInput: React.FC<FundSearchInputProps> = ({
 
       {/* 搜索结果列表 */}
       {results.length > 0 && (
-        <div className="mt-2 border border-[var(--app-shell-line)] rounded-xl overflow-hidden bg-[var(--app-shell-paper)] dark:bg-[var(--app-shell-paper-dark)]">
+        <div className="mt-2 border border-[var(--app-shell-line)] rounded-xl overflow-hidden bg-[var(--app-shell-panel)] shadow-[var(--app-shell-shadow)]">
           {results.map((fund, idx) => (
             <div
               key={fund.fundClassId}
               onClick={() => handleSelect(fund)}
-              className={`px-4 py-3 hover:bg-blue-50 dark:hover:bg-blue-900/20 cursor-pointer transition-colors flex items-center justify-between ${idx < results.length - 1 ? 'border-b border-[var(--app-shell-line)]' : ''}`}
+              className={`px-4 py-3 hover:bg-[var(--app-shell-panel-strong)] cursor-pointer transition-colors flex items-center justify-between ${idx < results.length - 1 ? 'border-b border-[var(--app-shell-line)]' : ''}`}
             >
               <div className="min-w-0 flex-1">
                 <div className="text-sm font-medium text-[var(--app-shell-ink)] truncate pr-2">
@@ -122,7 +122,7 @@ export const FundSearchInput: React.FC<FundSearchInputProps> = ({
                   {fund.fundType && <span>· {fund.fundType}</span>}
                 </div>
               </div>
-              <Icons.Plus size={16} className="text-blue-500 shrink-0 ml-1" />
+              <Icons.Plus size={16} className="text-[var(--app-shell-accent)] shrink-0 ml-1" />
             </div>
           ))}
         </div>

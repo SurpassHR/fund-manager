@@ -76,13 +76,13 @@ export const AccountManagerModal: React.FC<AccountManagerModalProps> = ({ isOpen
 
   return (
     <ModalShell isOpen={isOpen} onClose={onClose} overlayId="account-manager-modal">
-      <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--app-shell-line)] dark:border-border-dark shrink-0">
-        <h2 className="text-base font-bold text-slate-800 dark:text-gray-100">
+      <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--app-shell-line)] shrink-0">
+        <h2 className="text-base font-bold text-[var(--app-shell-ink)]">
           {t('common.manageAccounts')}
         </h2>
         <button
           onClick={onClose}
-          className="p-1.5 -mr-1.5 rounded-full hover:bg-gray-100 dark:hover:bg-white/10 transition-colors text-gray-500"
+          className="p-1.5 -mr-1.5 rounded-full hover:bg-[var(--app-shell-line)] transition-colors text-[var(--app-shell-muted)]"
         >
           <Icons.Plus className="transform rotate-45" size={20} />
         </button>
@@ -93,7 +93,7 @@ export const AccountManagerModal: React.FC<AccountManagerModalProps> = ({ isOpen
           {accounts?.map((acc) => (
             <div
               key={acc.id}
-              className="flex items-center justify-between p-4 bg-[var(--app-shell-panel)] dark:bg-[#1a1a1a] border border-[var(--app-shell-line)] dark:border-white/5 rounded-xl hover:border-blue-200 dark:hover:border-blue-900 transition-colors group"
+              className="flex items-center justify-between p-4 bg-[var(--app-shell-panel-strong)] border border-[var(--app-shell-line)] rounded-xl hover:border-[var(--app-shell-line-strong)] transition-colors group"
             >
               {editingId === acc.id ? (
                 // Edit Mode
@@ -113,7 +113,7 @@ export const AccountManagerModal: React.FC<AccountManagerModalProps> = ({ isOpen
                       }
                       setEditName(normalizeAccountName(e.target.value));
                     }}
-                    className="flex-1 px-3 py-1.5 border border-blue-300 rounded-lg text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 whitespace-nowrap bg-white dark:bg-white/5 dark:border-blue-500/50"
+                    className="flex-1 px-3 py-1.5 border border-[var(--app-shell-line)] rounded-lg text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[var(--app-shell-accent-soft)] focus:border-[var(--app-shell-accent)] whitespace-nowrap bg-[var(--app-shell-panel)] text-[var(--app-shell-ink)]"
                   />
                   <button
                     onClick={() => handleSaveEdit(acc)}
@@ -123,7 +123,7 @@ export const AccountManagerModal: React.FC<AccountManagerModalProps> = ({ isOpen
                   </button>
                   <button
                     onClick={handleCancelEdit}
-                    className="text-gray-400 p-1.5 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg"
+                    className="text-[var(--app-shell-muted)] p-1.5 hover:bg-[var(--app-shell-line)] rounded-lg"
                   >
                     <Icons.X size={18} />
                   </button>
@@ -131,7 +131,7 @@ export const AccountManagerModal: React.FC<AccountManagerModalProps> = ({ isOpen
               ) : (
                 // View Mode
                 <>
-                  <span className="text-sm font-bold text-slate-700 dark:text-gray-200 truncate whitespace-nowrap flex-1">
+                  <span className="text-sm font-bold text-[var(--app-shell-ink)] truncate whitespace-nowrap flex-1">
                     {t(`filters.${acc.name}`) === `filters.${acc.name}`
                       ? acc.name
                       : t(`filters.${acc.name}`)}
@@ -140,7 +140,7 @@ export const AccountManagerModal: React.FC<AccountManagerModalProps> = ({ isOpen
                   <div className="flex items-center gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                     <button
                       onClick={() => handleStartEdit(acc)}
-                      className="text-gray-400 hover:text-blue-600 p-1.5 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20"
+                      className="text-[var(--app-shell-muted)] hover:text-[var(--app-shell-accent)] p-1.5 rounded-lg hover:bg-[var(--app-shell-line)]"
                       title={t('common.edit')}
                     >
                       <Icons.Edit size={16} />
@@ -163,7 +163,7 @@ export const AccountManagerModal: React.FC<AccountManagerModalProps> = ({ isOpen
         </div>
       </div>
 
-      <div className="p-5 border-t border-[var(--app-shell-line)] dark:border-border-dark bg-gray-50/50 dark:bg-white/5 shrink-0">
+      <div className="p-5 border-t border-[var(--app-shell-line)] bg-[var(--app-shell-panel)] shrink-0">
         {isAdding ? (
           <div className="flex flex-col gap-2">
             <input
@@ -183,12 +183,12 @@ export const AccountManagerModal: React.FC<AccountManagerModalProps> = ({ isOpen
                 setNewAccountName(normalizeAccountName(e.target.value));
               }}
               placeholder={t('common.accountName')}
-              className="w-full px-4 py-2.5 border border-[var(--app-shell-line-strong)] dark:border-white/10 rounded-xl text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 whitespace-nowrap bg-white dark:bg-black/20"
+              className="w-full px-4 py-2.5 border border-[var(--app-shell-line-strong)] rounded-xl text-sm focus:outline-none focus:border-[var(--app-shell-accent)] focus:ring-2 focus:ring-[var(--app-shell-accent-soft)] whitespace-nowrap bg-[var(--app-shell-panel-strong)] text-[var(--app-shell-ink)]"
             />
             <div className="flex gap-2 justify-end mt-2">
               <button
                 onClick={() => setIsAdding(false)}
-                className="px-4 py-2 text-sm font-bold text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/10 rounded-xl"
+                className="px-4 py-2 text-sm font-bold text-[var(--app-shell-muted)] hover:bg-[var(--app-shell-line)] rounded-xl"
               >
                 {t('common.cancel')}
               </button>

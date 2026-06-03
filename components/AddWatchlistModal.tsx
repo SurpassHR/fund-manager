@@ -157,7 +157,7 @@ export const AddWatchlistModal: React.FC<AddWatchlistModalProps> = ({
         </h2>
         <button
           onClick={handleClose}
-          className="p-1 hover:bg-gray-200 dark:hover:bg-white/10 rounded-full transition-colors text-[var(--app-shell-muted)]"
+          className="p-1 hover:bg-[var(--app-shell-line)] rounded-full transition-colors text-[var(--app-shell-muted)]"
         >
           <Icons.Plus size={20} className="transform rotate-45" />
         </button>
@@ -169,13 +169,13 @@ export const AddWatchlistModal: React.FC<AddWatchlistModalProps> = ({
         {!editItem && (
           <div className="flex bg-[var(--app-shell-panel)] rounded-xl p-1 border border-[var(--app-shell-line)]">
             <button
-              className={`flex-1 py-2 text-sm font-medium rounded-lg transition-colors ${type === 'fund' ? 'bg-white dark:bg-card-dark text-blue-600 shadow-sm' : 'text-[var(--app-shell-muted)] hover:text-[var(--app-shell-ink)]'}`}
+              className={`flex-1 py-2 text-sm font-medium rounded-lg transition-colors ${type === 'fund' ? 'bg-[var(--app-shell-panel-strong)] text-[var(--app-shell-accent)] shadow-sm' : 'text-[var(--app-shell-muted)] hover:text-[var(--app-shell-ink)]'}`}
               onClick={() => setType('fund')}
             >
               {t('common.fund')}
             </button>
             <button
-              className={`flex-1 py-2 text-sm font-medium rounded-lg transition-colors ${type === 'index' ? 'bg-white dark:bg-card-dark text-blue-600 shadow-sm' : 'text-[var(--app-shell-muted)] hover:text-[var(--app-shell-ink)]'}`}
+              className={`flex-1 py-2 text-sm font-medium rounded-lg transition-colors ${type === 'index' ? 'bg-[var(--app-shell-panel-strong)] text-[var(--app-shell-accent)] shadow-sm' : 'text-[var(--app-shell-muted)] hover:text-[var(--app-shell-ink)]'}`}
               onClick={() => setType('index')}
             >
               {t('common.indexOrSector')}
@@ -196,7 +196,7 @@ export const AddWatchlistModal: React.FC<AddWatchlistModalProps> = ({
             </label>
             <input
               type="text"
-              className="w-full px-3 py-2.5 bg-[var(--app-shell-panel)] border border-[var(--app-shell-line)] rounded-xl text-sm focus:outline-none focus:border-blue-500 text-[var(--app-shell-ink)]"
+              className="w-full px-3 py-2.5 bg-[var(--app-shell-panel)] border border-[var(--app-shell-line)] rounded-xl text-sm focus:outline-none focus:border-[var(--app-shell-accent)] text-[var(--app-shell-ink)]"
               value={code}
               onChange={(e) => setCode(e.target.value)}
               placeholder={
@@ -212,7 +212,7 @@ export const AddWatchlistModal: React.FC<AddWatchlistModalProps> = ({
             </label>
             <input
               type="text"
-              className="w-full px-3 py-2.5 bg-[var(--app-shell-panel)] border border-[var(--app-shell-line)] rounded-xl text-sm focus:outline-none focus:border-blue-500 text-[var(--app-shell-ink)]"
+              className="w-full px-3 py-2.5 bg-[var(--app-shell-panel)] border border-[var(--app-shell-line)] rounded-xl text-sm focus:outline-none focus:border-[var(--app-shell-accent)] text-[var(--app-shell-ink)]"
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder={
@@ -254,7 +254,7 @@ export const AddWatchlistModal: React.FC<AddWatchlistModalProps> = ({
             </label>
             <input
               type="date"
-              className="w-full px-3 py-2.5 bg-[var(--app-shell-panel)] border border-[var(--app-shell-line)] rounded-xl text-sm focus:outline-none focus:border-blue-500 text-[var(--app-shell-ink)]"
+              className="w-full px-3 py-2.5 bg-[var(--app-shell-panel)] border border-[var(--app-shell-line)] rounded-xl text-sm focus:outline-none focus:border-[var(--app-shell-accent)] text-[var(--app-shell-ink)]"
               value={anchorDate}
               onChange={(e) => handleAnchorDateChange(e.target.value)}
             />
@@ -262,7 +262,7 @@ export const AddWatchlistModal: React.FC<AddWatchlistModalProps> = ({
         </div>
 
         {/* 提示 */}
-        <div className="text-xs text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 p-3 rounded-xl border border-blue-100 dark:border-blue-800/50">
+        <div className="text-xs text-[var(--app-shell-accent)] bg-[var(--app-shell-accent-soft)] p-3 rounded-xl border border-[var(--app-shell-line)]">
           {type === 'index' ? t('common.indexTip') : t('common.fundTip')}
         </div>
       </div>

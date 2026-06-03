@@ -152,6 +152,25 @@ describe('AddHoldingModal submit lock', () => {
     vi.clearAllMocks();
   });
 
+  it('持仓详情录入区域应使用当前主题背景而不是固定浅蓝底色', () => {
+    render(<AddHoldingModal isOpen onClose={vi.fn()} editFund={editFund} />);
+
+    const fundInfoCard = screen.getByText('测试基金').closest('.rounded-xl');
+    expect(fundInfoCard?.className).toContain('bg-[var(--app-shell-panel-strong)]');
+    expect(fundInfoCard?.className).not.toContain('bg-blue-50');
+
+    const amountInput = screen.getByText(/common\.holdingAmount/).parentElement?.querySelector('input');
+    const sharesInput = screen.getByText('common.shares').parentElement?.querySelector('input');
+    const costInput = screen.getByText('common.cost').parentElement?.querySelector('input');
+    const gainInput = screen.getByText(/common\.totalGain/).parentElement?.querySelector('input');
+
+    [amountInput, sharesInput, costInput, gainInput].forEach((input) => {
+      expect(input?.className).toContain('bg-[var(--app-shell-panel-strong)]');
+      expect(input?.className).not.toContain('bg-[var(--app-shell-paper)]');
+      expect(input?.className).not.toContain('dark:bg-[var(--app-shell-paper-dark)]');
+    });
+  });
+
   it('应阻止确认按钮重复点击导致重复添加', async () => {
     const addDeferred = createDeferred<number>();
     mocked.fundsAdd.mockReturnValue(addDeferred.promise);

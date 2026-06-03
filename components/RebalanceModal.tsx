@@ -321,25 +321,28 @@ export const RebalanceModal: React.FC<RebalanceModalProps> = ({
 
   return (
     <ModalShell isOpen={isOpen} onClose={handleClose} overlayId="rebalance-modal">
-      <div className="p-4 border-b border-gray-100 dark:border-border-dark flex justify-between items-center bg-gray-50 dark:bg-white/5">
-        <h3 className="font-bold text-gray-800 dark:text-gray-100">{t('common.rebalanceTitle')}</h3>
-        <button onClick={handleClose}>
-          <Icons.Plus className="transform rotate-45 text-gray-400" />
+      <div className="p-4 border-b border-[var(--app-shell-line)] flex justify-between items-center bg-[var(--app-shell-panel)]">
+        <h3 className="font-bold text-[var(--app-shell-ink)]">{t('common.rebalanceTitle')}</h3>
+        <button
+          onClick={handleClose}
+          className="rounded-full p-1 text-[var(--app-shell-muted)] transition-colors hover:bg-[var(--app-shell-line)]"
+        >
+          <Icons.Plus className="transform rotate-45" />
         </button>
       </div>
 
       <div className="p-6 space-y-4 overflow-y-auto">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <div>
-            <label className="block text-xs font-bold text-gray-500 mb-1">
+            <label className="block text-xs font-bold text-[var(--app-shell-muted)] mb-1">
               {t('common.transferOutFund')}
             </label>
-            <div className="w-full p-2.5 border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-white/5 text-sm text-gray-700 dark:text-gray-200">
+            <div className="w-full p-2.5 border border-[var(--app-shell-line)] rounded-lg bg-[var(--app-shell-panel-strong)] text-sm text-[var(--app-shell-ink)]">
               {sourceFund?.name}
             </div>
           </div>
           <div>
-            <label className="block text-xs font-bold text-gray-500 mb-1">
+            <label className="block text-xs font-bold text-[var(--app-shell-muted)] mb-1">
               {t('common.transferInFund')}
             </label>
             <div className="space-y-2">
@@ -352,13 +355,13 @@ export const RebalanceModal: React.FC<RebalanceModalProps> = ({
                     setError('');
                   }}
                   placeholder={t('common.searchFund')}
-                  className="w-full p-2.5 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-white/5 text-sm"
+                  className="w-full p-2.5 border border-[var(--app-shell-line)] rounded-lg bg-[var(--app-shell-panel-strong)] text-sm text-[var(--app-shell-ink)] outline-none focus:border-[var(--app-shell-accent)]"
                 />
 
                 {shouldShowTargetDropdown && (
-                  <div className="absolute left-0 right-0 top-full mt-1 z-30 max-h-40 overflow-auto border border-gray-100 dark:border-border-dark rounded-lg bg-white dark:bg-card-dark shadow-xl">
+                  <div className="absolute left-0 right-0 top-full mt-1 z-30 max-h-40 overflow-auto border border-[var(--app-shell-line)] rounded-lg bg-[var(--app-shell-panel)] shadow-[var(--app-shell-shadow)]">
                     {targetSearching && (
-                      <div className="px-2 py-1.5 text-xs text-gray-400">
+                      <div className="px-2 py-1.5 text-xs text-[var(--app-shell-muted)]">
                         {t('common.searching')}
                       </div>
                     )}
@@ -377,7 +380,7 @@ export const RebalanceModal: React.FC<RebalanceModalProps> = ({
                           setTargetQuery(`${f.name} (${f.code})`);
                           setTargetResults([]);
                         }}
-                        className="w-full text-left px-2 py-1.5 text-xs hover:bg-gray-50 dark:hover:bg-white/10"
+                        className="w-full text-left px-2 py-1.5 text-xs text-[var(--app-shell-ink)] hover:bg-[var(--app-shell-panel-strong)]"
                       >
                         {f.name} ({f.code})
                       </button>
@@ -396,7 +399,7 @@ export const RebalanceModal: React.FC<RebalanceModalProps> = ({
                           setTargetQuery(`${name} (${f.symbol})`);
                           setTargetResults([]);
                         }}
-                        className="w-full text-left px-2 py-1.5 text-xs hover:bg-gray-50 dark:hover:bg-white/10"
+                        className="w-full text-left px-2 py-1.5 text-xs text-[var(--app-shell-ink)] hover:bg-[var(--app-shell-panel-strong)]"
                       >
                         {f.fundNameArr || f.fundName} ({f.symbol})
                       </button>
@@ -410,18 +413,18 @@ export const RebalanceModal: React.FC<RebalanceModalProps> = ({
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <div>
-            <label className="block text-xs font-bold text-gray-500 mb-1">
+            <label className="block text-xs font-bold text-[var(--app-shell-muted)] mb-1">
               {t('common.operationDate')}
             </label>
             <input
               type="date"
               value={opDate}
               onChange={(e) => setOpDate(e.target.value)}
-              className="w-full p-2.5 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-white/5 text-sm"
+              className="w-full p-2.5 border border-[var(--app-shell-line)] rounded-lg bg-[var(--app-shell-panel-strong)] text-sm text-[var(--app-shell-ink)] outline-none focus:border-[var(--app-shell-accent)]"
             />
           </div>
           <div>
-            <label className="block text-xs font-bold text-gray-500 mb-1">
+            <label className="block text-xs font-bold text-[var(--app-shell-muted)] mb-1">
               {t('common.operationTime')}
             </label>
             <SelectDropdown
@@ -431,13 +434,13 @@ export const RebalanceModal: React.FC<RebalanceModalProps> = ({
               ]}
               value={opTime}
               onChange={(v) => setOpTime(v as 'before15' | 'after15')}
-              className="w-full p-2.5 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-white/5 text-sm"
+              className="w-full p-2.5 border border-[var(--app-shell-line)] rounded-lg bg-[var(--app-shell-panel-strong)] text-sm text-[var(--app-shell-ink)] focus:border-[var(--app-shell-accent)]"
             />
           </div>
         </div>
 
         <div>
-          <label className="block text-xs font-bold text-gray-500 mb-1">
+          <label className="block text-xs font-bold text-[var(--app-shell-muted)] mb-1">
             {t('common.transferOutShares')}
           </label>
           <input
@@ -448,13 +451,13 @@ export const RebalanceModal: React.FC<RebalanceModalProps> = ({
               setError('');
             }}
             placeholder={`0.00（可用 ${availableShares.toFixed(2)}）`}
-            className="w-full p-3 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-white/5 text-gray-900 dark:text-white font-bold font-sans"
+            className="w-full p-3 border border-[var(--app-shell-line)] rounded-lg bg-[var(--app-shell-panel-strong)] text-[var(--app-shell-ink)] font-bold font-sans outline-none focus:border-[var(--app-shell-accent)]"
           />
         </div>
 
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="block text-xs font-bold text-gray-500 mb-1">
+            <label className="block text-xs font-bold text-[var(--app-shell-muted)] mb-1">
               {t('common.sellFeeRate')}
             </label>
             <SelectDropdown
@@ -464,11 +467,11 @@ export const RebalanceModal: React.FC<RebalanceModalProps> = ({
               }))}
               value={String(sellFeeRate)}
               onChange={(v) => setSellFeeRate(parseFloat(v))}
-              className="w-full p-2.5 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-white/5 text-sm"
+              className="w-full p-2.5 border border-[var(--app-shell-line)] rounded-lg bg-[var(--app-shell-panel-strong)] text-sm text-[var(--app-shell-ink)] focus:border-[var(--app-shell-accent)]"
             />
           </div>
           <div>
-            <label className="block text-xs font-bold text-gray-500 mb-1">
+            <label className="block text-xs font-bold text-[var(--app-shell-muted)] mb-1">
               {t('common.buyFeeRate')}
             </label>
             <SelectDropdown
@@ -478,7 +481,7 @@ export const RebalanceModal: React.FC<RebalanceModalProps> = ({
               }))}
               value={String(buyFeeRate)}
               onChange={(v) => setBuyFeeRate(parseFloat(v))}
-              className="w-full p-2.5 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-white/5 text-sm"
+              className="w-full p-2.5 border border-[var(--app-shell-line)] rounded-lg bg-[var(--app-shell-panel-strong)] text-sm text-[var(--app-shell-ink)] focus:border-[var(--app-shell-accent)]"
             />
           </div>
         </div>
@@ -514,7 +517,7 @@ export const RebalanceModal: React.FC<RebalanceModalProps> = ({
         <div className="flex gap-3 pt-2">
           <button
             onClick={onClose}
-            className="flex-1 py-3 text-sm font-bold text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-white/10 rounded-xl"
+            className="flex-1 py-3 text-sm font-bold text-[var(--app-shell-muted)] bg-[var(--app-shell-panel-strong)] rounded-xl transition-colors hover:text-[var(--app-shell-ink)]"
           >
             {t('common.cancel')}
           </button>

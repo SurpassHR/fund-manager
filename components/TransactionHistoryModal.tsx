@@ -217,32 +217,32 @@ export const TransactionHistoryModal: React.FC<TransactionHistoryModalProps> = (
       edgeSwipe
     >
       {/* 顶部标题栏 */}
-      <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-border-dark shrink-0">
+      <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--app-shell-line)] shrink-0 bg-[var(--app-shell-panel)]">
         <div className="flex items-center gap-3">
           <button
             onClick={handleClose}
-            className="p-1.5 -ml-1.5 rounded-full hover:bg-gray-100 dark:hover:bg-white/10 transition-colors text-gray-500"
+            className="p-1.5 -ml-1.5 rounded-full hover:bg-[var(--app-shell-line)] transition-colors text-[var(--app-shell-muted)]"
           >
             <Icons.ArrowUp size={20} className="-rotate-90" />
           </button>
-          <h2 className="text-base font-bold text-gray-800 dark:text-gray-100">
+          <h2 className="text-base font-bold text-[var(--app-shell-ink)]">
             {t('common.transactionHistory') || '交易记录'}
           </h2>
         </div>
-        <div className="text-xs text-gray-400 bg-gray-50 dark:bg-white/5 px-2 py-1 rounded font-medium">
+        <div className="text-xs text-[var(--app-shell-muted)] bg-[var(--app-shell-panel-strong)] px-2 py-1 rounded font-medium">
           {fund?.name}
         </div>
       </div>
 
       {/* 列表内容区 */}
-      <div className="p-4 overflow-y-auto flex-grow bg-gray-50/50 dark:bg-transparent">
+      <div className="p-4 overflow-y-auto flex-grow bg-transparent">
         {deleteFeedback && (
           <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700 dark:border-amber-900/50 dark:bg-amber-900/20 dark:text-amber-200">
             {deleteFeedback}
           </div>
         )}
         {sortedTransactions.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-12 text-gray-400">
+          <div className="flex flex-col items-center justify-center py-12 text-[var(--app-shell-muted)]">
             <Icons.Grid size={40} className="mb-3 opacity-20" />
             <p className="text-sm">{t('common.noHistory') || '暂无交易记录'}</p>
           </div>
@@ -254,7 +254,7 @@ export const TransactionHistoryModal: React.FC<TransactionHistoryModalProps> = (
               return (
                 <div
                   key={tx.id}
-                  className="bg-white dark:bg-white/5 border border-gray-100 dark:border-border-dark rounded-xl p-4 shadow-sm flex items-center justify-between"
+                  className="bg-[var(--app-shell-panel-strong)] border border-[var(--app-shell-line)] rounded-xl p-4 shadow-sm flex items-center justify-between"
                 >
                   <div className="flex items-center gap-3">
                     <div
@@ -270,23 +270,23 @@ export const TransactionHistoryModal: React.FC<TransactionHistoryModalProps> = (
                         <span className={`text-sm font-bold ${colors.label}`}>
                           {getTypeLabel(tx.type, tx.id)}
                         </span>
-                        <span className="text-sm font-mono font-bold text-gray-800 dark:text-gray-100">
+                        <span className="text-sm font-mono font-bold text-[var(--app-shell-ink)]">
                           {getAmountText(tx)}
                         </span>
                       </div>
-                      <div className="text-xs text-gray-400 flex items-center gap-2">
+                      <div className="text-xs text-[var(--app-shell-muted)] flex items-center gap-2">
                         <span>
                           {tx.date} {t(`common.${tx.time}`)}
                         </span>
-                        <span className="w-1 h-1 rounded-full bg-gray-300 dark:bg-gray-600"></span>
+                        <span className="w-1 h-1 rounded-full bg-[var(--app-shell-line-strong)]"></span>
                         {tx.transferId && (
                           <>
                             <span>{t('common.linkedTransfer')}</span>
-                            <span className="w-1 h-1 rounded-full bg-gray-300 dark:bg-gray-600"></span>
+                            <span className="w-1 h-1 rounded-full bg-[var(--app-shell-line-strong)]"></span>
                           </>
                         )}
                         {tx.settled ? (
-                          <span className="text-gray-400">{t('common.settled')}</span>
+                          <span className="text-[var(--app-shell-muted)]">{t('common.settled')}</span>
                         ) : (
                           <span className="text-amber-500">{t('common.inTransit')}</span>
                         )}
@@ -296,7 +296,7 @@ export const TransactionHistoryModal: React.FC<TransactionHistoryModalProps> = (
 
                   <button
                     onClick={() => handleDelete(tx)}
-                    className="px-3 py-1.5 text-xs font-medium text-gray-500 bg-gray-100 hover:bg-red-50 hover:text-red-500 dark:bg-white/10 dark:text-gray-300 dark:hover:bg-red-900/30 dark:hover:text-red-400 rounded-lg transition-colors border border-transparent hover:border-red-100 dark:hover:border-red-900/50"
+                    className="px-3 py-1.5 text-xs font-medium text-[var(--app-shell-muted)] bg-[var(--app-shell-panel)] hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-900/30 dark:hover:text-red-400 rounded-lg transition-colors border border-transparent hover:border-red-100 dark:hover:border-red-900/50"
                   >
                     {tx.settled ? t('common.delete') || '删除' : t('common.undo') || '撤销'}
                   </button>
