@@ -57,7 +57,8 @@ export const deleteInvestmentPlan = async (id: number) => {
 };
 
 export const getActiveInvestmentPlans = async () => {
-  return db.investmentPlans.where('active').equals(1).toArray();
+  const plans = await db.investmentPlans.toArray();
+  return plans.filter((plan) => plan.active);
 };
 
 export const getAllInvestmentPlans = async () => {

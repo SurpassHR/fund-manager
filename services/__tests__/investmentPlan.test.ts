@@ -4,6 +4,7 @@ import { db } from '../db';
 import {
   executeInvestmentPlans,
   shouldExecuteToday,
+  getActiveInvestmentPlans,
   getAllInvestmentPlans,
   addInvestmentPlan,
   updateInvestmentPlan,
@@ -45,20 +46,18 @@ const mockToday = (dateStr: string) => {
 
 // --- tests ---
 
-describe('executeInvestmentPlans', () => {
-  afterEach(() => {
-    vi.restoreAllMocks();
-  });
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
+describe('executeInvestmentPlans', () => {
   it('lastExecutedDate 为今日时跳过，防止重复执行', async () => {
     const restore = mockToday('2026-05-14');
 
     const alreadyExecutedPlan = buildPlan({ id: 1, lastExecutedDate: '2026-05-14' });
     const fund = buildFund();
 
-    vi.spyOn(db.investmentPlans, 'where').mockReturnValue({
-      equals: () => ({ toArray: () => Promise.resolve([alreadyExecutedPlan]) }),
-    } as never);
+    vi.spyOn(db.investmentPlans, 'toArray').mockResolvedValue([alreadyExecutedPlan]);
     vi.spyOn(db.funds, 'toArray').mockResolvedValue([fund]);
     const fundUpdateSpy = vi.spyOn(db.funds, 'update').mockResolvedValue(1);
     const planUpdateSpy = vi.spyOn(db.investmentPlans, 'update').mockResolvedValue(1);
@@ -90,9 +89,7 @@ describe('executeInvestmentPlans', () => {
       ],
     });
 
-    vi.spyOn(db.investmentPlans, 'where').mockReturnValue({
-      equals: () => ({ toArray: () => Promise.resolve([plan]) }),
-    } as never);
+    vi.spyOn(db.investmentPlans, 'toArray').mockResolvedValue([plan]);
     vi.spyOn(db.funds, 'toArray').mockResolvedValue([fund]);
     const fundUpdateSpy = vi.spyOn(db.funds, 'update').mockResolvedValue(1);
     const planUpdateSpy = vi.spyOn(db.investmentPlans, 'update').mockResolvedValue(1);
@@ -129,9 +126,7 @@ describe('executeInvestmentPlans', () => {
     const plan = buildPlan({ id: 1, fundCode: '999999', lastExecutedDate: '2026-05-13' });
     const otherFund = buildFund({ code: '000001' }); // 不同代码
 
-    vi.spyOn(db.investmentPlans, 'where').mockReturnValue({
-      equals: () => ({ toArray: () => Promise.resolve([plan]) }),
-    } as never);
+    vi.spyOn(db.investmentPlans, 'toArray').mockResolvedValue([plan]);
     vi.spyOn(db.funds, 'toArray').mockResolvedValue([otherFund]);
     const fundUpdateSpy = vi.spyOn(db.funds, 'update').mockResolvedValue(1);
     const planUpdateSpy = vi.spyOn(db.investmentPlans, 'update').mockResolvedValue(1);
@@ -150,9 +145,7 @@ describe('executeInvestmentPlans', () => {
     const plan = buildPlan({ id: 1, lastExecutedDate: '2026-05-13' });
     const fund = buildFund({ settlementDays: 3 }); // T+3
 
-    vi.spyOn(db.investmentPlans, 'where').mockReturnValue({
-      equals: () => ({ toArray: () => Promise.resolve([plan]) }),
-    } as never);
+    vi.spyOn(db.investmentPlans, 'toArray').mockResolvedValue([plan]);
     vi.spyOn(db.funds, 'toArray').mockResolvedValue([fund]);
     const fundUpdateSpy = vi.spyOn(db.funds, 'update').mockResolvedValue(1);
     vi.spyOn(db.investmentPlans, 'update').mockResolvedValue(1);
@@ -189,9 +182,7 @@ describe('executeInvestmentPlans', () => {
     const fund1 = buildFund({ id: 1, code: '000001' });
     const fund2 = buildFund({ id: 2, code: '000002' });
 
-    vi.spyOn(db.investmentPlans, 'where').mockReturnValue({
-      equals: () => ({ toArray: () => Promise.resolve([plan1, plan2]) }),
-    } as never);
+    vi.spyOn(db.investmentPlans, 'toArray').mockResolvedValue([plan1, plan2]);
     vi.spyOn(db.funds, 'toArray').mockResolvedValue([fund1, fund2]);
     const fundUpdateSpy = vi.spyOn(db.funds, 'update').mockResolvedValue(1);
     const planUpdateSpy = vi.spyOn(db.investmentPlans, 'update').mockResolvedValue(1);
@@ -207,9 +198,7 @@ describe('executeInvestmentPlans', () => {
   it('无活跃计划时不执行任何操作', async () => {
     const restore = mockToday('2026-05-14');
 
-    vi.spyOn(db.investmentPlans, 'where').mockReturnValue({
-      equals: () => ({ toArray: () => Promise.resolve([]) }),
-    } as never);
+    vi.spyOn(db.investmentPlans, 'toArray').mockResolvedValue([]);
     const fundSpy = vi.spyOn(db.funds, 'toArray');
     const fundUpdateSpy = vi.spyOn(db.funds, 'update');
 
@@ -277,6 +266,18 @@ describe('getAllInvestmentPlans', () => {
   });
 });
 
+describe('getActiveInvestmentPlans', () => {
+  it('按 boolean active 字段返回启用计划', async () => {
+    const activePlan = buildPlan({ id: 1, active: true });
+    const inactivePlan = buildPlan({ id: 2, active: false });
+    vi.spyOn(db.investmentPlans, 'toArray').mockResolvedValue([activePlan, inactivePlan]);
+
+    const result = await getActiveInvestmentPlans();
+
+    expect(result).toEqual([activePlan]);
+  });
+});
+
 describe('shouldExecuteToday', () => {
   it('daily 频率总是返回 true', () => {
     expect(shouldExecuteToday('daily')).toBe(true);
@@ -312,10 +313,6 @@ describe('shouldExecuteToday', () => {
 });
 
 describe('executeInvestmentPlans 频率过滤', () => {
-  afterEach(() => {
-    vi.restoreAllMocks();
-  });
-
   it('weekly 频率不匹配时跳过执行', async () => {
     const restore = mockToday('2026-05-14'); // Thursday (day=4)
     const todayDow = new Date('2026-05-14').getDay(); // 4
@@ -330,9 +327,7 @@ describe('executeInvestmentPlans 频率过滤', () => {
     });
     const fund = buildFund();
 
-    vi.spyOn(db.investmentPlans, 'where').mockReturnValue({
-      equals: () => ({ toArray: () => Promise.resolve([plan]) }),
-    } as never);
+    vi.spyOn(db.investmentPlans, 'toArray').mockResolvedValue([plan]);
     vi.spyOn(db.funds, 'toArray').mockResolvedValue([fund]);
     const fundUpdateSpy = vi.spyOn(db.funds, 'update').mockResolvedValue(1);
     const planUpdateSpy = vi.spyOn(db.investmentPlans, 'update').mockResolvedValue(1);
