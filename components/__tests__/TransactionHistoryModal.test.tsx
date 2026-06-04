@@ -108,6 +108,41 @@ describe('TransactionHistoryModal position open logic', () => {
     expect(screen.getByText('加仓')).toBeTruthy();
   });
 
+  it('连续买入时只将市值从零变为持仓的第一笔标记为建仓', () => {
+    const fund = buildFund({
+      holdingShares: 100,
+      costPrice: 100,
+      currentNav: 100,
+      pendingTransactions: [
+        buildTx({ id: 'buy-1', type: 'buy', date: '2026-03-01', amount: 1, settled: true }),
+        buildTx({ id: 'buy-2', type: 'buy', date: '2026-03-02', amount: 2, settled: true }),
+        buildTx({ id: 'buy-3', type: 'buy', date: '2026-03-03', amount: 3, settled: true }),
+      ],
+    });
+
+    render(<TransactionHistoryModal isOpen onClose={vi.fn()} fund={fund} />);
+
+    expect(screen.getAllByText('建仓')).toHaveLength(1);
+    expect(screen.getAllByText('加仓')).toHaveLength(2);
+  });
+
+  it('按交易前后市值区分减仓和清仓', () => {
+    const fund = buildFund({
+      holdingShares: 0,
+      currentNav: 1,
+      pendingTransactions: [
+        buildTx({ id: 'buy-1', type: 'buy', date: '2026-03-01', amount: 100, settled: true }),
+        buildTx({ id: 'sell-1', type: 'sell', date: '2026-03-02', amount: 40, settled: true }),
+        buildTx({ id: 'sell-2', type: 'sell', date: '2026-03-03', amount: 60, settled: true }),
+      ],
+    });
+
+    render(<TransactionHistoryModal isOpen onClose={vi.fn()} fund={fund} />);
+
+    expect(screen.getByText('减仓')).toBeTruthy();
+    expect(screen.getByText('清仓')).toBeTruthy();
+  });
+
   it('清仓后再买入标记为建仓', () => {
     const fund = buildFund({
       holdingShares: 100,

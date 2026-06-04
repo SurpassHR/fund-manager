@@ -13,6 +13,10 @@ interface TransactionHistoryModalProps {
   onTransactionsDeleted?: (affectedFundIds: number[]) => void;
 }
 
+const POSITION_MARKET_VALUE_THRESHOLD = 0.01;
+
+type TransactionDisplayKind = 'open' | 'add' | 'reduce' | 'liquidation';
+
 export const TransactionHistoryModal: React.FC<TransactionHistoryModalProps> = ({
   isOpen,
   onClose,
@@ -48,57 +52,50 @@ export const TransactionHistoryModal: React.FC<TransactionHistoryModalProps> = (
     });
   }, [transactions]);
 
-  // 计算建仓交易集合：份额归零后的第一笔买入/转入即为建仓
-  const positionOpenTxIds = useMemo(() => {
-    if (!fund) return new Set<string>();
-    const openIds = new Set<string>();
+  // 按交易前后市值判断建仓/加仓/减仓/清仓，避免用份额阈值误判高净值小额交易。
+  const txDisplayKindById = useMemo(() => {
+    const kindById = new Map<string, TransactionDisplayKind>();
+    if (!fund) return kindById;
+
+    const navForShareValue = fund.currentNav > 0 ? fund.currentNav : fund.costPrice || 0;
+    const getMarketValue = (shares: number) => shares * navForShareValue;
+    const getSharesFromAmount = (amount: number) => (navForShareValue > 0 ? amount / navForShareValue : 0);
     let runningShares = 0;
 
     for (const tx of sortedTransactions) {
-      const isBuyOrTransferIn = tx.type === 'buy' || tx.type === 'transferIn';
-      if (isBuyOrTransferIn && runningShares <= 0.01) {
-        openIds.add(tx.id);
-      }
+      const beforeMarketValue = getMarketValue(runningShares);
+      let nextShares = runningShares;
 
       if (tx.type === 'buy') {
-        runningShares += tx.amount / (fund.costPrice || 1);
+        nextShares += tx.inShares ?? getSharesFromAmount(tx.amount);
       } else if (tx.type === 'sell') {
-        runningShares -= tx.amount;
+        nextShares -= tx.amount;
       } else if (tx.type === 'transferOut') {
-        runningShares -= tx.outShares ?? tx.amount;
+        nextShares -= tx.outShares ?? tx.amount;
       } else if (tx.type === 'transferIn') {
-        runningShares += tx.inShares ?? (tx.netInAmount ?? tx.amount) / (fund.costPrice || 1);
+        nextShares += tx.inShares ?? getSharesFromAmount(tx.netInAmount ?? tx.amount);
       }
+
+      if (nextShares < 0) nextShares = 0;
+
+      const hadPosition = beforeMarketValue > POSITION_MARKET_VALUE_THRESHOLD;
+      const hasPosition = getMarketValue(nextShares) > POSITION_MARKET_VALUE_THRESHOLD;
+
+      if (tx.type === 'buy' || tx.type === 'transferIn') {
+        kindById.set(tx.id, hadPosition ? 'add' : hasPosition ? 'open' : 'add');
+      } else if (tx.type === 'sell' || tx.type === 'transferOut') {
+        kindById.set(tx.id, hadPosition && !hasPosition ? 'liquidation' : 'reduce');
+      }
+
+      runningShares = nextShares;
     }
-    return openIds;
+    return kindById;
   }, [fund, sortedTransactions]);
 
-  // 定位清仓交易：当持仓已清零时，找到将份额清至 0 的那笔卖出/转出
-  const liquidationTxId = (() => {
-    if (!fund || fund.holdingShares > 0.01) return null;
-    const sellTxs = (fund.pendingTransactions || [])
-      .filter((tx) => tx.type === 'sell' || tx.type === 'transferOut')
-      .sort((a, b) => {
-        const dateCmp = a.date.localeCompare(b.date);
-        if (dateCmp !== 0) return dateCmp;
-        return (a.time === 'after15' ? 1 : 0) - (b.time === 'after15' ? 1 : 0);
-      });
-    const totalOut = sellTxs.reduce(
-      (sum, tx) => sum + (tx.type === 'transferOut' ? (tx.outShares ?? tx.amount) : tx.amount),
-      0,
-    );
-    let running = totalOut;
-    for (const tx of sellTxs) {
-      const outAmount = tx.type === 'transferOut' ? (tx.outShares ?? tx.amount) : tx.amount;
-      running -= outAmount;
-      if (running <= 0.01) return tx.id;
-    }
-    return null;
-  })();
-
   const getTypeLabel = (type: PendingTransaction['type'], txId: string) => {
-    if (txId === liquidationTxId) return t('common.tradeLiquidationLabel') || '清仓';
-    if (positionOpenTxIds.has(txId)) return t('common.openPosition') || '建仓';
+    const displayKind = txDisplayKindById.get(txId);
+    if (displayKind === 'liquidation') return t('common.tradeLiquidationLabel') || '清仓';
+    if (displayKind === 'open') return t('common.openPosition') || '建仓';
     if (type === 'buy') return t('common.addPosition');
     if (type === 'sell') return t('common.reducePosition');
     if (type === 'transferOut') return t('common.transferOutLabel');
@@ -106,13 +103,14 @@ export const TransactionHistoryModal: React.FC<TransactionHistoryModalProps> = (
   };
 
   const getTxColors = (tx: PendingTransaction) => {
-    if (tx.id === liquidationTxId) {
+    const displayKind = txDisplayKindById.get(tx.id);
+    if (displayKind === 'liquidation') {
       return {
         badge: 'bg-amber-50 text-amber-500 dark:bg-amber-900/30',
         label: 'text-amber-500',
       };
     }
-    if (positionOpenTxIds.has(tx.id)) {
+    if (displayKind === 'open') {
       return {
         badge: 'bg-blue-50 text-blue-500 dark:bg-blue-900/30',
         label: 'text-blue-500',
