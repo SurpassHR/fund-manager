@@ -23,7 +23,7 @@ interface ModalShellProps {
   onExitComplete?: () => void;
 }
 
-const ACRYLIC_CARD = 'bg-[var(--app-shell-panel)]/92 dark:bg-card-dark/15 backdrop-blur-xl';
+const ACRYLIC_CARD = 'modal-shell-card backdrop-blur-xl';
 const STRUCTURAL_CARD =
   'rounded-t-2xl sm:rounded-xl w-full sm:max-w-xl overflow-hidden shadow-2xl flex flex-col max-h-[92vh] sm:max-h-[90vh] border border-[var(--app-shell-line)]';
 
@@ -81,7 +81,7 @@ export const ModalShell: React.FC<ModalShellProps> = ({
     <AnimatePresence onExitComplete={onExitComplete}>
       {isOpen && (
         <motion.div
-          className={`fixed inset-0 ${zIndex} flex items-end sm:items-center justify-center bg-black/30 backdrop-blur-md sm:p-4`}
+          className={`modal-shell-backdrop fixed inset-0 ${zIndex} flex items-end sm:items-center justify-center backdrop-blur-md sm:p-4`}
           onClick={onBackdropClick ?? handleClose}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}

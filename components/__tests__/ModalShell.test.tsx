@@ -45,28 +45,30 @@ beforeEach(() => {
 });
 
 describe('ModalShell acrylic frosted glass', () => {
-  it('renders backdrop with semi-transparent dark overlay for acrylic effect', () => {
+  it('renders backdrop with a dedicated translucent acrylic surface', () => {
     renderModalShell();
 
-    const backdrop = document.querySelector('.backdrop-blur-md')!;
+    const backdrop = document.querySelector('.modal-shell-backdrop')!;
     expect(backdrop).not.toBeNull();
-    expect(backdrop).toHaveClass('bg-black/30');
+    expect(backdrop).not.toHaveClass('bg-black/30');
+    expect(backdrop).toHaveClass('backdrop-blur-md');
   });
 
-  it('renders card with theme-aware acrylic background and blur', () => {
+  it('renders card with the shared modal acrylic palette hook', () => {
     renderModalShell();
 
-    const card = document.querySelector('.backdrop-blur-xl')!;
+    const card = document.querySelector('.modal-shell-card')!;
     expect(card).not.toBeNull();
-    expect(card).toHaveClass('bg-[var(--app-shell-panel)]/92');
+    expect(card).toHaveClass('backdrop-blur-xl');
+    expect(card).not.toHaveClass('bg-[var(--app-shell-panel)]/92');
   });
 
   it('always applies theme-aware acrylic classes even with custom className', () => {
     renderModalShell({ className: 'custom-structural border-2' });
 
-    const card = document.querySelector('.backdrop-blur-xl')!;
+    const card = document.querySelector('.modal-shell-card')!;
     expect(card).not.toBeNull();
-    expect(card).toHaveClass('bg-[var(--app-shell-panel)]/92');
+    expect(card).toHaveClass('backdrop-blur-xl');
     expect(card).toHaveClass('custom-structural');
     expect(card).toHaveClass('border-2');
   });
@@ -75,7 +77,7 @@ describe('ModalShell acrylic frosted glass', () => {
     const onClose = vi.fn();
     renderModalShell({ onClose });
 
-    const backdrop = document.querySelector('.backdrop-blur-md')!;
+    const backdrop = document.querySelector('.modal-shell-backdrop')!;
     fireEvent.click(backdrop);
 
     expect(onClose).toHaveBeenCalledTimes(1);
@@ -90,7 +92,7 @@ describe('ModalShell acrylic frosted glass', () => {
   it('resets edge swipe close offset when reopening the same modal', async () => {
     render(<ControlledEdgeSwipeModal />);
 
-    const backdrop = document.querySelector('.backdrop-blur-md') as HTMLElement;
+    const backdrop = document.querySelector('.modal-shell-backdrop') as HTMLElement;
     act(() => {
       closeTopOverlay({ source: 'edge-swipe', targetX: 480 });
     });
@@ -111,7 +113,7 @@ describe('ModalShell acrylic frosted glass', () => {
       expect(screen.getByText('modal content')).toBeInTheDocument();
     });
 
-    const reopenedBackdrop = document.querySelector('.backdrop-blur-md') as HTMLElement;
+    const reopenedBackdrop = document.querySelector('.modal-shell-backdrop') as HTMLElement;
     expect(reopenedBackdrop).toHaveStyle({ transform: 'translateX(0px)' });
   });
 });

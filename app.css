@@ -16,8 +16,8 @@
   --color-terminal-muted: #6c6f78;
   --color-terminal-line: rgba(17, 19, 24, 0.12);
   --color-terminal-line-strong: rgba(17, 19, 24, 0.22);
-  --color-terminal-accent: #c28b2c;
-  --color-terminal-accent-soft: rgba(194, 139, 44, 0.18);
+  --color-terminal-accent: #2563eb;
+  --color-terminal-accent-soft: rgba(37, 99, 235, 0.16);
   --color-terminal-panel: rgba(255, 255, 255, 0.76);
   --color-terminal-panel-strong: rgba(255, 255, 255, 0.9);
   --color-terminal-shadow: 0 28px 90px rgba(33, 26, 14, 0.16);
@@ -27,8 +27,8 @@
   --color-terminal-muted-dark: #8f938f;
   --color-terminal-line-dark: rgba(244, 239, 229, 0.1);
   --color-terminal-line-strong-dark: rgba(244, 239, 229, 0.2);
-  --color-terminal-accent-dark: #d8a64f;
-  --color-terminal-accent-soft-dark: rgba(216, 166, 79, 0.2);
+  --color-terminal-accent-dark: #60a5fa;
+  --color-terminal-accent-soft-dark: rgba(96, 165, 250, 0.18);
   --color-terminal-panel-dark: rgba(255, 255, 255, 0.03);
   --color-terminal-panel-strong-dark: rgba(255, 255, 255, 0.08);
   --color-terminal-shadow-dark: 0 32px 100px rgba(0, 0, 0, 0.42);
@@ -535,11 +535,76 @@ body {
   box-shadow: 0 8px 32px #0000005e;
 }
 
+.modal-shell-backdrop {
+  --modal-shell-backdrop-blur: blur(14px) saturate(1.08);
+  background:
+    radial-gradient(circle at 20% 0%, rgba(37, 99, 235, 0.13), transparent 28rem),
+    radial-gradient(circle at 80% 18%, rgba(22, 119, 255, 0.1), transparent 30rem),
+    linear-gradient(135deg, rgba(243, 238, 229, 0.34), rgba(236, 244, 255, 0.2)),
+    rgba(18, 24, 38, 0.2);
+  -webkit-backdrop-filter: blur(14px) saturate(1.08);
+}
+
+@supports (backdrop-filter: blur(1px)) {
+  .modal-shell-backdrop {
+    backdrop-filter: var(--modal-shell-backdrop-blur);
+  }
+}
+
+.dark .modal-shell-backdrop {
+  background:
+    radial-gradient(circle at 18% 0%, rgba(96, 165, 250, 0.12), transparent 26rem),
+    radial-gradient(circle at 82% 16%, rgba(59, 130, 246, 0.1), transparent 30rem),
+    rgba(0, 0, 0, 0.34);
+}
+
+.modal-shell-card {
+  --modal-shell-card-blur: blur(24px) saturate(1.16);
+  --app-shell-muted: #667085;
+  --app-shell-line: rgba(69, 82, 108, 0.14);
+  --app-shell-line-strong: rgba(69, 82, 108, 0.24);
+  --app-shell-panel: rgba(248, 251, 255, 0.66);
+  --app-shell-panel-strong: rgba(255, 255, 255, 0.86);
+  --app-shell-shadow: 0 28px 90px rgba(32, 41, 58, 0.18);
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.82), rgba(245, 249, 255, 0.56)),
+    rgba(248, 251, 255, 0.68);
+  -webkit-backdrop-filter: blur(24px) saturate(1.16);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.86),
+    inset 0 -1px 0 rgba(96, 120, 160, 0.1),
+    0 28px 90px rgba(32, 41, 58, 0.18);
+}
+
+@supports (backdrop-filter: blur(1px)) {
+  .modal-shell-card {
+    backdrop-filter: var(--modal-shell-card-blur);
+  }
+}
+
+.dark .modal-shell-card {
+  --app-shell-muted: var(--color-terminal-muted-dark);
+  --app-shell-line: rgba(244, 239, 229, 0.11);
+  --app-shell-line-strong: rgba(244, 239, 229, 0.2);
+  --app-shell-panel: rgba(255, 255, 255, 0.05);
+  --app-shell-panel-strong: rgba(255, 255, 255, 0.09);
+  --app-shell-shadow: 0 32px 100px rgba(0, 0, 0, 0.42);
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.07), rgba(14, 18, 26, 0.26)),
+    rgba(14, 18, 26, 0.34);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.28),
+    0 32px 100px rgba(0, 0, 0, 0.42);
+}
+
 /* GPU 降级：用户开启"减少动画"或低端设备时，禁用所有 backdrop-filter 模糊
    这能显著降低 GPU 合成层数量，尤其是 glass-nav（始终可见的 BottomNav blur(20px)） */
 @media (prefers-reduced-motion: reduce) {
   .glass-nav,
   .glass-card,
+  .modal-shell-backdrop,
+  .modal-shell-card,
   .cleared-group-divider,
   .institution-group-divider {
     -webkit-backdrop-filter: none;

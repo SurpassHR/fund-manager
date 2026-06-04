@@ -191,7 +191,7 @@ describe('TransactionHistoryModal delete flow', () => {
       (element) =>
         typeof element.className === 'string' &&
         element.className.includes('fixed inset-0') &&
-        element.className.includes('bg-black/30'),
+        element.className.includes('modal-shell-backdrop'),
     );
 
     expect(nav?.className).toContain('z-50');
