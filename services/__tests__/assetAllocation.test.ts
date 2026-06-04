@@ -4,7 +4,7 @@
  * 测试 services/assetAllocation.ts 中可用资产管理逻辑
  */
 
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 
 // 每个测试前清空 localStorage
 beforeEach(() => {
