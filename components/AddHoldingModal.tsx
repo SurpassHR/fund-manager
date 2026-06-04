@@ -317,6 +317,7 @@ export const AddHoldingModal: React.FC<AddHoldingModalProps> = ({
     } catch (err) {
       console.error('保存基金失败', err);
       alert('保存失败，请稍后重试');
+    } finally {
       setIsSaving(false);
     }
   };

@@ -243,6 +243,39 @@ describe('AddHoldingModal submit lock', () => {
     });
   });
 
+  it('新增成功关闭后再次打开应恢复确认按钮可点击', async () => {
+    mocked.fundsAdd.mockResolvedValue(1);
+
+    const PersistentModalHarness = () => {
+      const [isOpen, setIsOpen] = React.useState(true);
+
+      return (
+        <>
+          <button onClick={() => setIsOpen(true)}>重新打开</button>
+          <AddHoldingModal
+            isOpen={isOpen}
+            onClose={() => setIsOpen(false)}
+            prefillWatchlistItem={prefillItem}
+          />
+        </>
+      );
+    };
+
+    render(<PersistentModalHarness />);
+
+    setSharesValue('10');
+    fireEvent.click(screen.getByRole('button', { name: 'common.confirm' }));
+
+    await waitFor(() => {
+      expect(screen.queryByRole('button', { name: 'common.confirm' })).toBeNull();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: '重新打开' }));
+
+    const confirmButton = await screen.findByRole('button', { name: 'common.confirm' });
+    expect(confirmButton).not.toBeDisabled();
+  });
+
   it('买入日期键盘方向键不应拦截原生行为', async () => {
     render(<AddHoldingModal isOpen onClose={vi.fn()} editFund={editFund} />);
 
