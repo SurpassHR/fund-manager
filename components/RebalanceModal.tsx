@@ -3,7 +3,7 @@ import { db, getSettlementDate } from '../services/db';
 import { fetchFundCommonData, fetchHistoricalFundNavWithDate, searchFunds } from '../services/api';
 import { useTranslation } from '../services/i18n';
 import { roundMoney, roundShares, getEffectiveOperationDate } from '../services/rebalanceUtils';
-import type { Fund, MorningstarFund, PendingTransaction } from '../types';
+import type { Fund, MorningstarFund, PendingTransaction, WatchlistItem } from '../types';
 import { Icons } from './Icon';
 import { SelectDropdown } from './SelectDropdown';
 import { ModalShell } from './ModalShell';
@@ -60,7 +60,9 @@ export const RebalanceModal: React.FC<RebalanceModalProps> = ({
   const [targetQuery, setTargetQuery] = useState('');
   const [targetResults, setTargetResults] = useState<MorningstarFund[]>([]);
   const [targetSearching, setTargetSearching] = useState(false);
+  const [targetFocused, setTargetFocused] = useState(false);
   const [targetFund, setTargetFund] = useState<TargetCandidate | null>(null);
+  const [watchlistItems, setWatchlistItems] = useState<WatchlistItem[]>([]);
   const [opDate, setOpDate] = useState('');
   const [opTime, setOpTime] = useState<'before15' | 'after15'>('before15');
   const [outSharesInput, setOutSharesInput] = useState('');
@@ -74,15 +76,50 @@ export const RebalanceModal: React.FC<RebalanceModalProps> = ({
     inShares: number;
   } | null>(null);
 
-  const localTargetMatches = useMemo(() => {
-    const keyword = targetQuery.trim();
-    if (!keyword) return [];
-    return funds.filter(
-      (f) =>
-        f.id !== sourceFund?.id &&
-        (f.code.includes(keyword) || f.name.toLowerCase().includes(keyword.toLowerCase())),
+  const localTargetMatches = useMemo<TargetCandidate[]>(() => {
+    const keyword = targetQuery.trim().toLowerCase();
+    const isMatch = (code: string, name: string) => {
+      if (!keyword) return true;
+      return code.toLowerCase().includes(keyword) || name.toLowerCase().includes(keyword);
+    };
+
+    const seenCodes = new Set<string>();
+    const holdingCandidates = funds
+      .filter((f) => {
+        if (f.id === sourceFund?.id || f.code === sourceFund?.code) return false;
+        if (!isMatch(f.code, f.name)) return false;
+        seenCodes.add(f.code);
+        return true;
+      })
+      .map((f) => ({
+        id: f.id,
+        code: f.code,
+        name: f.name,
+        settlementDays: f.settlementDays,
+      }));
+
+    const watchlistCandidates = watchlistItems
+      .filter((item) => {
+        if (item.type !== 'fund') return false;
+        if (item.code === sourceFund?.code || seenCodes.has(item.code)) return false;
+        if (!isMatch(item.code, item.name)) return false;
+        seenCodes.add(item.code);
+        return true;
+      })
+      .map((item) => ({
+        code: item.code,
+        name: item.name,
+      }));
+
+    return [...holdingCandidates, ...watchlistCandidates];
+  }, [funds, sourceFund?.code, sourceFund?.id, targetQuery, watchlistItems]);
+
+  const apiTargetResults = useMemo(() => {
+    const localCodes = new Set(localTargetMatches.map((item) => item.code));
+    return targetResults.filter(
+      (fund) => fund.symbol !== sourceFund?.code && !localCodes.has(fund.symbol),
     );
-  }, [funds, sourceFund?.id, targetQuery]);
+  }, [localTargetMatches, sourceFund?.code, targetResults]);
 
   const availableShares = Math.max(
     0,
@@ -91,7 +128,16 @@ export const RebalanceModal: React.FC<RebalanceModalProps> = ({
   const parsedOutShares = parseFloat(outSharesInput);
   const effectiveOpDate = opDate ? getEffectiveOperationDate(opDate, opTime) : '';
   const shouldShowTargetDropdown =
-    !targetFund && (targetSearching || localTargetMatches.length > 0 || targetResults.length > 0);
+    !targetFund &&
+    ((targetFocused && localTargetMatches.length > 0) ||
+      targetSearching ||
+      apiTargetResults.length > 0);
+  const visibleApiTargetResults = apiTargetResults.slice(0, 8);
+  const targetOptionCount = localTargetMatches.length + visibleApiTargetResults.length;
+  const getTargetOptionClassName = (showDivider: boolean) =>
+    `flex w-full cursor-pointer items-center justify-between px-4 py-3 text-left text-xs text-[var(--app-shell-ink)] transition-colors hover:bg-[var(--app-shell-panel-strong)] ${
+      showDivider ? 'border-b border-[var(--app-shell-line)]' : ''
+    }`;
 
   const handleClose = useCallback(() => {
     onClose();
@@ -108,7 +154,35 @@ export const RebalanceModal: React.FC<RebalanceModalProps> = ({
     setTargetQuery('');
     setTargetResults([]);
     setTargetSearching(false);
+    setTargetFocused(false);
     setTargetFund(null);
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    let cancelled = false;
+
+    const loadWatchlists = async () => {
+      try {
+        const items = await db.watchlists.toArray();
+        if (!cancelled) {
+          setWatchlistItems((current) =>
+            items.length === 0 && current.length === 0 ? current : items,
+          );
+        }
+      } catch {
+        if (!cancelled) {
+          setWatchlistItems((current) => (current.length === 0 ? current : []));
+        }
+      }
+    };
+
+    void loadWatchlists();
+
+    return () => {
+      cancelled = true;
+    };
   }, [isOpen]);
 
   useEffect(() => {
@@ -352,58 +426,71 @@ export const RebalanceModal: React.FC<RebalanceModalProps> = ({
                   onChange={(e) => {
                     setTargetQuery(e.target.value);
                     setTargetFund(null);
+                    setTargetFocused(true);
                     setError('');
                   }}
+                  onFocus={() => setTargetFocused(true)}
                   placeholder={t('common.searchFund')}
                   className="w-full p-2.5 border border-[var(--app-shell-line)] rounded-lg bg-[var(--app-shell-panel-strong)] text-sm text-[var(--app-shell-ink)] outline-none focus:border-[var(--app-shell-accent)]"
                 />
 
                 {shouldShowTargetDropdown && (
-                  <div className="absolute left-0 right-0 top-full mt-1 z-30 max-h-40 overflow-auto border border-[var(--app-shell-line)] rounded-lg bg-[var(--app-shell-panel)] shadow-[var(--app-shell-shadow)]">
-                    {targetSearching && (
-                      <div className="px-2 py-1.5 text-xs text-[var(--app-shell-muted)]">
-                        {t('common.searching')}
-                      </div>
-                    )}
+                  <div
+                    data-testid="rebalance-target-dropdown"
+                    className="absolute left-0 right-0 top-full mt-2 z-30 overflow-hidden rounded-xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel)] shadow-[var(--app-shell-shadow)] backdrop-blur-xl dark:bg-card-dark/95"
+                  >
+                    <div className="max-h-40 overflow-auto">
+                      {targetSearching && (
+                        <div className="border-b border-[var(--app-shell-line)] px-4 py-3 text-xs text-[var(--app-shell-muted)]">
+                          {t('common.searching')}
+                        </div>
+                      )}
 
-                    {localTargetMatches.map((f) => (
-                      <button
-                        type="button"
-                        key={`local-${f.id}`}
-                        onClick={() => {
-                          setTargetFund({
-                            id: f.id,
-                            code: f.code,
-                            name: f.name,
-                            settlementDays: f.settlementDays,
-                          });
-                          setTargetQuery(`${f.name} (${f.code})`);
-                          setTargetResults([]);
-                        }}
-                        className="w-full text-left px-2 py-1.5 text-xs text-[var(--app-shell-ink)] hover:bg-[var(--app-shell-panel-strong)]"
-                      >
-                        {f.name} ({f.code})
-                      </button>
-                    ))}
+                      {localTargetMatches.map((f, index) => (
+                        <button
+                          type="button"
+                          key={`local-${f.code}`}
+                          data-testid="rebalance-target-option"
+                          onClick={() => {
+                            setTargetFund({
+                              id: f.id,
+                              code: f.code,
+                              name: f.name,
+                              settlementDays: f.settlementDays,
+                            });
+                            setTargetQuery(`${f.name} (${f.code})`);
+                            setTargetResults([]);
+                            setTargetFocused(false);
+                          }}
+                          className={getTargetOptionClassName(index < targetOptionCount - 1)}
+                        >
+                          {f.name} ({f.code})
+                        </button>
+                      ))}
 
-                    {targetResults.slice(0, 8).map((f) => (
-                      <button
-                        type="button"
-                        key={f.symbol}
-                        onClick={() => {
-                          const name = f.fundNameArr || f.fundName;
-                          setTargetFund({
-                            code: f.symbol,
-                            name,
-                          });
-                          setTargetQuery(`${name} (${f.symbol})`);
-                          setTargetResults([]);
-                        }}
-                        className="w-full text-left px-2 py-1.5 text-xs text-[var(--app-shell-ink)] hover:bg-[var(--app-shell-panel-strong)]"
-                      >
-                        {f.fundNameArr || f.fundName} ({f.symbol})
-                      </button>
-                    ))}
+                      {visibleApiTargetResults.map((f, index) => (
+                        <button
+                          type="button"
+                          key={f.symbol}
+                          data-testid="rebalance-target-option"
+                          onClick={() => {
+                            const name = f.fundNameArr || f.fundName;
+                            setTargetFund({
+                              code: f.symbol,
+                              name,
+                            });
+                            setTargetQuery(`${name} (${f.symbol})`);
+                            setTargetResults([]);
+                            setTargetFocused(false);
+                          }}
+                          className={getTargetOptionClassName(
+                            localTargetMatches.length + index < targetOptionCount - 1,
+                          )}
+                        >
+                          {f.fundNameArr || f.fundName} ({f.symbol})
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>
