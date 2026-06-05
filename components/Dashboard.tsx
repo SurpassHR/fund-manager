@@ -1765,7 +1765,7 @@ export const Dashboard: React.FC = () => {
                     const event = new CustomEvent('open-scanner');
                     window.dispatchEvent(event);
                   }}
-                  className="flex min-h-[4.75rem] flex-col items-start justify-between rounded-2xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] px-4 py-3 text-left text-slate-700 transition-colors hover:border-[var(--app-shell-line-strong)] hover:text-slate-900 dark:border-white/10 dark:bg-white/5 dark:text-gray-200 dark:hover:border-white/20 dark:hover:bg-white/10"
+                  className="flex min-h-[4.75rem] flex-col items-start justify-between rounded-2xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] px-4 py-3 text-left text-slate-700 transition-colors hover:border-[var(--app-shell-line-strong)] hover:bg-[var(--app-shell-panel-strong)] dark:border-white/10 dark:bg-white/5 dark:text-gray-200 dark:hover:border-white/20 dark:hover:bg-white/10"
                 >
                   <Icons.Refresh size={18} />
                   <span className="text-sm font-semibold">{t('common.sync')}</span>
