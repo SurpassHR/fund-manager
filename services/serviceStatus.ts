@@ -298,7 +298,7 @@ const runServiceApiCheckTasks = (config: ServiceRuntimeConfig): Promise<ServiceA
       if (!allocation) return fail(base, '资产配置数据缺失', 'degraded');
       return {
         ...ok(base),
-        message: `连接正常，股票仓位 ${allocation.equityPct.toFixed(2)}%`,
+        message: '连接正常，资产配置数据可用',
       };
     } catch (error) {
       return fail(base, error instanceof Error ? error.message : '请求失败');

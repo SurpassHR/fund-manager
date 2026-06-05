@@ -146,6 +146,9 @@ describe('serviceStatus', () => {
     expect(list.find((item) => item.id === 'tencent-us-quote')?.status).toBe('ok');
     expect(list.find((item) => item.id === 'eastmoney-fundf10')?.status).toBe('ok');
     expect(list.find((item) => item.id === 'sina-fund-tophold')?.status).toBe('ok');
+    expect(list.find((item) => item.id === 'sina-fund-tophold')?.message).toBe(
+      '连接正常，资产配置数据可用',
+    );
     expect(list.find((item) => item.id === 'ths-fuyao')?.status).toBe('error');
     expect(list.find((item) => item.id === 'openai')?.status).toBe('idle');
 
