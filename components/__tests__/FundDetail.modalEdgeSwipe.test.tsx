@@ -9,23 +9,35 @@ import type { Fund } from '../../types';
 const mockedApi = vi.hoisted(() => ({
   fetchFundCommonData: vi.fn(),
   fetchFundHoldings: vi.fn(),
+  fetchSinaFundAssetAllocation: vi.fn(),
   fetchParentETFInfo: vi.fn(),
   fetchFundPerformance: vi.fn(),
   fetchEastMoneyPingzhongData: vi.fn(),
   fetchTencentStockQuotes: vi.fn(),
   fetchTencentIntradayData: vi.fn(),
   buildTencentQuoteCodes: vi.fn(() => []),
+  buildUSQuoteCodes: vi.fn(() => []),
+  fetchUSStockIntradayData: vi.fn(),
+  fetchUSStockQuotes: vi.fn(),
+  checkIsMarketTrading: vi.fn(() => Promise.resolve(false)),
+  checkIsUSMarketTrading: vi.fn(() => Promise.resolve(false)),
 }));
 
 vi.mock('../../services/api', () => ({
   fetchFundCommonData: mockedApi.fetchFundCommonData,
   fetchFundHoldings: mockedApi.fetchFundHoldings,
+  fetchSinaFundAssetAllocation: mockedApi.fetchSinaFundAssetAllocation,
   fetchParentETFInfo: mockedApi.fetchParentETFInfo,
   fetchFundPerformance: mockedApi.fetchFundPerformance,
   fetchEastMoneyPingzhongData: mockedApi.fetchEastMoneyPingzhongData,
   fetchTencentStockQuotes: mockedApi.fetchTencentStockQuotes,
   fetchTencentIntradayData: mockedApi.fetchTencentIntradayData,
   buildTencentQuoteCodes: mockedApi.buildTencentQuoteCodes,
+  buildUSQuoteCodes: mockedApi.buildUSQuoteCodes,
+  fetchUSStockIntradayData: mockedApi.fetchUSStockIntradayData,
+  fetchUSStockQuotes: mockedApi.fetchUSStockQuotes,
+  checkIsMarketTrading: mockedApi.checkIsMarketTrading,
+  checkIsUSMarketTrading: mockedApi.checkIsUSMarketTrading,
 }));
 
 vi.mock('../../services/i18n', () => ({
@@ -119,9 +131,14 @@ beforeEach(() => {
     },
   });
   mockedApi.fetchFundHoldings.mockResolvedValue({ data: { equityHoldings: [] } });
+  mockedApi.fetchSinaFundAssetAllocation.mockResolvedValue(null);
   mockedApi.fetchParentETFInfo.mockResolvedValue(null);
   mockedApi.fetchTencentStockQuotes.mockResolvedValue({});
   mockedApi.fetchTencentIntradayData.mockResolvedValue({});
+  mockedApi.fetchUSStockIntradayData.mockResolvedValue({});
+  mockedApi.fetchUSStockQuotes.mockResolvedValue({});
+  mockedApi.checkIsMarketTrading.mockResolvedValue(false);
+  mockedApi.checkIsUSMarketTrading.mockResolvedValue(false);
   mockedApi.fetchFundPerformance.mockResolvedValue({ data: { annual: { returns: [] } } });
   mockedApi.fetchEastMoneyPingzhongData.mockResolvedValue({
     syl_1y: '1.11',

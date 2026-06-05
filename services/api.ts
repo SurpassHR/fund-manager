@@ -6,6 +6,7 @@ import type {
   FundPerformanceResponse,
   EastMoneyPingzhongData,
   EquityHolding,
+  FundAssetAllocation,
   TrackingInfo,
   TrackingSource,
   TrackingConfidence,
@@ -105,11 +106,32 @@ type EastMoneyKlineResponse = {
   };
 };
 
+type SinaFundAssetAllocationRow = {
+  name?: string;
+  value?: string | number | null;
+  ENDDATE?: string;
+};
+
+type SinaFundTopHoldResponse = {
+  result?: {
+    status?: {
+      code?: number;
+    };
+    data?: {
+      zcpz?: SinaFundAssetAllocationRow[];
+    };
+  };
+};
+
 type EastMoneyWindow = Window & {
   apidata?: EastMoneyApiData;
 };
 
 type CallbackWindow = Window & Record<string, (json: EastMoneyKlineResponse) => void>;
+type SinaFundTopHoldCallbackMap = Record<
+  string,
+  ((json: SinaFundTopHoldResponse) => void) | undefined
+>;
 
 const memoryCache = new Map<string, CacheEntry<unknown>>();
 const inFlightCache = new Map<string, Promise<unknown>>();
@@ -356,6 +378,140 @@ export const fetchFundHoldings = async (
     });
   } catch (error) {
     console.error(error);
+    return null;
+  }
+};
+
+const parseSinaPct = (value: string | number | null | undefined): number | null => {
+  if (typeof value === 'number') return Number.isFinite(value) ? value : null;
+  if (typeof value !== 'string') return null;
+  const normalized = value.trim();
+  if (!normalized) return null;
+  const parsed = Number.parseFloat(normalized);
+  return Number.isFinite(parsed) ? parsed : null;
+};
+
+const formatSinaDate = (raw?: string): string | undefined => {
+  if (!raw || !/^\d{8}$/.test(raw)) return undefined;
+  return `${raw.slice(0, 4)}-${raw.slice(4, 6)}-${raw.slice(6, 8)}`;
+};
+
+const parseSinaFundAssetAllocation = (
+  rows: SinaFundAssetAllocationRow[] | undefined,
+): FundAssetAllocation | null => {
+  if (!rows || rows.length === 0) return null;
+
+  const findPct = (matcher: (name: string) => boolean): number | null => {
+    const row = rows.find((item) => matcher(item.name ?? ''));
+    return parseSinaPct(row?.value);
+  };
+
+  const equityPct = findPct((name) => name.includes('权益类') || name.includes('股票'));
+  const cashPct = findPct((name) => name.includes('银行存款') || name.includes('现金'));
+  const otherPct = findPct((name) => name.includes('其他投资'));
+  const reportDate = rows.find((item) => item.ENDDATE)?.ENDDATE;
+
+  if (equityPct === null && cashPct === null && otherPct === null) return null;
+
+  return {
+    equityPct: equityPct ?? 0,
+    cashPct: cashPct ?? 0,
+    otherPct: otherPct ?? 0,
+    asOfDate: formatSinaDate(reportDate),
+  };
+};
+
+const buildSinaFundTopHoldUrl = (fundCode: string, callbackName?: string): string => {
+  const url = new URL(
+    'https://stock.finance.sina.com.cn/fundInfo/api/openapi.php/FdFundService.getTopHold',
+  );
+  url.searchParams.set('', '');
+  url.searchParams.set('format', 'json');
+  url.searchParams.set('symbol', fundCode);
+  if (callbackName) {
+    url.searchParams.set('callback', callbackName);
+  }
+  return url.toString();
+};
+
+const loadSinaFundTopHoldJsonp = async (
+  fundCode: string,
+): Promise<SinaFundTopHoldResponse | null> => {
+  return await new Promise((resolve) => {
+    if (typeof document === 'undefined') {
+      resolve(null);
+      return;
+    }
+
+    const callbackName = `__sinaFundTopHold_${fundCode}_${Date.now()}_${Math.random()
+      .toString(36)
+      .slice(2)}`;
+    const script = document.createElement('script');
+    script.src = buildSinaFundTopHoldUrl(fundCode, callbackName);
+    script.referrerPolicy = 'no-referrer';
+    const callbackHost = window as unknown as SinaFundTopHoldCallbackMap;
+
+    let settled = false;
+    const cleanup = () => {
+      if (document.head.contains(script)) {
+        document.head.removeChild(script);
+      }
+      delete callbackHost[callbackName];
+    };
+
+    const finish = (result: SinaFundTopHoldResponse | null) => {
+      if (settled) return;
+      settled = true;
+      window.clearTimeout(timeoutId);
+      cleanup();
+      resolve(result);
+    };
+
+    const timeoutId = window.setTimeout(() => finish(null), 10000);
+
+    callbackHost[callbackName] = (json: SinaFundTopHoldResponse) => {
+      finish(json);
+    };
+
+    script.onload = () => {
+      finish(null);
+    };
+
+    script.onerror = () => {
+      finish(null);
+    };
+
+    document.head.appendChild(script);
+  });
+};
+
+export const fetchSinaFundAssetAllocation = async (
+  fundCode: string,
+  options?: { force?: boolean },
+): Promise<FundAssetAllocation | null> => {
+  try {
+    return await withCache({
+      key: `sina-fund-asset-allocation:${fundCode}`,
+      ttlMs: 24 * 60 * 60 * 1000,
+      force: options?.force,
+      fetcher: async () => {
+        const json =
+          typeof document === 'undefined'
+            ? await (async () => {
+                const response = await fetch(buildSinaFundTopHoldUrl(fundCode));
+                if (!response.ok) {
+                  throw new Error(`Failed to fetch Sina fund allocation for ${fundCode}`);
+                }
+                return (await response.json()) as SinaFundTopHoldResponse;
+              })()
+            : await loadSinaFundTopHoldJsonp(fundCode);
+        if (!json || json.result?.status?.code !== 0) return null;
+        return parseSinaFundAssetAllocation(json.result.data?.zcpz);
+      },
+      shouldCache: (value) => value !== null,
+    });
+  } catch (error) {
+    console.error(`Failed to fetch Sina fund asset allocation for ${fundCode}:`, error);
     return null;
   }
 };

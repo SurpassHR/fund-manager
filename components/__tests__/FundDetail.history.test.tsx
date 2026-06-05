@@ -26,6 +26,7 @@ const createDeferred = <T,>() => {
 const mockedApi = vi.hoisted(() => ({
   fetchFundCommonData: vi.fn(),
   fetchFundHoldings: vi.fn(),
+  fetchSinaFundAssetAllocation: vi.fn(),
   fetchParentETFInfo: vi.fn(),
   fetchFundPerformance: vi.fn(),
   fetchEastMoneyPingzhongData: vi.fn(),
@@ -49,6 +50,7 @@ const chartSpies = vi.hoisted(() => ({
 vi.mock('../../services/api', () => ({
   fetchFundCommonData: mockedApi.fetchFundCommonData,
   fetchFundHoldings: mockedApi.fetchFundHoldings,
+  fetchSinaFundAssetAllocation: mockedApi.fetchSinaFundAssetAllocation,
   fetchParentETFInfo: mockedApi.fetchParentETFInfo,
   fetchFundPerformance: mockedApi.fetchFundPerformance,
   fetchEastMoneyPingzhongData: mockedApi.fetchEastMoneyPingzhongData,
@@ -140,6 +142,7 @@ describe('FundDetail history performance source', () => {
 
     mockedApi.fetchFundCommonData.mockResolvedValue(null);
     mockedApi.fetchFundHoldings.mockResolvedValue({ data: { equityHoldings: [] } });
+    mockedApi.fetchSinaFundAssetAllocation.mockResolvedValue(null);
     mockedApi.fetchParentETFInfo.mockResolvedValue(null);
     mockedApi.fetchTencentStockQuotes.mockResolvedValue({});
     mockedApi.fetchTencentIntradayData.mockResolvedValue({});

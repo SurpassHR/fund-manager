@@ -5,6 +5,7 @@ import {
   fetchEastMoneyLatestNav,
   fetchFundCommonData,
   fetchFundHoldings,
+  fetchSinaFundAssetAllocation,
   fetchParentETFInfo,
   fetchParentETFPct,
   fetchTencentIntradayData,
@@ -69,6 +70,7 @@ const readNameFromItem = <T>(item: T): string | undefined => {
 export const calcWeightedChangePct = (
   holdings: HoldingWithWeight[],
   quotePctMap: Record<string, number>,
+  equityExposurePct?: number,
 ) => {
   let weightedPctSum = 0;
   let totalWeight = 0;
@@ -85,7 +87,8 @@ export const calcWeightedChangePct = (
   });
 
   if (totalWeight > 0) {
-    return weightedPctSum / (totalWeight / 100);
+    const normalizedPct = weightedPctSum / (totalWeight / 100);
+    return normalizedPct * ((equityExposurePct ?? 100) / 100);
   }
 
   return null;
@@ -330,6 +333,7 @@ export const runFundQuotePipeline = async <T>(
   const holdingsMap = new Map<string, EquityHolding[]>();
   const fundMarketMap = new Map<string, UnderlyingMarket>();
   const fundNavMap = new Map<string, number>();
+  const fundEquityExposureMap = new Map<string, number>();
 
   holdingsResults.forEach((result) => {
     if (result.status === 'fulfilled' && result.value) {
@@ -337,6 +341,18 @@ export const runFundQuotePipeline = async <T>(
       fundMarketMap.set(result.value.code, result.value.underlyingMarket ?? 'CN');
       fundNavMap.set(result.value.code, result.value.nav);
     }
+  });
+
+  const allocationResults = await Promise.allSettled(
+    Array.from(holdingsMap.keys()).map(async (code) => {
+      const allocation = await fetchSinaFundAssetAllocation(code, { force });
+      return { code, allocation };
+    }),
+  );
+
+  allocationResults.forEach((result) => {
+    if (result.status !== 'fulfilled' || !result.value.allocation) return;
+    fundEquityExposureMap.set(result.value.code, result.value.allocation.equityPct);
   });
 
   // 为每个持仓 ticker 构建市场提示映射
@@ -356,7 +372,11 @@ export const runFundQuotePipeline = async <T>(
     force,
   );
   holdingsMap.forEach((holdings, code) => {
-    const estimated = calcWeightedChangePct(holdings, quotePctMap);
+    const estimated = calcWeightedChangePct(
+      holdings,
+      quotePctMap,
+      fundEquityExposureMap.get(code),
+    );
     if (estimated !== null) {
       estimateMap.set(code, estimated);
     }
@@ -372,7 +392,13 @@ export const runFundQuotePipeline = async <T>(
   holdingsMap.forEach((holdings, code) => {
     const lastNav = fundNavMap.get(code);
     if (!lastNav || lastNav <= 0) return;
-    const trend = calcFundIntradayTrend(intradayDataMap, holdings, lastNav);
+    const trend = calcFundIntradayTrend(
+      intradayDataMap,
+      holdings,
+      lastNav,
+      undefined,
+      fundEquityExposureMap.get(code),
+    );
     if (trend.length > 0) {
       intradayTrends.set(code, trend);
     }

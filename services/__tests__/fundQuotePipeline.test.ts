@@ -5,9 +5,13 @@ import {
   fetchEastMoneyLatestNav,
   fetchFundCommonData,
   fetchFundHoldings,
+  fetchSinaFundAssetAllocation,
   fetchParentETFInfo,
   fetchParentETFPct,
+  fetchTencentIntradayData,
   fetchTencentStockQuotes,
+  fetchUSStockIntradayData,
+  fetchUSStockQuotes,
 } from '../api';
 import { runFundQuotePipeline } from '../fundQuotePipeline';
 
@@ -15,15 +19,24 @@ vi.mock('../api', () => ({
   fetchEastMoneyLatestNav: vi.fn(),
   fetchFundCommonData: vi.fn(),
   fetchFundHoldings: vi.fn(),
+  fetchSinaFundAssetAllocation: vi.fn(),
   fetchParentETFInfo: vi.fn(),
   fetchParentETFPct: vi.fn(),
+  fetchTencentIntradayData: vi.fn(),
   fetchTencentStockQuotes: vi.fn(),
+  fetchUSStockIntradayData: vi.fn(),
+  fetchUSStockQuotes: vi.fn(),
   buildTencentQuoteCodes: vi.fn(),
+  buildUSQuoteCodes: vi.fn(),
 }));
 
 describe('runFundQuotePipeline', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(fetchSinaFundAssetAllocation).mockResolvedValue(null);
+    vi.mocked(fetchTencentIntradayData).mockResolvedValue({});
+    vi.mocked(fetchUSStockIntradayData).mockResolvedValue({});
+    vi.mocked(fetchUSStockQuotes).mockResolvedValue({});
   });
 
   it('keeps fallback quote when source is missing but dropOnMissingNav is false', async () => {
@@ -112,6 +125,53 @@ describe('runFundQuotePipeline', () => {
     expect(fetchTencentStockQuotes).toHaveBeenCalledWith(['sh000001', 'sz000002'], {
       force: undefined,
     });
+  });
+
+  it('scales estimated pct map by Sina equity allocation when available', async () => {
+    vi.mocked(fetchEastMoneyLatestNav).mockResolvedValue({
+      nav: 1.5,
+      navDate: '2026-03-26',
+      navChangePercent: 0.5,
+    });
+    vi.mocked(fetchFundCommonData).mockResolvedValue(null);
+    vi.mocked(fetchFundHoldings).mockResolvedValue({
+      data: {
+        equityHoldings: [
+          { ticker: 'sh000001', weight: 60 },
+          { ticker: 'sz000002', weight: 40 },
+        ],
+      },
+    } as never);
+    vi.mocked(fetchSinaFundAssetAllocation).mockResolvedValue({
+      equityPct: 67.44,
+      cashPct: 36.52,
+      otherPct: 1.68,
+      asOfDate: '2026-03-31',
+    });
+    vi.mocked(buildTencentQuoteCodes).mockReturnValue(['sh000001', 'sz000002']);
+    vi.mocked(fetchTencentStockQuotes).mockResolvedValue({
+      '000001': { pct: 2, price: '1.000' },
+      '000002': { pct: 1, price: '1.000' },
+    });
+
+    const result = await runFundQuotePipeline(
+      [
+        {
+          item: { id: 1, code: '025208' },
+          code: '025208',
+          fallbackNav: 0,
+          fallbackChangePct: 0,
+          dropOnMissingNav: true,
+        },
+      ],
+      {
+        todayStr: '2026-04-01',
+        shouldUseEstimatedValue: true,
+      },
+    );
+
+    expect(result.estimateMap.get('025208')).toBeCloseTo(1.6 * 0.6744, 6);
+    expect(fetchSinaFundAssetAllocation).toHaveBeenCalledWith('025208', { force: undefined });
   });
 
   it('does not mark stale nav as estimate candidate when market is not trading', async () => {

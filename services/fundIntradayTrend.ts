@@ -21,6 +21,7 @@ const normalizeTicker = (ticker?: string) => {
  * @param holdings          — 持仓列表，含 ticker 和 weight
  * @param lastNav           — 基金最新净值，作为估算锚点
  * @param stockPrevCloseMap — 可选，normalized ticker → 前收盘价；提供时以前收盘价为基准，否则以首点价格为基准
+ * @param equityExposurePct — 可选，基金股票仓位比例；提供时将重仓股归一化涨跌按股票仓位缩放
  * @returns 按时间排序的基金估算净值序列，有效权重为 0 时返回空数组
  */
 export const calcFundIntradayTrend = (
@@ -28,6 +29,7 @@ export const calcFundIntradayTrend = (
   holdings: EquityHolding[],
   lastNav: number,
   stockPrevCloseMap?: Record<string, number>,
+  equityExposurePct?: number,
 ): FundIntradayPoint[] => {
   // 1. 匹配持仓与分时数据
   const matched: { weight: number; points: IntradayPoint[]; basePrice: number }[] = [];
@@ -99,6 +101,7 @@ export const calcFundIntradayTrend = (
       if (j >= stockChangeSeries.length) break;
       weightedChange += (matched[j].weight / totalWeight) * stockChangeSeries[j][i];
     }
+    weightedChange *= (equityExposurePct ?? 100) / 100;
     result.push({
       time: allTimes[i],
       estimatedNav: lastNav * (1 + weightedChange / 100),

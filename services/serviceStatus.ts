@@ -1,4 +1,5 @@
 import { listCustomOpenAiModels, listGeminiModels, listOpenAiModels } from './aiOcr';
+import { fetchSinaFundAssetAllocation } from './api';
 import { verifyGithubToken } from './gistSync/client';
 
 export type ServiceHealthStatus = 'idle' | 'checking' | 'ok' | 'error' | 'degraded';
@@ -100,6 +101,14 @@ const getServiceApiBases = (config: ServiceRuntimeConfig): ServiceApiBase[] => [
     name: 'EastMoney FundF10 Script API',
     provider: 'EastMoney',
     endpoint: 'https://fundf10.eastmoney.com/F10DataApi.aspx',
+    auth: 'none',
+  },
+  {
+    id: 'sina-fund-tophold',
+    name: 'Sina Fund TopHold API',
+    provider: 'Sina Finance',
+    endpoint:
+      'https://stock.finance.sina.com.cn/fundInfo/api/openapi.php/FdFundService.getTopHold',
     auth: 'none',
   },
   {
@@ -279,6 +288,20 @@ const runServiceApiCheckTasks = (config: ServiceRuntimeConfig): Promise<ServiceA
       return loaded ? ok(base) : fail(base, '脚本加载失败');
     } catch (error) {
       return fail(base, error instanceof Error ? error.message : '脚本探测失败');
+    }
+  })(),
+  (async () => {
+    const base = getServiceApiBases(config).find((item) => item.id === 'sina-fund-tophold');
+    if (!base) throw new Error('MISSING_SERVICE_API_BASE');
+    try {
+      const allocation = await fetchSinaFundAssetAllocation('025208', { force: true });
+      if (!allocation) return fail(base, '资产配置数据缺失', 'degraded');
+      return {
+        ...ok(base),
+        message: `连接正常，股票仓位 ${allocation.equityPct.toFixed(2)}%`,
+      };
+    } catch (error) {
+      return fail(base, error instanceof Error ? error.message : '请求失败');
     }
   })(),
   (async () => {

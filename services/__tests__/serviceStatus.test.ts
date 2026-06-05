@@ -39,14 +39,33 @@ describe('serviceStatus', () => {
       githubToken: '',
     });
 
-    expect(list).toHaveLength(10);
+    expect(list).toHaveLength(11);
     expect(list.every((item) => item.status === 'checking')).toBe(true);
+    expect(list.some((item) => item.id === 'sina-fund-tophold')).toBe(true);
   });
 
   it('streams per-api result without waiting all checks finished', async () => {
     const appendSpy = vi.spyOn(document.head, 'appendChild').mockImplementation((node) => {
       if (node instanceof HTMLScriptElement) {
-        setTimeout(() => node.onload?.(new Event('load')));
+        setTimeout(() => {
+          if (node.src.includes('stock.finance.sina.com.cn')) {
+            const callbackName = new URL(node.src).searchParams.get('callback');
+            (window as Window & Record<string, (value: unknown) => void>)[callbackName!]({
+              result: {
+                status: { code: 0 },
+                data: {
+                  zcpz: [
+                    { name: 'TOTFDNAV', value: '17994150868.8900', ENDDATE: '20260331' },
+                    { name: '权益类（股票与存托凭证等）', value: '67.4400' },
+                    { name: '银行存款和结算备付金', value: '36.5200' },
+                    { name: '其他投资', value: '1.6800' },
+                  ],
+                },
+              },
+            });
+          }
+          node.onload?.(new Event('load'));
+        });
       }
       return node;
     });
@@ -70,6 +89,26 @@ describe('serviceStatus', () => {
         return Promise.resolve(
           new Response(
             'var min_data_usAAPLOQ={"code":0,"data":{"usAAPL.OQ":{"data":{"data":["0930 185.50","0931 186.00","0932 185.80"]}}}}',
+            { status: 200 },
+          ),
+        );
+      }
+      if (url.includes('stock.finance.sina.com.cn')) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              result: {
+                status: { code: 0 },
+                data: {
+                  zcpz: [
+                    { name: 'TOTFDNAV', value: '17994150868.8900', ENDDATE: '20260331' },
+                    { name: '权益类（股票与存托凭证等）', value: '67.4400' },
+                    { name: '银行存款和结算备付金', value: '36.5200' },
+                    { name: '其他投资', value: '1.6800' },
+                  ],
+                },
+              },
+            }),
             { status: 200 },
           ),
         );
@@ -100,12 +139,13 @@ describe('serviceStatus', () => {
     resolveMorningstar(new Response('{}', { status: 200 }));
     const list = await task;
 
-    expect(list).toHaveLength(10);
+    expect(list).toHaveLength(11);
     expect(list.find((item) => item.id === 'morningstar')?.status).toBe('ok');
     expect(list.find((item) => item.id === 'tencent-quote')?.status).toBe('ok');
     expect(list.find((item) => item.id === 'tencent-us-minute')?.status).toBe('ok');
     expect(list.find((item) => item.id === 'tencent-us-quote')?.status).toBe('ok');
     expect(list.find((item) => item.id === 'eastmoney-fundf10')?.status).toBe('ok');
+    expect(list.find((item) => item.id === 'sina-fund-tophold')?.status).toBe('ok');
     expect(list.find((item) => item.id === 'ths-fuyao')?.status).toBe('error');
     expect(list.find((item) => item.id === 'openai')?.status).toBe('idle');
 
@@ -115,7 +155,25 @@ describe('serviceStatus', () => {
   it('returns idle for key/token based APIs when credentials missing', async () => {
     const appendSpy = vi.spyOn(document.head, 'appendChild').mockImplementation((node) => {
       if (node instanceof HTMLScriptElement) {
-        setTimeout(() => node.onload?.(new Event('load')));
+        setTimeout(() => {
+          if (node.src.includes('stock.finance.sina.com.cn')) {
+            const callbackName = new URL(node.src).searchParams.get('callback');
+            (window as Window & Record<string, (value: unknown) => void>)[callbackName!]({
+              result: {
+                status: { code: 0 },
+                data: {
+                  zcpz: [
+                    { name: 'TOTFDNAV', value: '17994150868.8900', ENDDATE: '20260331' },
+                    { name: '权益类（股票与存托凭证等）', value: '67.4400' },
+                    { name: '银行存款和结算备付金', value: '36.5200' },
+                    { name: '其他投资', value: '1.6800' },
+                  ],
+                },
+              },
+            });
+          }
+          node.onload?.(new Event('load'));
+        });
       }
       return node;
     });
@@ -134,6 +192,24 @@ describe('serviceStatus', () => {
           { status: 200 },
         );
       }
+      if (url.includes('stock.finance.sina.com.cn')) {
+        return new Response(
+          JSON.stringify({
+            result: {
+              status: { code: 0 },
+              data: {
+                zcpz: [
+                  { name: 'TOTFDNAV', value: '17994150868.8900', ENDDATE: '20260331' },
+                  { name: '权益类（股票与存托凭证等）', value: '67.4400' },
+                  { name: '银行存款和结算备付金', value: '36.5200' },
+                  { name: '其他投资', value: '1.6800' },
+                ],
+              },
+            },
+          }),
+          { status: 200 },
+        );
+      }
       return new Response('{}', { status: 404 });
     });
 
@@ -146,12 +222,13 @@ describe('serviceStatus', () => {
       githubToken: '',
     });
 
-    expect(list).toHaveLength(10);
+    expect(list).toHaveLength(11);
     expect(list.find((item) => item.id === 'morningstar')?.status).toBe('ok');
     expect(list.find((item) => item.id === 'tencent-quote')?.status).toBe('ok');
     expect(list.find((item) => item.id === 'tencent-us-minute')?.status).toBe('ok');
     expect(list.find((item) => item.id === 'tencent-us-quote')?.status).toBe('ok');
     expect(list.find((item) => item.id === 'eastmoney-fundf10')?.status).toBe('ok');
+    expect(list.find((item) => item.id === 'sina-fund-tophold')?.status).toBe('ok');
     expect(list.find((item) => item.id === 'openai')?.status).toBe('idle');
     expect(list.find((item) => item.id === 'gemini')?.status).toBe('idle');
     expect(list.find((item) => item.id === 'github-gist')?.status).toBe('idle');
@@ -181,6 +258,11 @@ describe('serviceStatus', () => {
           { status: 200 },
         );
       }
+      if (url.includes('stock.finance.sina.com.cn')) {
+        return new Response(JSON.stringify({ result: { status: { code: 0 }, data: {} } }), {
+          status: 200,
+        });
+      }
       return new Response('{}', { status: 200 });
     });
 
@@ -195,6 +277,7 @@ describe('serviceStatus', () => {
 
     expect(list.find((item) => item.id === 'morningstar')?.status).toBe('error');
     expect(list.find((item) => item.id === 'eastmoney-fundf10')?.status).toBe('error');
+    expect(list.find((item) => item.id === 'sina-fund-tophold')?.status).toBe('degraded');
 
     appendSpy.mockRestore();
   });

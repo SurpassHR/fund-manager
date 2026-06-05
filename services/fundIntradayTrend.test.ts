@@ -141,6 +141,32 @@ describe('calcFundIntradayTrend', () => {
     expect(result[1].estimatedNav).toBeCloseTo(2.0 * 1.04);
   });
 
+  it('scales estimated NAV movement by equity exposure when asset allocation is provided', () => {
+    const intradayData = {
+      '000001': makePoints([
+        ['09:30', 10],
+        ['09:31', 11],
+      ]),
+      '000002': makePoints([
+        ['09:30', 20],
+        ['09:31', 19],
+      ]),
+    };
+    const holdings = [holding('000001', 60), holding('000002', 40)];
+    const calcWithExposure = calcFundIntradayTrend as (
+      data: Record<string, IntradayPoint[]>,
+      list: EquityHolding[],
+      nav: number,
+      prevCloseMap?: Record<string, number>,
+      equityExposurePct?: number,
+    ) => ReturnType<typeof calcFundIntradayTrend>;
+
+    const result = calcWithExposure(intradayData, holdings, 1.5, undefined, 67.44);
+
+    expect(result).toHaveLength(2);
+    expect(result[1].estimatedNav).toBeCloseTo(1.5 * (1 + (4 * 0.6744) / 100));
+  });
+
   it('merges differing time points across stocks into unified timeline', () => {
     const intradayData = {
       '000001': makePoints([

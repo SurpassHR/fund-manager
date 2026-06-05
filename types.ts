@@ -287,6 +287,13 @@ export interface FundHoldingsResponse {
   };
 }
 
+export interface FundAssetAllocation {
+  equityPct: number;
+  cashPct: number;
+  otherPct: number;
+  asOfDate?: string;
+}
+
 // ========== 基金分类与跟踪标的类型定义 ==========
 
 /**

@@ -8,8 +8,10 @@ import type {
   DanjuanGrowthDataResponse,
   ParentEtfInfo,
   EastMoneyPingzhongData,
+  FundAssetAllocation,
 } from '../types';
 import { Icons } from './Icon';
+import { FundAssetAllocationSummary } from './FundAssetAllocationSummary';
 import { Sparkline } from './Sparkline';
 import { calcFundIntradayTrend } from '../services/fundIntradayTrend';
 import { calcWeightedChangePct } from '../services/fundQuotePipeline';
@@ -32,6 +34,7 @@ import {
   fetchFundPerformance,
   fetchFundCommonData,
   fetchFundHoldings,
+  fetchSinaFundAssetAllocation,
   fetchEastMoneyPingzhongData,
   fetchParentETFInfo,
   fetchTencentStockQuotes,
@@ -389,6 +392,7 @@ export const FundDetail: React.FC<FundDetailProps> = ({
   const [pingzhongData, setPingzhongData] = useState<EastMoneyPingzhongData | null>(null);
   const [commonData, setCommonData] = useState<FundCommonDataResponse['data'] | null>(null);
   const [holdings, setHoldings] = useState<EquityHolding[]>([]);
+  const [assetAllocation, setAssetAllocation] = useState<FundAssetAllocation | null>(null);
   const [performanceAnnualReturns, setPerformanceAnnualReturns] = useState<AnnualReturnRow[]>([]);
   const [quotes, setQuotes] = useState<Record<string, { price: string; pct: number }>>({});
   const [parentEtfInfo, setParentEtfInfo] = useState<ParentEtfInfo | null>(
@@ -732,7 +736,11 @@ export const FundDetail: React.FC<FundDetailProps> = ({
           fund.parentEtfInfo || (await fetchParentETFInfo(fund.code, fund.name));
         setParentEtfInfo(resolvedParent || null);
 
-        const json = await fetchFundHoldings(fund.code);
+        const [json, allocation] = await Promise.all([
+          fetchFundHoldings(fund.code),
+          fetchSinaFundAssetAllocation(fund.code),
+        ]);
+        setAssetAllocation(allocation);
         if (json?.data?.equityHoldings) {
           const equity = json.data.equityHoldings;
           setHoldings(equity);
@@ -782,8 +790,8 @@ export const FundDetail: React.FC<FundDetailProps> = ({
         if (nk) quotePctMap[nk] = quote.pct;
       }
     }
-    return calcWeightedChangePct(h, quotePctMap);
-  }, [quotes, parentEtfQuotes, holdings, parentEtfHoldings, fund.category]);
+    return calcWeightedChangePct(h, quotePctMap, assetAllocation?.equityPct);
+  }, [quotes, parentEtfQuotes, holdings, parentEtfHoldings, fund.category, assetAllocation]);
 
   // Resolve Display Data
   // Priority: CommonData API -> Performance API -> Local DB
@@ -874,7 +882,13 @@ export const FundDetail: React.FC<FundDetailProps> = ({
     const data = fund.category === 'ETF_LINK' ? parentIntradayData : intradayData;
     const h = fund.category === 'ETF_LINK' ? parentEtfHoldings : holdings;
     if (!h.length || Object.keys(data).length === 0) return [];
-    return calcFundIntradayTrend(data, h, currentNav, stockPrevCloseMap);
+    return calcFundIntradayTrend(
+      data,
+      h,
+      currentNav,
+      stockPrevCloseMap,
+      assetAllocation?.equityPct,
+    );
   }, [
     fund.category,
     intradayData,
@@ -883,6 +897,7 @@ export const FundDetail: React.FC<FundDetailProps> = ({
     parentEtfHoldings,
     currentNav,
     stockPrevCloseMap,
+    assetAllocation,
   ]);
 
   // Initialize and Update ECharts
@@ -1499,6 +1514,8 @@ export const FundDetail: React.FC<FundDetailProps> = ({
               当前基金持仓明细{' '}
               <span className="text-xs text-gray-400 font-normal ml-1">(实时估算)</span>
             </h3>
+
+            <FundAssetAllocationSummary allocation={assetAllocation} />
 
             <div className="space-y-0">
               {/* Table Header */}
