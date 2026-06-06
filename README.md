@@ -62,6 +62,79 @@
 | 图标     | Lucide React          |
 | 部署     | GitHub Pages（自动）  |
 
+## 架构总览
+
+小胡养基采用本地优先的 React 单页应用架构：浏览器端负责界面、持仓计算、行情刷新与 AI 交互；核心业务数据保存在 IndexedDB；可选的 GitHub Gist、Cloudflare Workers 和第三方行情 / AI 服务只作为同步、代理、定时分析与数据补充通道。
+
+```mermaid
+flowchart TB
+  User["用户"]
+  Browser["浏览器 / PWA"]
+
+  subgraph App["React 单页应用"]
+    Shell["App Shell<br/>Header / BottomNav / Ticker"]
+    Providers["全局 Provider<br/>Settings / Theme / I18n / EdgeSwipe"]
+    Screens["业务页面<br/>Dashboard / Watchlist / FundDetail / Settings / ServicesPanel"]
+    Modals["统一弹窗层<br/>ModalShell / OverlayStack / EdgeSwipe"]
+  end
+
+  subgraph LocalState["浏览器本地状态"]
+    Dexie["Dexie IndexedDB<br/>funds / accounts / watchlists / totalAssetsHistory / investmentPlans"]
+    LocalStorage["localStorage<br/>设置 / AI 缓存 / Gist 默认目标 / Presence visitorId"]
+  end
+
+  subgraph DomainServices["业务服务层"]
+    Refresh["refreshOrchestrator / db<br/>刷新、结算、定投执行、资产快照"]
+    QuotePipeline["fundQuotePipeline<br/>净值、重仓股、ETF/QDII/港股估值、分时趋势"]
+    Analysis["aiAnalysis / aiOcr<br/>持仓分析、图像识别、提示词与缓存"]
+    Sync["gistSync / fundBackup<br/>本地备份、Gist 上传下载"]
+    Status["serviceStatus / presence<br/>服务状态与在线人数"]
+  end
+
+  subgraph ExternalApis["外部数据与模型服务"]
+    MarketApis["行情 / 基金数据<br/>东方财富 / 晨星 / 腾讯财经 / 同花顺 / 新浪"]
+    GitHub["GitHub Gist API"]
+    AiApis["OpenAI / Gemini / OpenAI Compatible"]
+  end
+
+  subgraph Workers["Cloudflare Workers"]
+    LlmProxy["llm-proxy<br/>同源转发模型请求"]
+    Reminder["telegram-ai-reminder<br/>Cron 定时 AI 分析推送"]
+    PresenceWorker["presence<br/>在线人数统计"]
+  end
+
+  User --> Browser --> Shell
+  Shell --> Providers --> Screens
+  Screens --> Modals
+  Screens <--> Dexie
+  Providers <--> LocalStorage
+  Screens --> Refresh
+  Screens --> Analysis
+  Screens --> Sync
+  Shell --> Status
+
+  Refresh <--> Dexie
+  Refresh --> QuotePipeline
+  QuotePipeline --> MarketApis
+  Analysis --> LocalStorage
+  Analysis --> LlmProxy --> AiApis
+  Sync <--> GitHub
+  Status <--> PresenceWorker
+
+  Reminder --> GitHub
+  Reminder --> MarketApis
+  Reminder --> AiApis
+  Reminder --> Telegram["Telegram / QQ"]
+```
+
+### 架构边界
+
+- **UI 层**：`App.tsx` 负责页面切换、全局导航、移动端安全区域与边缘滑动关闭；各页面和弹窗位于 `components/`，所有 Modal 统一通过 `ModalShell` 接入动画和 overlay 注册。
+- **本地数据层**：`services/db.ts` 通过 Dexie 管理 IndexedDB，包含持仓、账户、自选、总资产快照、定投计划、交易结算和导入导出逻辑；组件通过 `dexie-react-hooks` 响应式读取。
+- **刷新与估值层**：`refreshOrchestrator` 编排持仓刷新、自选刷新、结算和定投；`fundQuotePipeline` 汇总东方财富净值、晨星数据、腾讯 / 同花顺 / 新浪行情，并处理境内、QDII、港股、ETF 和 ETF 联接基金的估值。
+- **AI 与同步层**：`aiAnalysis`、`aiOcr` 基于设置中的 OpenAI / Gemini / OpenAI Compatible 配置工作，并可通过同源 `llm-proxy` Worker 规避 CORS；`gistSync` 使用 GitHub Gist 保存和恢复本地备份。
+- **Worker 层**：`workers/telegram-ai-reminder` 读取 Gist 快照并定时推送 AI 分析；`workers/llm-proxy` 转发模型请求；`workers/presence` 为 Header 在线人数提供统计。
+
 ## 本地开发
 
 **前置条件**：Node.js >= 18
@@ -234,19 +307,33 @@ npm run preview
 fund-manager/
 ├── .github/workflows/  # CI/CD 配置
 │   └── deploy.yml      # GitHub Pages 部署工作流
-├── components/         # React 组件
+├── components/         # React 组件、页面、弹窗与组件测试
 │   ├── Dashboard.tsx   # 主面板（持仓概览）
 │   ├── Watchlist.tsx   # 自选功能页
 │   ├── FundDetail.tsx  # 基金详情页
-│   ├── AddFundModal.tsx# 添加或编辑弹窗
+│   ├── ModalShell.tsx  # 统一弹窗动画与 overlay 容器
 │   ├── Header.tsx      # 顶部导航栏
 │   ├── BottomNav.tsx   # 底部导航栏
+│   ├── transitions/    # 页面转场组件
+│   ├── __tests__/      # 组件测试
 │   └── ...
+├── hooks/              # 共享 React hooks
 ├── services/           # 业务逻辑
-│   ├── api.ts          # 数据接口服务（晨星/东方财富/腾讯API）
-│   ├── db.ts           # Dexie 本地数据库（包含资金结算逻辑）
+│   ├── api.ts          # 数据接口服务（晨星/东方财富/腾讯/同花顺/新浪）
+│   ├── db.ts           # Dexie 本地数据库、结算、刷新、备份导入导出
+│   ├── fundQuotePipeline.ts # 基金净值、估值与分时趋势流水线
+│   ├── aiAnalysis.ts   # AI 持仓分析、提示词、缓存与结构化结果
+│   ├── gistSync/       # GitHub Gist 同步客户端
+│   ├── refresh/        # 刷新状态与编排模块
 │   ├── financeUtils.ts # 金融数据格式计算
 │   └── i18n.tsx        # 国际化上下文
+├── workers/            # Cloudflare Worker
+│   ├── telegram-ai-reminder/ # Telegram/QQ 定时 AI 分析推送
+│   ├── llm-proxy/      # 同源 LLM 代理
+│   └── presence/       # 在线人数统计
+├── docs/               # 设计文档、开发规范与历史方案
+├── public/             # PWA manifest 等静态资源
+├── utils/              # 跨组件工具函数
 ├── App.tsx             # 应用根组件
 ├── index.tsx           # 入口文件
 ├── index.html          # HTML 模板
