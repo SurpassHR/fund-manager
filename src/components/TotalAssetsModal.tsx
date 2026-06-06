@@ -1,9 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
-import * as echarts from 'echarts';
 import { ModalShell } from './ModalShell';
 import { Icons } from './Icon';
 import { useTheme } from '../services/ThemeContext';
 import { loadTotalAssetsHistory } from '../services/db';
+import { echarts, type ECharts } from '../services/charts/echarts';
 import {
   filterDataByTimeRange,
   rebaseDataToFirstValue,
@@ -32,8 +32,8 @@ export const TotalAssetsModal: React.FC<TotalAssetsModalProps> = ({ isOpen, onCl
 
   const assetsChartRef = useRef<HTMLDivElement>(null);
   const profitChartRef = useRef<HTMLDivElement>(null);
-  const assetsChartInstance = useRef<echarts.ECharts | null>(null);
-  const profitChartInstance = useRef<echarts.ECharts | null>(null);
+  const assetsChartInstance = useRef<ECharts | null>(null);
+  const profitChartInstance = useRef<ECharts | null>(null);
 
   // 延迟初始化，确保 DOM ref 就位
   useEffect(() => {

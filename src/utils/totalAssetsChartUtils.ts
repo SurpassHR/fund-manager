@@ -1,5 +1,5 @@
-import * as echarts from 'echarts';
 import type { TotalAssetsSnapshot } from '../types';
+import { echarts, type EChartsOption } from '../services/charts/echarts';
 
 export type TimeRange = '1M' | '3M' | '6M' | '1Y' | 'ALL';
 
@@ -96,7 +96,7 @@ export const buildTotalAssetsChartOption = ({
   dates,
   isDark,
   isLargeSeries,
-}: BuildTotalAssetsChartOptionParams): echarts.EChartsOption => {
+}: BuildTotalAssetsChartOptionParams): EChartsOption => {
   const startStr = dates[0] ?? '';
   const endStr = dates[dates.length - 1] ?? '';
 
@@ -223,7 +223,7 @@ export const buildProfitChartOption = ({
   negativeAreaData,
   isDark,
   isLargeSeries,
-}: BuildProfitChartOptionParams): echarts.EChartsOption => {
+}: BuildProfitChartOptionParams): EChartsOption => {
   const startStr = dates[0] ?? '';
   const endStr = dates[dates.length - 1] ?? '';
 

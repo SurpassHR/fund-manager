@@ -335,8 +335,8 @@ fund-manager/
 
 - [x] 增加 ETF 实时估值功能
 - [x] 增加美股、港股相关基金的估值功能
-- [ ] 优化 bundle 大小(考虑代码分割)
-- [ ] 清理 ESLint 警告
+- [x] 优化 bundle 大小(考虑代码分割)
+- [x] 清理 ESLint 警告
 
 ## License
 

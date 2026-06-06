@@ -1,6 +1,6 @@
 /// <reference types="vitest/globals" />
 import React from 'react';
-import * as echarts from 'echarts';
+import { echarts } from '../../services/charts/echarts';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { FundDetail } from '../FundDetail';
@@ -110,16 +110,18 @@ vi.mock('framer-motion', () => ({
   AnimatePresence: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
 }));
 
-vi.mock('echarts', () => ({
-  init: vi.fn(() => ({
-    clear: chartSpies.clear,
-    dispose: chartSpies.dispose,
-    resize: chartSpies.resize,
-    setOption: chartSpies.setOption,
-  })),
-  getInstanceByDom: vi.fn(() => undefined),
-  graphic: {
-    LinearGradient: vi.fn(),
+vi.mock('../../services/charts/echarts', () => ({
+  echarts: {
+    init: vi.fn(() => ({
+      clear: chartSpies.clear,
+      dispose: chartSpies.dispose,
+      resize: chartSpies.resize,
+      setOption: chartSpies.setOption,
+    })),
+    getInstanceByDom: vi.fn(() => undefined),
+    graphic: {
+      LinearGradient: vi.fn(),
+    },
   },
 }));
 

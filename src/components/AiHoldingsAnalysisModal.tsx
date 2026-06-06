@@ -23,7 +23,7 @@ import { resolveAiRuntimeConfigByBusiness } from '../services/aiProviderConfig';
 import { formatCurrency, formatSignedCurrency, getSignColor } from '../services/financeUtils';
 import { marked } from 'marked';
 import DOMPurify from 'dompurify';
-import * as echarts from 'echarts';
+import { echarts } from '../services/charts/echarts';
 
 interface AiHoldingsAnalysisModalProps {
   isOpen: boolean;

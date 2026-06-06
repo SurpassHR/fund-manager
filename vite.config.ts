@@ -395,7 +395,8 @@ ${subjects}`;
         output: {
           manualChunks(id) {
             if (!id.includes('node_modules')) return;
-            if (id.includes('echarts') || id.includes('zrender')) return 'vendor-echarts';
+            if (id.includes('zrender')) return 'vendor-zrender';
+            if (id.includes('echarts')) return 'vendor-echarts';
             if (id.includes('framer-motion')) return 'vendor-framer';
             if (id.includes('dexie')) return 'vendor-dexie';
             if (id.includes('react') || id.includes('react-dom') || id.includes('scheduler'))

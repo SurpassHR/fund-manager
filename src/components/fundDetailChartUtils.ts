@@ -1,5 +1,10 @@
 import type { PendingTransaction } from '../types';
-import * as echarts from 'echarts';
+import {
+  echarts,
+  type EChartsOption,
+  type LinearGradient,
+  type SeriesOption,
+} from '../services/charts/echarts';
 
 export type MarkPointDatum = {
   name: string;
@@ -34,7 +39,7 @@ type FundSeriesInput = {
   data: Array<number | null | FundSeriesDataPoint>;
   markers: MarkPointDatum[];
   isLargeSeries: boolean;
-  color: string | echarts.graphic.LinearGradient;
+  color: string | LinearGradient;
   anchorDate?: string;
   isDark: boolean;
   gradientDirection?: 'normal' | 'reversed';
@@ -221,7 +226,7 @@ export const buildFundSeries = ({
   isDark,
   gradientDirection,
   showArea = true,
-}: FundSeriesInput): echarts.SeriesOption => ({
+}: FundSeriesInput): SeriesOption => ({
   name,
   type: 'line',
   data,
@@ -280,7 +285,7 @@ const buildAreaSeries = ({
   data: Array<number | null>;
   color: string;
   isLargeSeries: boolean;
-}): echarts.SeriesOption => ({
+}): SeriesOption => ({
   name: '',
   type: 'line',
   data,
@@ -310,7 +315,7 @@ export const buildChartOption = ({
   startStr,
   endStr,
   tooltipFormatter,
-}: ChartOptionInput): echarts.EChartsOption => ({
+}: ChartOptionInput): EChartsOption => ({
   title: {
     text: `${startStr} 至 ${endStr}`,
     left: '0%',

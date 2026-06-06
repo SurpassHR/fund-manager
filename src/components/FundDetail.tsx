@@ -46,7 +46,7 @@ import {
 } from '../services/api';
 import type { IntradayPoint } from '../services/api';
 import { computeRealizedGain, deriveFundHoldingDisplayMetrics } from '../services/fundDayChange';
-import * as echarts from 'echarts';
+import { echarts, type ECharts, type EChartsOption } from '../services/charts/echarts';
 
 interface FundDetailProps {
   fund: Fund;
@@ -408,7 +408,7 @@ export const FundDetail: React.FC<FundDetailProps> = ({
   // Intraday fund-level trend
   const [isMarketTrading, setIsMarketTrading] = useState(false);
   const intradayChartRef = useRef<HTMLDivElement>(null);
-  const intradayChartInstance = useRef<echarts.ECharts | null>(null);
+  const intradayChartInstance = useRef<ECharts | null>(null);
 
   // State for the verified last trading day (for header and API queries)
   const [lastTradingDay, setLastTradingDay] = useState<string>('');
@@ -417,7 +417,7 @@ export const FundDetail: React.FC<FundDetailProps> = ({
   const [timeRange, setTimeRange] = useState<TimeRange>('1M');
   const [chartReady, setChartReady] = useState(false);
   const chartRef = useRef<HTMLDivElement>(null);
-  const chartInstance = useRef<echarts.ECharts | null>(null);
+  const chartInstance = useRef<ECharts | null>(null);
 
   // Section Collapse State
   const [isHistoryExpanded, setIsHistoryExpanded] = useState(false);
@@ -1103,7 +1103,7 @@ export const FundDetail: React.FC<FundDetailProps> = ({
     const isUp = dayDirPct >= 0;
     const lineColor = isUp ? '#f87171' : '#34d399';
 
-    const option: echarts.EChartsOption = {
+    const option: EChartsOption = {
       grid: { top: 16, right: 16, bottom: 24, left: 56 },
       xAxis: {
         type: 'category' as const,

@@ -80,16 +80,18 @@ vi.mock('framer-motion', () => ({
   },
 }));
 
-vi.mock('echarts', () => ({
-  init: vi.fn(() => ({
-    clear: vi.fn(),
-    dispose: vi.fn(),
-    resize: vi.fn(),
-    setOption: vi.fn(),
-  })),
-  getInstanceByDom: vi.fn(() => undefined),
-  graphic: {
-    LinearGradient: vi.fn(),
+vi.mock('../../services/charts/echarts', () => ({
+  echarts: {
+    init: vi.fn(() => ({
+      clear: vi.fn(),
+      dispose: vi.fn(),
+      resize: vi.fn(),
+      setOption: vi.fn(),
+    })),
+    getInstanceByDom: vi.fn(() => undefined),
+    graphic: {
+      LinearGradient: vi.fn(),
+    },
   },
 }));
 
