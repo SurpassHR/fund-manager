@@ -71,11 +71,11 @@ flowchart TB
   User["用户"]
   Browser["浏览器 / PWA"]
 
-  subgraph App["React 单页应用"]
-    Shell["App Shell<br/>Header / BottomNav / Ticker"]
+  subgraph App["src/ React 单页应用"]
+    Shell["src/App.tsx<br/>Header / BottomNav / Ticker"]
     Providers["全局 Provider<br/>Settings / Theme / I18n / EdgeSwipe"]
-    Screens["业务页面<br/>Dashboard / Watchlist / FundDetail / Settings / ServicesPanel"]
-    Modals["统一弹窗层<br/>ModalShell / OverlayStack / EdgeSwipe"]
+    Screens["src/components<br/>Dashboard / Watchlist / FundDetail / Settings / ServicesPanel"]
+    Modals["src/components<br/>ModalShell / OverlayStack / EdgeSwipe"]
   end
 
   subgraph LocalState["浏览器本地状态"]
@@ -83,7 +83,7 @@ flowchart TB
     LocalStorage["localStorage<br/>设置 / AI 缓存 / Gist 默认目标 / Presence visitorId"]
   end
 
-  subgraph DomainServices["业务服务层"]
+  subgraph DomainServices["src/services 业务服务层"]
     Refresh["refreshOrchestrator / db<br/>刷新、结算、定投执行、资产快照"]
     QuotePipeline["fundQuotePipeline<br/>净值、重仓股、ETF/QDII/港股估值、分时趋势"]
     Analysis["aiAnalysis / aiOcr<br/>持仓分析、图像识别、提示词与缓存"]
@@ -97,7 +97,7 @@ flowchart TB
     AiApis["OpenAI / Gemini / OpenAI Compatible"]
   end
 
-  subgraph Workers["Cloudflare Workers"]
+  subgraph Workers["workers/ Cloudflare Workers"]
     LlmProxy["llm-proxy<br/>同源转发模型请求"]
     Reminder["telegram-ai-reminder<br/>Cron 定时 AI 分析推送"]
     PresenceWorker["presence<br/>在线人数统计"]
