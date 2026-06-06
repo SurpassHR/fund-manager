@@ -4,7 +4,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mockedUsePrefersReducedMotion = vi.hoisted(() => vi.fn(() => false));
-vi.mock('../hooks/usePrefersReducedMotion', () => ({
+vi.mock('../../hooks/usePrefersReducedMotion', () => ({
   usePrefersReducedMotion: mockedUsePrefersReducedMotion,
 }));
 

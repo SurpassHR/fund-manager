@@ -25,42 +25,45 @@
 
 ## 仓库布局（实际观察）
 
-- 入口：`index.tsx` 挂载 `App.tsx`，缺失 `#root` 时抛出异常。
-- UI：`components/` 存放 React 组件和弹窗。
-- 服务/数据：`services/` 存放 API、DB、i18n、设置、主题等。
-- 共享类型：`types.ts`（在服务和组件中复用）。
-- 样式：`app.css` 加上 Tailwind 工具类。
-- 测试：`setupTests.ts` 和可选的 `test/` 夹具。
-- Vite 环境类型：`src/vite-env.d.ts`（`src/` 下唯一文件）。
+- 入口：`src/index.tsx` 挂载 `src/App.tsx`，缺失 `#root` 时渲染错误提示。
+- UI：`src/components/` 存放 React 组件和弹窗。
+- 服务/数据：`src/services/` 存放 API、DB、i18n、设置、主题等。
+- Hooks：`src/hooks/` 存放共享 React hooks。
+- 工具：`src/utils/` 存放跨组件工具函数。
+- 静态资源：`src/assets/` 存放需被 Vite 编译处理的资源。
+- 共享类型：`src/types.ts`（在服务和组件中复用）。
+- 样式：`src/app.css` 加上 Tailwind 工具类。
+- 测试：`src/setupTests.ts` 和源码附近的 `__tests__/` 夹具。
+- 根目录 `workers/` 是 Cloudflare Worker 子项目，不属于前端 `src/workers/`。
 
 ## 构建、Lint、测试
 
-- 安装：`npm install`
-- 开发服务器：`npm run dev`（Vite，默认 http://localhost:3000）
-- 构建：`npm run build`（先 `tsc` 再 `vite build`）
-- 预览构建：`npm run preview`
-- Lint 全部：`npm run lint`
-- Lint + 修复：`npm run lint:fix`
-- Lint 单个文件：`npm run lint -- components/Dashboard.tsx`
-- 测试全部（CI）：`npm run test`
-- 测试监听（开发）：`npm run test:watch`
-- 测试 UI：`npm run test:ui`
-- 单个测试文件：`npm run test -- components/Watchlist.test.tsx`
-- 按名称运行单个测试：`npm run test -- -t "renders watchlist"`
+- 安装：`pnpm install`
+- 开发服务器：`pnpm dev`（Vite，默认 http://localhost:3000）
+- 构建：`pnpm build`（先 `tsc` 再 `vite build`）
+- 预览构建：`pnpm preview`
+- Lint 全部：`pnpm lint`
+- Lint + 修复：`pnpm lint:fix`
+- Lint 单个文件：`pnpm lint -- src/components/Dashboard.tsx`
+- 测试全部（CI）：`pnpm test`
+- 测试监听（开发）：`pnpm test:watch`
+- 测试 UI：`pnpm test:ui`
+- 单个测试文件：`pnpm test -- src/components/Watchlist.test.tsx`
+- 按名称运行单个测试：`pnpm test -- -t "renders watchlist"`
 
 说明：
 
 - 测试使用 Vitest + React Testing Library + jsdom。
-- Setup 文件为 `setupTests.ts`，加载 `@testing-library/jest-dom`。
+- Setup 文件为 `src/setupTests.ts`，加载 `@testing-library/jest-dom`。
 - 测试类型隔离在 `tsconfig.test.json` 中。
 - 测试文件以 `*.test.ts`/`*.test.tsx` 形式添加在源文件附近或 `__tests__/` 中。
 
 ## 工具与配置
 
-- 包管理器：npm（项目为 ESM，`"type": "module"`）。
+- 包管理器：pnpm（项目为 ESM，`"type": "module"`）。
 - ESLint 配置：`eslint.config.js`，含 React/TS 规则和 hooks 检查。
 - Prettier 配置：`prettier.config.cjs`（单引号、分号、100 字符宽度）。
-- TS 配置：`tsconfig.json`，ES2022 target，`@/*` 别名指向仓库根目录。
+- TS 配置：`tsconfig.json`，ES2022 target，`@/*` 别名指向 `src/`。
 - TS 测试配置：`tsconfig.test.json`（添加 `vitest/globals`，包含测试文件）。
 - Vitest 配置：`vitest.config.ts`（jsdom、globals、setup 文件）。
 - Vite 配置：`vite.config.ts`（GitHub Pages base、commit 注入、开发代理）。
@@ -82,7 +85,7 @@ TypeScript 配置说明：
 
 - 语言：TypeScript + React 19，ES modules。
 - 组件使用函数组件与 hooks；保持纯粹和声明式。
-- 若代码库规模增长，将相关文件（组件、测试）分组放置；当前使用扁平 `components/` 结构。
+- 若代码库规模增长，将相关文件（组件、测试）分组放置；当前使用 `src/components/` 扁平结构。
 - 仅在文件中已有此模式时使用 `React.FC`。
 - 优先使用 `const` 而非 `let`，除非需要重新赋值；在提前退出时使用显式 `return`。
 - 保持异步流程可读；优先使用 `async/await` 配合 `try/catch` 和明确的回退。
@@ -106,7 +109,7 @@ TypeScript 配置说明：
 
 类型：
 
-- 将共享类型放在 `types.ts` 中并复用，避免内联 `any`。
+- 将共享类型放在 `src/types.ts` 中并复用，避免内联 `any`。
 - 对对象定义优先使用 `interface` 而非 `type`，除非需要联合/交叉类型。
 - 若必须使用 `any`（第三方响应），限制在解析边界内。
 - 对导出的异步辅助函数优先使用显式返回类型以提高清晰度。
@@ -130,8 +133,8 @@ TypeScript 配置说明：
 
 - 状态：使用 React 内置状态（`useState`、`useReducer`、`useContext`）管理 UI 状态。
 - 数据库响应式：使用 `dexie-react-hooks`（`useLiveQuery`）对 Dexie 进行响应式查询。
-- IndexedDB 通过 `services/db.ts` 中的 Dexie 管理；保持 `initPromise`/`refreshPromise`/`refreshWatchlistPromise` 守卫以避免并发安全问题。
-- 服务：将业务逻辑和格式化工具隔离在 `services/` 中。
+- IndexedDB 通过 `src/services/db.ts` 中的 Dexie 管理；保持 `initPromise`/`refreshPromise`/`refreshWatchlistPromise` 守卫以避免并发安全问题。
+- 服务：将业务逻辑和格式化工具隔离在 `src/services/` 中。
 - 优先使用组件中已有的 session/local storage 模式。
 
 ## 测试指引
@@ -149,23 +152,23 @@ TypeScript 配置说明：
 
 ## AI 持仓分析开发约定
 
-- 核心逻辑集中在 `services/aiAnalysis.ts`，其中包含提示词生成、上下文压缩、结构化结果解析与缓存 key 逻辑。
-- 定期提醒逻辑集中在 `services/aiReminder.ts`，提醒配置持久化到 localStorage；实现时应保持浏览器能力缺失时的优雅降级。
-- `components/AiHoldingsAnalysisModal.tsx` 采用常见聊天应用双栏布局：左侧会话列表，右侧聊天与分析区。新增交互优先保持这一布局，不要退回单栏堆叠式信息结构。
+- 核心逻辑集中在 `src/services/aiAnalysis.ts`，其中包含提示词生成、上下文压缩、结构化结果解析与缓存 key 逻辑。
+- 定期提醒逻辑集中在 `src/services/aiReminder.ts`，提醒配置持久化到 localStorage；实现时应保持浏览器能力缺失时的优雅降级。
+- `src/components/AiHoldingsAnalysisModal.tsx` 采用常见聊天应用双栏布局：左侧会话列表，右侧聊天与分析区。新增交互优先保持这一布局，不要退回单栏堆叠式信息结构。
 - AI 可视化当前使用 ECharts，测试环境（jsdom）不支持 canvas；若新增图表初始化逻辑，必须保留测试环境保护，避免在 jsdom 中直接初始化 canvas 图表。
 - 会话导出支持 JSON / Markdown；若继续扩展 PDF 导出，应优先保证 Markdown/JSON 仍然可用，避免单一格式失败导致导出不可用。
 - AI 分析缓存应基于持仓快照、问题、模式、provider、model 共同生成 key，避免不同上下文缓存串用。
 
 ## I18n
 
-- 使用 `services/i18n.tsx` 中的 `useTranslation().t("common.xxx")`。
+- 使用 `src/services/i18n.tsx` 中的 `useTranslation().t("common.xxx")`。
 - 缺失 key 时返回路径；语言默认为 `zh`，不做持久化。
 
 ## 领域规则（关键）
 
-- EastMoney 净值访问必须通过 `services/api.ts` 中的共享队列序列化；仅 `fetchEastMoneyLatestNav` 和 `fetchHistoricalFundNav` 是安全入口，因为它们通过脚本注入读写全局 `window.apidata`。
+- EastMoney 净值访问必须通过 `src/services/api.ts` 中的共享队列序列化；仅 `fetchEastMoneyLatestNav` 和 `fetchHistoricalFundNav` 是安全入口，因为它们通过脚本注入读写全局 `window.apidata`。
 - EastMoney 脚本注入流程必须在成功和失败时都移除注入的 `<script>` 并重置 `window.apidata`，否则残留数据会污染后续请求。
-- 保持 `services/db.ts` 中的 `initPromise`、`refreshPromise` 和 `refreshWatchlistPromise` 守卫，以避免 StrictMode 双重初始化和刷新写入重叠。
+- 保持 `src/services/db.ts` 中的 `initPromise`、`refreshPromise` 和 `refreshWatchlistPromise` 守卫，以避免 StrictMode 双重初始化和刷新写入重叠。
 - 交易/结算日期必须使用本地 `YYYY-MM-DD` 辅助函数（如 `getLocalDateString`/`getCostDateStr`）而非 UTC `toISOString`，以防止日期边界错误。
 - 日收益有意设限：若 `effectivePctDate <= costDateStr`，即使有行情数据，`dayChangePct`/`dayChangeVal` 也必须强制为 0。
 - 待处理交易在 `refreshFundData` 内部结算；没有独立的后台结算 worker。
@@ -220,8 +223,8 @@ if (fundType === 'QDII' || fundType === 'HK' || fundType === 'ETF') {
 
 ## ErrorBoundary
 
-- `components/ErrorBoundary.tsx`：React class component，捕获子组件渲染错误，显示错误回退 UI（含重试按钮，匹配亮色/暗色主题）。
-- `index.tsx` 中用 `<ErrorBoundary>` 包裹 `<App />`，root 缺失时在 body 内渲染错误提示而非 `throw`。
+- `src/components/ErrorBoundary.tsx`：React class component，捕获子组件渲染错误，显示错误回退 UI（含重试按钮，匹配亮色/暗色主题）。
+- `src/index.tsx` 中用 `<ErrorBoundary>` 包裹 `<App />`，root 缺失时在 body 内渲染错误提示。
 - 任何未捕获异常都会触发 ErrorBoundary，防止 React 18 卸载整个组件树导致白屏。
 - 新增组件或复杂逻辑时应考虑边界情况，但不需要额外包裹 ErrorBoundary（顶层已处理）。
 
@@ -251,7 +254,7 @@ if (fundType === 'QDII' || fundType === 'HK' || fundType === 'ETF') {
 - **红绿颜色分段**：正收益段以红色（`#f87171`）渲染，负收益段以绿色（`#34d399`）渲染，通过单条连续 series 中逐点 `itemStyle.color` 实现。
 - **零轴插值**：当数据穿越 0 轴时，在正负 area series 中各插入一个插值锚点以保持视觉连续性。
 - **基准插值**：基准数据在零轴交叉索引处接收匹配的插值点以保持对齐。
-- 图表配置集中在 `components/fundDetailChartUtils.ts`（`buildChartOption`、`buildFundSeries`、`buildAreaSeries`）。
+- 图表配置集中在 `src/components/fundDetailChartUtils.ts`（`buildChartOption`、`buildFundSeries`、`buildAreaSeries`）。
 - 交易标记（买入/卖出/清仓/锚点）通过 `markPoint` 渲染；锚点日期在 y=0 处显示虚线 `markLine`。
 
 ## Dashboard 领域规则
@@ -273,5 +276,5 @@ if (fundType === 'QDII' || fundType === 'HK' || fundType === 'ETF') {
 
 ## 完成前检查清单
 
-- 运行 `npm run lint` 确认无 lint 错误。
-- 运行 `npm run test` 确认所有测试通过。
+- 运行 `pnpm lint` 确认无 lint 错误。
+- 运行 `pnpm test` 确认所有测试通过。

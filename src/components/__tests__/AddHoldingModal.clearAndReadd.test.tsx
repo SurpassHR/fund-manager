@@ -71,7 +71,7 @@ vi.mock('framer-motion', () => ({
   },
 }));
 
-vi.mock('../hooks/usePrefersReducedMotion', () => ({
+vi.mock('../../hooks/usePrefersReducedMotion', () => ({
   usePrefersReducedMotion: () => false,
 }));
 

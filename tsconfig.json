@@ -20,7 +20,7 @@
     "jsx": "react-jsx",
     "paths": {
       "@/*": [
-        "./*"
+        "./src/*"
       ]
     },
     "allowImportingTsExtensions": true,
@@ -29,7 +29,7 @@
   "exclude": [
     "**/*.test.ts",
     "**/*.test.tsx",
-    "setupTests.ts",
+    "src/setupTests.ts",
     "node_modules",
     "dist",
     "workers"

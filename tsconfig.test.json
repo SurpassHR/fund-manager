@@ -7,9 +7,9 @@
     ]
   },
   "include": [
-    "**/*.test.ts",
-    "**/*.test.tsx",
-    "setupTests.ts"
+    "src/**/*.test.ts",
+    "src/**/*.test.tsx",
+    "src/setupTests.ts"
   ],
   "exclude": [
     "node_modules",

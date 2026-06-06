@@ -6,32 +6,32 @@
 
 <details>
 <summary>桌面端界面展示</summary>
-<img src="assets/screenshot-dark-mode.png" alt="暗色模式截图" />
-<img src="assets/screenshot-dark-fund-detail.png" alt="暗色模式基金详情截图" />
-<img src="assets/screenshot-dark-fund-share-holdings.png" alt="暗色模式基金详情截图" />
-<img src="assets/screenshot-dark-ai-analysis.png" alt="暗色模式基金详情截图" />
+<img src="src/assets/screenshot-dark-mode.png" alt="暗色模式截图" />
+<img src="src/assets/screenshot-dark-fund-detail.png" alt="暗色模式基金详情截图" />
+<img src="src/assets/screenshot-dark-fund-share-holdings.png" alt="暗色模式基金详情截图" />
+<img src="src/assets/screenshot-dark-ai-analysis.png" alt="暗色模式基金详情截图" />
 
-<img src="assets/screenshot-light-mode.png" alt="浅色模式截图" />
-<img src="assets/screenshot-light-fund-detail.png" alt="浅色模式基金详情截图" />
-<img src="assets/screenshot-light-fund-share-holdings.png" alt="浅色模式基金详情截图" />
-<img src="assets/screenshot-light-ai-analysis.png" alt="浅色模式基金详情截图" />
+<img src="src/assets/screenshot-light-mode.png" alt="浅色模式截图" />
+<img src="src/assets/screenshot-light-fund-detail.png" alt="浅色模式基金详情截图" />
+<img src="src/assets/screenshot-light-fund-share-holdings.png" alt="浅色模式基金详情截图" />
+<img src="src/assets/screenshot-light-ai-analysis.png" alt="浅色模式基金详情截图" />
 </details>
 
 <details>
 <summary>移动端界面展示</summary>
 
 <div style="display: flex; gap: 8px; justify-content: center; flex-wrap: wrap;">
-  <img src="assets/mobile-screenshot-dark-mode.png" alt="移动端暗色模式截图" width="24%" />
-  <img src="assets/mobile-screenshot-dark-mode-fund-detail.png" alt="移动端暗色模式基金详情截图" width="24%" />
-  <img src="assets/mobile-screenshot-dark-mode-fund-share-holdings.png" alt="移动端暗色模式基金持仓截图" width="24%" />
-  <img src="assets/mobile-screenshot-dark-mode-index-ticker.png" alt="移动端暗色模式指数行情截图" width="24%" />
+  <img src="src/assets/mobile-screenshot-dark-mode.png" alt="移动端暗色模式截图" width="24%" />
+  <img src="src/assets/mobile-screenshot-dark-mode-fund-detail.png" alt="移动端暗色模式基金详情截图" width="24%" />
+  <img src="src/assets/mobile-screenshot-dark-mode-fund-share-holdings.png" alt="移动端暗色模式基金持仓截图" width="24%" />
+  <img src="src/assets/mobile-screenshot-dark-mode-index-ticker.png" alt="移动端暗色模式指数行情截图" width="24%" />
 </div>
 
 <div style="display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-top: 8px;">
-  <img src="assets/mobile-screenshot-light-mode.png" alt="移动端浅色模式截图" width="24%" />
-  <img src="assets/mobile-screenshot-light-mode-fund-detail.png" alt="移动端浅色模式基金详情截图" width="24%" />
-  <img src="assets/mobile-screenshot-light-mode-fund-share-holdings.png" alt="移动端浅色模式基金持仓截图" width="24%" />
-  <img src="assets/mobile-screenshot-light-mode-index-ticker.png" alt="移动端浅色模式指数行情截图" width="24%" />
+  <img src="src/assets/mobile-screenshot-light-mode.png" alt="移动端浅色模式截图" width="24%" />
+  <img src="src/assets/mobile-screenshot-light-mode-fund-detail.png" alt="移动端浅色模式基金详情截图" width="24%" />
+  <img src="src/assets/mobile-screenshot-light-mode-fund-share-holdings.png" alt="移动端浅色模式基金持仓截图" width="24%" />
+  <img src="src/assets/mobile-screenshot-light-mode-index-ticker.png" alt="移动端浅色模式指数行情截图" width="24%" />
 </div>
 </details>
 
@@ -129,8 +129,8 @@ flowchart TB
 
 ### 架构边界
 
-- **UI 层**：`App.tsx` 负责页面切换、全局导航、移动端安全区域与边缘滑动关闭；各页面和弹窗位于 `components/`，所有 Modal 统一通过 `ModalShell` 接入动画和 overlay 注册。
-- **本地数据层**：`services/db.ts` 通过 Dexie 管理 IndexedDB，包含持仓、账户、自选、总资产快照、定投计划、交易结算和导入导出逻辑；组件通过 `dexie-react-hooks` 响应式读取。
+- **UI 层**：`src/App.tsx` 负责页面切换、全局导航、移动端安全区域与边缘滑动关闭；各页面和弹窗位于 `src/components/`，所有 Modal 统一通过 `ModalShell` 接入动画和 overlay 注册。
+- **本地数据层**：`src/services/db.ts` 通过 Dexie 管理 IndexedDB，包含持仓、账户、自选、总资产快照、定投计划、交易结算和导入导出逻辑；组件通过 `dexie-react-hooks` 响应式读取。
 - **刷新与估值层**：`refreshOrchestrator` 编排持仓刷新、自选刷新、结算和定投；`fundQuotePipeline` 汇总东方财富净值、晨星数据、腾讯 / 同花顺 / 新浪行情，并处理境内、QDII、港股、ETF 和 ETF 联接基金的估值。
 - **AI 与同步层**：`aiAnalysis`、`aiOcr` 基于设置中的 OpenAI / Gemini / OpenAI Compatible 配置工作，并可通过同源 `llm-proxy` Worker 规避 CORS；`gistSync` 使用 GitHub Gist 保存和恢复本地备份。
 - **Worker 层**：`workers/telegram-ai-reminder` 读取 Gist 快照并定时推送 AI 分析；`workers/llm-proxy` 转发模型请求；`workers/presence` 为 Header 在线人数提供统计。
@@ -141,10 +141,10 @@ flowchart TB
 
 ```bash
 # 安装依赖
-npm install
+pnpm install
 
 # 启动开发服务器（默认 http://localhost:3000）
-npm run dev
+pnpm dev
 ```
 
 如需使用 Gemini / DeepSeek API 功能（如提交翻译），请在项目根目录创建 `.env.local` 文件：
@@ -160,10 +160,10 @@ DEEPSEEK_API_KEY=your_deepseek_api_key_here
 
 ```bash
 # 构建生产版本
-npm run build
+pnpm build
 
 # 本地预览构建结果
-npm run preview
+pnpm preview
 ```
 
 ## AI 持仓分析使用说明
@@ -307,40 +307,27 @@ npm run preview
 fund-manager/
 ├── .github/workflows/  # CI/CD 配置
 │   └── deploy.yml      # GitHub Pages 部署工作流
-├── components/         # React 组件、页面、弹窗与组件测试
-│   ├── Dashboard.tsx   # 主面板（持仓概览）
-│   ├── Watchlist.tsx   # 自选功能页
-│   ├── FundDetail.tsx  # 基金详情页
-│   ├── ModalShell.tsx  # 统一弹窗动画与 overlay 容器
-│   ├── Header.tsx      # 顶部导航栏
-│   ├── BottomNav.tsx   # 底部导航栏
-│   ├── transitions/    # 页面转场组件
-│   ├── __tests__/      # 组件测试
-│   └── ...
-├── hooks/              # 共享 React hooks
-├── services/           # 业务逻辑
-│   ├── api.ts          # 数据接口服务（晨星/东方财富/腾讯/同花顺/新浪）
-│   ├── db.ts           # Dexie 本地数据库、结算、刷新、备份导入导出
-│   ├── fundQuotePipeline.ts # 基金净值、估值与分时趋势流水线
-│   ├── aiAnalysis.ts   # AI 持仓分析、提示词、缓存与结构化结果
-│   ├── gistSync/       # GitHub Gist 同步客户端
-│   ├── refresh/        # 刷新状态与编排模块
-│   ├── financeUtils.ts # 金融数据格式计算
-│   └── i18n.tsx        # 国际化上下文
+├── src/                # 前端源码
+│   ├── assets/         # 由 Vite 处理的图片等资源
+│   ├── components/     # React 组件、页面、弹窗与组件测试
+│   ├── hooks/          # 共享 React hooks
+│   ├── services/       # 业务逻辑、API、Dexie、AI 与同步模块
+│   ├── utils/          # 跨组件工具函数
+│   ├── App.tsx         # 应用根组件
+│   ├── index.tsx       # 入口文件
+│   ├── app.css         # Tailwind CSS 入口
+│   ├── setupTests.ts   # Vitest setup
+│   └── types.ts        # TypeScript 类型定义
 ├── workers/            # Cloudflare Worker
 │   ├── telegram-ai-reminder/ # Telegram/QQ 定时 AI 分析推送
 │   ├── llm-proxy/      # 同源 LLM 代理
 │   └── presence/       # 在线人数统计
 ├── docs/               # 设计文档、开发规范与历史方案
 ├── public/             # PWA manifest 等静态资源
-├── utils/              # 跨组件工具函数
-├── App.tsx             # 应用根组件
-├── index.tsx           # 入口文件
 ├── index.html          # HTML 模板
-├── app.css             # Tailwind CSS 入口
-├── types.ts            # TypeScript 类型定义
 ├── vite.config.ts      # Vite 配置
 ├── tsconfig.json       # TypeScript 配置
+├── pnpm-lock.yaml      # pnpm 锁文件
 └── package.json        # 项目配置
 ```
 
