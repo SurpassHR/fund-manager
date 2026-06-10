@@ -87,6 +87,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack, initialShowA
   const [tokenApiState, setTokenApiState] = useState<'idle' | 'checking' | 'valid' | 'invalid'>(
     'idle',
   );
+  const [showGithubToken, setShowGithubToken] = useState(false);
   const [syncGists, setSyncGists] = useState<GistListItem[]>([]);
   const [gistChooserOpen, setGistChooserOpen] = useState(false);
   const [gistChooserMode, setGistChooserMode] = useState<'download' | 'upload'>('download');
@@ -941,13 +942,27 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack, initialShowA
           </div>
 
           <div className="space-y-3">
-            <input
-              type="password"
-              value={githubToken}
-              onChange={(e) => setGithubToken(e.target.value)}
-              placeholder={t('common.githubTokenPlaceholder') || 'ghp_xxx / github_pat_xxx'}
-              className="w-full rounded-2xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] px-4 py-3 text-sm text-[var(--app-shell-ink)] outline-none transition focus:border-[var(--app-shell-line-strong)]"
-            />
+            <div className="relative">
+              <input
+                type={showGithubToken ? 'text' : 'password'}
+                value={githubToken}
+                onChange={(e) => setGithubToken(e.target.value)}
+                placeholder={t('common.githubTokenPlaceholder') || 'ghp_xxx / github_pat_xxx'}
+                className="w-full rounded-2xl border border-[var(--app-shell-line)] bg-[var(--app-shell-panel-strong)] px-4 py-3 pr-12 text-sm text-[var(--app-shell-ink)] outline-none transition focus:border-[var(--app-shell-line-strong)]"
+              />
+              <button
+                type="button"
+                aria-label={
+                  showGithubToken
+                    ? t('common.githubTokenHide') || '隐藏 GitHub Token'
+                    : t('common.githubTokenShow') || '显示 GitHub Token'
+                }
+                onClick={() => setShowGithubToken((prev) => !prev)}
+                className="absolute top-1/2 right-2 inline-flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full text-[var(--app-shell-muted)] transition hover:bg-[var(--app-shell-line)] hover:text-[var(--app-shell-ink)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--app-shell-accent)]"
+              >
+                {showGithubToken ? <Icons.EyeOff size={18} /> : <Icons.Eye size={18} />}
+              </button>
+            </div>
             <p className="text-sm text-[var(--app-shell-muted)]">
               {t('common.githubTokenHelp') || 'Token 仅保存在本地。'}
             </p>

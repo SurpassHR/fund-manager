@@ -5,9 +5,20 @@
  */
 
 import React from 'react';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AssetAllocationCard } from '../AssetAllocationCard';
+
+const mockedDeps = vi.hoisted(() => ({
+  settings: {
+    githubToken: '',
+  },
+  validateGithubTokenFormat: vi.fn((token: string) => ({
+    isValid: token.trim().length > 0,
+    normalizedToken: token.trim(),
+  })),
+  verifyGithubToken: vi.fn(),
+}));
 
 const DEFAULT_PROPS = {
   fundAssets: 100000,
@@ -36,9 +47,24 @@ vi.mock('framer-motion', () => ({
   },
 }));
 
+vi.mock('../../services/SettingsContext', () => ({
+  useSettings: () => mockedDeps.settings,
+}));
+
+vi.mock('../../services/gistSync/index', () => ({
+  validateGithubTokenFormat: mockedDeps.validateGithubTokenFormat,
+  verifyGithubToken: mockedDeps.verifyGithubToken,
+}));
+
 describe('AssetAllocationCard', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockedDeps.settings.githubToken = '';
+    mockedDeps.validateGithubTokenFormat.mockImplementation((token: string) => ({
+      isValid: token.trim().length > 0,
+      normalizedToken: token.trim(),
+    }));
+    mockedDeps.verifyGithubToken.mockResolvedValue({ id: 1, login: 'tester' });
   });
 
   it('渲染总资产数字（未配置时显示基金资产）', () => {
@@ -169,5 +195,42 @@ describe('AssetAllocationCard', () => {
     const eyeBtn = screen.getByLabelText('隐藏金额');
     fireEvent.click(eyeBtn);
     expect(DEFAULT_PROPS.onToggleShowValues).toHaveBeenCalled();
+  });
+
+  it('未填写 GitHub Token 时以灰色提示自动同步未开启', () => {
+    render(<AssetAllocationCard {...DEFAULT_PROPS} />);
+
+    const badge = screen.getByRole('status', {
+      name: 'Gist 自动同步状态：未填写 GitHub Token，自动同步未开启。',
+    });
+    expect(badge).toHaveTextContent('gist自动同步未开启');
+    expect(badge.className).toContain('text-slate-400');
+    expect(mockedDeps.verifyGithubToken).not.toHaveBeenCalled();
+  });
+
+  it('已填写且验证通过的 GitHub Token 以绿色提示自动同步已开启', async () => {
+    mockedDeps.settings.githubToken = 'ghp_abcdefghijklmnopqrstuvwxyz123456';
+
+    render(<AssetAllocationCard {...DEFAULT_PROPS} />);
+
+    const badge = screen.getByRole('status', {
+      name: 'Gist 自动同步状态：GitHub Token 可用，自动同步会在操作静默后执行。',
+    });
+    expect(badge).toHaveTextContent('gist自动同步已开启');
+    expect(badge.className).toContain('text-emerald-400');
+    await waitFor(() => expect(mockedDeps.verifyGithubToken).toHaveBeenCalled());
+  });
+
+  it('已填写但 GitHub Token 验证失败时以红色提示异常', async () => {
+    mockedDeps.settings.githubToken = 'ghp_expiredabcdefghijklmnopqrstuvwxyz';
+    mockedDeps.verifyGithubToken.mockRejectedValue(new Error('expired token'));
+
+    render(<AssetAllocationCard {...DEFAULT_PROPS} />);
+
+    const badge = await screen.findByRole('status', {
+      name: 'Gist 自动同步状态：GitHub Token 验证失败，可能已过期或权限不足。',
+    });
+    expect(badge).toHaveTextContent('gist自动同步异常');
+    expect(badge.className).toContain('text-red-400');
   });
 });

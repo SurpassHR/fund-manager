@@ -5,8 +5,41 @@ import {
   getSignColor,
   formatPct,
 } from '../services/financeUtils';
+import { validateGithubTokenFormat, verifyGithubToken } from '../services/gistSync/index';
+import { useSettings } from '../services/SettingsContext';
 import { Icons } from './Icon';
 import RefreshButton, { type RefreshButtonHandle } from './RefreshButton';
+
+type GistAutoSyncStatus = 'missing' | 'enabled' | 'error';
+
+const GIST_AUTO_SYNC_STATUS_VIEW: Record<
+  GistAutoSyncStatus,
+  {
+    label: string;
+    description: string;
+    badgeClass: string;
+    dotClass: string;
+  }
+> = {
+  missing: {
+    label: 'gist自动同步未开启',
+    description: '未填写 GitHub Token，自动同步未开启。',
+    badgeClass: 'border-slate-400/20 bg-slate-500/10 text-slate-400',
+    dotClass: 'bg-slate-400',
+  },
+  enabled: {
+    label: 'gist自动同步已开启',
+    description: 'GitHub Token 可用，自动同步会在操作静默后执行。',
+    badgeClass: 'border-emerald-500/20 bg-emerald-500/10 text-emerald-400',
+    dotClass: 'bg-emerald-400',
+  },
+  error: {
+    label: 'gist自动同步异常',
+    description: 'GitHub Token 验证失败，可能已过期或权限不足。',
+    badgeClass: 'border-red-500/25 bg-red-500/10 text-red-400',
+    dotClass: 'bg-red-400',
+  },
+};
 
 export interface AssetAllocationCardProps {
   /** 基金资产（持仓总市值） */
@@ -64,12 +97,48 @@ export const AssetAllocationCard: React.FC<AssetAllocationCardProps> = ({
   onOpenTotalAssetsHistory,
   refreshBtnRef,
 }) => {
+  const { githubToken = '' } = useSettings();
   const totalAssets = fundAssets + availableAssets;
 
   // 编辑总资产状态
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState('');
+  const [gistAutoSyncStatus, setGistAutoSyncStatus] = useState<GistAutoSyncStatus>(
+    githubToken.trim() ? 'enabled' : 'missing',
+  );
   const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const token = githubToken.trim();
+    if (!token) {
+      setGistAutoSyncStatus('missing');
+      return;
+    }
+
+    const formattedToken = validateGithubTokenFormat(token);
+    if (!formattedToken.isValid) {
+      setGistAutoSyncStatus('error');
+      return;
+    }
+
+    setGistAutoSyncStatus('enabled');
+    let active = true;
+    verifyGithubToken(formattedToken.normalizedToken)
+      .then(() => {
+        if (active) {
+          setGistAutoSyncStatus('enabled');
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setGistAutoSyncStatus('error');
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [githubToken]);
 
   useEffect(() => {
     if (isEditing && inputRef.current) {
@@ -126,6 +195,7 @@ export const AssetAllocationCard: React.FC<AssetAllocationCardProps> = ({
 
   // 卡片通用样式
   const cardBase = 'glass-card rounded-3xl p-6';
+  const gistAutoSyncBadge = GIST_AUTO_SYNC_STATUS_VIEW[gistAutoSyncStatus];
 
   // 文字色系（浅色模式深色字 / 深色模式浅色字）
   const labelMuted = 'text-slate-400 dark:text-gray-500';
@@ -160,9 +230,14 @@ export const AssetAllocationCard: React.FC<AssetAllocationCardProps> = ({
                 </button>
               </div>
               <div className="flex items-center gap-2">
-                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 text-[10px] font-medium text-emerald-400">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                  数据已同步
+                <span
+                  role="status"
+                  aria-label={`Gist 自动同步状态：${gistAutoSyncBadge.description}`}
+                  title={gistAutoSyncBadge.description}
+                  className={`inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full border px-2.5 py-1 text-[10px] font-medium ${gistAutoSyncBadge.badgeClass}`}
+                >
+                  <span className={`h-1.5 w-1.5 rounded-full ${gistAutoSyncBadge.dotClass}`} />
+                  {gistAutoSyncBadge.label}
                 </span>
                 <RefreshButton ref={refreshBtnRef} onRefresh={onRefresh} size="sm" />
               </div>

@@ -200,6 +200,20 @@ describe('SettingsPage gist sync integration', () => {
     );
   });
 
+  it('通过眼睛按钮查看和隐藏 GitHub Token', async () => {
+    render(<SettingsPage />);
+    fireEvent.click(screen.getByRole('button', { name: 'common.gistSync' }));
+
+    const tokenInput = await screen.findByPlaceholderText('common.githubTokenPlaceholder');
+    expect(tokenInput).toHaveAttribute('type', 'password');
+
+    fireEvent.click(screen.getByRole('button', { name: 'common.githubTokenShow' }));
+    expect(tokenInput).toHaveAttribute('type', 'text');
+
+    fireEvent.click(screen.getByRole('button', { name: 'common.githubTokenHide' }));
+    expect(tokenInput).toHaveAttribute('type', 'password');
+  });
+
   it('opens chooser and handles download callback', async () => {
     render(<SettingsPage />);
 
