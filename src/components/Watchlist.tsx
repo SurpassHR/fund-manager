@@ -14,6 +14,7 @@ import type { SortDropdownOption } from './SortDropdown';
 import { AnimatePresence } from 'framer-motion';
 import { hasTouchMovedBeyondThreshold } from '../services/longPressGesture';
 import { useSettings } from '../services/SettingsContext';
+import { markGistSyncDataChanged } from '../services/gistSync/index';
 import {
   AUTO_REFRESH_INTERVAL_MS,
   AUTO_REFRESH_STALE_MS,
@@ -351,6 +352,7 @@ export const Watchlist: React.FC = () => {
   const handleDelete = async (itemId: number) => {
     if (confirm(t('common.delete') + '?')) {
       await db.watchlists.delete(itemId);
+      markGistSyncDataChanged('watchlist');
     }
     setContextMenu(null);
   };

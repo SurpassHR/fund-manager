@@ -8,6 +8,7 @@ import type { OcrHoldingItem } from '../services/aiOcr';
 import { resolveAiRuntimeConfigByBusiness } from '../services/aiProviderConfig';
 import { searchFunds, fetchFundCommonData } from '../services/api';
 import { db } from '../services/db';
+import { markGistSyncDataChanged } from '../services/gistSync/index';
 import type { Fund } from '../types';
 
 interface ScannerModalProps {
@@ -307,6 +308,7 @@ export const ScannerModal: React.FC<ScannerModalProps> = ({ isOpen, onClose }) =
       }
     }
 
+    markGistSyncDataChanged('scanner-import');
     alert(t('common.importSuccessShort') || '导入完成');
     handleClose();
   };

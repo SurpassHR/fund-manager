@@ -3,6 +3,7 @@ import { db, getSettlementDate } from '../services/db';
 import { fetchFundCommonData, fetchHistoricalFundNavWithDate, searchFunds } from '../services/api';
 import { useTranslation } from '../services/i18n';
 import { roundMoney, roundShares, getEffectiveOperationDate } from '../services/rebalanceUtils';
+import { markGistSyncDataChanged } from '../services/gistSync/index';
 import type { Fund, MorningstarFund, PendingTransaction, WatchlistItem } from '../types';
 import { Icons } from './Icon';
 import { SelectDropdown } from './SelectDropdown';
@@ -390,6 +391,7 @@ export const RebalanceModal: React.FC<RebalanceModalProps> = ({
       });
     });
 
+    markGistSyncDataChanged('rebalance');
     handleClose();
   };
 

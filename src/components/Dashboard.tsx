@@ -52,6 +52,7 @@ import {
   readRefreshLastSuccessAt,
   writeRefreshLastSuccessAt,
 } from '../services/refreshPolicy';
+import { markGistSyncDataChanged } from '../services/gistSync/index';
 import { computeRealizedGain, deriveFundHoldingDisplayMetrics } from '../services/fundDayChange';
 import { getCachedFundStreaks } from '../services/streakCalculator';
 import { AssetAllocationCard } from './AssetAllocationCard';
@@ -792,6 +793,7 @@ export const Dashboard: React.FC = () => {
         addAvailableForSell(marketValue);
       }
       await db.funds.delete(fundId);
+      markGistSyncDataChanged('holding');
     }
     setContextMenu(null);
   };

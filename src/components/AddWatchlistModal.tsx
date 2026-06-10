@@ -8,6 +8,7 @@ import { fetchHistoricalFundNav, fetchHistoricalIndexPrice } from '../services/a
 import { isValidIsoDate } from '../services/dateInput';
 import { pickWatchlistNameFromMorningstar } from '../services/watchlistName';
 import { ModalShell } from './ModalShell';
+import { markGistSyncDataChanged } from '../services/gistSync/index';
 
 interface AddWatchlistModalProps {
   isOpen: boolean;
@@ -140,6 +141,7 @@ export const AddWatchlistModal: React.FC<AddWatchlistModalProps> = ({
           lastUpdate: anchorDate,
         });
       }
+      markGistSyncDataChanged('watchlist');
       handleClose();
     } catch (e) {
       console.error(e);

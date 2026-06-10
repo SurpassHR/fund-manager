@@ -1,5 +1,6 @@
 import { db, getSettlementDate } from './db';
 import { deductAvailableForBuy } from './assetAllocation';
+import { markGistSyncDataChanged } from './gistSync/index';
 import type { InvestmentPlan, InvestmentFrequency, PendingTransaction } from '../types';
 
 const getLocalDateString = () => {
@@ -42,18 +43,25 @@ export const shouldExecuteToday = (
 // === CRUD ===
 
 export const addInvestmentPlan = async (plan: Omit<InvestmentPlan, 'id' | 'createdAt'>) => {
-  return db.investmentPlans.add({
+  const id = await db.investmentPlans.add({
     ...plan,
     createdAt: getLocalDateString(),
   });
+  markGistSyncDataChanged('investment-plan');
+  return id;
 };
 
 export const updateInvestmentPlan = async (id: number, changes: Partial<InvestmentPlan>) => {
-  return db.investmentPlans.update(id, changes);
+  const updated = await db.investmentPlans.update(id, changes);
+  if (updated > 0) {
+    markGistSyncDataChanged('investment-plan');
+  }
+  return updated;
 };
 
 export const deleteInvestmentPlan = async (id: number) => {
-  return db.investmentPlans.delete(id);
+  await db.investmentPlans.delete(id);
+  markGistSyncDataChanged('investment-plan');
 };
 
 export const getActiveInvestmentPlans = async () => {
@@ -86,6 +94,7 @@ export const executeInvestmentPlans = async (): Promise<void> => {
 
       const allFunds = await db.funds.toArray();
       const fundByCode = new Map(allFunds.map((f) => [f.code, f]));
+      let executedCount = 0;
 
       for (const plan of activePlans) {
         if (plan.lastExecutedDate === today) continue;
@@ -117,6 +126,11 @@ export const executeInvestmentPlans = async (): Promise<void> => {
         deductAvailableForBuy(plan.amount);
 
         await db.investmentPlans.update(plan.id!, { lastExecutedDate: today });
+        executedCount++;
+      }
+
+      if (executedCount > 0) {
+        markGistSyncDataChanged('investment-plan');
       }
     } catch (err) {
       console.error('定投计划执行失败', err);
