@@ -12,6 +12,8 @@ const mockedDeps = vi.hoisted(() => ({
   downloadSyncGistContent: vi.fn(),
   createSyncGist: vi.fn(),
   overwriteSyncGist: vi.fn(),
+  getBackupSyncTimestamp: vi.fn(),
+  writeLocalSyncTimestamp: vi.fn(),
   importFundsFromBackupContent: vi.fn(),
   exportFundsToJsonString: vi.fn(),
   t: (k: string) => k,
@@ -123,6 +125,8 @@ vi.mock('../../services/gistSync/index', () => ({
   downloadSyncGistContent: mockedDeps.downloadSyncGistContent,
   createSyncGist: mockedDeps.createSyncGist,
   overwriteSyncGist: mockedDeps.overwriteSyncGist,
+  getBackupSyncTimestamp: mockedDeps.getBackupSyncTimestamp,
+  writeLocalSyncTimestamp: mockedDeps.writeLocalSyncTimestamp,
 }));
 
 vi.mock('../GistSyncChooserCard', () => ({
@@ -157,6 +161,7 @@ describe('SettingsPage gist sync integration', () => {
     );
     mockedDeps.importFundsFromBackupContent.mockResolvedValue({ added: 1, skipped: 0 });
     mockedDeps.exportFundsToJsonString.mockResolvedValue('{"version":1,"funds":[]}');
+    mockedDeps.getBackupSyncTimestamp.mockReturnValue(null);
     mockedDeps.createSyncGist.mockResolvedValue({
       id: 'g-new',
       description: '新建',

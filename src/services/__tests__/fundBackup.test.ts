@@ -46,6 +46,7 @@ describe('fundBackup', () => {
 
     expect(payload.version).toBe(1);
     expect(payload.exportDate).toBe('2026-03-19T00:00:00.000Z');
+    expect(payload.syncUpdatedAt).toBe('2026-03-19T00:00:00.000Z');
     expect(normalized).toHaveLength(1);
     expect(normalized[0]?.code).toBe('000001');
   });

@@ -16,10 +16,12 @@ import {
   downloadSyncGistContent,
   GIST_SYNC_FILENAME,
   GistClientError,
+  getBackupSyncTimestamp,
   listSyncGists,
   overwriteSyncGist,
   validateGithubTokenFormat,
   verifyGithubToken,
+  writeLocalSyncTimestamp,
   type GistListItem,
 } from '../services/gistSync/index';
 import { GistSyncChooserCard } from './GistSyncChooserCard';
@@ -263,12 +265,19 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack, initialShowA
     setSyncBusy(true);
     try {
       const content = await downloadSyncGistContent({ token: githubToken, gistId });
+      const remoteTimestamp = getBackupSyncTimestamp(
+        content,
+        target?.updated_at ?? defaultGistTarget?.updatedAt,
+      );
       const parsedContent = JSON.parse(content) as { investmentProfile?: unknown };
       const importResult = await importFundsFromBackupContent(content, {
         importMode: 'replaceAll',
       });
       if (parsedContent.investmentProfile && typeof parsedContent.investmentProfile === 'object') {
         setInvestmentProfile(parsedContent.investmentProfile);
+      }
+      if (remoteTimestamp) {
+        writeLocalSyncTimestamp(remoteTimestamp.timestamp);
       }
       const selected = target ?? syncGists.find((item) => item.id === gistId);
       if (selected) {
@@ -303,6 +312,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack, initialShowA
     setSyncBusy(true);
     try {
       const backupContent = await exportFundsToJsonString(investmentProfile);
+      const backupTimestamp = getBackupSyncTimestamp(backupContent);
       const saved =
         payload.mode === 'create'
           ? await createSyncGist({
@@ -317,6 +327,9 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onBack, initialShowA
               description: payload.description,
             });
 
+      if (backupTimestamp) {
+        writeLocalSyncTimestamp(backupTimestamp.timestamp);
+      }
       saveDefaultTarget(saved);
       alert(t('common.gistSyncUploadSuccess') || '上传到 gist 成功。');
       setGistChooserOpen(false);

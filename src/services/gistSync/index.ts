@@ -16,3 +16,10 @@ export {
   type GistSyncUploadMode,
   type TokenFormatValidationResult,
 } from './types';
+
+export { getBackupSyncTimestamp, isRemoteBackupNewer } from './metadata';
+export {
+  markGistSyncDataChanged,
+  readLocalSyncTimestamp,
+  writeLocalSyncTimestamp,
+} from './autoSyncState';

@@ -41,6 +41,10 @@ vi.mock('../WelcomeModal', () => ({
   WelcomeModal: () => null,
 }));
 
+vi.mock('../../hooks/useGistAutoSync', () => ({
+  useGistAutoSync: vi.fn(),
+}));
+
 vi.mock('../transitions/AnimatedSwitcher', () => ({
   AnimatedSwitcher: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));

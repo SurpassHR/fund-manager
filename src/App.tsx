@@ -15,6 +15,7 @@ import { EdgeSwipeProvider } from './services/edgeSwipeState';
 import { resetDragState, useEdgeSwipe } from './services/useEdgeSwipe';
 import { closeTopOverlay, getActiveOverlayId } from './services/overlayStack';
 import { useVersionCheck } from './services/versionCheck';
+import { useGistAutoSync } from './hooks/useGistAutoSync';
 
 const SettingsPage = lazy(() =>
   import('./components/SettingsPage').then((m) => ({ default: m.SettingsPage })),
@@ -41,6 +42,7 @@ const AppContent: React.FC = () => {
   const { newVersionAvailable, refreshApp } = useVersionCheck();
   const isDraggingRef = useRef(isDragging);
   const isMobileChromeHiddenRef = useRef(false);
+  useGistAutoSync();
 
   useEffect(() => {
     isDraggingRef.current = isDragging;

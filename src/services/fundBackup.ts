@@ -4,6 +4,7 @@ import type { InvestmentProfileSnapshot } from './aiAnalysis';
 export interface FundBackupPayload {
   version: number;
   exportDate: string;
+  syncUpdatedAt?: string;
   funds: Fund[];
   accounts?: Account[];
   watchlists?: WatchlistItem[];
@@ -166,6 +167,7 @@ export const buildFundBackupPayload = (
   return {
     version: BACKUP_VERSION,
     exportDate,
+    syncUpdatedAt: exportDate,
     funds: funds.map(stripFundId),
     accounts: accounts.map(stripAccountId),
     watchlists: watchlists.map(stripWatchlistId),
