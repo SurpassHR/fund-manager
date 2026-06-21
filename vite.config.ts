@@ -379,13 +379,11 @@ ${subjects}`;
   }
 
   // Serialize commits as JSON for injection
-  const commitsJson = JSON.stringify(
-    commits.slice(0, MAX_COMMITS).map((c) => ({
-      hash: c.hash,
-      subjectZh: c.subjectZh || c.subject,
-      subjectEn: c.subjectEn || c.subject,
-    })),
-  );
+  const commitsData = commits.slice(0, MAX_COMMITS).map((c) => ({
+    hash: c.hash,
+    subjectZh: c.subjectZh || c.subject,
+    subjectEn: c.subjectEn || c.subject,
+  }));
 
   return {
     base: resolvedBase,
@@ -447,7 +445,7 @@ ${subjects}`;
       'process.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY),
       'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY),
       'import.meta.env.VITE_LATEST_COMMIT_HASH': JSON.stringify(commits[0]?.hash || 'unknown'),
-      'import.meta.env.VITE_COMMITS_JSON': JSON.stringify(commitsJson),
+      'import.meta.env.VITE_COMMITS_JSON': JSON.stringify(commitsData),
     },
     resolve: {
       alias: {
