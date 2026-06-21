@@ -278,3 +278,26 @@ if (fundType === 'QDII' || fundType === 'HK' || fundType === 'ETF') {
 
 - 运行 `pnpm lint` 确认无 lint 错误。
 - 运行 `pnpm test` 确认所有测试通过。
+
+## GitHub Pages 部署
+
+部署地址：`https://gp.hrfuqiang.top/fund-manager/`
+
+### 重要配置
+
+- **Vite base**：通过 `VITE_BASE_PATH` 环境变量或 `GITHUB_REPOSITORY` 自动推断，**不要硬编码**
+- **构建输出**：`build.outDir: "dist/fund-manager"`，`upload-pages-artifact` 的 path 必须为 `dist/fund-manager`
+- **自定义域名**：通过用户站点 `SurpassHR.github.io` 管理，**不要**在仓库根目录放 `CNAME` 文件
+- **CNAME 注入**：workflow 中有可选的 CNAME 注入步骤，依赖仓库变量 `vars.PAGES_CNAME`，未设置时不会创建 CNAME
+
+### Workflow 要求
+
+- 必须使用 artifact 管线（`actions/upload-pages-artifact` + `actions/deploy-pages`）
+- Action 版本保持最新（目前：`checkout@v6`, `setup-node@v6`, `upload-pages-artifact@v5`, `deploy-pages@v5`）
+- 部署触发分支：`main` 和 `v2`（默认分支），`v2` 上的 push 自动触发部署
+
+### 红线
+
+- 不要在仓库中放 `CNAME` 文件（旧版 `gh.hrfuqiang.top` 已废弃，域名通过用户站点管理）
+- 不要通过 API 删除 Pages 配置（会导致站点 404 且难以恢复）
+- 不要降级 `actions/deploy-pages` 版本——`@v4` 在 Node 24 下不可用
