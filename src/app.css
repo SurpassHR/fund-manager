@@ -299,14 +299,8 @@ body {
     0 2px 12px rgba(16, 185, 129, 0.04);
   border-top: 1px solid rgba(16, 185, 129, 0.12);
   border-bottom: 1px solid rgba(16, 185, 129, 0.12);
-  --cleared-divider-blur: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-}
-
-@supports (backdrop-filter: blur(1px)) {
-  .cleared-group-divider {
-    backdrop-filter: var(--cleared-divider-blur);
-  }
+  backdrop-filter: blur(12px);
 }
 
 .cleared-group-divider:hover {
@@ -406,14 +400,8 @@ body {
     0 2px 12px rgba(59, 130, 246, 0.03);
   border-top: 1px solid rgba(59, 130, 246, 0.11);
   border-bottom: 1px solid rgba(59, 130, 246, 0.11);
-  --inst-divider-blur: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-}
-
-@supports (backdrop-filter: blur(1px)) {
-  .institution-group-divider {
-    backdrop-filter: var(--inst-divider-blur);
-  }
+  backdrop-filter: blur(12px);
 }
 
 .institution-group-divider:hover {
@@ -498,16 +486,10 @@ body {
 
 /* Glass styles */
 .glass-nav {
-  --glass-nav-blur: blur(20px);
   background: rgba(255, 255, 255, 0.85);
   border: 1px solid rgba(27, 34, 48, 0.06);
   -webkit-backdrop-filter: blur(20px);
-}
-
-@supports (backdrop-filter: blur(1px)) {
-  .glass-nav {
-    backdrop-filter: var(--glass-nav-blur);
-  }
+  backdrop-filter: blur(20px);
 }
 
 .dark .glass-nav {
@@ -516,17 +498,11 @@ body {
 }
 
 .glass-card {
-  --glass-card-blur: blur(12px);
   background: rgba(255, 255, 255, 0.7);
   -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
   border: 1px solid rgba(27, 34, 48, 0.06);
   box-shadow: 0 8px 32px 0 rgba(14, 18, 26, 0.06);
-}
-
-@supports (backdrop-filter: blur(1px)) {
-  .glass-card {
-    backdrop-filter: var(--glass-card-blur);
-  }
 }
 
 .dark .glass-card {
@@ -536,19 +512,13 @@ body {
 }
 
 .modal-shell-backdrop {
-  --modal-shell-backdrop-blur: blur(14px) saturate(1.08);
   background:
     radial-gradient(circle at 20% 0%, rgba(37, 99, 235, 0.13), transparent 28rem),
     radial-gradient(circle at 80% 18%, rgba(22, 119, 255, 0.1), transparent 30rem),
     linear-gradient(135deg, rgba(243, 238, 229, 0.34), rgba(236, 244, 255, 0.2)),
     rgba(18, 24, 38, 0.2);
   -webkit-backdrop-filter: blur(14px) saturate(1.08);
-}
-
-@supports (backdrop-filter: blur(1px)) {
-  .modal-shell-backdrop {
-    backdrop-filter: var(--modal-shell-backdrop-blur);
-  }
+  backdrop-filter: blur(14px) saturate(1.08);
 }
 
 .dark .modal-shell-backdrop {
@@ -559,7 +529,6 @@ body {
 }
 
 .modal-shell-card {
-  --modal-shell-card-blur: blur(24px) saturate(1.16);
   --app-shell-muted: #667085;
   --app-shell-line: rgba(69, 82, 108, 0.14);
   --app-shell-line-strong: rgba(69, 82, 108, 0.24);
@@ -570,16 +539,11 @@ body {
     linear-gradient(145deg, rgba(255, 255, 255, 0.82), rgba(245, 249, 255, 0.56)),
     rgba(248, 251, 255, 0.68);
   -webkit-backdrop-filter: blur(24px) saturate(1.16);
+  backdrop-filter: blur(24px) saturate(1.16);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.86),
     inset 0 -1px 0 rgba(96, 120, 160, 0.1),
     0 28px 90px rgba(32, 41, 58, 0.18);
-}
-
-@supports (backdrop-filter: blur(1px)) {
-  .modal-shell-card {
-    backdrop-filter: var(--modal-shell-card-blur);
-  }
 }
 
 .dark .modal-shell-card {

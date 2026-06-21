@@ -245,7 +245,7 @@ if (fundType === 'QDII' || fundType === 'HK' || fundType === 'ETF') {
 - Vite 配置将最近 5 条 commit 注入 `import.meta.env.VITE_COMMITS_JSON`。
 - Commit subject 翻译使用 Gemini (`GEMINI_API_KEY`)，自动回退到 DeepSeek (`DEEPSEEK_API_KEY`)。两者均不可用时跳过翻译，不使构建失败。
 - `WelcomeModal` 使用 `VITE_LATEST_COMMIT_HASH` + `localStorage.lastSeenVersion`，忽略格式错误的 commit JSON。
-- **Lightning CSS 去重陷阱**：Tailwind v4 的 Lightning CSS 会对源码中值相同的 `backdrop-filter` 与 `-webkit-backdrop-filter` 做语义级去重（解析 CSS 变量和 `calc()` 后比较），构建后仅保留 webkit 前缀版本，导致 Chromium 桌面端静默失效。**解法**：将 unprefixed 版本放入 `@supports (backdrop-filter: blur(1px))` 块内，利用 CSS 作用域隔离阻止跨块去重。主规则保留字面值 webkit 版本，`@supports` 块内通过 `var()` 引用 CSS 变量；Lightning CSS 会在 `@supports` 块内自动补全两种前缀且不去重。
+- **Lightning CSS 去重陷阱（已修复，记录留档）**：Tailwind v4 早期版本中，Lightning CSS 会对同一规则块中值相同的 `backdrop-filter` 与 `-webkit-backdrop-filter` 做语义级去重，构建后仅保留 webkit 前缀版本，导致 Chromium 桌面端静默失效。**旧解法**曾将 unprefixed 版本放入 `@supports (backdrop-filter: blur(1px))` 块内阻止跨块去重。但 Lightning CSS 自动补全前缀时，在 `@supports` 块内也添加了 `-webkit-backdrop-filter: var(...)`（CSS 变量引用），导致 iOS Safari PWA 中 CSS 变量在 `-webkit-backdrop-filter` 中解析失败，模糊效果丢失。**当前方案**：Tailwind v4.1.0+ 的 Lightning CSS 不再对 `-webkit-backdrop-filter` / `backdrop-filter` 做跨属性去重，因此可安全地在同一条规则中直接并列声明两者，无需 `@supports` + CSS 变量技巧。更新于 2026-06-21。
 
 ## FundDetail 图表领域规则
 
