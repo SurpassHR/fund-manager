@@ -562,19 +562,10 @@ body {
     0 32px 100px rgba(0, 0, 0, 0.42);
 }
 
-/* GPU 降级：用户开启"减少动画"或低端设备时，禁用所有 backdrop-filter 模糊
-   这能显著降低 GPU 合成层数量，尤其是 glass-nav（始终可见的 BottomNav blur(20px)） */
-@media (prefers-reduced-motion: reduce) {
-  .glass-nav,
-  .glass-card,
-  .modal-shell-backdrop,
-  .modal-shell-card,
-  .cleared-group-divider,
-  .institution-group-divider {
-    -webkit-backdrop-filter: none;
-    backdrop-filter: none;
-  }
-}
+/* backdrop-filter 不再在 prefers-reduced-motion 中禁用了。
+   Tailwind 的 backdrop-blur-* 不受此查询影响，仅禁用自定义类会导致
+   iOS PWA 上玻璃效果不一致（持仓/BottomNav 无模糊而 Settings 有）。
+   如果 GPU 瓶颈严重，建议全局统一降低 blur 值而非选择性禁用。 */
 
 /* 全局 input 重置 — 移除 WebKit 原生渲染 */
 input,
