@@ -8,12 +8,17 @@ interface CommitEntry {
   subjectEn: string;
 }
 
-// Read commits injected by Vite
+// Read commits injected by Vite (Vite define replaces these with literal expressions)
 const CURRENT_VERSION = import.meta.env.VITE_LATEST_COMMIT_HASH || 'v0.2.0';
 
 let COMMITS: CommitEntry[] = [];
 try {
-  COMMITS = JSON.parse(import.meta.env.VITE_COMMITS_JSON || '[]');
+  const raw = import.meta.env.VITE_COMMITS_JSON;
+  if (Array.isArray(raw)) {
+    COMMITS = raw;
+  } else if (typeof raw === 'string') {
+    COMMITS = JSON.parse(raw);
+  }
 } catch {
   /* ignore */
 }
