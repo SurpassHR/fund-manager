@@ -486,6 +486,13 @@ export const runSettlementPipeline = (options?: RefreshOptions) => {
 
           if (!sourceTx || !targetTx || sourceTx.settled || targetTx.settled) return;
 
+          // 调仓也需等到 T+N 结算日，与基础结算逻辑保持一致
+          if (
+            sourceTx.settlementDate > todayForSettlement ||
+            targetTx.settlementDate > todayForSettlement
+          )
+            return;
+
           const outShares = sourceTx.outShares ?? sourceTx.amount;
           if (outShares <= 0) return;
 

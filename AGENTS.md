@@ -269,6 +269,18 @@ if (fundType === 'QDII' || fundType === 'HK' || fundType === 'ETF') {
 - 日收益由 `effectivePctDate` 驱动，在成本日期之前为零。
 - 待处理交易仅在 `refreshFundData` 刷新期间结算。
 
+### 结算一致性
+
+- `runSettlementPipeline` 中基础结算（买/卖）和调仓结算（transfer）**必须使用相同的到期判断**：两条路径都通过 `tx.settlementDate > todayForSettlement` 做门控，不可旁路。
+- 调仓结算曾使用 `getEffectiveOperationDate` 取操作日净值直接结算（T+0），导致与基础结算（T+1）不同步；已修复为统一检查 `settlementDate`。
+- 调仓结算在门控通过后，仍需通过 `fetchHistoricalFundNavWithDate` 获取操作日净值，仅当净值日期匹配时才执行。
+
+### dayChangeVal 份额保护
+
+- `refreshFundData` 中 `deriveFundIntradayDisplayMetrics` 使用 `fund.holdingShares` 计算 `dayChangeVal`。若结算在此期间减少了份额，后续刷新会用减少后的份额重新计算并**覆盖**正确的全量值。
+- 修复：当 `dayChangePct` 不变但 `|dayChangeVal|` 缩小（≥1e-6），保留旧值（基于全部份额），不覆盖。
+- 测试覆盖：`src/services/__tests__/fundDayChange.test.ts` — 「转出份额后日收益重新计算」describe 块。
+
 ## Git 规范
 
 - 编写清晰、简洁、描述性的 commit message；遵循 Conventional Commits（`<type>(<scope>): <subject>`）。
