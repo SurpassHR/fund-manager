@@ -6,7 +6,7 @@ import { SelectDropdown } from './SelectDropdown';
 import type { Fund, PendingTransaction } from '../types';
 import { parseSellInputToShares } from './adjustPositionUtils';
 import { ModalShell } from './ModalShell';
-import { deductAvailableForBuy, addAvailableForSell } from '../services/assetAllocation';
+import { deductAvailableForBuy } from '../services/assetAllocation';
 import { markGistSyncDataChanged } from '../services/gistSync/index';
 
 interface AdjustPositionModalProps {
@@ -107,14 +107,12 @@ export const AdjustPositionModal: React.FC<AdjustPositionModalProps> = ({
       didUpdateFund = true;
     }
 
-    // 同步调整可用资产：加仓时扣减，减仓时增加
+    // 同步调整可用资产：加仓时从活期可用资金扣减（资金已支出）
     if (type === 'buy') {
       deductAvailableForBuy(val);
-    } else {
-      // 减仓：按当前净值估算到账金额调整可用资产
-      const estimatedAmount = val * (fund?.currentNav ?? 0);
-      addAvailableForSell(estimatedAmount);
     }
+    // 减仓时不再提前增加可用资产——卖出资金在结算确认日才实际到账
+    // 由 runSettlementPipeline 在份额确认后调用 addAvailableForSell
 
     if (didUpdateFund) {
       markGistSyncDataChanged('adjust-position');

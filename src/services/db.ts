@@ -22,6 +22,7 @@ import {
   buildFundBackupPayload,
   parseAndNormalizeFundBackupPayload,
 } from './fundBackup';
+import { addAvailableForSell } from './assetAllocation';
 import {
   computeRealizedGain,
   deriveFundGainActivationState,
@@ -390,6 +391,7 @@ export const runSettlementPipeline = (options?: RefreshOptions) => {
         let newCostPrice = fund.costPrice;
         let newRealizedGain = fund.realizedGain ?? 0;
         let newRealizedGainCost = fund.realizedGainCost ?? 0;
+        let sellProceeds = 0; // 本次结算中所有卖出净到账金额之和
 
         const updatedPending = pending.map((tx) => {
           if (tx.settled) return tx;
@@ -420,6 +422,7 @@ export const runSettlementPipeline = (options?: RefreshOptions) => {
             newRealizedGain += netOutAmount - sellCost;
             newRealizedGainCost += sellCost;
             newShares = Math.max(0, newShares - sellShares);
+            sellProceeds += netOutAmount;
             return { ...tx, settled: true, grossAmount, netOutAmount };
           }
 
@@ -434,6 +437,12 @@ export const runSettlementPipeline = (options?: RefreshOptions) => {
             realizedGain: newRealizedGain,
             realizedGainCost: newRealizedGainCost,
           });
+        }
+
+        // 卖出资金在份额确认日（结算日）才实际到账，加入活期可用资产
+        // 创建卖出交易时不再提前调用 addAvailableForSell（见 AdjustPositionModal）
+        if (sellProceeds > 0) {
+          addAvailableForSell(sellProceeds);
         }
       }
 

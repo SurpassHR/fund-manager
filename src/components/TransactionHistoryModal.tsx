@@ -192,13 +192,17 @@ export const TransactionHistoryModal: React.FC<TransactionHistoryModalProps> = (
         onTransactionsDeleted?.(result.affectedFundIds);
       }
 
-      // 同步调整可用资产：撤销卖出/买入交易时反向操作 availableAssets
+      // 同步调整可用资产：撤销交易时反向调整 availableAssets
       if (tx.type === 'sell') {
-        const sellAmount = tx.settled
-          ? (tx.grossAmount ?? tx.amount * (fund.currentNav ?? 0))
-          : tx.amount * (fund.currentNav ?? 0);
-        if (sellAmount > 0) deductAvailableForBuy(sellAmount);
+        // 卖出资金只在结算日才加入可用资产（见 runSettlementPipeline），
+        // 因此只有在删除已结算卖出记录时才需要反向扣减
+        if (tx.settled) {
+          const sellAmount = tx.grossAmount ?? tx.amount * (fund.currentNav ?? 0);
+          if (sellAmount > 0) deductAvailableForBuy(sellAmount);
+        }
+        // 未结算卖出：创建时未调整可用资产，删除时无需反向操作
       } else if (tx.type === 'buy') {
+        // 买入在创建时即扣减了可用资产（资金已支出），删除时加回
         if (tx.amount > 0) addAvailableForSell(tx.amount);
       }
     } catch (e) {

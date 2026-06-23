@@ -212,7 +212,7 @@ describe('TransactionHistoryModal delete flow', () => {
       });
     });
 
-    it('deducts availableAssets when deleting an unsettled sell', async () => {
+    it('does not adjust availableAssets when deleting an unsettled sell (在途卖出未提前入账)', async () => {
       const sellTx = buildTx({ id: 'sell-1', type: 'sell', amount: 50, settled: false });
       const fund = buildFund([sellTx]);
       fund.currentNav = 1.5;
@@ -229,8 +229,10 @@ describe('TransactionHistoryModal delete flow', () => {
       fireEvent.click(screen.getByRole('button', { name: '撤销' }));
 
       await waitFor(() => {
-        expect(mockedDeps.deductAvailableForBuy).toHaveBeenCalledWith(75); // 50 * 1.5
+        expect(mockedDeps.deletePendingTransaction).toHaveBeenCalled();
       });
+      expect(mockedDeps.deductAvailableForBuy).not.toHaveBeenCalled();
+      expect(mockedDeps.addAvailableForSell).not.toHaveBeenCalled();
     });
 
     it('deducts availableAssets using grossAmount when deleting a settled sell', async () => {
