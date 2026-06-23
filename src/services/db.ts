@@ -682,12 +682,21 @@ export const refreshFundData = (options?: RefreshOptions) => {
           const {
             effectivePctDate,
             dayChangePct: nextDayChangePct,
-            dayChangeVal,
+            dayChangeVal: rawDayChangeVal,
             officialDayChangePct,
             estimatedDayChangePct,
             todayChangeIsEstimated,
             todayChangeUnavailable,
           } = metrics;
+
+          // 防止结算减少份额后 dayChangeVal 被错误覆盖：
+          // 若 dayChangePct 未变但 |dayChangeVal| 缩小，说明份额因结算减少，
+          // 应保留基于全部份额计算的旧值（转出部分的当日收益不应丢失）。
+          const dayChangeVal =
+            isNearlyEqual(fund.dayChangePct, nextDayChangePct) &&
+            Math.abs(fund.dayChangeVal) > Math.abs(rawDayChangeVal) + 1e-6
+              ? fund.dayChangeVal
+              : rawDayChangeVal;
 
           const fundIntradayTrend = intradayTrends.get(candidate.code);
           // 不在 shouldSkipUpdate 中检查 fundIntradayTrend（每分钟变化）
