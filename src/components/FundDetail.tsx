@@ -850,12 +850,7 @@ export const FundDetail: React.FC<FundDetailProps> = ({
   const displayDayGainVal = holdingDisplayMetrics.isInTransit
     ? 0
     : holdingDisplayMetrics.dayChangeBaseNav !== undefined
-      ? displayIsEstimated
-        ? (fund.holdingShares *
-            holdingDisplayMetrics.dayChangeBaseNav *
-            (fund.estimatedDayChangePct ?? 0)) /
-          100
-        : displayMarketValue - fund.holdingShares * holdingDisplayMetrics.dayChangeBaseNav
+      ? (fund.holdingShares * holdingDisplayMetrics.dayChangeBaseNav * displayDayChangePct) / 100
       : displayUsesOfficialPct || displayIsEstimated
         ? inferredDayGainVal
         : fund.dayChangeVal;

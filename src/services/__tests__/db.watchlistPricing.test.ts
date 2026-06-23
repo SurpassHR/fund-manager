@@ -237,8 +237,10 @@ describe('calculateSummary', () => {
       },
     ]);
 
-    expect(summary.totalDayGain).toBeCloseTo(23.45, 6);
+    // T+2 结算日：总持有收益 = 100 * (1.2345 - 1.00) = 23.45
     expect(summary.holdingGain).toBeCloseTo(23.45, 6);
+    // 日收益应为当日涨跌幅：100 * 1.00 * 0.5% = 0.50（仅结算日当日，不含T+1）
+    expect(summary.totalDayGain).toBeCloseTo(0.5, 6);
     // holdingGainPct = holdingGain / enhancedTotal * 100 = 23.45 / 123.45 * 100
     expect(summary.holdingGainPct).toBeCloseTo(18.9955, 4);
   });

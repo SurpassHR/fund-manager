@@ -965,14 +965,19 @@ export const calculateSummary = (funds: Fund[], availableAssets = 0): AssetSumma
 
     // 如果该基金的最后更新日期不是”今天”，说明它的涨跌幅停留在之前的交易日
     // 此时它对”今日总收益”的贡献应当为 0
+    // 当 dayChangeBaseNav 有值时（结算日等于 costPrice），使用百分比公式
+    // baseNav * holdingShares * 今日涨跌幅% 而非减法公式（=totalGain），
+    // 避免将多日累计收益计入今日收益（T+N 基金的结算日需仅计当日涨跌）
+    const dayGainPct =
+      fund.todayChangeIsEstimated
+        ? (fund.estimatedDayChangePct ?? 0)
+        : (fund.officialDayChangePct ?? fund.dayChangePct ?? 0);
     const dayGain =
       !isInTransit && fund.lastUpdate === todayStr
         ? fund.todayChangeUnavailable
           ? 0
           : dayChangeBaseNav !== undefined
-            ? fund.todayChangeIsEstimated
-              ? (fund.holdingShares * dayChangeBaseNav * (fund.estimatedDayChangePct ?? 0)) / 100
-              : marketValue - fund.holdingShares * dayChangeBaseNav
+            ? (fund.holdingShares * dayChangeBaseNav * dayGainPct) / 100
             : fund.todayChangeIsEstimated
               ? (marketValue * (fund.estimatedDayChangePct ?? 0)) / 100
               : fund.dayChangeVal

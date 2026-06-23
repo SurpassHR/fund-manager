@@ -525,7 +525,9 @@ describe('FundDetail history performance source', () => {
     await screen.findByText('1.2345');
 
     expect(screen.queryByText('common.inTransit')).not.toBeInTheDocument();
-    expect(screen.getAllByText('+23.45').length).toBeGreaterThanOrEqual(2);
+    // 结算日 dayGain 应为当日涨跌幅（0.5%×成本价），而非累计收益
+    expect(screen.getAllByText('+0.50').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText('+23.45')).toBeInTheDocument();
   });
 
   it('commonData 日期落后于 fund.lastUpdate 时，应按 fund 快照计算日收益', async () => {

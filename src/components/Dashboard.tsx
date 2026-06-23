@@ -600,13 +600,15 @@ export const Dashboard: React.FC = () => {
     const getSortValue = (fund: Fund) => {
       const { marketValue, totalGain, isInTransit, dayChangeBaseNav } =
         getHoldingDisplayMetrics(fund);
+      const todayGainPct =
+        fund.todayChangeIsEstimated
+          ? (fund.estimatedDayChangePct ?? 0)
+          : (fund.officialDayChangePct ?? fund.dayChangePct ?? 0);
       const displayTodayGainVal =
         isInTransit || fund.todayChangeUnavailable
           ? 0
           : dayChangeBaseNav !== undefined
-            ? fund.todayChangeIsEstimated
-              ? (fund.holdingShares * dayChangeBaseNav * (fund.estimatedDayChangePct ?? 0)) / 100
-              : marketValue - fund.holdingShares * dayChangeBaseNav
+            ? (fund.holdingShares * dayChangeBaseNav * todayGainPct) / 100
             : fund.todayChangeIsEstimated
               ? (marketValue * (fund.estimatedDayChangePct ?? 0)) / 100
               : fund.dayChangeVal;
@@ -1210,12 +1212,10 @@ export const Dashboard: React.FC = () => {
                 isInTransit || fund.todayChangeUnavailable
                   ? 0
                   : dayChangeBaseNav !== undefined
-                    ? fund.todayChangeIsEstimated
-                      ? (fund.holdingShares *
-                          dayChangeBaseNav *
-                          (fund.estimatedDayChangePct ?? 0)) /
-                        100
-                      : holdingValue - fund.holdingShares * dayChangeBaseNav
+                    ? (fund.holdingShares *
+                        dayChangeBaseNav *
+                        todayChangePct) /
+                      100
                     : fund.todayChangePreOpen
                       ? 0
                       : fund.todayChangeIsEstimated
@@ -1525,12 +1525,10 @@ export const Dashboard: React.FC = () => {
                       isInTransit || fund.todayChangeUnavailable
                         ? 0
                         : dayChangeBaseNav !== undefined
-                          ? fund.todayChangeIsEstimated
-                            ? (fund.holdingShares *
-                                dayChangeBaseNav *
-                                (fund.estimatedDayChangePct ?? 0)) /
-                              100
-                            : holdingValue - fund.holdingShares * dayChangeBaseNav
+                          ? (fund.holdingShares *
+                              dayChangeBaseNav *
+                              todayChangePct) /
+                            100
                           : fund.todayChangePreOpen
                             ? 0
                             : fund.todayChangeIsEstimated
