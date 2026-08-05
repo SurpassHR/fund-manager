@@ -592,6 +592,22 @@ const loadEastMoneyApiData = async (url: string): Promise<EastMoneyApiData | nul
   }
 };
 
+// 从 pingzhongdata JS 文本中提取变量值。
+// 格式固定为 `var Data_xxx = [...]` / `var Data_xxx = {...}` / `var xxx = "..."`，
+// 使用正则截取从 = 后到分号前的 JSON 片段再解析，避免 eval 与 CSP 问题。
+const extractPingzhongVar = <T>(text: string, name: string): T | undefined => {
+  const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const regex = new RegExp(`var\\s+${escaped}\\s*=\\s*([^;]+);`);
+  const match = text.match(regex);
+  if (!match?.[1]) return undefined;
+  const raw = match[1].trim();
+  try {
+    return JSON.parse(raw) as T;
+  } catch {
+    return undefined;
+  }
+};
+
 export const fetchEastMoneyPingzhongData = async (
   fundCode: string,
   options?: { force?: boolean },
@@ -623,25 +639,20 @@ export const fetchEastMoneyPingzhongData = async (
         if (!response.ok) return null;
         const text = await response.text();
 
-        // 安全执行 JS 内容以获取全局变量
-        const win = {} as Record<string, unknown>;
-        const fn = new Function(
-          'window',
-          'document',
-          'location',
-          'navigator',
-          text + '\n//# sourceURL=pingzhong-' + fundCode,
-        );
-        fn(win, { createElement: () => ({}) }, {}, {});
-
+        // 用正则提取 JSON 数据（避免 eval / new Function 的 CSP 与作用域问题）
         return {
-          syl_1y: (win.syl_1y as string) ?? '',
-          syl_3y: (win.syl_3y as string) ?? '',
-          syl_6y: (win.syl_6y as string) ?? '',
-          syl_1n: (win.syl_1n as string) ?? '',
-          grandTotal: (win.Data_grandTotal as EastMoneyPingzhongData['grandTotal']) ?? [],
-          netWorthTrend: (win.Data_netWorthTrend as EastMoneyPingzhongData['netWorthTrend']) ?? [],
-          acWorthTrend: (win.Data_ACWorthTrend as EastMoneyPingzhongData['acWorthTrend']) ?? [],
+          syl_1y: extractPingzhongVar<string>(text, 'syl_1y') ?? '',
+          syl_3y: extractPingzhongVar<string>(text, 'syl_3y') ?? '',
+          syl_6y: extractPingzhongVar<string>(text, 'syl_6y') ?? '',
+          syl_1n: extractPingzhongVar<string>(text, 'syl_1n') ?? '',
+          grandTotal:
+            extractPingzhongVar<EastMoneyPingzhongData['grandTotal']>(text, 'Data_grandTotal') ?? [],
+          netWorthTrend:
+            extractPingzhongVar<EastMoneyPingzhongData['netWorthTrend']>(text, 'Data_netWorthTrend') ??
+            [],
+          acWorthTrend:
+            extractPingzhongVar<EastMoneyPingzhongData['acWorthTrend']>(text, 'Data_ACWorthTrend') ??
+            [],
         };
       } catch (error) {
         console.error(`Failed to load pingzhongdata for ${fundCode}`, error);
@@ -667,27 +678,28 @@ export const fetchEastMoneyLatestNav = async (
   navChangePercent: number;
   previousNav?: number;
 } | null> => {
+  const force = options?.force;
   return withCache({
     key: `em-latest-nav:${fundCode}`,
     ttlMs: 30000,
-    force: options?.force,
+    force,
     fetcher: async () => {
-      const data = await loadEastMoneyApiData(
-        `https://fundf10.eastmoney.com/F10DataApi.aspx?type=lsjz&code=${fundCode}&page=1&per=2&rt=${Date.now()}`,
-      );
-      if (!data?.content) return null;
+      const pingzhong = await fetchEastMoneyPingzhongData(fundCode, { force });
+      const trend = pingzhong?.netWorthTrend ?? [];
+      if (trend.length === 0) return null;
       try {
-        const rowRegex =
-          /<tr>\s*<td>(\d{4}-\d{2}-\d{2})<\/td>\s*<td[^>]*>([\d.]+)<\/td>\s*<td[^>]*>[\d.]+<\/td>\s*<td[^>]*>([-\d.]+)%?<\/td>/g;
-        const rows = Array.from(data.content.matchAll(rowRegex));
-        const latestRow = rows[0];
-        if (!latestRow) return null;
-        const previousRow = rows[1];
+        // netWorthTrend 按时间升序排列，取最后两条
+        const latest = trend[trend.length - 1];
+        const previous = trend[trend.length - 2];
+        const toDateStr = (ts: number): string => {
+          const d = new Date(ts);
+          return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        };
         return {
-          navDate: latestRow[1],
-          nav: parseFloat(latestRow[2]),
-          navChangePercent: parseFloat(latestRow[3]) || 0,
-          previousNav: previousRow?.[2] ? parseFloat(previousRow[2]) : undefined,
+          navDate: toDateStr(latest.x),
+          nav: latest.y,
+          navChangePercent: latest.equityReturn || 0,
+          previousNav: previous ? previous.y : undefined,
         };
       } catch (e) {
         console.error(`Error parsing EastMoney data for ${fundCode}`, e);
@@ -721,21 +733,26 @@ export const fetchHistoricalFundNavWithDate = async (
     key: `em-hist-nav-with-date:${fundCode}:${date}`,
     ttlMs: 24 * 60 * 60 * 1000,
     fetcher: async () => {
-      const [year, month, day] = date.split('-').map(Number);
-      const d = new Date(year, month - 1, day - 30);
-      const startDateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-      const data = await loadEastMoneyApiData(
-        `https://fundf10.eastmoney.com/F10DataApi.aspx?type=lsjz&code=${fundCode}&page=1&per=1&sdate=${startDateStr}&edate=${date}&rt=${Date.now()}`,
-      );
-      if (!data?.content) return null;
+      const pingzhong = await fetchEastMoneyPingzhongData(fundCode);
+      const trend = pingzhong?.netWorthTrend ?? [];
+      if (trend.length === 0) return null;
       try {
-        const regex = /<tr>\s*<td>(\d{4}-\d{2}-\d{2})<\/td>\s*<td[^>]*>([\d.]+)<\/td>/;
-        const match = data.content.match(regex);
-        if (!match?.[1] || !match?.[2]) return null;
-        return {
-          navDate: match[1],
-          nav: parseFloat(match[2]),
+        const toDateStr = (ts: number): string => {
+          const d = new Date(ts);
+          return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
         };
+        const targetDate = date;
+        // netWorthTrend 按时间升序，找到目标日期当天或之前最近的记录
+        let match: { nav: number; navDate: string } | null = null;
+        for (const point of trend) {
+          const pointDate = toDateStr(point.x);
+          if (pointDate <= targetDate) {
+            match = { nav: point.y, navDate: pointDate };
+          } else {
+            break;
+          }
+        }
+        return match;
       } catch (e) {
         console.error(`Error parsing historical EastMoney data for ${fundCode} on ${date}`, e);
         return null;
@@ -760,29 +777,20 @@ export const fetchRecentHistoricalNavs = async (
     key: `em-recent-navs:${fundCode}:${count}`,
     ttlMs: 4 * 60 * 60 * 1000,
     fetcher: async () => {
-      const today = new Date();
-      const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-      // 往前推足够天数覆盖 count 个交易日
-      const startDate = new Date(today);
-      startDate.setDate(startDate.getDate() - Math.max(count * 2 + 10, 60));
-      const startDateStr = `${startDate.getFullYear()}-${String(startDate.getMonth() + 1).padStart(2, '0')}-${String(startDate.getDate()).padStart(2, '0')}`;
-
-      const data = await loadEastMoneyApiData(
-        `https://fundf10.eastmoney.com/F10DataApi.aspx?type=lsjz&code=${fundCode}&page=1&per=${count}&sdate=${startDateStr}&edate=${todayStr}&rt=${Date.now()}`,
-      );
-      if (!data?.content) return [];
+      const pingzhong = await fetchEastMoneyPingzhongData(fundCode);
+      const trend = pingzhong?.netWorthTrend ?? [];
+      if (trend.length === 0) return [];
 
       try {
-        const rowRegex = /<tr>\s*<td>(\d{4}-\d{2}-\d{2})<\/td>\s*<td[^>]*>([\d.]+)<\/td>/g;
-        const rows: Array<{ date: string; nav: number }> = [];
-        let match: RegExpExecArray | null;
-        while ((match = rowRegex.exec(data.content)) !== null) {
-          const nav = parseFloat(match[2]);
-          if (!isNaN(nav)) {
-            rows.push({ date: match[1], nav });
-          }
-        }
-        // API 已按日期降序返回，无需再排序
+        const toDateStr = (ts: number): string => {
+          const d = new Date(ts);
+          return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        };
+        // netWorthTrend 按时间升序排列，取最近 count 条反转
+        const rows: Array<{ date: string; nav: number }> = trend
+          .slice(-count)
+          .reverse()
+          .map((point) => ({ date: toDateStr(point.x), nav: point.y }));
         return rows;
       } catch (e) {
         console.error(`解析历史净值数据失败 (${fundCode})`, e);

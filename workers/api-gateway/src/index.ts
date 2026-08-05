@@ -30,6 +30,13 @@ const UPSTREAM: Record<string, string> = {
   '/em-pingzhong': 'https://fund.eastmoney.com/pingzhongdata',
 };
 
+// 各上游需要的 Referer 头（东财类接口校验 Referer，否则返回 404）
+const UPSTREAM_REFERERS: Record<string, string> = {
+  '/morningstar': 'https://www.morningstar.cn/',
+  '/em-f10': 'https://fundf10.eastmoney.com/',
+  '/em-pingzhong': 'https://fund.eastmoney.com/',
+};
+
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), {
     status,
@@ -117,7 +124,7 @@ async function handleRouteProxy(path: string, request: Request): Promise<Respons
       method: request.method,
       headers: {
         'User-Agent': 'Mozilla/5.0 (compatible; FundManager/1.0)',
-        Referer: 'https://www.morningstar.cn/',
+        Referer: UPSTREAM_REFERERS[matchedPrefix] || 'https://example.com/',
         Accept: request.headers.get('Accept') || '*/*',
       },
     });
