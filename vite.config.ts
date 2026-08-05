@@ -423,6 +423,11 @@ ${subjects}`;
             Referer: 'https://danjuanfunds.com/',
           },
         },
+        '/cn-api': {
+          target: 'https://www.morningstar.cn/cn-api',
+          changeOrigin: true,
+          rewrite: (path) => path.replace(/^\/cn-api/, ''),
+        },
       },
     },
     plugins: [

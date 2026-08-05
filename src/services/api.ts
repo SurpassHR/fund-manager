@@ -21,7 +21,9 @@ import {
 } from './constants';
 
 // --- API Configurations ---
-const MORNINGSTAR_API_BASE = 'https://www.morningstar.cn/cn-api';
+const MORNINGSTAR_API_BASE = import.meta.env.DEV
+  ? '/cn-api'
+  : 'https://www.morningstar.cn/cn-api';
 const TENCENT_STOCK_API = 'https://qt.gtimg.cn/q=';
 const THS_QUOTE_API =
   'https://quota-h.10jqka.com.cn/fuyao/common_hq_aggr/quote/v1/multi_last_snapshot';
