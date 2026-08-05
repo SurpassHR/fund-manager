@@ -1,0 +1,7 @@
+name = "fund-manager-api-gateway"
+main = "src/index.ts"
+compatibility_date = "2026-06-01"
+routes = [{ pattern = "gp.hrfuqiang.top/api-gateway/*", zone_name = "hrfuqiang.top" }]
+
+[dev]
+port = 8786

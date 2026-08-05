@@ -21,9 +21,11 @@ import {
 } from './constants';
 
 // --- API Configurations ---
+const API_GATEWAY_BASE = 'https://gp.hrfuqiang.top/api-gateway';
+
 const MORNINGSTAR_API_BASE = import.meta.env.DEV
   ? '/cn-api'
-  : 'https://www.morningstar.cn/cn-api';
+  : `${API_GATEWAY_BASE}/morningstar/cn-api`;
 const TENCENT_STOCK_API = 'https://qt.gtimg.cn/q=';
 const THS_QUOTE_API =
   'https://quota-h.10jqka.com.cn/fuyao/common_hq_aggr/quote/v1/multi_last_snapshot';
@@ -125,9 +127,7 @@ type SinaFundTopHoldResponse = {
   };
 };
 
-type EastMoneyWindow = Window & {
-  apidata?: EastMoneyApiData;
-};
+
 
 type CallbackWindow = Window & Record<string, (json: EastMoneyKlineResponse) => void>;
 type SinaFundTopHoldCallbackMap = Record<
@@ -566,67 +566,30 @@ export const searchFunds = async (query: string): Promise<MorningstarResponse | 
 // --- EastMoney API Functions ---
 
 // 使用队列严格控制并发，防止污染唯一的全局变量 window.apidata
-let eastMoneyQueue = Promise.resolve();
-
-const PINGZHONG_GLOBALS = [
-  'ishb',
-  'fS_name',
-  'fS_code',
-  'fund_sourceRate',
-  'fund_Rate',
-  'fund_minsg',
-  'stockCodes',
-  'zqCodes',
-  'stockCodesNew',
-  'zqCodesNew',
-  'syl_1n',
-  'syl_6y',
-  'syl_3y',
-  'syl_1y',
-  'Data_fundSharesPositions',
-  'Data_netWorthTrend',
-  'Data_ACWorthTrend',
-  'Data_grandTotal',
-  'Data_rateInSimilarType',
-  'Data_rateInSimilarPersent',
-  'Data_fluctuationScale',
-  'Data_holderStructure',
-  'Data_assetAllocation',
-  'Data_performanceEvaluation',
-  'Data_currentFundManager',
-  'Data_buySedemption',
-  'swithSameType',
-] as const;
-
 const loadEastMoneyApiData = async (url: string): Promise<EastMoneyApiData | null> => {
-  return await new Promise((resolve) => {
-    eastMoneyQueue = eastMoneyQueue.then(() => {
-      return new Promise<void>((innerResolve) => {
-        const script = document.createElement('script');
-        script.src = url;
-        script.referrerPolicy = 'no-referrer';
+  // 生产环境通过 API 网关代理解决 OpaqueResponseBlocking 问题
+  // 开发环境直接走 Vite 代理（已配置 /em-f10 代理时使用，否则直接请求）
+  const fetchUrl = import.meta.env.PROD
+    ? url.replace('https://fundf10.eastmoney.com/F10DataApi.aspx', `${API_GATEWAY_BASE}/em-f10`)
+    : url;
 
-        const finish = (result: EastMoneyApiData | null) => {
-          if (document.head.contains(script)) {
-            document.head.removeChild(script);
-          }
-          (window as EastMoneyWindow).apidata = undefined;
-          resolve(result);
-          innerResolve();
-        };
-
-        script.onload = () => {
-          finish((window as EastMoneyWindow).apidata || null);
-        };
-
-        script.onerror = () => {
-          finish(null);
-        };
-
-        document.head.appendChild(script);
-      });
+  try {
+    const response = await fetch(fetchUrl, {
+      headers: {
+        Referer: 'https://fundf10.eastmoney.com/',
+      },
     });
-  });
+    if (!response.ok) return null;
+    const text = await response.text();
+    // 返回格式: var apidata= {...HTML content...}
+    const prefix = 'var apidata=';
+    const content = text.startsWith(prefix) ? text.slice(prefix.length).trim() : text.trim();
+    if (!content) return null;
+    return { content };
+  } catch (error) {
+    console.error('loadEastMoneyApiData failed:', error);
+    return null;
+  }
 };
 
 export const fetchEastMoneyPingzhongData = async (
@@ -638,79 +601,52 @@ export const fetchEastMoneyPingzhongData = async (
     ttlMs: 30 * 60 * 1000,
     force: options?.force,
     fetcher: async () => {
-      return new Promise<EastMoneyPingzhongData | null>((resolve) => {
-        eastMoneyQueue = eastMoneyQueue.then(() => {
-          return new Promise<void>((innerResolve) => {
-            const now = new Date();
-            const v = [
-              now.getFullYear(),
-              String(now.getMonth() + 1).padStart(2, '0'),
-              String(now.getDate()).padStart(2, '0'),
-              String(now.getHours()).padStart(2, '0'),
-              String(now.getMinutes()).padStart(2, '0'),
-              String(now.getSeconds()).padStart(2, '0'),
-            ].join('');
+      // 生产环境通过 API 网关代理；开发环境直连
+      // 注意：pingzhongdata 服务器没有 CORS 头，开发环境也通过代理
+      const now = new Date();
+      const v = [
+        now.getFullYear(),
+        String(now.getMonth() + 1).padStart(2, '0'),
+        String(now.getDate()).padStart(2, '0'),
+        String(now.getHours()).padStart(2, '0'),
+        String(now.getMinutes()).padStart(2, '0'),
+        String(now.getSeconds()).padStart(2, '0'),
+      ].join('');
 
-            const script = document.createElement('script');
-            script.src = `https://fund.eastmoney.com/pingzhongdata/${fundCode}.js?v=${v}`;
-            script.referrerPolicy = 'no-referrer';
+      const pingzhongUrl = `https://fund.eastmoney.com/pingzhongdata/${fundCode}.js?v=${v}`;
+      const fetchUrl = import.meta.env.PROD
+        ? `${API_GATEWAY_BASE}/em-pingzhong/${fundCode}.js?v=${v}`
+        : pingzhongUrl;
 
-            const win = window as unknown as Window &
-              Record<string, unknown> & {
-                syl_1y?: string;
-                syl_3y?: string;
-                syl_6y?: string;
-                syl_1n?: string;
-                Data_grandTotal?: EastMoneyPingzhongData['grandTotal'];
-                Data_netWorthTrend?: EastMoneyPingzhongData['netWorthTrend'];
-                Data_ACWorthTrend?: EastMoneyPingzhongData['acWorthTrend'];
-              };
+      try {
+        const response = await fetch(fetchUrl);
+        if (!response.ok) return null;
+        const text = await response.text();
 
-            const cleanup = () => {
-              if (document.head.contains(script)) {
-                document.head.removeChild(script);
-              }
-              for (const key of PINGZHONG_GLOBALS) {
-                try {
-                  delete win[key];
-                } catch {
-                  // noop
-                }
-              }
-            };
+        // 安全执行 JS 内容以获取全局变量
+        const win = {} as Record<string, unknown>;
+        const fn = new Function(
+          'window',
+          'document',
+          'location',
+          'navigator',
+          text + '\n//# sourceURL=pingzhong-' + fundCode,
+        );
+        fn(win, { createElement: () => ({}) }, {}, {});
 
-            const finish = (result: EastMoneyPingzhongData | null) => {
-              cleanup();
-              resolve(result);
-              innerResolve();
-            };
-
-            script.onload = () => {
-              try {
-                finish({
-                  syl_1y: win.syl_1y ?? '',
-                  syl_3y: win.syl_3y ?? '',
-                  syl_6y: win.syl_6y ?? '',
-                  syl_1n: win.syl_1n ?? '',
-                  grandTotal: win.Data_grandTotal ?? [],
-                  netWorthTrend: win.Data_netWorthTrend ?? [],
-                  acWorthTrend: win.Data_ACWorthTrend ?? [],
-                });
-              } catch (error) {
-                console.error(`Error reading pingzhongdata for ${fundCode}`, error);
-                finish(null);
-              }
-            };
-
-            script.onerror = () => {
-              console.error(`Failed to load pingzhongdata script for ${fundCode}`);
-              finish(null);
-            };
-
-            document.head.appendChild(script);
-          });
-        });
-      });
+        return {
+          syl_1y: (win.syl_1y as string) ?? '',
+          syl_3y: (win.syl_3y as string) ?? '',
+          syl_6y: (win.syl_6y as string) ?? '',
+          syl_1n: (win.syl_1n as string) ?? '',
+          grandTotal: (win.Data_grandTotal as EastMoneyPingzhongData['grandTotal']) ?? [],
+          netWorthTrend: (win.Data_netWorthTrend as EastMoneyPingzhongData['netWorthTrend']) ?? [],
+          acWorthTrend: (win.Data_ACWorthTrend as EastMoneyPingzhongData['acWorthTrend']) ?? [],
+        };
+      } catch (error) {
+        console.error(`Failed to load pingzhongdata for ${fundCode}`, error);
+        return null;
+      }
     },
     shouldCache: (value) => value !== null,
   });
